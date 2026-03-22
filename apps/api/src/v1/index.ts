@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { requestLoggingMiddleware } from "@/logging";
+import analytics from "@/v1/analytics";
 import { authenticate } from "@/v1/auth";
 import sessions from "@/v1/sessions";
 import sessionAttempts from "@/v1/sessions/attempts";
@@ -14,6 +15,7 @@ v1.use(requestLoggingMiddleware());
 v1.use(authenticate);
 
 // v1 routes
+v1.route("/analytics", analytics);
 v1.route("/events", events);
 v1.route("/sessions", sessions);
 v1.route("/sessions/attempts", sessionAttempts);

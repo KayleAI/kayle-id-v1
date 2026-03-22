@@ -35,6 +35,7 @@ import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhoo
 import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
 import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
+import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
 
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
@@ -164,6 +165,11 @@ const ApiApiAuthSplatRoute = ApiApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApiAnalyticsSplatRoute = ApiApiAnalyticsSplatRouteImport.update({
+  id: '/_api/api/analytics/$',
+  path: '/api/analytics/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/api-keys': typeof AppApiKeysIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/account': typeof AuthAccountIndexRoute
+  '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/api-keys': typeof AppApiKeysIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/account': typeof AuthAccountIndexRoute
+  '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_auth/account/': typeof AuthAccountIndexRoute
+  '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
   '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/webhooks'
     | '/account'
+    | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
     | '/api/webhooks/$'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/webhooks'
     | '/account'
+    | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
     | '/api/webhooks/$'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/_app/api-keys/'
     | '/_app/webhooks/'
     | '/_auth/account/'
+    | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
     | '/_api/api/webhooks/$'
@@ -326,6 +338,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
   ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
   ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute
@@ -515,6 +528,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_api/api/analytics/$': {
+      id: '/_api/api/analytics/$'
+      path: '/api/analytics/$'
+      fullPath: '/api/analytics/$'
+      preLoaderRoute: typeof ApiApiAnalyticsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -595,6 +615,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
   ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,
   ApiApiWebhooksSplatRoute: ApiApiWebhooksSplatRoute,

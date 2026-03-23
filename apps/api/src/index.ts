@@ -4,6 +4,8 @@ import { cors } from "hono/cors";
 import { config } from "@/config";
 import { requestLoggingMiddleware } from "@/logging";
 import v1 from "@/v1";
+import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
+import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import verify from "@/v1/verify";
 import { processDueWebhookDeliveries } from "@/v1/webhooks/deliveries/service";
 import auth from "./auth";
@@ -109,10 +111,16 @@ app.get("/reference", Scalar({ url: "/openapi" }));
 const worker = Object.assign(app, {
   fetch: app.fetch.bind(app),
   scheduled: async (
-    _controller: ScheduledController,
+    controller: ScheduledController,
     env: CloudflareBindings,
     _executionCtx: ExecutionContext
   ) => {
+    if (shouldRunExpiredSessionNormalization(controller.scheduledTime)) {
+      await normalizeExpiredVerificationSessions({
+        now: new Date(controller.scheduledTime),
+      });
+    }
+
     await processDueWebhookDeliveries({
       authSecret: env.AUTH_SECRET,
     });

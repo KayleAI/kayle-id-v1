@@ -140,25 +140,6 @@ final class VerificationSession: ObservableObject {
   func updatePhase(_ phase: AttemptPhase, error: String? = nil) async {
     queuePhaseUpdate(phase, error: error)
   }
-
-  /// Upload encrypted data to the relay.
-  /// This should be called immediately after each phase completes.
-  func uploadData(type: String, data: Data) async throws {
-    guard let webSocketService else {
-      throw VerificationError.notInitialized
-    }
-
-    switch type {
-    case "dg1":
-      try await webSocketService.sendData(kind: .dg1, raw: data)
-    case "dg2":
-      try await webSocketService.sendData(kind: .dg2, raw: data)
-    case "sod":
-      try await webSocketService.sendData(kind: .sod, raw: data)
-    default:
-      break
-    }
-  }
   
   /// Upload MRZ data immediately after MRZ scan completes.
   func uploadMRZData() async throws {
@@ -237,18 +218,6 @@ final class VerificationSession: ObservableObject {
     }
   }
   
-  /// Upload selfie data immediately after selfie capture completes.
-  func uploadSelfieData() async throws {
-    guard !selfieImages.isEmpty else {
-      throw VerificationError.notInitialized
-    }
-
-    let total = selfieImages.count
-    for (index, image) in selfieImages.enumerated() {
-      _ = try await sendSelfieImage(image, index: index, total: total)
-    }
-  }
-
   /// Send a single selfie image immediately after capture.
   func sendSelfieImage(_ image: UIImage, index: Int, total: Int) async throws -> Bool {
     try await waitForSelfieUploadTurn()

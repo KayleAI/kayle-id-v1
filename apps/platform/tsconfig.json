@@ -1,12 +1,26 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
     "module": "ESNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["./cloudflare-env.d.ts", "node", "vite/client"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "./cloudflare-env.d.ts",
+      "node",
+      "vite/client"
+    ],
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -19,10 +33,16 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@api/shared": ["../api/src/shared"]
+      "*": [
+        "./*"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "@api/shared": [
+        "../api/src/shared"
+      ]
     }
   }
 }

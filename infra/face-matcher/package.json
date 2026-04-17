@@ -1,5 +1,6 @@
 {
   "name": "kayle-id-face-matcher",
+  "version": "1.0.5",
   "type": "module",
   "scripts": {
     "dev": "./scripts/dev-with-healthcheck.sh",

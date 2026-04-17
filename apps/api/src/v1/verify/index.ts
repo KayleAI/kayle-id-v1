@@ -8,6 +8,7 @@ import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
 import { webSocketErrorResponse } from "./utils";
+import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
 import { configureVerifyAssetFetcherFromEnv } from "./verify-assets";
 
 const verify = new Hono<{ Bindings: CloudflareBindings }>();
@@ -122,6 +123,7 @@ verify.get(
   }),
   async (c) => {
     configureVerifyAssetFetcherFromEnv(c.env);
+    configurePkdTrustBundleLoaderFromEnv(c.env);
 
     if (c.req.header("upgrade")?.toLowerCase() !== "websocket") {
       return c.json(

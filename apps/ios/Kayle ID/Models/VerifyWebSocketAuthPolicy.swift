@@ -381,13 +381,33 @@ nonisolated func optionalShareRequestFields(
   }
 }
 
-nonisolated func displayNameForShareField(_ key: String) -> String {
+nonisolated func displayNameForShareField(
+  _ key: String,
+  previewContext: VerifySharePreviewContext? = nil,
+  referenceDate: Date = Date()
+) -> String {
   if let displayName = shareFieldDisplayName(key) {
     return displayName
   }
 
-  if let suffix = key.split(separator: "_").last, key.hasPrefix("age_over_") {
-    return "Over \(suffix)"
+  if let threshold = parseAgeOverThreshold(key) {
+    if
+      let birthDate = previewContext?.birthDate,
+      let parsedBirthDate = parseSharePreviewDate(
+        birthDate,
+        key: "date_of_birth",
+        referenceDate: referenceDate
+      )
+    {
+      let meetsThreshold = ageInYears(
+        from: parsedBirthDate,
+        referenceDate: referenceDate
+      ) >= threshold
+
+      return meetsThreshold ? "Over \(threshold)" : "Under \(threshold)"
+    }
+
+    return "Over \(threshold)"
   }
 
   return key
@@ -423,6 +443,19 @@ nonisolated private func isISODateText(_ value: String) -> Bool {
 
 nonisolated private func isCompactDigitDateText(_ value: String, expectedCount: Int) -> Bool {
   value.count == expectedCount && value.allSatisfy(isAsciiDigit)
+}
+
+nonisolated private func parseAgeOverThreshold(_ value: String) -> Int? {
+  guard value.hasPrefix("age_over_") else {
+    return nil
+  }
+
+  let thresholdText = String(value.dropFirst("age_over_".count))
+  guard !thresholdText.isEmpty, thresholdText.allSatisfy(isAsciiDigit) else {
+    return nil
+  }
+
+  return Int(thresholdText)
 }
 
 nonisolated private func parseFourDigitYearDate(_ value: String) -> Date? {
@@ -493,21 +526,34 @@ nonisolated private func parseMRZDate(
   return components.date
 }
 
-nonisolated private func formatDisplayDate(_ value: String, key: String) -> String? {
-  let nowYear = Calendar(identifier: .gregorian).component(.year, from: Date())
-  let parsedDate =
-    parseFourDigitYearDate(value)
-    ?? {
-      if key == "date_of_birth" {
-        return parseMRZDate(value, yearRange: (nowYear - 130)...nowYear)
-      }
+nonisolated private func parseSharePreviewDate(
+  _ value: String,
+  key: String,
+  referenceDate: Date = Date()
+) -> Date? {
+  let nowYear = Calendar(identifier: .gregorian).component(.year, from: referenceDate)
 
-      if key == "document_expiry_date" {
-        return parseMRZDate(value, yearRange: (nowYear - 50)...(nowYear + 50))
-      }
+  if let parsedDate = parseFourDigitYearDate(value) {
+    return parsedDate
+  }
 
-      return nil
-    }()
+  if key == "date_of_birth" {
+    return parseMRZDate(value, yearRange: (nowYear - 130)...nowYear)
+  }
+
+  if key == "document_expiry_date" {
+    return parseMRZDate(value, yearRange: (nowYear - 50)...(nowYear + 50))
+  }
+
+  return nil
+}
+
+nonisolated private func formatDisplayDate(
+  _ value: String,
+  key: String,
+  referenceDate: Date = Date()
+) -> String? {
+  let parsedDate = parseSharePreviewDate(value, key: key, referenceDate: referenceDate)
 
   guard let parsedDate else {
     return nil
@@ -519,6 +565,35 @@ nonisolated private func formatDisplayDate(_ value: String, key: String) -> Stri
   formatter.timeZone = TimeZone(secondsFromGMT: 0)
   formatter.dateFormat = "dd/MM/yyyy"
   return formatter.string(from: parsedDate)
+}
+
+nonisolated private func ageInYears(from birthDate: Date, referenceDate: Date) -> Int {
+  var calendar = Calendar(identifier: .gregorian)
+  calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+
+  let birthDateComponents = calendar.dateComponents([.year, .month, .day], from: birthDate)
+  let referenceDateComponents = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+
+  guard
+    let birthYear = birthDateComponents.year,
+    let birthMonth = birthDateComponents.month,
+    let birthDay = birthDateComponents.day,
+    let referenceYear = referenceDateComponents.year,
+    let referenceMonth = referenceDateComponents.month,
+    let referenceDay = referenceDateComponents.day
+  else {
+    return 0
+  }
+
+  var age = referenceYear - birthYear
+  let monthDelta = referenceMonth - birthMonth
+  let dayDelta = referenceDay - birthDay
+
+  if monthDelta < 0 || (monthDelta == 0 && dayDelta < 0) {
+    age -= 1
+  }
+
+  return age
 }
 
 nonisolated private func formatSex(_ value: String) -> String {
@@ -536,7 +611,8 @@ nonisolated private func formatSex(_ value: String) -> String {
 
 nonisolated func shareFieldDetailText(
   _ field: VerifyShareRequestField,
-  previewContext: VerifySharePreviewContext?
+  previewContext: VerifySharePreviewContext?,
+  referenceDate: Date = Date()
 ) -> String {
   let key = field.key
 
@@ -556,7 +632,11 @@ nonisolated func shareFieldDetailText(
   case "date_of_birth":
     if
       let birthDate = previewContext?.birthDate,
-      let formattedDate = formatDisplayDate(birthDate, key: key)
+      let formattedDate = formatDisplayDate(
+        birthDate,
+        key: key,
+        referenceDate: referenceDate
+      )
     {
       return formattedDate
     }
@@ -569,7 +649,11 @@ nonisolated func shareFieldDetailText(
   case "document_expiry_date":
     if
       let expiryDate = previewContext?.expiryDate,
-      let formattedDate = formatDisplayDate(expiryDate, key: key)
+      let formattedDate = formatDisplayDate(
+        expiryDate,
+        key: key,
+        referenceDate: referenceDate
+      )
     {
       return formattedDate
     }
@@ -583,8 +667,26 @@ nonisolated func shareFieldDetailText(
   case "kayle_human_id":
     return "Reserved placeholder for a future human identifier."
   default:
-    if let suffix = key.split(separator: "_").last, key.hasPrefix("age_over_") {
-      return "Verified as over \(suffix)."
+    if let threshold = parseAgeOverThreshold(key) {
+      if
+        let birthDate = previewContext?.birthDate,
+        let parsedBirthDate = parseSharePreviewDate(
+          birthDate,
+          key: "date_of_birth",
+          referenceDate: referenceDate
+        )
+      {
+        let meetsThreshold = ageInYears(
+          from: parsedBirthDate,
+          referenceDate: referenceDate
+        ) >= threshold
+
+        return meetsThreshold
+          ? "Will share that you meet the \(threshold)+ age requirement."
+          : "Will share that you do not meet the \(threshold)+ age requirement."
+      }
+
+      return "Shares whether you meet the \(threshold)+ age requirement."
     }
 
     return field.reason

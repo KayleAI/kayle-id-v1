@@ -52,9 +52,9 @@ describe("/v1/webhooks/endpoints", () => {
 
     expect(payload.error).toBeNull();
     expect(payload.data.endpoint.name).toBe("Primary verification webhook");
-    expect(payload.data.endpoint.subscribed_event_types).toEqual(
-      SUPPORTED_WEBHOOK_EVENT_TYPES
-    );
+    expect(payload.data.endpoint.subscribed_event_types).toEqual([
+      ...SUPPORTED_WEBHOOK_EVENT_TYPES,
+    ]);
     expect(payload.data.signing_secret.startsWith("whsec_")).toBeTrue();
     expect(payload.data.signing_secret).toHaveLength(38);
 
@@ -81,9 +81,9 @@ describe("/v1/webhooks/endpoints", () => {
 
     expect(getPayload.data.id).toBe(payload.data.endpoint.id);
     expect(getPayload.data.name).toBe("Primary verification webhook");
-    expect(getPayload.data.subscribed_event_types).toEqual(
-      SUPPORTED_WEBHOOK_EVENT_TYPES
-    );
+    expect(getPayload.data.subscribed_event_types).toEqual([
+      ...SUPPORTED_WEBHOOK_EVENT_TYPES,
+    ]);
     expect("signing_secret" in getPayload.data).toBeFalse();
   });
 
@@ -287,9 +287,9 @@ describe("/v1/webhooks/endpoints", () => {
     );
     expect(updatePayload.data.enabled).toBeFalse();
     expect(updatePayload.data.disabled_at).toBeString();
-    expect(updatePayload.data.subscribed_event_types).toEqual(
-      UPDATED_WEBHOOK_EVENT_TYPES
-    );
+    expect(updatePayload.data.subscribed_event_types).toEqual([
+      ...UPDATED_WEBHOOK_EVENT_TYPES,
+    ]);
 
     const listResponse = await app.request(
       "/v1/webhooks/endpoints?enabled=false&limit=10",

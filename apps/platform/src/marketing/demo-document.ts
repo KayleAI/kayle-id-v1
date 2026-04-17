@@ -274,15 +274,12 @@ export function parseDemoDecryptedWebhook(
   payload: string | null
 ): DemoDecryptedWebhook | null {
   const parsed = parseDemoWebhookPayload(payload);
-  const claims =
-    parsed && isRecord(parsed.data.claims) ? parsed.data.claims : null;
-
-  if (!claims) {
+  if (!(parsed && isRecord(parsed.data.claims))) {
     return null;
   }
 
   return {
-    claims,
+    claims: parsed.data.claims,
     contractVersion:
       typeof parsed.metadata?.contract_version === "number"
         ? parsed.metadata.contract_version

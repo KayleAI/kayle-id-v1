@@ -233,7 +233,7 @@ export function parseJwkInput(input: string): JsonWebKey {
   return parsed as JsonWebKey;
 }
 
-function decodeBase64ToBytes(input: string): Uint8Array {
+function decodeBase64ToArrayBuffer(input: string): ArrayBuffer {
   const decoded = atob(input);
   const bytes = new Uint8Array(decoded.length);
 
@@ -241,7 +241,7 @@ function decodeBase64ToBytes(input: string): Uint8Array {
     bytes[index] = character.charCodeAt(0);
   }
 
-  return bytes;
+  return bytes.buffer.slice(0);
 }
 
 function isPemPublicKey(input: string): boolean {
@@ -266,7 +266,7 @@ async function parsePemPublicKeyInput(input: string): Promise<JsonWebKey> {
   try {
     cryptoKey = await crypto.subtle.importKey(
       "spki",
-      decodeBase64ToBytes(normalized),
+      decodeBase64ToArrayBuffer(normalized),
       {
         name: "RSA-OAEP",
         hash: "SHA-256",

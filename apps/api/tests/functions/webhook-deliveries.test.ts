@@ -419,7 +419,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 
   let capturedSignature: string | null = null;
   let capturedContentType: string | null = null;
-  let capturedEventType: string | null = null;
+  let capturedEventType = "";
   let capturedBody = "";
 
   globalThis.fetch = mock(
@@ -427,7 +427,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
       const request = new Request("https://example.com/webhooks/send", init);
       capturedSignature = request.headers.get("X-Kayle-Signature");
       capturedContentType = request.headers.get("Content-Type");
-      capturedEventType = request.headers.get("X-Kayle-Event");
+      capturedEventType = request.headers.get("X-Kayle-Event") ?? "";
       capturedBody = await request.text();
 
       return new Response(null, {

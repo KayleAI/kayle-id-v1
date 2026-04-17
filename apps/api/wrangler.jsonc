@@ -42,7 +42,6 @@
     {
       "binding": "STORAGE",
       "bucket_name": "kayle-id-r2",
-      "preview_bucket_name": "kayle-id-r2-preview",
       "remote": false
     }
   ],

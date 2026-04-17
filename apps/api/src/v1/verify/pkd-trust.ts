@@ -117,9 +117,12 @@ type PkdTrustBundleCache = {
   expiresAt: number;
 };
 
+const INLINE_PKD_TRUST_BUNDLE_ENV_KEY = "VERIFY_PKD_TRUST_BUNDLE_JSON";
+
 let pkijsConfigured = false;
 let trustBundleLoader: PkdTrustBundleLoader | null = null;
 let configuredR2Bucket: PkdTrustR2Bucket | null = null;
+let configuredInlineTrustBundleJson: string | null = null;
 let trustBundleCache: PkdTrustBundleCache = {
   bundle: null,
   etag: null,
@@ -142,6 +145,17 @@ export function hexBytes(bytes: Uint8Array): string {
 
 function asn1Buffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.slice().buffer;
+}
+
+function resolveStringEnvValue(env: unknown, key: string): string | null {
+  if (!(env && typeof env === "object")) {
+    return null;
+  }
+
+  const candidate = Reflect.get(env, key);
+  return typeof candidate === "string" && candidate.length > 0
+    ? candidate
+    : null;
 }
 
 function decodeBase64(value: string): Uint8Array {
@@ -467,15 +481,43 @@ export function configurePkdTrustBundleLoader(
   loader: PkdTrustBundleLoader | null
 ): void {
   configuredR2Bucket = null;
+  configuredInlineTrustBundleJson = null;
   trustBundleLoader = loader;
   clearPkdTrustBundleCache();
 }
 
 export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
+  const inlineTrustBundleJson = resolveStringEnvValue(
+    env,
+    INLINE_PKD_TRUST_BUNDLE_ENV_KEY
+  );
+
+  if (inlineTrustBundleJson) {
+    if (
+      configuredInlineTrustBundleJson === inlineTrustBundleJson &&
+      trustBundleLoader
+    ) {
+      return;
+    }
+
+    configuredR2Bucket = null;
+    configuredInlineTrustBundleJson = inlineTrustBundleJson;
+    trustBundleLoader = async () =>
+      hydratePkdTrustBundle(JSON.parse(inlineTrustBundleJson));
+    clearPkdTrustBundleCache();
+    return;
+  }
+
   const bucket = getR2Bucket(env);
 
   if (!bucket) {
-    if (!(configuredR2Bucket || trustBundleLoader)) {
+    if (
+      !(
+        configuredR2Bucket ||
+        configuredInlineTrustBundleJson ||
+        trustBundleLoader
+      )
+    ) {
       return;
     }
 
@@ -488,6 +530,7 @@ export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
   }
 
   configuredR2Bucket = bucket;
+  configuredInlineTrustBundleJson = null;
   trustBundleLoader = () => loadTrustBundleFromR2Bucket(bucket);
   clearPkdTrustBundleCache();
 }

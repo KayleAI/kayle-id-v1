@@ -55,6 +55,30 @@ describe("PKD trust bundle loader", () => {
   });
 
   test.serial(
+    "loads the trust bundle from inline env JSON before consulting R2",
+    async () => {
+      const chain = await createPassiveAuthTestChain();
+      let requestedKey = "";
+
+      configurePkdTrustBundleLoaderFromEnv({
+        STORAGE: {
+          get: (key: string) => {
+            requestedKey = key;
+            return Promise.resolve(null);
+          },
+        },
+        VERIFY_PKD_TRUST_BUNDLE_JSON: JSON.stringify(chain.trustBundle.raw),
+      });
+
+      const loaded = await loadPkdTrustBundle();
+
+      expect(requestedKey).toBe("");
+      expect(loaded?.raw.counts).toEqual(chain.trustBundle.raw.counts);
+      expect(loaded?.raw.generatedAt).toBe(chain.trustBundle.raw.generatedAt);
+    }
+  );
+
+  test.serial(
     "fails closed when the R2 trust bundle disappears after cache expiry",
     async () => {
       const chain = await createPassiveAuthTestChain();

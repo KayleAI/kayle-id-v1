@@ -72,6 +72,8 @@ type ServerAckOrError = {
 
 const createdSessionIds: string[] = [];
 const LONG_VERIFY_FLOW_TIMEOUT_MS = 20_000;
+const VERIFY_TEST_SOCKET_BASE_URL =
+  process.env.VERIFY_TEST_SOCKET_BASE_URL ?? "ws://127.0.0.1:8787";
 
 function encodeHelloMessage({
   attemptId,
@@ -340,7 +342,7 @@ function awaitServerMessage(socket: WebSocket): Promise<ServerAckOrError> {
 
 function openVerifySocket(sessionId: string): WebSocket {
   const socket = new WebSocket(
-    `ws://127.0.0.1:8787/v1/verify/session/${sessionId}`
+    `${VERIFY_TEST_SOCKET_BASE_URL}/v1/verify/session/${sessionId}`
   );
   socket.binaryType = "arraybuffer";
   return socket;

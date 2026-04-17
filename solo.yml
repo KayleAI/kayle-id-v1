@@ -50,3 +50,18 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
+  Local Dev Seed:
+    command: bun run dev:seed -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-bundle.json
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  iOS Device:
+    command: bash ./apps/ios/scripts/run-on-connected-device.sh
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ""

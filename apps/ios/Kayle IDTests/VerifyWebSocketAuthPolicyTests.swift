@@ -259,6 +259,31 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     )
   }
 
+  func testDisplayNameForShareFieldShowsUnderThresholdAgeGateFailure() {
+    let previewContext = VerifySharePreviewContext(
+      birthDate: "2010-04-29",
+      documentNumber: nil,
+      documentType: nil,
+      expiryDate: nil,
+      givenNames: nil,
+      issuingCountry: nil,
+      nationality: nil,
+      optionalData: nil,
+      sex: nil,
+      surname: nil
+    )
+    let referenceDate = ISO8601DateFormatter().date(from: "2026-04-17T00:00:00Z")!
+
+    XCTAssertEqual(
+      displayNameForShareField(
+        "age_over_18",
+        previewContext: previewContext,
+        referenceDate: referenceDate
+      ),
+      "Under 18"
+    )
+  }
+
   func testShareRequestFieldsAreGroupedIntoKayleRequiredAndOptionalSections() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
@@ -336,6 +361,49 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertEqual(
       shareFieldDetailText(field, previewContext: nil),
       "Reserved placeholder for a future human identifier."
+    )
+  }
+
+  func testShareFieldDetailTextShowsAgeGateFailureWhenHolderIsUnderThreshold() {
+    let field = VerifyShareRequestField(
+      key: "age_over_18",
+      reason: "Sharing \"Age Over 18\"",
+      required: true
+    )
+    let previewContext = VerifySharePreviewContext(
+      birthDate: "2010-04-29",
+      documentNumber: nil,
+      documentType: nil,
+      expiryDate: nil,
+      givenNames: nil,
+      issuingCountry: nil,
+      nationality: nil,
+      optionalData: nil,
+      sex: nil,
+      surname: nil
+    )
+    let referenceDate = ISO8601DateFormatter().date(from: "2026-04-17T00:00:00Z")!
+
+    XCTAssertEqual(
+      shareFieldDetailText(
+        field,
+        previewContext: previewContext,
+        referenceDate: referenceDate
+      ),
+      "Will share that you do not meet the 18+ age requirement."
+    )
+  }
+
+  func testShareFieldDetailTextShowsAgeGateRequirementWhenPreviewIsUnavailable() {
+    let field = VerifyShareRequestField(
+      key: "age_over_21",
+      reason: "Sharing \"Age Over 21\"",
+      required: true
+    )
+
+    XCTAssertEqual(
+      shareFieldDetailText(field, previewContext: nil),
+      "Shares whether you meet the 21+ age requirement."
     )
   }
 

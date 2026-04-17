@@ -127,13 +127,13 @@ final class VerificationSession: ObservableObject {
   }
 
   /// Initialize a new session from a scanned QR code payload.
-  func initialize(with payload: QRCodePayload) throws {
+  func initialize(with payload: QRCodePayload) async throws {
     guard payload.isValid else {
       throw QRCodePayloadError.invalidPayload
     }
 
     resetAttemptState(clearPayload: false)
-    bootstrapAttempt(with: payload)
+    try await bootstrapAttempt(with: payload)
   }
 
   /// Update the current phase on the server.
@@ -334,19 +334,25 @@ final class VerificationSession: ObservableObject {
     webSocketService?.disconnect()
     resetAttemptState(clearPayload: false)
 
-    let nextPayload = try await APIService.fetchHandoffPayload(
+    let nextPayload = try await fetchFreshHandoffPayload(
       sessionId: currentPayload.sessionId
     )
+
+    try await bootstrapAttempt(with: nextPayload)
+    moveToStep(.mrz)
+  }
+
+  private func fetchFreshHandoffPayload(sessionId: String) async throws -> QRCodePayload {
+    let nextPayload = try await APIService.fetchHandoffPayload(sessionId: sessionId)
 
     guard nextPayload.isValid else {
       throw QRCodePayloadError.invalidPayload
     }
 
-    bootstrapAttempt(with: nextPayload)
-    moveToStep(.mrz)
+    return nextPayload
   }
 
-  private func bootstrapAttempt(with payload: QRCodePayload) {
+  private func bootstrapAttempt(with payload: QRCodePayload) async throws {
     self.payload = payload
     verdict = nil
     errorMessage = nil
@@ -396,23 +402,27 @@ final class VerificationSession: ObservableObject {
     )
     webSocketService = service
 
-    Task {
-      do {
-        try service.connect()
-        try await service.sendHello()
-        guard
-          shouldHandleAttemptScopedEvent(
-            currentAttemptId: self.payload?.attemptId,
-            eventAttemptId: attemptId
-          )
-        else {
-          return
-        }
-        await updatePhase(.mobileConnected)
-      } catch {
-        handleError(error, forAttemptId: attemptId)
+    do {
+      try service.connect()
+      try await service.sendHello()
+    } catch {
+      service.disconnect()
+      if webSocketService === service {
+        webSocketService = nil
       }
+      throw error
     }
+
+    guard
+      shouldHandleAttemptScopedEvent(
+        currentAttemptId: self.payload?.attemptId,
+        eventAttemptId: attemptId
+      )
+    else {
+      return
+    }
+
+    await updatePhase(.mobileConnected)
   }
 
   private func resetAttemptState(clearPayload: Bool) {

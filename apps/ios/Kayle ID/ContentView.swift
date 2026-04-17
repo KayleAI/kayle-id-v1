@@ -154,6 +154,7 @@ struct ContentView: View {
   @State private var cardAccessNumber: String?
   @State private var isShareCancelConfirmationPresented = false
   @State private var isAboutSheetPresented = false
+  @State private var isResolvingQRCode = false
 
   @MainActor
   init(
@@ -254,8 +255,26 @@ struct ContentView: View {
       session.errorMessage = "Camera permission is required to scan QR codes."
       session.moveToStep(.error)
     }) {
-      QRScannerView { code in
-        handleQRCode(code)
+      ZStack {
+        QRScannerView { code in
+          handleQRCode(code)
+        }
+
+        if isResolvingQRCode {
+          Color.black.opacity(0.45)
+            .ignoresSafeArea()
+
+          VStack(spacing: 12) {
+            ProgressView()
+              .progressViewStyle(.circular)
+              .tint(.white)
+
+            Text("Checking verification…")
+              .font(.headline)
+              .foregroundStyle(.white)
+          }
+          .padding(24)
+        }
       }
     }
   }
@@ -605,7 +624,12 @@ struct ContentView: View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(alignment: .center, spacing: 12) {
         VStack(alignment: .leading, spacing: 4) {
-          Text(displayNameForShareField(field.key))
+          Text(
+            displayNameForShareField(
+              field.key,
+              previewContext: sharePreviewContext
+            )
+          )
             .font(.headline)
             .foregroundStyle(.black)
 
@@ -760,13 +784,25 @@ struct ContentView: View {
   }
 
   private func handleQRCode(_ code: String) {
-    do {
-      let payload = try QRCodePayload.parse(from: code)
-      try session.initialize(with: payload)
-      // Show ID scan instructions before RFID check.
-      session.moveToStep(.mrz)
-    } catch {
-      session.handleError(error)
+    guard !isResolvingQRCode else {
+      return
+    }
+
+    isResolvingQRCode = true
+
+    Task { @MainActor in
+      defer {
+        isResolvingQRCode = false
+      }
+
+      do {
+        let payload = try QRCodePayload.parse(from: code)
+        try await session.initialize(with: payload)
+        // Show ID scan instructions before RFID check.
+        session.moveToStep(.mrz)
+      } catch {
+        session.handleError(error)
+      }
     }
   }
 

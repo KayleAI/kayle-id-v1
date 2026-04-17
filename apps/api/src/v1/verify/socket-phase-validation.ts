@@ -151,6 +151,17 @@ export async function runPhaseValidation(
       return null;
     }
 
+    logEvent(context.log, {
+      details: {
+        attempt_id: attemptId,
+        crl_status: authenticity.crlStatus,
+        passive_auth_detail: authenticity.detail ?? null,
+        passive_auth_reason: authenticity.reason,
+        signer_source: authenticity.signerSource,
+      },
+      event: "verify.ws.passive_auth_failed",
+    });
+
     const verdict = await rejectAttemptWithVerdict({
       attemptId,
       code: "passport_authenticity_failed",

@@ -10,6 +10,11 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM"],
+    "types": ["node"],
+    "paths": {
+      "*": ["./*"],
+      "@/*": ["../../apps/api/src/*"]
+    }
   }
 }

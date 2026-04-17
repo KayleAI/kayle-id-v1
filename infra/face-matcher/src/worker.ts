@@ -14,7 +14,7 @@ import {
   type SafeRequestLogger,
 } from "@kayle-id/config/logging";
 import { configureVerifyAssetFetcherFromEnv } from "../../../apps/api/src/v1/verify/verify-assets";
-import pkg from "../package.json" with { type: "json" };
+import pkg from "../../../package.json" with { type: "json" };
 import { matchFacesWithContainer } from "./matcher";
 
 export const FACE_MATCHER_MODEL_PATH = "/app/models/w600k_mbf.onnx";

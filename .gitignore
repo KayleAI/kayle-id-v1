@@ -54,6 +54,7 @@ docs/*.md
 
 # iOS
 .build/
+apps/ios/.derived-data-device/
 
 # Python
 *.pyc

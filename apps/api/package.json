@@ -21,7 +21,7 @@
     "capnp-es": "0.0.14",
     "capnweb": "0.4.0",
     "drizzle-orm": "0.44.7",
-    "hono": "4.12.7",
+    "hono": "4.12.14",
     "hono-openapi": "1.1.1",
     "jose": "6.1.2",
     "jpeg-js": "0.4.4",

@@ -23,13 +23,13 @@ export function PageHeading({
   actions,
 }: PageHeadingProps) {
   return (
-    <div className="mb-16">
+    <div className="mb-12 sm:mb-16">
       <div className="max-w-3xl">
-        <h1 className="mb-6 text-balance font-light text-7xl text-neutral-950 tracking-tighter">
+        <h1 className="mb-5 text-balance font-light text-5xl text-neutral-950 tracking-tighter sm:mb-6 sm:text-6xl lg:text-7xl">
           {title}
         </h1>
         {description && (
-          <p className="mb-12 text-balance font-medium text-2xl text-neutral-600">
+          <p className="mb-8 text-balance font-medium text-lg text-neutral-600 sm:mb-10 sm:text-xl lg:mb-12 lg:text-2xl">
             {description.split("\n").map((line) => (
               <Fragment key={line}>
                 {line}
@@ -39,7 +39,7 @@ export function PageHeading({
           </p>
         )}
         {actions && actions.length > 0 && (
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             {actions.map((action) => (
               <Button
                 key={action.to}
@@ -51,7 +51,7 @@ export function PageHeading({
         )}
       </div>
       {quote && (
-        <blockquote className="mt-12 max-w-2xl text-balance font-light text-2xl text-neutral-500 italic">
+        <blockquote className="mt-10 max-w-2xl text-balance font-light text-xl text-neutral-500 italic sm:mt-12 sm:text-2xl">
           “{quote}”
         </blockquote>
       )}

@@ -75,7 +75,7 @@ const claimDescriptions: Record<string, string> = {
   kayle_document_id:
     "Receiver-scoped identifier for this exact document, not a global passport number.",
   kayle_human_id:
-    "Reserved placeholder for a future receiver-scoped human identifier. Currently null.",
+    "Reserved placeholder for a receiver-scoped human identifier.",
 };
 
 export function isLockedDemoClaim(claimKey: string): boolean {

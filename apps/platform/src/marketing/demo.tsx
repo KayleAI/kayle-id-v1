@@ -429,7 +429,7 @@ function DemoStepPanel({
     // biome-ignore lint/a11y: intentional
     <section
       className={cn(
-        "scroll-mt-[240px] px-4 py-4 sm:px-5 sm:py-5",
+        "scroll-mt-[180px] px-4 py-4 sm:scroll-mt-[240px] sm:px-5 sm:py-5",
         isLocked && "pointer-events-none blur-[2px]"
       )}
       id={getDemoStepSectionId(stepId)}
@@ -438,22 +438,25 @@ function DemoStepPanel({
       onKeyUp={handleOpen}
     >
       <div className="flex w-full flex-col items-start gap-3 sm:gap-4">
-        <div className="relative flex w-full items-center gap-4 sm:gap-5">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-neutral-200/80 text-neutral-700 text-sm sm:size-10">
+        <div className="relative flex w-full flex-col items-start gap-2.5 sm:flex-row sm:gap-5">
+          <div className="hidden shrink-0 items-center justify-center rounded-full border border-neutral-200/80 text-neutral-700 sm:flex size-10 text-sm">
             {stepNumber}
           </div>
           <div className="min-w-0 lg:pr-4">
-            <h2 className="text-balance font-light text-[1.85rem] text-neutral-950 tracking-tight sm:text-2xl">
+            <h2 className="text-pretty font-light text-[1.55rem] leading-tight text-neutral-950 tracking-tight sm:text-2xl sm:leading-tight">
+              <span className="inline sm:hidden">{stepNumber}.</span>{" "}
               {title}
             </h2>
             <p className="max-w-3xl text-balance text-base text-neutral-600 leading-relaxed">
               {isOpen ? description : summary}
             </p>
           </div>
+
+          <hr className="w-full border-neutral-200/80 sm:hidden" />
         </div>
 
         {isOpen ? (
-          <div className="w-full min-w-0 flex-1 pl-15">
+          <div className="w-full min-w-0 flex-1 pl-0 sm:pl-15">
             <div className="w-full min-w-0">{children}</div>
           </div>
         ) : null}
@@ -472,7 +475,7 @@ function ModeSelector({
   const options: DemoFieldMode[] = ["off", "optional", "required"];
 
   return (
-    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-5 py-4">
+    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 pr-0 sm:pr-6">
           <div className="font-medium text-base text-neutral-950">{label}</div>
@@ -482,22 +485,22 @@ function ModeSelector({
             </p>
           ) : null}
         </div>
-        <div className="sm:shrink-0">
+        <div className="w-full sm:w-auto sm:shrink-0">
           {disabled ? (
-            <div className="rounded-[1.1rem] border border-neutral-200 bg-neutral-50 px-4 py-3 text-right">
+            <div className="rounded-[1.1rem] border border-neutral-200 bg-neutral-50 px-4 py-3 text-left sm:text-right">
               <div className="font-medium text-neutral-950 text-sm">
                 Included automatically
               </div>
             </div>
           ) : (
-            <div className="inline-flex min-h-12 rounded-[1.25rem] border border-neutral-200 bg-neutral-100/90 p-1">
+            <div className="grid min-h-12 w-full grid-cols-3 rounded-[1.25rem] border border-neutral-200 bg-neutral-100/90 p-1 sm:inline-flex sm:w-auto">
               {options.map((option) => {
                 const active = option === mode;
                 return (
                   <button
                     aria-pressed={active}
                     className={cn(
-                      "min-h-10 w-24 rounded-[1rem] px-4 font-medium text-sm transition-colors",
+                      "min-h-10 w-full min-w-0 rounded-[1rem] px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4",
                       getModeButtonClass({ active, option })
                     )}
                     key={option}
@@ -539,7 +542,7 @@ function AgeGateSelector({
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-5 py-4">
+    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 pr-0 sm:pr-6">
           <div className="font-medium text-base text-neutral-950">
@@ -550,10 +553,10 @@ function AgeGateSelector({
             birth.
           </p>
         </div>
-        <div className="sm:shrink-0">
+        <div className="w-full sm:w-auto sm:shrink-0">
           <div
             className={cn(
-              "inline-flex min-h-12 rounded-[1.25rem] border p-1",
+              "grid min-h-12 w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-[1.25rem] border p-1 sm:inline-flex sm:w-auto",
               hasError
                 ? "border-red-200/80 bg-red-50/70"
                 : "border-neutral-200 bg-neutral-100/90"
@@ -562,7 +565,7 @@ function AgeGateSelector({
             <button
               aria-pressed={!isInputActive}
               className={cn(
-                "min-h-10 w-24 rounded-[1rem] px-4 font-medium text-sm transition-colors",
+                "min-h-10 w-full min-w-0 rounded-[1rem] px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4",
                 getModeButtonClass({ active: !isInputActive, option: "off" })
               )}
               onClick={() => {
@@ -576,7 +579,7 @@ function AgeGateSelector({
             </button>
             <div
               className={cn(
-                "flex min-h-10 items-center rounded-[1rem] transition-colors",
+                "flex min-h-10 min-w-0 items-center rounded-[1rem] transition-colors",
                 ageThresholdStateClassName
               )}
             >
@@ -586,7 +589,7 @@ function AgeGateSelector({
               <Input
                 aria-describedby={hasError ? "age-threshold-error" : undefined}
                 aria-invalid={hasError || undefined}
-                className="h-10 w-24 rounded-[1rem] border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0"
+                className="h-10 w-full min-w-0 rounded-[1rem] border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0 sm:w-24"
                 id="age-threshold"
                 inputMode="numeric"
                 min={minAgeThreshold}
@@ -810,8 +813,9 @@ function ProfileFieldItem({
       <dt className="text-neutral-500 text-xs leading-none">{label}</dt>
       <dd
         className={cn(
-          "mt-2 text-[1rem] text-neutral-950 leading-snug",
-          monospace && "font-mono text-[0.92rem] tabular-nums tracking-[0.04em]"
+          "mt-2 break-words text-[1rem] text-neutral-950 leading-snug",
+          monospace &&
+            "break-all font-mono text-[0.92rem] tabular-nums tracking-[0.04em]"
         )}
       >
         {value}
@@ -850,7 +854,7 @@ function AgeGateStatusItem({
               passed ? "text-emerald-700" : "text-red-700"
             )}
           >
-            {passed ? `Over ${threshold}` : `Not Over ${threshold}`}
+            {passed ? `Over ${threshold}` : `Under ${threshold}`}
           </span>
         </div>
       </dd>
@@ -870,13 +874,13 @@ function DemoDocumentPreviewPanel({
   const sharedItems = buildSharedProfileItems(preview);
 
   return (
-    <div className="mr-15 mb-15 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-6 py-8 sm:px-8">
+    <div className="mb-6 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-4 py-6 sm:mr-15 sm:mb-15 sm:px-8 sm:py-8">
       <div className="flex flex-col items-center text-center">
-        <div className="w-30 sm:w-34">
+        <div className="w-24 sm:w-34">
           <DocumentPortrait preview={preview} />
         </div>
 
-        <h3 className="mt-5 text-balance font-light text-[2rem] text-neutral-950 capitalize tracking-tight sm:text-[2.25rem]">
+        <h3 className="mt-5 text-balance font-light text-[1.7rem] text-neutral-950 capitalize tracking-tight sm:text-[2.25rem]">
           {displayName || "No Name"}
         </h3>
       </div>
@@ -922,12 +926,12 @@ function DemoWebhookEventPreviewPanel({
   preview: DemoWebhookEventPreview;
 }) {
   return (
-    <div className="mr-15 mb-15 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-6 py-8 sm:px-8">
+    <div className="mb-6 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-4 py-6 sm:mr-15 sm:mb-15 sm:px-8 sm:py-8">
       <div className="text-center">
         <p className="font-medium text-[0.7rem] text-neutral-500 uppercase tracking-[0.28em]">
           Webhook Event
         </p>
-        <h3 className="mt-3 text-balance font-light text-[2rem] text-neutral-950 tracking-tight sm:text-[2.25rem]">
+        <h3 className="mt-3 text-balance font-light text-[1.7rem] text-neutral-950 tracking-tight sm:text-[2.25rem]">
           {preview.title}
         </h3>
         <p className="mx-auto mt-3 max-w-2xl text-balance text-neutral-600 text-sm leading-relaxed">
@@ -991,8 +995,8 @@ function DocumentStatePanel({
   title: string;
 }) {
   return (
-    <div className="mx-auto max-w-3xl rounded-[2rem] border border-neutral-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,247,246,0.94))] px-6 py-10 text-center shadow-[0_24px_80px_-48px_rgba(15,23,42,0.42)] sm:px-10">
-      <h3 className="text-balance font-light text-3xl text-neutral-950 tracking-tight sm:text-[2.2rem]">
+    <div className="mx-auto max-w-3xl rounded-[2rem] border border-neutral-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,247,246,0.94))] px-5 py-8 text-center shadow-[0_24px_80px_-48px_rgba(15,23,42,0.42)] sm:px-10 sm:py-10">
+      <h3 className="text-balance font-light text-2xl text-neutral-950 tracking-tight sm:text-[2.2rem]">
         {title}
       </h3>
       <p className="mx-auto mt-3 max-w-xl text-balance text-base text-neutral-600 leading-relaxed">
@@ -1049,7 +1053,7 @@ function getWebhookPanelState({
 function RunStatusPanel({ run }: { run: DemoRunView | null }) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {run?.verification_url ? (
           <Button
             render={
@@ -1411,7 +1415,7 @@ function DemoComposerStep({
     >
       <div className="space-y-6">
         {demoClaimSections.map((section) => (
-          <section className="space-y-8" key={section.title}>
+          <section className="space-y-6" key={section.title}>
             <div>
               <h2 className="font-medium text-lg text-neutral-950">
                 {section.title}
@@ -1450,7 +1454,7 @@ function DemoComposerStep({
           />
         </section>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {hasSession || isRestartingDemo ? (
             <Button
               disabled={isCreatingSession || isCreatingRun}
@@ -1570,7 +1574,7 @@ function DemoOutcomeStep({
           </Alert>
         ) : null}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Button
             disabled={isCreatingSession || isCreatingRun}
             onClick={onRestartDemo}
@@ -1813,13 +1817,13 @@ export function Demo() {
 
   return (
     <main className="relative min-h-screen overflow-hidden">
-      <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <PageHeading
           description="Test Kayle ID in your local browser — no data is stored as part of our privacy guarantee."
           title="See how Kayle ID works with a demo."
         />
 
-        <div className="mt-20 space-y-8" id="demo-flow">
+        <div className="mt-12 space-y-8 sm:mt-16 lg:mt-20" id="demo-flow">
           <DemoErrorAlert onReset={handleReset} runError={runError} />
 
           <div className={accordionPanelClass}>

@@ -17,6 +17,6 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
-    "evlog": "2.8.0"
+    "evlog": "2.12.0"
   }
 }

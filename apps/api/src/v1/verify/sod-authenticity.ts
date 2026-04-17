@@ -722,6 +722,42 @@ function manualVerificationDetail(
   });
 }
 
+async function cmsPkijsFallbackResult({
+  checkDate,
+  manualOutcome,
+  signedData,
+  signerCert,
+  signerInfo,
+}: {
+  checkDate: Date;
+  manualOutcome: {
+    error?: unknown;
+    verified?: boolean;
+  };
+  signedData: SignedData;
+  signerCert: Certificate;
+  signerInfo: SignerInfo;
+}): Promise<CmsSignatureVerificationResult> {
+  const pkijsResult = await verifyCmsSignatureWithPkijs({
+    checkDate,
+    signedData,
+    signerCert,
+  });
+
+  return {
+    detail: cmsDiagnosticString({
+      fallback: "pkijs",
+      manual_detail: manualVerificationDetail(
+        signerInfo,
+        signerCert,
+        manualOutcome
+      ),
+      pkijs_detail: pkijsResult.detail,
+    }),
+    ok: pkijsResult.ok,
+  };
+}
+
 async function verifyCmsSignatureWithPkijs({
   checkDate,
   signedData,
@@ -731,12 +767,13 @@ async function verifyCmsSignatureWithPkijs({
   signedData: SignedData;
   signerCert: Certificate;
 }): Promise<CmsSignatureVerificationResult> {
-  normalizeEcCertificatePublicKeyAlgorithm(signerCert);
   const signerInfo = signerInfoOrThrow(signedData);
   const originalCertificates = signedData.certificates;
+  const normalizedSignerCert =
+    normalizedEcCertificatePublicKeyAlgorithm(signerCert);
   signedData.certificates = signedDataCertificatesWithSigner(
     signedData,
-    signerCert
+    normalizedSignerCert
   );
 
   try {
@@ -790,39 +827,25 @@ async function verifyCmsSignature({
         };
       }
 
-      const pkijsResult = await verifyCmsSignatureWithPkijs({
+      return cmsPkijsFallbackResult({
         checkDate,
+        manualOutcome: {
+          verified: false,
+        },
         signedData,
         signerCert,
+        signerInfo,
       });
-
-      return {
-        detail: cmsDiagnosticString({
-          fallback: "pkijs",
-          manual_detail: manualVerificationDetail(signerInfo, signerCert, {
-            verified: false,
-          }),
-          pkijs_detail: pkijsResult.detail,
-        }),
-        ok: pkijsResult.ok,
-      };
     } catch (error) {
-      const pkijsResult = await verifyCmsSignatureWithPkijs({
+      return cmsPkijsFallbackResult({
         checkDate,
+        manualOutcome: {
+          error,
+        },
         signedData,
         signerCert,
+        signerInfo,
       });
-
-      return {
-        detail: cmsDiagnosticString({
-          fallback: "pkijs",
-          manual_detail: manualVerificationDetail(signerInfo, signerCert, {
-            error,
-          }),
-          pkijs_detail: pkijsResult.detail,
-        }),
-        ok: pkijsResult.ok,
-      };
     }
   }
 
@@ -1126,23 +1149,51 @@ function resolveEcNamedCurve(
     : null;
 }
 
-function normalizeEcCertificatePublicKeyAlgorithm(cert: Certificate): void {
+function cloneCertificate(cert: Certificate): Certificate {
+  const encoded = cert.toSchema().toBER(false);
+  const decoded = fromBER(encoded);
+
+  if (decoded.offset === -1) {
+    throw new Error("certificate_clone_failed");
+  }
+
+  return new Certificate({
+    schema: decoded.result,
+  });
+}
+
+function normalizedEcCertificatePublicKeyAlgorithm(
+  cert: Certificate
+): Certificate {
   const publicKeyAlgorithm = cert.subjectPublicKeyInfo.algorithm;
 
   if (publicKeyAlgorithm.algorithmId !== ECDSA_PUBLIC_KEY_OID) {
-    return;
+    return cert;
   }
 
   const namedCurve = resolveEcNamedCurve(publicKeyAlgorithm.algorithmParams);
 
   if (!namedCurve) {
-    return;
+    return cert;
   }
 
-  publicKeyAlgorithm.algorithmParams = new ObjectIdentifier({
-    value: namedCurve.oid,
-  });
-  cert.subjectPublicKeyInfo.parsedKey = undefined;
+  const normalizedCert = cloneCertificate(cert);
+
+  if (
+    normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams instanceof
+      ObjectIdentifier &&
+    normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams.valueBlock.toString() ===
+      namedCurve.oid
+  ) {
+    return normalizedCert;
+  }
+
+  normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams =
+    new ObjectIdentifier({
+      value: namedCurve.oid,
+    });
+  normalizedCert.subjectPublicKeyInfo.parsedKey = undefined;
+  return normalizedCert;
 }
 
 function signerEcNamedCurve(signerCert: Certificate): string {
@@ -1154,7 +1205,6 @@ function signerEcNamedCurve(signerCert: Certificate): string {
     throw new Error("cms_signature_curve_invalid");
   }
 
-  normalizeEcCertificatePublicKeyAlgorithm(signerCert);
   return curve.name;
 }
 
@@ -1202,7 +1252,9 @@ function importSignerVerificationKey({
 
   if (publicKeyAlgorithmId === ECDSA_PUBLIC_KEY_OID) {
     const namedCurve = signerEcNamedCurve(signerCert);
-    const spkiBytes = signerCert.subjectPublicKeyInfo.toSchema().toBER(false);
+    const spkiBytes = normalizedEcCertificatePublicKeyAlgorithm(signerCert)
+      .subjectPublicKeyInfo.toSchema()
+      .toBER(false);
 
     return crypto.subtle.importKey(
       "spki",
@@ -1350,13 +1402,16 @@ async function verifyCertificateIssuedBy({
   detail: string | null;
   ok: boolean;
 }> {
-  normalizeEcCertificatePublicKeyAlgorithm(certificate);
-  normalizeEcCertificatePublicKeyAlgorithm(issuerCert);
+  const normalizedCertificate =
+    normalizedEcCertificatePublicKeyAlgorithm(certificate);
+  const normalizedIssuerCert =
+    normalizedEcCertificatePublicKeyAlgorithm(issuerCert);
 
   let pkijsDetail: string | null = null;
 
   try {
-    const pkijsVerified = await certificate.verify(issuerCert);
+    const pkijsVerified =
+      await normalizedCertificate.verify(normalizedIssuerCert);
 
     if (pkijsVerified) {
       return {
@@ -1372,11 +1427,11 @@ async function verifyCertificateIssuedBy({
 
   try {
     const manualVerified = await verifySignatureWithCertificate({
-      data: exactBytes(certificate.tbsView),
-      publicKeyCert: issuerCert,
-      signatureAlgorithm: certificate.signatureAlgorithm,
+      data: exactBytes(normalizedCertificate.tbsView),
+      publicKeyCert: normalizedIssuerCert,
+      signatureAlgorithm: normalizedCertificate.signatureAlgorithm,
       signatureBytes: exactBytes(
-        certificate.signatureValue.valueBlock.valueHexView
+        normalizedCertificate.signatureValue.valueBlock.valueHexView
       ),
     });
 
@@ -1571,15 +1626,19 @@ async function verifyCrlForIssuer({
   candidate: PkdTrustBundleCrl;
   issuer: PkdTrustBundleCertificate;
 }): Promise<boolean> {
+  const normalizedIssuerCert = normalizedEcCertificatePublicKeyAlgorithm(
+    issuer.cert
+  );
+
   try {
     return await candidate.crl.verify({
-      issuerCertificate: issuer.cert,
+      issuerCertificate: normalizedIssuerCert,
     });
   } catch {
     try {
       return await verifySignatureWithCertificate({
         data: exactBytes(candidate.crl.tbsView),
-        publicKeyCert: issuer.cert,
+        publicKeyCert: normalizedIssuerCert,
         signatureAlgorithm: candidate.crl.signatureAlgorithm,
         signatureBytes: exactBytes(
           candidate.crl.signatureValue.valueBlock.valueHexView

@@ -190,10 +190,8 @@ validate_inputs() {
     require_file "${PKD_MASTER_LISTS_LDIF}"
   fi
 
-  if [[ "${SKIP_PKD_IMPORT}" == "true" || "${SKIP_R2_UPLOAD}" == "false" ]]; then
-    if [[ "${SKIP_PKD_IMPORT}" == "true" ]]; then
-      require_file "${PKD_BUNDLE_OUTPUT}"
-    fi
+  if [[ "${SKIP_PKD_IMPORT}" == "true" ]]; then
+    require_file "${PKD_BUNDLE_OUTPUT}"
   fi
 }
 

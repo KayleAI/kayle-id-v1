@@ -686,6 +686,14 @@ describe("verify validation engine", () => {
         expect(result.crlStatus).toBe("verified_not_revoked");
         expect(result.signerSource).toBe("sod");
       }
+
+      for (const candidates of chain.trustBundle.cscasBySubjectKey.values()) {
+        for (const candidate of candidates) {
+          expect(
+            candidate.cert.subjectPublicKeyInfo.algorithm.algorithmParams
+          ).toBeInstanceOf(Sequence);
+        }
+      }
     });
   }
 

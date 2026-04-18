@@ -20,7 +20,9 @@ const user = {
   deleteUser: {
     enabled: false,
     deleteUser: async () => {
-      throw new Error("User deletion is not supported.");
+      throw new Error(
+        "User deletion is disabled; contact support for account removal requests."
+      );
     },
   },
 } satisfies BetterAuthOptions["user"];

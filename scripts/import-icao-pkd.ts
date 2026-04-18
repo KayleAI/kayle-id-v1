@@ -378,7 +378,9 @@ async function importMasterListCscas({
       return record;
     }
 
-    throw new Error(`Expected CSCA record from master list entry: ${dn}`);
+    throw new Error(
+      `Expected CSCA record with masterListSources from master list entry: ${dn}`
+    );
   };
 
   for (const entry of entries) {
@@ -398,8 +400,10 @@ async function importMasterListCscas({
 
     for (const cert of extractCscaCertificatesFromMasterList(masterListBytes)) {
       const certBytes = new Uint8Array(cert.toSchema().toBER(false));
-      const certDigest = createHash("sha256").update(certBytes).digest("base64");
-      const key = `${relativeDistinguishedNameKey(cert.subject)}:${certDigest}`;
+      const certSha256Digest = createHash("sha256")
+        .update(certBytes)
+        .digest("base64");
+      const key = `${relativeDistinguishedNameKey(cert.subject)}:${certSha256Digest}`;
       const existing = cscasByKey.get(key);
 
       if (existing) {

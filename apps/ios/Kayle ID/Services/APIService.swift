@@ -72,6 +72,43 @@ enum APIService {
     )
   }
 
+  @MainActor
+  static func cancelVerification(sessionId: String) async throws {
+    guard let url = URL(string: "\(baseURL(from: sessionId))/v1/verify/session/\(sessionId)/cancel")
+    else {
+      throw APIError.invalidResponse
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw APIError.invalidResponse
+    }
+
+    if httpResponse.statusCode == 204 {
+      return
+    }
+
+    guard
+      let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      throw APIError.invalidResponse
+    }
+
+    if
+      let error = envelope["error"] as? [String: Any],
+      let message = error["message"] as? String
+    {
+      throw APIError.serverError(message)
+    }
+
+    throw APIError.httpError(httpResponse.statusCode)
+  }
+
   #if DEBUG
   private static func configuredDevelopmentBaseURL() -> String? {
     let environmentValue = ProcessInfo.processInfo.environment[developmentBaseURLKey]

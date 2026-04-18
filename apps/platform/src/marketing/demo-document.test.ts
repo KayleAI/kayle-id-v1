@@ -160,11 +160,37 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
   expect(preview).toEqual({
     contractVersion: 1,
     description:
-      "A verification attempt failed with Passport Authenticity Failed.",
+      "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
     eventType: "verification.attempt.failed",
     failureCode: "passport_authenticity_failed",
+    failureDescription:
+      "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
+    failureTitle: "Passport authenticity failed",
     title: "Attempt Failed",
     verificationAttemptId: "va_demo_test",
     verificationSessionId: "vs_demo_test",
+  });
+});
+
+test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => {
+  const preview = buildDemoWebhookEventPreview(
+    JSON.stringify({
+      type: "verification.attempt.failed",
+      data: {
+        failure_code: "unexpected_failure_code",
+      },
+    })
+  );
+
+  expect(preview).toEqual({
+    contractVersion: null,
+    description: "A verification attempt failed with Unexpected Failure Code.",
+    eventType: "verification.attempt.failed",
+    failureCode: "unexpected_failure_code",
+    failureDescription: null,
+    failureTitle: null,
+    title: "Attempt Failed",
+    verificationAttemptId: null,
+    verificationSessionId: null,
   });
 });

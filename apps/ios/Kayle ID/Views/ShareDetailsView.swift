@@ -6,7 +6,6 @@ struct ShareDetailsView: View {
   let onSubmit: () -> Void
   let onCancel: () -> Void
 
-  @State private var isCancelConfirmationPresented = false
   @State private var isShareAllConfirmationPresented = false
 
   private var kayleFields: [VerifyShareRequestField] {
@@ -77,21 +76,7 @@ struct ShareDetailsView: View {
         onSubmit()
       }
 
-      ActionButton(style: .secondary, title: "Cancel") {
-        isCancelConfirmationPresented = true
-      }
-    }
-    .confirmationDialog(
-      "Cancel verification?",
-      isPresented: $isCancelConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button("Cancel verification", role: .destructive) {
-        onCancel()
-      }
-      Button("Stay here", role: .cancel) {}
-    } message: {
-      Text("This will stop the current verification on this device.")
+      ActionButton(style: .secondary, title: "Cancel", action: onCancel)
     }
     .confirmationDialog(
       "Share all details?",

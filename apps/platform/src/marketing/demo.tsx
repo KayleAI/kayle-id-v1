@@ -26,7 +26,6 @@ import { toast } from "sonner";
 import { PageHeading } from "@/components/page-heading";
 import {
   buildRequestedShareFields,
-  countVisibleDemoClaims,
   demoClaimSections,
   formatPublicDemoPayload,
   getClaimDescription,
@@ -54,8 +53,7 @@ import {
 } from "@/marketing/demo-document";
 
 const POLL_INTERVAL_MS = 2000;
-const accordionPanelClass =
-  "overflow-hidden rounded-[2rem] border border-neutral-200/70 bg-white/72 shadow-[0_24px_80px_-40px_rgba(10,10,10,0.3)] backdrop-blur-xl";
+const accordionPanelClass = "";
 
 type ApiResponse<T> = {
   data: T | null;
@@ -111,7 +109,7 @@ function getModeButtonClass({
     return "bg-neutral-900 text-white";
   }
 
-  return "bg-white text-neutral-950 shadow-sm";
+  return "bg-white text-neutral-950";
 }
 
 async function readJsonResponse<T>(
@@ -260,7 +258,7 @@ function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
   return (
     <div
       className={cn(
-        "rounded-[1.4rem] border border-red-200/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(254,242,242,0.94))] px-4 py-3 shadow-[0_18px_50px_-36px_rgba(10,10,10,0.45)]",
+        "border border-red-200/70 bg-red-50/40 px-4 py-3",
         className
       )}
       role="alert"
@@ -284,95 +282,6 @@ function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
       </div>
     </div>
   );
-}
-
-function getStepOneSummary({
-  hasSession,
-  requestedFieldCount,
-}: {
-  hasSession: boolean;
-  requestedFieldCount: number;
-}): string {
-  if (requestedFieldCount > 0) {
-    const fieldLabel = requestedFieldCount === 1 ? "field" : "fields";
-    return `${requestedFieldCount} ${fieldLabel} selected. Reopen to edit or restart.`;
-  }
-
-  if (hasSession) {
-    return "Reopen to edit or restart.";
-  }
-
-  return "Choose the fields, then create a session.";
-}
-
-function getStepTwoSummary({
-  hasSession,
-  sessionStatus,
-  webhook,
-}: {
-  hasSession: boolean;
-  sessionStatus: DemoRunView["session_status"];
-  webhook: DemoRunView["webhook"];
-}): string {
-  if (!hasSession) {
-    return "Create a session in Step 1 first.";
-  }
-
-  if (webhook?.event_type === "verification.attempt.failed") {
-    return sessionStatus?.status === "in_progress"
-      ? "An attempt failed. Open Step 3 or continue on mobile."
-      : "An attempt failed. Open Step 3 to review it.";
-  }
-
-  if (webhook) {
-    return webhook.event_type === "verification.attempt.succeeded"
-      ? "Finished. Open Step 3."
-      : "A webhook event is ready. Open Step 3.";
-  }
-
-  if (sessionStatus?.is_terminal) {
-    if (sessionStatus.status === "completed") {
-      return "Finished. Open Step 3.";
-    }
-
-    return "This run ended. Open Step 3 or restart.";
-  }
-
-  if (sessionStatus?.status === "in_progress") {
-    return "In progress.";
-  }
-
-  return "Ready to start on mobile.";
-}
-
-function getStepThreeSummary({
-  canReviewOutcome,
-  sessionStatus,
-  webhook,
-}: {
-  canReviewOutcome: boolean;
-  sessionStatus: DemoRunView["session_status"];
-  webhook: DemoRunView["webhook"];
-}): string {
-  if (!canReviewOutcome) {
-    return "Finish Step 2 to continue.";
-  }
-
-  if (webhook) {
-    return webhook.event_type === "verification.attempt.succeeded"
-      ? "The verified document is ready."
-      : "The latest webhook event is ready.";
-  }
-
-  if (sessionStatus?.status === "completed") {
-    return "Waiting for the verified document.";
-  }
-
-  if (sessionStatus?.is_terminal) {
-    return "Waiting for the final webhook event.";
-  }
-
-  return "No result is available. Restart to try again.";
 }
 
 function createDemoRunView(createdRun: DemoRunCreateResult): DemoRunView {
@@ -399,20 +308,20 @@ function DemoStepPanel({
   isLocked = false,
   isOpen,
   onOpen,
-  summary,
   stepId,
   stepNumber,
   title,
+  className,
 }: {
   children?: ReactNode;
   description: string;
   isLocked?: boolean;
   isOpen: boolean;
   onOpen?: () => void;
-  summary: string;
   stepId: DemoStepId;
   stepNumber: number;
   title: string;
+  className?: string;
 }) {
   const handleOpen = useCallback(
     (event: unknown) => {
@@ -432,25 +341,22 @@ function DemoStepPanel({
     <section
       className={cn(
         "scroll-mt-[180px] px-4 py-4 sm:scroll-mt-[240px] sm:px-5 sm:py-5",
-        isLocked && "pointer-events-none blur-[2px]"
+        isLocked && "pointer-events-none blur-[2px]",
+        className
       )}
       id={getDemoStepSectionId(stepId)}
       onClick={handleOpen}
       onKeyDown={handleOpen}
       onKeyUp={handleOpen}
     >
-      <div className="flex w-full flex-col items-start gap-3 sm:gap-4">
+      <div className="flex w-full flex-col items-start space-y-10">
         <div className="relative flex w-full flex-col items-start gap-2.5 sm:flex-row sm:gap-5">
-          <div className="hidden shrink-0 items-center justify-center rounded-full border border-neutral-200/80 text-neutral-700 sm:flex size-10 text-sm">
-            {stepNumber}
-          </div>
-          <div className="min-w-0 lg:pr-4">
-            <h2 className="text-pretty font-light text-[1.55rem] leading-tight text-neutral-950 tracking-tight sm:text-2xl sm:leading-tight">
-              <span className="inline sm:hidden">{stepNumber}.</span>{" "}
-              {title}
+          <div className="min-w-0 space-y-1.5">
+            <h2 className="text-balance font-medium text-3xl tracking-tight">
+              {stepNumber}. {title}
             </h2>
             <p className="max-w-3xl text-balance text-base text-neutral-600 leading-relaxed">
-              {isOpen ? description : summary}
+              {description}
             </p>
           </div>
 
@@ -458,7 +364,7 @@ function DemoStepPanel({
         </div>
 
         {isOpen ? (
-          <div className="w-full min-w-0 flex-1 pl-0 sm:pl-15">
+          <div className="w-full min-w-0 flex-1">
             <div className="w-full min-w-0">{children}</div>
           </div>
         ) : null}
@@ -477,7 +383,7 @@ function ModeSelector({
   const options: DemoFieldMode[] = ["off", "optional", "required"];
 
   return (
-    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-4 py-4 sm:px-5">
+    <div className="border-neutral-200/80 border-b py-4 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 pr-0 sm:pr-6">
           <div className="font-medium text-base text-neutral-950">{label}</div>
@@ -489,20 +395,20 @@ function ModeSelector({
         </div>
         <div className="w-full sm:w-auto sm:shrink-0">
           {disabled ? (
-            <div className="rounded-[1.1rem] border border-neutral-200 bg-neutral-50 px-4 py-3 text-left sm:text-right">
+            <div className="border border-neutral-200/80 px-4 py-3 text-left sm:text-right rounded-[1.25rem]">
               <div className="font-medium text-neutral-950 text-sm">
                 Included automatically
               </div>
             </div>
           ) : (
-            <div className="grid min-h-12 w-full grid-cols-3 rounded-[1.25rem] border border-neutral-200 bg-neutral-100/90 p-1 sm:inline-flex sm:w-auto">
+            <div className="grid min-h-12 w-full grid-cols-3 border border-neutral-200 bg-neutral-100/90 p-1 sm:inline-flex sm:w-auto rounded-[1.25rem]">
               {options.map((option) => {
                 const active = option === mode;
                 return (
                   <button
                     aria-pressed={active}
                     className={cn(
-                      "min-h-10 w-full min-w-0 rounded-[1rem] px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4",
+                      "min-h-10 w-full min-w-0 px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4 rounded-[1rem]",
                       getModeButtonClass({ active, option })
                     )}
                     key={option}
@@ -539,12 +445,12 @@ function AgeGateSelector({
 
   if (isInputActive) {
     ageThresholdStateClassName = hasError
-      ? "bg-white shadow-sm ring-1 ring-red-200"
-      : "bg-white shadow-sm";
+      ? "bg-white ring-1 ring-red-200"
+      : "bg-white";
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-neutral-200/80 bg-white/92 px-4 py-4 sm:px-5">
+    <div className="border-neutral-200/80 border-b py-4 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 pr-0 sm:pr-6">
           <div className="font-medium text-base text-neutral-950">
@@ -558,7 +464,7 @@ function AgeGateSelector({
         <div className="w-full sm:w-auto sm:shrink-0">
           <div
             className={cn(
-              "grid min-h-12 w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-[1.25rem] border p-1 sm:inline-flex sm:w-auto",
+              "grid min-h-12 w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border p-1 sm:inline-flex sm:w-auto rounded-[1.25rem]",
               hasError
                 ? "border-red-200/80 bg-red-50/70"
                 : "border-neutral-200 bg-neutral-100/90"
@@ -567,7 +473,7 @@ function AgeGateSelector({
             <button
               aria-pressed={!isInputActive}
               className={cn(
-                "min-h-10 w-full min-w-0 rounded-[1rem] px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4",
+                "min-h-10 w-full min-w-0 px-3 font-medium text-sm transition-colors sm:w-24 sm:px-4 rounded-[1rem]",
                 getModeButtonClass({ active: !isInputActive, option: "off" })
               )}
               onClick={() => {
@@ -581,7 +487,7 @@ function AgeGateSelector({
             </button>
             <div
               className={cn(
-                "flex min-h-10 min-w-0 items-center rounded-[1rem] transition-colors",
+                "flex min-h-10 min-w-0 items-center transition-colors",
                 ageThresholdStateClassName
               )}
             >
@@ -591,7 +497,7 @@ function AgeGateSelector({
               <Input
                 aria-describedby={hasError ? "age-threshold-error" : undefined}
                 aria-invalid={hasError || undefined}
-                className="h-10 w-full min-w-0 rounded-[1rem] border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0 sm:w-24"
+                className="h-10 w-full min-w-0 border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0 sm:w-24"
                 id="age-threshold"
                 inputMode="numeric"
                 min={minAgeThreshold}
@@ -812,12 +718,12 @@ function ProfileFieldItem({
 }) {
   return (
     <div>
-      <dt className="text-neutral-500 text-xs leading-none">{label}</dt>
+      <dt className="font-medium text-neutral-950 text-sm">{label}</dt>
       <dd
         className={cn(
-          "mt-2 break-words text-[1rem] text-neutral-950 leading-snug",
+          "mt-1 break-words text-[1rem] text-neutral-700",
           monospace &&
-            "break-all font-mono text-[0.92rem] tabular-nums tracking-[0.04em]"
+            "break-all font-mono text-[0.92rem] text-neutral-950 tabular-nums tracking-[0.04em]"
         )}
       >
         {value}
@@ -837,24 +743,17 @@ function AgeGateStatusItem({
 
   return (
     <div>
-      <dt className="sr-only">Age</dt>
-      <dd className="mt-2">
-        <div className="flex items-center gap-3">
-          <span
+      <dt className="font-medium text-neutral-950 text-sm">Age check</dt>
+      <dd className="mt-1">
+        <div className="flex items-center gap-2.5">
+          <Icon
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-2xl",
-              passed
-                ? "bg-emerald-50 text-emerald-600"
-                : "bg-red-50 text-red-600"
+              "size-4 shrink-0",
+              passed ? "text-emerald-600" : "text-red-600"
             )}
-          >
-            <Icon className="size-4.5" />
-          </span>
+          />
           <span
-            className={cn(
-              "text-[1rem] leading-snug",
-              passed ? "text-emerald-700" : "text-red-700"
-            )}
+            className={cn("text-[1rem]", passed ? "text-emerald-700" : "text-red-700")}
           >
             {passed ? `Over ${threshold}` : `Under ${threshold}`}
           </span>
@@ -865,57 +764,290 @@ function AgeGateStatusItem({
 }
 
 function DemoDocumentPreviewPanel({
+  payload,
   preview,
+  webhookMetadataItems,
 }: {
+  payload: string;
   preview: DemoDocumentPreview;
+  webhookMetadataItems: WebhookMetadataItem[];
 }) {
   const displayName = buildHolderDisplayName({
     familyName: preview.familyName,
     givenNames: preview.givenNames,
   });
+  const documentKindLabel =
+    preview.documentKind === "id-card" ? "ID card" : "Passport";
   const sharedItems = buildSharedProfileItems(preview);
 
   return (
-    <div className="mb-6 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-4 py-6 sm:mr-15 sm:mb-15 sm:px-8 sm:py-8">
-      <div className="flex flex-col items-center text-center">
-        <div className="w-24 sm:w-34">
-          <DocumentPortrait preview={preview} />
+    <div className="divide-y divide-neutral-200/80">
+      <section className="pb-6 sm:pb-8">
+        <div className="grid gap-6 lg:grid-cols-[9rem_minmax(0,1fr)] lg:items-start">
+          <div className="w-24 sm:w-34">
+            <DocumentPortrait preview={preview} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="max-w-[16ch] text-balance text-neutral-950 capitalize tracking-tight text-2xl">
+              {displayName || "No name"}
+            </h3>
+            <p className="mt-1.5 max-w-[54ch] text-pretty text-neutral-600 leading-6 text-lg">
+              {sharedItems.filter((item) => !item.key.includes("kayle")).length > 0
+                ? `${sharedItems.filter((item) => !item.key.includes("kayle")).length} shared ${
+                    sharedItems.filter((item) => !item.key.includes("kayle")).length === 1 ? "field" : "fields"
+                  } from the verified ${documentKindLabel.toLowerCase()} are listed below.`
+                : `Verified ${documentKindLabel.toLowerCase()} data is ready to inspect.`}
+            </p>
+          </div>
         </div>
+      </section>
 
-        <h3 className="mt-5 text-balance font-light text-[1.7rem] text-neutral-950 capitalize tracking-tight sm:text-[2.25rem]">
-          {displayName || "No Name"}
-        </h3>
-      </div>
+      {sharedItems.filter((item) => !item.key.includes("kayle")).length > 0 ? (
+        <section className="py-6 sm:py-8">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {sharedItems.map((item) => {
+              if (item.key.includes("kayle")) {
+                // Skip Kayle-specific claims
+                return null;
+              }
 
-      {sharedItems.length > 0 ? (
-        <dl className="mx-auto mt-4 flex flex-col items-center divide-y divide-neutral-200/80">
-          {sharedItems.map((item) => {
-            if (item.key.includes("kayle")) {
-              // Skip Kayle-specific claims
-              return null;
-            }
-
-            if (item.kind === "age-gate") {
               return (
-                <AgeGateStatusItem
+                <div
+                  className="p-4 sm:p-5 bg-neutral-50 rounded-md"
                   key={item.key}
-                  passed={item.passed}
-                  threshold={item.threshold}
-                />
+                >
+                  {item.kind === "age-gate" ? (
+                    <AgeGateStatusItem
+                      passed={item.passed}
+                      threshold={item.threshold}
+                    />
+                  ) : (
+                    <ProfileFieldItem
+                      label={item.label}
+                      monospace={item.monospace}
+                      value={item.value}
+                    />
+                  )}
+                </div>
               );
-            }
-
-            return (
-              <ProfileFieldItem
-                key={item.key}
-                label={item.label}
-                monospace={item.monospace}
-                value={item.value}
-              />
-            );
-          })}
-        </dl>
+            })}
+          </dl>
+        </section>
       ) : null}
+
+      {webhookMetadataItems.length > 0 ? (
+        <section className="py-6 sm:py-8">
+          <WebhookMetadataGrid items={webhookMetadataItems} />
+        </section>
+      ) : null}
+
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <WebhookPayloadDisclosure payload={payload} />
+      </section>
+    </div>
+  );
+}
+
+type WebhookMetadataItem = {
+  label: string;
+  monospace?: boolean;
+  value: string;
+};
+
+function buildWebhookMetadataItems(
+  preview: DemoWebhookEventPreview
+): WebhookMetadataItem[] {
+  const items: WebhookMetadataItem[] = [
+    {
+      label: "Event Type",
+      monospace: true,
+      value: preview.eventType ?? "Unknown",
+    },
+    {
+      label: "Contract Version",
+      monospace: true,
+      value:
+        preview.contractVersion === null
+          ? "Unknown"
+          : String(preview.contractVersion),
+    },
+    {
+      label: "Verification Session",
+      monospace: true,
+      value: preview.verificationSessionId ?? "Unknown",
+    },
+  ];
+
+  if (preview.verificationAttemptId) {
+    items.push({
+      label: "Verification Attempt",
+      monospace: true,
+      value: preview.verificationAttemptId,
+    });
+  }
+
+  if (preview.failureCode) {
+    items.push({
+      label: "Failure Code",
+      monospace: true,
+      value: preview.failureCode,
+    });
+  }
+
+  return items;
+}
+
+function ResultSectionHeading({
+  description,
+  title,
+}: {
+  description: string;
+  title: string;
+}) {
+  return (
+    <div className="max-w-3xl">
+      <h3 className="max-w-[18ch] text-balance text-neutral-950 tracking-tight text-2xl">
+        {title}
+      </h3>
+      <p className="mt-1.5 max-w-[54ch] text-pretty text-neutral-600 leading-6 text-lg">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function WebhookMetadataGrid({
+  columns = 2,
+  items,
+}: {
+  columns?: 2 | 3;
+  items: WebhookMetadataItem[];
+}) {
+  return (
+    <dl
+      className={cn(
+        "grid gap-4",
+        columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+      )}
+    >
+      {items.map((item) => (
+        <div
+          className="p-4 sm:p-5 bg-neutral-50 rounded-md"
+          key={`${item.label}-${item.value}`}
+        >
+          <ProfileFieldItem
+            label={item.label}
+            monospace={item.monospace}
+            value={item.value}
+          />
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function WebhookPayloadDisclosure({
+  payload,
+}: {
+  payload: string;
+}) {
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none flex-col gap-4 marker:content-none sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-medium text-base text-neutral-950">Payload JSON</p>
+          <p className="mt-2 max-w-[54ch] text-pretty text-sm text-neutral-600 leading-6 sm:text-base">
+            Expand the verified JSON payload for a raw inspection view.
+          </p>
+        </div>
+        <span className="shrink-0 font-medium text-[0.8rem] text-neutral-700">
+          Show raw JSON
+        </span>
+      </summary>
+
+      <div className="mt-5 overflow-hidden border border-neutral-200/80 rounded-4xl">
+        <pre className="max-h-[28rem] overflow-auto bg-neutral-950 px-4 py-4 font-mono text-[0.82rem] text-neutral-100 leading-6 sm:px-5 sm:py-5">
+          {payload}
+        </pre>
+      </div>
+    </details>
+  );
+}
+
+function DemoFailedAttemptPreviewPanel({
+  payload,
+  preview,
+}: {
+  payload: string;
+  preview: DemoWebhookEventPreview;
+}) {
+  const summaryItems: WebhookMetadataItem[] = [
+    {
+      label: "Event Type",
+      monospace: true,
+      value: preview.eventType ?? "Unknown",
+    },
+    {
+      label: "Failure Code",
+      monospace: true,
+      value: preview.failureCode ?? "Unknown",
+    },
+    {
+      label: "Contract Version",
+      monospace: true,
+      value:
+        preview.contractVersion === null
+          ? "Unknown"
+          : String(preview.contractVersion),
+    },
+  ];
+  const identifierItems: WebhookMetadataItem[] = [
+    {
+      label: "Verification Session",
+      monospace: true,
+      value: preview.verificationSessionId ?? "Unknown",
+    },
+  ];
+  const title = preview.failureTitle ?? preview.title;
+  const description = preview.failureDescription ?? preview.description;
+
+  if (preview.verificationAttemptId) {
+    identifierItems.push({
+      label: "Verification Attempt",
+      monospace: true,
+      value: preview.verificationAttemptId,
+    });
+  }
+
+  return (
+    <div className="border-neutral-200/80 border-t">
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description={description}
+          title={title}
+        />
+      </section>
+
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description="Failure metadata and identifiers from the webhook event."
+          title="Failure details"
+        />
+        <div className="mt-6 space-y-6">
+          <WebhookMetadataGrid columns={3} items={summaryItems} />
+          <WebhookMetadataGrid items={identifierItems} />
+        </div>
+      </section>
+
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description="Inspect the verified failure payload exactly as it arrived."
+          title="Raw payload"
+        />
+        <div className="mt-6">
+          <WebhookPayloadDisclosure payload={payload} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -927,64 +1059,42 @@ function DemoWebhookEventPreviewPanel({
   payload: string;
   preview: DemoWebhookEventPreview;
 }) {
+  const metadataItems = buildWebhookMetadataItems(preview);
+
+  if (preview.eventType === "verification.attempt.failed") {
+    return (
+      <DemoFailedAttemptPreviewPanel payload={payload} preview={preview} />
+    );
+  }
+
   return (
-    <div className="mb-6 rounded-[2rem] border border-neutral-200/80 bg-white/94 px-4 py-6 sm:mr-15 sm:mb-15 sm:px-8 sm:py-8">
-      <div className="text-center">
-        <p className="font-medium text-[0.7rem] text-neutral-500 uppercase tracking-[0.28em]">
-          Webhook Event
-        </p>
-        <h3 className="mt-3 text-balance font-light text-[1.7rem] text-neutral-950 tracking-tight sm:text-[2.25rem]">
-          {preview.title}
-        </h3>
-        <p className="mx-auto mt-3 max-w-2xl text-balance text-neutral-600 text-sm leading-relaxed">
-          {preview.description}
-        </p>
-      </div>
+    <div className="border-neutral-200/80 border-t">
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description={preview.description}
+          title={preview.title}
+        />
+      </section>
 
-      <dl className="mx-auto mt-8 grid max-w-3xl gap-6 border-neutral-200/80 sm:grid-cols-2">
-        <ProfileFieldItem
-          label="Event Type"
-          monospace
-          value={preview.eventType ?? "Unknown"}
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description="Identifiers and metadata from the latest verified event."
+          title="Event details"
         />
-        <ProfileFieldItem
-          label="Contract Version"
-          monospace
-          value={
-            preview.contractVersion === null
-              ? "Unknown"
-              : String(preview.contractVersion)
-          }
-        />
-        <ProfileFieldItem
-          label="Verification Session"
-          monospace
-          value={preview.verificationSessionId ?? "Unknown"}
-        />
-        {preview.verificationAttemptId ? (
-          <ProfileFieldItem
-            label="Verification Attempt"
-            monospace
-            value={preview.verificationAttemptId}
-          />
-        ) : null}
-        {preview.failureCode ? (
-          <ProfileFieldItem
-            label="Failure Code"
-            monospace
-            value={preview.failureCode}
-          />
-        ) : null}
-      </dl>
+        <div className="mt-6">
+          <WebhookMetadataGrid items={metadataItems} />
+        </div>
+      </section>
 
-      <div className="mx-auto mt-8 max-w-3xl">
-        <p className="font-medium text-[0.7rem] text-neutral-500 uppercase tracking-[0.28em]">
-          Decrypted Payload
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-[1.4rem] border border-neutral-200/80 bg-neutral-950 px-4 py-4 font-mono text-[0.76rem] text-neutral-100 leading-relaxed">
-          {payload}
-        </pre>
-      </div>
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description="Inspect the webhook JSON exactly as it was verified."
+          title="Raw payload"
+        />
+        <div className="mt-6">
+          <WebhookPayloadDisclosure payload={payload} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -997,13 +1107,13 @@ function DocumentStatePanel({
   title: string;
 }) {
   return (
-    <div className="mx-auto max-w-3xl rounded-[2rem] border border-neutral-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,247,246,0.94))] px-5 py-8 text-center shadow-[0_24px_80px_-48px_rgba(15,23,42,0.42)] sm:px-10 sm:py-10">
-      <h3 className="text-balance font-light text-2xl text-neutral-950 tracking-tight sm:text-[2.2rem]">
-        {title}
-      </h3>
-      <p className="mx-auto mt-3 max-w-xl text-balance text-base text-neutral-600 leading-relaxed">
-        {description}
-      </p>
+    <div className="border-neutral-200/80 border-t">
+      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+        <ResultSectionHeading
+          description={description}
+          title={title}
+        />
+      </section>
     </div>
   );
 }
@@ -1054,7 +1164,7 @@ function getWebhookPanelState({
 
 function RunStatusPanel({ run }: { run: DemoRunView | null }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 -mt-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {run?.verification_url ? (
           <Button
@@ -1115,7 +1225,15 @@ function WebhookPanel({
   );
 
   if (documentPreview) {
-    return <DemoDocumentPreviewPanel preview={documentPreview} />;
+    return (
+      <DemoDocumentPreviewPanel
+        payload={processedWebhook.decryptedPayload ?? ""}
+        preview={documentPreview}
+        webhookMetadataItems={
+          eventPreview ? buildWebhookMetadataItems(eventPreview) : []
+        }
+      />
+    );
   }
 
   if (eventPreview && processedWebhook.decryptedPayload) {
@@ -1380,7 +1498,6 @@ function DemoComposerStep({
   onOpenStep,
   onRestartDemo,
   openStep,
-  requestedFieldCount,
   runId,
   selectionResult,
 }: {
@@ -1396,15 +1513,9 @@ function DemoComposerStep({
   onOpenStep: (step: DemoStepId) => void;
   onRestartDemo: () => void;
   openStep: DemoStepId;
-  requestedFieldCount: number;
   runId: string | null;
   selectionResult: SelectionResult;
 }) {
-  const stepOneSummary = getStepOneSummary({
-    hasSession,
-    requestedFieldCount,
-  });
-
   return (
     <DemoStepPanel
       description="Pick the claims you would like to request."
@@ -1412,19 +1523,18 @@ function DemoComposerStep({
       onOpen={() => onOpenStep("step-1")}
       stepId="step-1"
       stepNumber={1}
-      summary={stepOneSummary}
       title="Choose the fields you want to test"
     >
       <div className="space-y-6">
         {demoClaimSections.map((section) => (
-          <section className="space-y-6" key={section.title}>
+          <section className="space-y-4" key={section.title}>
             <div>
               <h2 className="font-medium text-lg text-neutral-950">
                 {section.title}
               </h2>
               <p className="text-neutral-500 text-sm">{section.description}</p>
             </div>
-            <div className="space-y-4">
+            <div className="border-neutral-200/80 border-t">
               {section.claims.map((claimKey) => (
                 <ModeSelector
                   description={getClaimDescription(claimKey)}
@@ -1441,7 +1551,7 @@ function DemoComposerStep({
           </section>
         ))}
 
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div>
             <h2 className="font-medium text-lg text-neutral-950">Age Gate</h2>
             <p className="text-neutral-500 text-sm">
@@ -1449,11 +1559,13 @@ function DemoComposerStep({
               requirement.
             </p>
           </div>
-          <AgeGateSelector
-            errorMessage={selectionResult.ok ? null : selectionResult.message}
-            onChange={onAgeThresholdChange}
-            thresholdText={ageThresholdText}
-          />
+          <div className="border-neutral-200/80 border-t">
+            <AgeGateSelector
+              errorMessage={selectionResult.ok ? null : selectionResult.message}
+              onChange={onAgeThresholdChange}
+              thresholdText={ageThresholdText}
+            />
+          </div>
         </section>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -1502,13 +1614,6 @@ function DemoVerificationStep({
   openStep: DemoStepId;
   run: DemoRunView | null;
 }) {
-  const sessionStatus = run?.session_status ?? null;
-  const stepTwoSummary = getStepTwoSummary({
-    hasSession,
-    sessionStatus,
-    webhook: run?.webhook ?? null,
-  });
-
   return (
     <DemoStepPanel
       description="Open the session on mobile."
@@ -1517,7 +1622,6 @@ function DemoVerificationStep({
       onOpen={() => onOpenStep("step-2")}
       stepId="step-2"
       stepNumber={2}
-      summary={stepTwoSummary}
       title="Complete the live verification"
     >
       <RunStatusPanel run={run} />
@@ -1527,19 +1631,13 @@ function DemoVerificationStep({
 
 function DemoOutcomeStep({
   canReviewOutcome,
-  isCreatingRun,
-  isCreatingSession,
   onOpenStep,
-  onRestartDemo,
   openStep,
   processedWebhook,
   run,
 }: {
   canReviewOutcome: boolean;
-  isCreatingRun: boolean;
-  isCreatingSession: boolean;
   onOpenStep: (step: DemoStepId) => void;
-  onRestartDemo: () => void;
   openStep: DemoStepId;
   processedWebhook: ProcessedWebhookState;
   run: DemoRunView | null;
@@ -1548,11 +1646,6 @@ function DemoOutcomeStep({
   const isWaitingForTerminalWebhook = Boolean(
     sessionStatus?.is_terminal && !run?.webhook
   );
-  const stepThreeSummary = getStepThreeSummary({
-    canReviewOutcome,
-    sessionStatus,
-    webhook: run?.webhook ?? null,
-  });
 
   return (
     <DemoStepPanel
@@ -1562,7 +1655,6 @@ function DemoOutcomeStep({
       onOpen={() => onOpenStep("step-3")}
       stepId="step-3"
       stepNumber={3}
-      summary={stepThreeSummary}
       title="Review the outcome"
     >
       <div className="space-y-8">
@@ -1575,16 +1667,6 @@ function DemoOutcomeStep({
             </AlertDescription>
           </Alert>
         ) : null}
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <Button
-            disabled={isCreatingSession || isCreatingRun}
-            onClick={onRestartDemo}
-            type="button"
-          >
-            Restart demo
-          </Button>
-        </div>
 
         <WebhookPanel processedWebhook={processedWebhook} run={run} />
       </div>
@@ -1623,7 +1705,6 @@ export function Demo() {
   const sessionStatus = run?.session_status ?? null;
   const hasSession = Boolean(run?.session_id);
   const canReviewOutcome = Boolean(sessionStatus?.is_terminal || run?.webhook);
-  const requestedFieldCount = countVisibleDemoClaims(run?.share_fields);
 
   const clearRunState = useCallback(() => {
     setOpenStep("step-1");
@@ -1843,7 +1924,6 @@ export function Demo() {
                 onOpenStep={handleOpenStep}
                 onRestartDemo={handleRestartDemo}
                 openStep={openStep}
-                requestedFieldCount={requestedFieldCount}
                 runId={runId}
                 selectionResult={selectionResult}
               />
@@ -1857,10 +1937,7 @@ export function Demo() {
 
               <DemoOutcomeStep
                 canReviewOutcome={canReviewOutcome}
-                isCreatingRun={isCreatingRun}
-                isCreatingSession={isCreatingSession}
                 onOpenStep={handleOpenStep}
-                onRestartDemo={handleRestartDemo}
                 openStep={openStep}
                 processedWebhook={processedWebhook}
                 run={run}

@@ -44,7 +44,7 @@ struct RFIDUnsupportedView: View {
         action: onTryAnotherDocument
       )
 
-      ActionButton(style: .secondary, title: "Return Home", action: onReturnHome)
+      ActionButton(style: .secondary, title: "Cancel", action: onReturnHome)
     }
   }
 }

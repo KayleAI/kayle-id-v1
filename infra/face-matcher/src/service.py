@@ -11,11 +11,12 @@ import numpy as np
 
 MODEL_INPUT_SIZE = (112, 112)
 DETAIL_STDDEV_MIN = 12.0
-SMALL_IMAGE_FALLBACK_MAX_DIMENSION = 64
-STRICT_IMAGE_SIMILARITY_THRESHOLD = 0.995
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_DETECTOR_INPUT_SIZE = (320, 320)
-MODEL_PATH = os.environ.get("FACE_MATCHER_MODEL_PATH", "/app/models/w600k_mbf.onnx")
+MIN_USABLE_SELFIE_COUNT = 2
+MODEL_PATH = os.environ.get(
+    "FACE_MATCHER_MODEL_PATH", "/app/models/face_recognition_sface_2021dec.onnx"
+)
 DETECTOR_MODEL_PATH = os.environ.get(
     "FACE_MATCHER_DETECTOR_PATH", "/app/models/face_detection_yunet_2023mar.onnx"
 )
@@ -32,10 +33,6 @@ def clamp_score(value: float) -> float:
 
 def normalize_cosine_score(raw_score: float) -> float:
     return clamp_score((raw_score + 1.0) / 2.0)
-
-
-def normalize_correlation_score(raw_score: float) -> float:
-    return clamp_score(raw_score)
 
 
 def decode_selfie(selfie_base64: str) -> Optional[np.ndarray]:
@@ -104,64 +101,33 @@ def prepare_face_crop(
     return prepared
 
 
-def prepare_full_image_crop(image: np.ndarray) -> Optional[np.ndarray]:
-    if image.size == 0:
-        return None
-
-    prepared = cv2.resize(image, MODEL_INPUT_SIZE)
-    grayscale = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
-
-    if float(grayscale.std()) < DETAIL_STDDEV_MIN:
-        return None
-
-    return prepared
-
-
 def build_embedding(
     detector: cv2.FaceDetectorYN,
     recognizer: cv2.FaceRecognizerSF,
     image: np.ndarray,
-    allow_full_image_fallback: bool = False,
 ):
     prepared = prepare_face_crop(detector, recognizer, image)
-
-    if prepared is None and allow_full_image_fallback:
-        prepared = prepare_full_image_crop(image)
 
     if prepared is None:
         return None
 
-    return recognizer.feature(prepared)
+    return recognizer.feature(prepared).copy()
 
 
-def should_allow_small_image_fallback(image: np.ndarray) -> bool:
-    height, width = image.shape[:2]
-    return min(height, width) <= SMALL_IMAGE_FALLBACK_MAX_DIMENSION
-
-
-def compute_image_similarity(
-    dg2_image: np.ndarray, selfie_image: np.ndarray
-) -> Optional[float]:
-    dg2_grayscale = cv2.cvtColor(
-        cv2.resize(dg2_image, MODEL_INPUT_SIZE), cv2.COLOR_BGR2GRAY
-    ).astype(np.float32)
-    selfie_grayscale = cv2.cvtColor(
-        cv2.resize(selfie_image, MODEL_INPUT_SIZE), cv2.COLOR_BGR2GRAY
-    ).astype(np.float32)
-
-    dg2_centered = dg2_grayscale - float(dg2_grayscale.mean())
-    selfie_centered = selfie_grayscale - float(selfie_grayscale.mean())
-    dg2_norm = float(np.linalg.norm(dg2_centered))
-    selfie_norm = float(np.linalg.norm(selfie_centered))
-
-    if dg2_norm == 0.0 or selfie_norm == 0.0:
+def resolve_face_score(score_candidates: list[float]) -> Optional[float]:
+    # Use at least two detected-face selfies and aggregate conservatively so a
+    # single anomalous frame cannot decide the match outcome on its own.
+    usable_count = len(score_candidates)
+    if usable_count < MIN_USABLE_SELFIE_COUNT:
         return None
 
-    raw_score = float(
-        np.dot(dg2_centered.flatten(), selfie_centered.flatten())
-        / (dg2_norm * selfie_norm)
-    )
-    return normalize_correlation_score(raw_score)
+    sorted_scores = sorted(score_candidates)
+    middle = usable_count // 2
+
+    if usable_count % 2 == 1:
+        return sorted_scores[middle]
+
+    return (sorted_scores[middle - 1] + sorted_scores[middle]) / 2.0
 
 
 def compare_faces(
@@ -171,15 +137,11 @@ def compare_faces(
     selfies_base64: list[str],
     threshold: float,
 ) -> dict:
-    dg2_embedding = build_embedding(
-        detector,
-        recognizer,
-        dg2_image,
-        allow_full_image_fallback=True,
-    )
+    dg2_embedding = build_embedding(detector, recognizer, dg2_image)
 
-    best_score = None
+    score_candidates: list[float] = []
     selfie_diagnostics: list[dict[str, object]] = []
+    decoded_selfie_count = 0
 
     for index, selfie_base64 in enumerate(selfies_base64):
         selfie = decode_selfie(selfie_base64)
@@ -194,12 +156,8 @@ def compare_faces(
             selfie_diagnostics.append(diagnostic)
             continue
 
-        selfie_embedding = build_embedding(
-            detector,
-            recognizer,
-            selfie,
-            allow_full_image_fallback=should_allow_small_image_fallback(selfie),
-        )
+        decoded_selfie_count += 1
+        selfie_embedding = build_embedding(detector, recognizer, selfie)
 
         normalized_score = None
 
@@ -213,14 +171,6 @@ def compare_faces(
             )
             normalized_score = normalize_cosine_score(raw_score)
             diagnostic["used_embedding"] = True
-        else:
-            normalized_score = compute_image_similarity(dg2_image, selfie)
-
-            if (
-                normalized_score is not None
-                and normalized_score < STRICT_IMAGE_SIMILARITY_THRESHOLD
-            ):
-                normalized_score = None
 
         diagnostic["similarity"] = normalized_score
         selfie_diagnostics.append(diagnostic)
@@ -228,10 +178,11 @@ def compare_faces(
         if normalized_score is None:
             continue
 
-        if best_score is None or normalized_score > best_score:
-            best_score = normalized_score
+        score_candidates.append(normalized_score)
 
-    if best_score is None:
+    final_score = resolve_face_score(score_candidates)
+
+    if final_score is None:
         emit_log(
             "comparison_failed",
             dg2_embedding_present=dg2_embedding is not None,
@@ -246,16 +197,24 @@ def compare_faces(
                 "usedFallback": True,
             }
 
+        if decoded_selfie_count == 0:
+            return {
+                "faceScore": None,
+                "passed": False,
+                "reason": "face_score_no_decodable_selfies",
+                "usedFallback": True,
+            }
+
         return {
             "faceScore": None,
             "passed": False,
-            "reason": "face_score_no_decodable_selfies",
+            "reason": "face_score_insufficient_usable_selfies",
             "usedFallback": True,
         }
 
     return {
-        "faceScore": best_score,
-        "passed": best_score >= threshold,
+        "faceScore": final_score,
+        "passed": final_score >= threshold,
         "usedFallback": False,
     }
 

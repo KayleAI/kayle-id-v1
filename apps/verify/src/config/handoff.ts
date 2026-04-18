@@ -12,11 +12,14 @@ export type VerifySessionStatusPayload = {
   latest_attempt: {
     completed_at: string | null;
     failure_code: string | null;
+    handoff_claimed: boolean;
     id: string;
+    retry_allowed: boolean;
     status: "cancelled" | "failed" | "in_progress" | "succeeded";
   } | null;
   redirect_url: string | null;
   session_id: string;
+  same_device_only: boolean;
   status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 };
 
@@ -80,4 +83,21 @@ export async function requestVerifySessionStatus(
   }
 
   return payload.data;
+}
+
+export async function requestCancelVerifySession(sessionId: string): Promise<void> {
+  const response = await fetch(`/v1/verify/session/${sessionId}/cancel`, {
+    method: "POST",
+  });
+
+  if (response.status === 204) {
+    return;
+  }
+
+  const payload = (await response.json()) as VerifyApiResponse<null>;
+
+  throw createVerifyRequestError(
+    payload.error?.code ?? "UNKNOWN",
+    payload.error?.message ?? "Failed to cancel the verification session."
+  );
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct MRZIntroView: View {
   let onContinue: () -> Void
   var onBack: (() -> Void)? = nil
+  var onCancel: (() -> Void)? = nil
 
   var body: some View {
     StepScreen(layout: .centered, onBack: onBack) {
@@ -16,6 +17,10 @@ struct MRZIntroView: View {
       EmptyView()
     } footer: {
       ActionButton(style: .primary, title: "Continue", action: onContinue)
+
+      if let onCancel {
+        ActionButton(style: .secondary, title: "Cancel", action: onCancel)
+      }
     }
   }
 }

@@ -43,11 +43,14 @@ type VerifySessionStatusResponse = {
     latest_attempt: {
       completed_at: string | null;
       failure_code: string | null;
+      handoff_claimed: boolean;
       id: string;
+      retry_allowed: boolean;
       status: "cancelled" | "failed" | "in_progress" | "succeeded";
     } | null;
     redirect_url: string | null;
     session_id: string;
+    same_device_only: boolean;
     status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
   } | null;
   error: {
@@ -290,6 +293,42 @@ describe("/v1/verify/session/:id/handoff", () => {
 });
 
 describe("/v1/verify/session/:id/status", () => {
+  test.serial("Cancels a live verification session via the public verify route", async () => {
+    const sessionId = await createSession();
+
+    const response = await app.request(
+      `/v1/verify/session/${sessionId}/cancel`,
+      {
+        method: "POST",
+      }
+    );
+
+    expect(response.status).toBe(204);
+
+    const [session] = await db
+      .select({
+        status: verification_sessions.status,
+      })
+      .from(verification_sessions)
+      .where(eq(verification_sessions.id, sessionId))
+      .limit(1);
+
+    expect(session?.status).toBe("cancelled");
+  });
+
+  test.serial("Returns 404 when cancelling an unknown verification session", async () => {
+    const response = await app.request(
+      "/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
+      {
+        method: "POST",
+      }
+    );
+
+    expect(response.status).toBe(404);
+    const payload = (await response.json()) as VerifySessionStatusResponse;
+    expect(payload.error?.code).toBe("SESSION_NOT_FOUND");
+  });
+
   test.serial("Returns 400 for invalid session ID", async () => {
     const response = await app.request(
       "/v1/verify/session/not-a-session/status",
@@ -337,6 +376,8 @@ describe("/v1/verify/session/:id/status", () => {
         verificationSessionId: sessionId,
         status: "succeeded",
         completedAt,
+        mobileWriteTokenConsumedAt: completedAt,
+        mobileHelloDeviceIdHash: "device_hash",
       });
 
       const response = await app.request(
@@ -356,12 +397,61 @@ describe("/v1/verify/session/:id/status", () => {
         latest_attempt: {
           completed_at: completedAt.toISOString(),
           failure_code: null,
+          handoff_claimed: true,
           id: "va_test_status_completed",
+          retry_allowed: false,
           status: "succeeded",
         },
         redirect_url: "https://example.com/return",
         session_id: sessionId,
+        same_device_only: true,
         status: "completed",
+      });
+    }
+  );
+
+  test.serial(
+    "Exposes same-device retry state after a failed claimed attempt",
+    async () => {
+      const completedAt = new Date("2099-01-01T00:00:00.000Z");
+      const sessionId = await createSession();
+
+      await db.insert(verification_attempts).values({
+        id: "va_test_status_retryable_failed",
+        verificationSessionId: sessionId,
+        status: "failed",
+        failureCode: "selfie_face_mismatch",
+        completedAt,
+        mobileWriteTokenConsumedAt: completedAt,
+        mobileHelloDeviceIdHash: "device_hash",
+      });
+
+      const response = await app.request(
+        `/v1/verify/session/${sessionId}/status`,
+        {
+          method: "GET",
+        }
+      );
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as VerifySessionStatusResponse;
+
+      expect(payload.error).toBeNull();
+      expect(payload.data).toEqual({
+        completed_at: null,
+        is_terminal: false,
+        latest_attempt: {
+          completed_at: completedAt.toISOString(),
+          failure_code: "selfie_face_mismatch",
+          handoff_claimed: true,
+          id: "va_test_status_retryable_failed",
+          retry_allowed: true,
+          status: "failed",
+        },
+        redirect_url: null,
+        session_id: sessionId,
+        same_device_only: true,
+        status: "created",
       });
     }
   );
@@ -399,11 +489,14 @@ describe("/v1/verify/session/:id/status", () => {
       expect(payload.data?.session_id).toBe(sessionId);
       expect(payload.data?.status).toBe("expired");
       expect(payload.data?.is_terminal).toBeTrue();
+      expect(payload.data?.same_device_only).toBeFalse();
       expect(payload.data?.latest_attempt?.id).toBe("va_test_status_expired");
       expect(payload.data?.latest_attempt?.status).toBe("failed");
       expect(payload.data?.latest_attempt?.failure_code).toBe(
         "session_expired"
       );
+      expect(payload.data?.latest_attempt?.handoff_claimed).toBeFalse();
+      expect(payload.data?.latest_attempt?.retry_allowed).toBeFalse();
 
       const [session] = await db
         .select({

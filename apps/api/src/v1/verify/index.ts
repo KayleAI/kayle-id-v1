@@ -1,7 +1,14 @@
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
+import { db } from "@kayle-id/database/drizzle";
+import { verification_sessions } from "@kayle-id/database/schema/core";
+import { and, eq } from "drizzle-orm";
 import { sessionIdSchema } from "@/shared/validation";
+import {
+  cancelVerificationSession,
+  expireVerificationSessionIfNeeded,
+} from "@/v1/sessions/repo/session-repo";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
 import { loadActiveVerifySession } from "./session-context";
@@ -105,6 +112,53 @@ verify.get(
       },
       200
     );
+  }
+);
+
+verify.post(
+  "/session/:id/cancel",
+  validator("param", sessionParamJsonValidator),
+  async (c) => {
+    const { id } = c.req.valid("param");
+
+    const [rawSession] = await db
+      .select()
+      .from(verification_sessions)
+      .where(
+        and(
+          eq(verification_sessions.id, id),
+          eq(verification_sessions.environment, "live")
+        )
+      )
+      .limit(1);
+
+    if (!rawSession) {
+      const response = createVerifyJsonErrorResponse({
+        code: "SESSION_NOT_FOUND",
+        status: 404,
+      });
+
+      return c.json(
+        {
+          data: response.data,
+          error: response.error,
+        },
+        response.status
+      );
+    }
+
+    const session = await expireVerificationSessionIfNeeded({
+      row: rawSession,
+    });
+
+    if (!["completed", "expired", "cancelled"].includes(session.status)) {
+      await cancelVerificationSession({
+        row: session,
+        organizationId: session.organizationId,
+      });
+    }
+
+    return c.body(null, 204);
   }
 );
 

@@ -17,7 +17,8 @@ import { configureVerifyAssetFetcherFromEnv } from "../../../apps/api/src/v1/ver
 import pkg from "../../../package.json" with { type: "json" };
 import { matchFacesWithContainer } from "./matcher";
 
-export const FACE_MATCHER_MODEL_PATH = "/app/models/w600k_mbf.onnx";
+export const FACE_MATCHER_MODEL_PATH =
+  "/app/models/face_recognition_sface_2021dec.onnx";
 export const FACE_MATCHER_DETECTOR_PATH =
   "/app/models/face_detection_yunet_2023mar.onnx";
 

@@ -45,6 +45,7 @@ private struct StepRenderSnapshot: Identifiable {
   let id = UUID()
   let step: VerificationStep
   var showsBackButton = false
+  var showsCancelButton = false
   var documentCopy: DocumentCopySnapshot? = nil
   var nfc: NFCRenderSnapshot? = nil
   var shareDetails: ShareDetailsRenderSnapshot? = nil
@@ -122,6 +123,7 @@ struct ContentView: View {
   @State private var cardAccessNumber: String?
   @State private var isAboutSheetPresented = false
   @State private var isResolvingQRCode = false
+  @State private var isCancelVerificationConfirmationPresented = false
   @State private var hasStartedNFCScan = false
   @State private var isRetainingNFCUploadUI = false
   @State private var retainedNFCUploadProgress: Double = 0
@@ -225,6 +227,24 @@ struct ContentView: View {
     .sheet(isPresented: $isAboutSheetPresented) {
       AboutSheetView()
     }
+    .background {
+      Color.clear
+        .confirmationDialog(
+          "Cancel?",
+          isPresented: $isCancelVerificationConfirmationPresented,
+          titleVisibility: .visible
+        ) {
+          Button("Cancel", role: .destructive) {
+            confirmCancelVerification()
+          }
+          Button("Stay here", role: .cancel) {
+            dismissCancelVerificationConfirmation()
+          }
+        } message: {
+          Text("This will stop the current verification on this device.")
+        }
+        .tint(.black)
+    }
     .onChange(of: pendingQRCode) { newCode in
       guard let code = newCode, !code.isEmpty else {
         return
@@ -251,10 +271,22 @@ struct ContentView: View {
     case .scanning:
       return AnyView(scanningView)
     case .mrz:
+      let mrzBackAction: (() -> Void)? = if session.payload == nil {
+        goBackFromMRZ
+      } else {
+        nil
+      }
+      let mrzCancelAction: (() -> Void)? = if session.payload == nil {
+        nil
+      } else {
+        presentCancelVerificationConfirmation
+      }
+
       return AnyView(
         MRZIntroView(
           onContinue: presentMRZDrawer,
-          onBack: goBackFromMRZ
+          onBack: mrzBackAction,
+          onCancel: mrzCancelAction
         )
       )
     case .rfidCheck:
@@ -284,7 +316,7 @@ struct ContentView: View {
         documentNameWithArticle: currentDocumentNameWithArticle,
         rfidSymbolLocationDescription: currentRFIDSymbolLocationDescription,
         onTryAnotherDocument: tryAnotherDocument,
-        onReturnHome: resetVerificationFlow,
+        onReturnHome: presentCancelVerificationConfirmation,
         onBack: goBackFromRFIDUnsupported
       )
       )
@@ -328,7 +360,7 @@ struct ContentView: View {
             await session.submitShareSelection()
           }
         },
-        onCancel: resetVerificationFlow
+        onCancel: presentCancelVerificationConfirmation
       )
       )
     case .complete:
@@ -337,6 +369,8 @@ struct ContentView: View {
 
       if secondaryButtonTitle == nil {
         secondaryAction = nil
+      } else if let verdict = session.verdict, isRejectedVerdict(verdict), verdict.retryAllowed {
+        secondaryAction = presentCancelVerificationConfirmation
       } else {
         secondaryAction = { resetVerificationFlow() }
       }
@@ -380,7 +414,8 @@ struct ContentView: View {
       return AnyView(
         MRZIntroView(
           onContinue: {},
-          onBack: snapshot.showsBackButton ? {} : nil
+          onBack: snapshot.showsBackButton ? {} : nil,
+          onCancel: snapshot.showsCancelButton ? {} : nil
         )
       )
     case .rfidCheck:
@@ -636,7 +671,7 @@ struct ContentView: View {
       return nil
     }
 
-    return isRejectedVerdict(verdict) && verdict.retryAllowed ? "Done" : nil
+    return isRejectedVerdict(verdict) && verdict.retryAllowed ? "Cancel" : nil
   }
 
   private func handleCompletionPrimaryAction() {
@@ -690,6 +725,19 @@ struct ContentView: View {
 
   private func goBackFromMRZ() {
     session.moveToStep(.scanning)
+  }
+
+  private func presentCancelVerificationConfirmation() {
+    isCancelVerificationConfirmationPresented = true
+  }
+
+  private func dismissCancelVerificationConfirmation() {
+    isCancelVerificationConfirmationPresented = false
+  }
+
+  private func confirmCancelVerification() {
+    dismissCancelVerificationConfirmation()
+    cancelVerificationFlow()
   }
 
   private func goBackFromRFIDCheck() {
@@ -768,6 +816,21 @@ struct ContentView: View {
     session.reset()
   }
 
+  private func cancelVerificationFlow() {
+    captureCurrentStepSnapshot()
+    let attemptId = session.payload?.attemptId
+
+    Task {
+      do {
+        try await session.cancelVerification()
+        clearDocumentCaptureUIState()
+        session.reset()
+      } catch {
+        session.handleError(error, forAttemptId: attemptId)
+      }
+    }
+  }
+
   private func makeStepRenderSnapshot(for step: VerificationStep) -> StepRenderSnapshot {
     switch step {
     case .welcome:
@@ -778,7 +841,11 @@ struct ContentView: View {
         showsBackButton: session.payload == nil
       )
     case .mrz:
-      return StepRenderSnapshot(step: .mrz, showsBackButton: true)
+      return StepRenderSnapshot(
+        step: .mrz,
+        showsBackButton: session.payload == nil,
+        showsCancelButton: session.payload != nil
+      )
     case .rfidCheck:
       return StepRenderSnapshot(
         step: .rfidCheck,

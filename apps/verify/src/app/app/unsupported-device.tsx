@@ -9,6 +9,7 @@ import type {
   VerifySessionStatusPayload,
 } from "@/config/handoff";
 import {
+  requestCancelVerifySession,
   requestHandoffPayload,
   requestVerifySessionStatus,
 } from "@/config/handoff";
@@ -38,7 +39,7 @@ type TerminalContent = {
 };
 
 type HandoffStateContentProps = {
-  fetchHandoffPayload: () => void;
+  fetchHandoffPayload: () => void | Promise<void>;
   handoffError: string | null;
   handoffLoading: boolean;
   handoffUrl: string | null;
@@ -163,6 +164,30 @@ function buildConnectedScreenContent(): ScreenContent {
   };
 }
 
+function buildRetryableFailureScreenContent(): ScreenContent {
+  return {
+    colour: "red",
+    headerDescription:
+      "This verification must stay on the mobile device that already started it.",
+    headerTitle: "Retry on the same device",
+    messageDescription:
+      "The latest attempt did not pass. Retry or cancel in the Kayle ID app on that same device to continue.",
+    messageTitle: "QR handoff is unavailable",
+  };
+}
+
+function buildSameDeviceScreenContent(): ScreenContent {
+  return {
+    colour: "blue",
+    headerDescription:
+      "This verification is reserved for the mobile device that already claimed it.",
+    headerTitle: "Continue on your device",
+    messageDescription:
+      "Open Kayle ID on that same device to continue. A new QR handoff is no longer available for this session.",
+    messageTitle: "Waiting for your device",
+  };
+}
+
 function buildTerminalScreenContent({
   redirectCountdown,
   redirectTargetUrl,
@@ -253,20 +278,60 @@ function HandoffStateContent({
   );
 }
 
-function startSessionStatusPolling({
-  pollSessionStatus,
-}: {
-  pollSessionStatus: () => Promise<void>;
-}): number {
-  pollSessionStatus().catch(() => {
-    /* pollSessionStatus already handles its own errors */
-  });
+function requiresSameDeviceOnly(
+  sessionStatus: VerifySessionStatusPayload | null
+): boolean {
+  return Boolean(
+    sessionStatus &&
+      !sessionStatus.is_terminal &&
+      sessionStatus.status !== "in_progress" &&
+      sessionStatus.same_device_only
+  );
+}
 
-  return window.setInterval(() => {
-    pollSessionStatus().catch(() => {
-      /* pollSessionStatus already handles its own errors */
-    });
-  }, STATUS_POLL_INTERVAL_MS);
+function isRetryableFailureState(
+  sessionStatus: VerifySessionStatusPayload | null
+): boolean {
+  return Boolean(
+    sessionStatus &&
+      !sessionStatus.is_terminal &&
+      sessionStatus.latest_attempt?.status === "failed" &&
+      sessionStatus.latest_attempt.retry_allowed
+  );
+}
+
+function shouldShowHandoff(
+  sessionStatus: VerifySessionStatusPayload | null
+): boolean {
+  return Boolean(
+    sessionStatus &&
+      !sessionStatus.is_terminal &&
+      sessionStatus.status !== "in_progress" &&
+      !sessionStatus.same_device_only
+  );
+}
+
+function buildCancelledSessionStatus({
+  sessionId,
+  sessionStatus,
+}: {
+  sessionId: string;
+  sessionStatus: VerifySessionStatusPayload | null;
+}): VerifySessionStatusPayload {
+  return {
+    completed_at: new Date().toISOString(),
+    is_terminal: true,
+    latest_attempt: sessionStatus?.latest_attempt
+      ? {
+          ...sessionStatus.latest_attempt,
+          retry_allowed: false,
+        }
+      : null,
+    redirect_url: null,
+    session_id: sessionId,
+    same_device_only: sessionStatus?.same_device_only ?? false,
+    status: "cancelled",
+  };
 }
 
 /**
@@ -286,6 +351,7 @@ export function UnsupportedDevice() {
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] =
     useState<VerifySessionStatusPayload | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(
     null
   );
@@ -319,8 +385,17 @@ export function UnsupportedDevice() {
       setSessionStatus((currentStatus) =>
         currentStatus?.is_terminal ? currentStatus : nextStatus
       );
+
+      if (!shouldShowHandoff(nextStatus)) {
+        setHandoffPayload(null);
+        setHandoffError(null);
+        setHandoffLoading(false);
+      }
+
+      return nextStatus;
     } catch {
       // Keep polling in the background. The browser only needs the first successful terminal status.
+      return null;
     }
   }, [sessionId]);
 
@@ -343,10 +418,32 @@ export function UnsupportedDevice() {
       }
 
       setHandoffError("Unable to generate handoff QR code.");
+      return null;
     } finally {
       setHandoffLoading(false);
     }
   }, [pollSessionStatus, sessionId]);
+
+  const loadHandoffState = useCallback(async () => {
+    setStatusLoading(true);
+    setHandoffError(null);
+
+    const nextStatus = await pollSessionStatus();
+    setStatusLoading(false);
+
+    if (!nextStatus) {
+      setHandoffPayload(null);
+      setHandoffError("Unable to load verification status.");
+      return;
+    }
+
+    if (!shouldShowHandoff(nextStatus)) {
+      setHandoffPayload(null);
+      return;
+    }
+
+    await fetchHandoffPayload();
+  }, [fetchHandoffPayload, pollSessionStatus]);
 
   const refreshHandoffPayload = useCallback(async () => {
     try {
@@ -375,8 +472,38 @@ export function UnsupportedDevice() {
     }
   }, [handoffPayload, pollSessionStatus, sessionId]);
 
+  const handleCancelVerification = useCallback(async () => {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.confirm === "function" &&
+      !window.confirm(
+        "Cancel? This will stop the current verification session."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await requestCancelVerifySession(sessionId);
+      setHandoffPayload(null);
+      setHandoffError(null);
+      setHandoffLoading(false);
+      setStatusLoading(false);
+      setSessionStatus(
+        buildCancelledSessionStatus({
+          sessionId,
+          sessionStatus,
+        })
+      );
+    } catch {
+      setHandoffError("Unable to cancel the verification session.");
+    }
+  }, [sessionId, sessionStatus]);
+
   const isTerminal = sessionStatus?.is_terminal ?? false;
   const isAwaitingCompletion = sessionStatus?.status === "in_progress";
+  const isSameDeviceOnly = requiresSameDeviceOnly(sessionStatus);
+  const isRetryableFailure = isRetryableFailureState(sessionStatus);
   const screenContent = useMemo(() => {
     if (isTerminal && terminalContent) {
       return buildTerminalScreenContent({
@@ -390,9 +517,19 @@ export function UnsupportedDevice() {
       return buildConnectedScreenContent();
     }
 
+    if (isRetryableFailure) {
+      return buildRetryableFailureScreenContent();
+    }
+
+    if (isSameDeviceOnly) {
+      return buildSameDeviceScreenContent();
+    }
+
     return buildInitialScreenContent({ os });
   }, [
     isAwaitingCompletion,
+    isRetryableFailure,
+    isSameDeviceOnly,
     isTerminal,
     os,
     redirectCountdown,
@@ -405,9 +542,11 @@ export function UnsupportedDevice() {
       return;
     }
 
-    const intervalId = startSessionStatusPolling({
-      pollSessionStatus,
-    });
+    const intervalId = window.setInterval(() => {
+      pollSessionStatus().catch(() => {
+        /* pollSessionStatus already handles its own errors */
+      });
+    }, STATUS_POLL_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -415,17 +554,13 @@ export function UnsupportedDevice() {
   }, [isTerminal, pollSessionStatus]);
 
   useEffect(() => {
-    const initialiseHandoff = async () => {
-      await fetchHandoffPayload();
-    };
-
-    initialiseHandoff().catch(() => {
-      // fetchHandoffPayload already stores the error state that the UI renders.
+    loadHandoffState().catch(() => {
+      // loadHandoffState already stores the error state that the UI renders.
     });
-  }, [fetchHandoffPayload]);
+  }, [loadHandoffState]);
 
   useEffect(() => {
-    if (isTerminal || isAwaitingCompletion) {
+    if (isTerminal || !shouldShowHandoff(sessionStatus)) {
       return;
     }
 
@@ -438,7 +573,7 @@ export function UnsupportedDevice() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isAwaitingCompletion, isTerminal, refreshHandoffPayload]);
+  }, [isTerminal, refreshHandoffPayload, sessionStatus]);
 
   useEffect(() => {
     if (!redirectTargetUrl) {
@@ -482,12 +617,12 @@ export function UnsupportedDevice() {
       }
     | undefined;
 
-  if (!(isTerminal || isAwaitingCompletion)) {
+  if (statusLoading || shouldShowHandoff(sessionStatus) || handoffError) {
     stateContent = (
       <HandoffStateContent
-        fetchHandoffPayload={fetchHandoffPayload}
+        fetchHandoffPayload={loadHandoffState}
         handoffError={handoffError}
-        handoffLoading={handoffLoading}
+        handoffLoading={handoffLoading || statusLoading}
         handoffUrl={handoffUrl}
         os={os}
       />
@@ -516,7 +651,11 @@ export function UnsupportedDevice() {
     buttons = {
       secondary: {
         label: "Cancel",
-        onClick: () => window.close(),
+        onClick: () => {
+          handleCancelVerification().catch(() => {
+            // handleCancelVerification already stores the error state that the UI renders.
+          });
+        },
       },
     };
   }

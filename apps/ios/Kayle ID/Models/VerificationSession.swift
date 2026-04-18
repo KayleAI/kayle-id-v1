@@ -356,6 +356,14 @@ final class VerificationSession: ObservableObject {
     moveToStep(.mrz)
   }
 
+  func cancelVerification() async throws {
+    guard let currentPayload = payload else {
+      throw VerificationError.notInitialized
+    }
+
+    try await APIService.cancelVerification(sessionId: currentPayload.sessionId)
+  }
+
   func clearDocumentCaptureState() {
     mrzResult = nil
     nfcResult = nil

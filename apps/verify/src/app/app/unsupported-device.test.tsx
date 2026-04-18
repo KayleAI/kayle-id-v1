@@ -44,6 +44,8 @@ if (typeof document === "undefined") {
 const mockedUseDevice = vi.fn();
 const qrPropsSpy = vi.fn();
 const assignLocationSpy = vi.fn();
+const confirmSpy = vi.fn();
+const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
 const requestVerifySessionStatusMock = vi.fn();
 const REDIRECT_COUNTDOWN_TEXT = /Redirecting in 3 seconds\./;
@@ -64,6 +66,8 @@ vi.mock("@/utils/navigation", () => ({
 }));
 
 vi.mock("@/config/handoff", () => ({
+  requestCancelVerifySession: (sessionId: string) =>
+    requestCancelVerifySessionMock(sessionId),
   requestHandoffPayload: (sessionId: string) =>
     requestHandoffPayloadMock(sessionId),
   requestVerifySessionStatus: (sessionId: string) =>
@@ -178,11 +182,14 @@ function createSessionStatus(
     latest_attempt: {
       completed_at: null,
       failure_code: null,
+      handoff_claimed: false,
       id: "va_test_attempt123",
+      retry_allowed: false,
       status: "in_progress",
     },
     redirect_url: null,
     session_id: "vs_test_session123",
+    same_device_only: false,
     status: "created",
     ...overrides,
   };
@@ -210,8 +217,15 @@ beforeEach(() => {
   mockedUseDevice.mockReset();
   qrPropsSpy.mockReset();
   assignLocationSpy.mockReset();
+  requestCancelVerifySessionMock.mockReset();
   requestHandoffPayloadMock.mockReset();
   requestVerifySessionStatusMock.mockReset();
+  confirmSpy.mockReset();
+  confirmSpy.mockReturnValue(true);
+  Object.defineProperty(window, "confirm", {
+    configurable: true,
+    value: confirmSpy,
+  });
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -354,6 +368,141 @@ describe("UnsupportedDevice", () => {
     expect(view.queryByTestId("qr-code")).toBeNull();
   });
 
+  test("does not fetch a new handoff after the session becomes same-device only", async () => {
+    vi.useFakeTimers();
+
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "unknown",
+    });
+
+    requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
+    requestVerifySessionStatusMock
+      .mockResolvedValueOnce(createSessionStatus())
+      .mockResolvedValueOnce(
+        createSessionStatus({
+          latest_attempt: {
+            completed_at: "2099-01-01T00:00:00.000Z",
+            failure_code: "selfie_face_mismatch",
+            handoff_claimed: true,
+            id: "va_test_attempt123",
+            retry_allowed: true,
+            status: "failed",
+          },
+          same_device_only: true,
+          status: "created",
+        })
+      );
+
+    const view = render(<UnsupportedDevice />);
+
+    await flushUi();
+    expect(view.getByTestId("qr-code")).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    await flushUi();
+
+    expect(view.queryByTestId("qr-code")).toBeNull();
+    expect(view.getByText("Retry on the same device")).not.toBeNull();
+    expect(
+      view.getByText(
+        "The latest attempt did not pass. Retry or cancel in the Kayle ID app on that same device to continue."
+      )
+    ).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    await flushUi();
+
+    expect(requestHandoffPayloadMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not request a handoff on first render when the session is already same-device only", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "unknown",
+    });
+
+    requestVerifySessionStatusMock.mockResolvedValue(
+      createSessionStatus({
+        latest_attempt: {
+          completed_at: "2099-01-01T00:00:00.000Z",
+          failure_code: "selfie_face_mismatch",
+          handoff_claimed: true,
+          id: "va_test_attempt123",
+          retry_allowed: true,
+          status: "failed",
+        },
+        same_device_only: true,
+        status: "created",
+      })
+    );
+
+    const view = render(<UnsupportedDevice />);
+
+    await flushUi();
+
+    expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("qr-code")).toBeNull();
+    expect(view.getByText("Retry on the same device")).not.toBeNull();
+  });
+
+  test("cancels the verification session instead of closing immediately", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "ios",
+    });
+
+    requestCancelVerifySessionMock.mockResolvedValue(undefined);
+    requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
+    requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
+
+    const view = render(<UnsupportedDevice />);
+
+    await flushUi();
+    expect(view.getByTestId("qr-code")).not.toBeNull();
+
+    act(() => {
+      view.getByRole("button", { name: "Cancel" }).click();
+    });
+    await flushUi();
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      "Cancel? This will stop the current verification session."
+    );
+    expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
+      "vs_test_session123"
+    );
+    expect(view.queryByTestId("qr-code")).toBeNull();
+    expect(view.getByText("Verification cancelled")).not.toBeNull();
+  });
+
+  test("does not cancel when the browser confirmation is rejected", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "ios",
+    });
+
+    confirmSpy.mockReturnValue(false);
+    requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
+    requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
+
+    const view = render(<UnsupportedDevice />);
+
+    await flushUi();
+
+    act(() => {
+      view.getByRole("button", { name: "Cancel" }).click();
+    });
+    await flushUi();
+
+    expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
+    expect(view.getByTestId("qr-code")).not.toBeNull();
+  });
+
   test("redirects after a terminal session status and appends session_id", async () => {
     vi.useFakeTimers();
 
@@ -375,10 +524,13 @@ describe("UnsupportedDevice", () => {
         latest_attempt: {
           completed_at: "2099-01-01T00:00:00.000Z",
           failure_code: null,
+          handoff_claimed: true,
           id: "va_test_attempt123",
+          retry_allowed: false,
           status: "succeeded",
         },
         redirect_url: "https://example.com/return?foo=bar",
+        same_device_only: true,
         status: "completed",
       })
     );
@@ -422,10 +574,13 @@ describe("UnsupportedDevice", () => {
         latest_attempt: {
           completed_at: "2099-01-01T00:00:00.000Z",
           failure_code: "selfie_face_mismatch",
+          handoff_claimed: true,
           id: "va_test_attempt123",
+          retry_allowed: false,
           status: "failed",
         },
         redirect_url: null,
+        same_device_only: true,
         status: "completed",
       })
     );

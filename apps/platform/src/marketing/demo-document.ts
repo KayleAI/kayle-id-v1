@@ -1,3 +1,5 @@
+import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DIGIT_REGEX = /^\d$/;
 const MRZ_WEIGHTS = [7, 3, 1] as const;
@@ -31,6 +33,8 @@ export type DemoWebhookEventPreview = {
   description: string;
   eventType: string | null;
   failureCode: string | null;
+  failureDescription: string | null;
+  failureTitle: string | null;
   title: string;
   verificationAttemptId: string | null;
   verificationSessionId: string | null;
@@ -322,6 +326,29 @@ function formatFailureCodeLabel(failureCode: string | null): string | null {
     .join(" ");
 }
 
+const demoAttemptFailureMessages = {
+  passport_authenticity_failed: ERROR_MESSAGES.passport_authenticity_failed,
+  selfie_face_mismatch: ERROR_MESSAGES.selfie_face_mismatch,
+} as const;
+
+function getDemoAttemptFailureMessage(
+  failureCode: string | null
+): { description: string; title: string } | null {
+  if (!failureCode) {
+    return null;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(demoAttemptFailureMessages, failureCode)
+  ) {
+    return demoAttemptFailureMessages[
+      failureCode as keyof typeof demoAttemptFailureMessages
+    ];
+  }
+
+  return null;
+}
+
 function buildWebhookEventDescription({
   eventType,
   failureCode,
@@ -330,12 +357,16 @@ function buildWebhookEventDescription({
   failureCode: string | null;
 }): string {
   const failureCodeLabel = formatFailureCodeLabel(failureCode);
+  const failureMessage = getDemoAttemptFailureMessage(failureCode);
 
   switch (eventType) {
     case "verification.attempt.failed":
-      return failureCodeLabel
+      return (
+        failureMessage?.description ??
+        (failureCodeLabel
         ? `A verification attempt failed with ${failureCodeLabel}.`
-        : "A verification attempt failed.";
+        : "A verification attempt failed.")
+      );
     case "verification.attempt.succeeded":
       return "The verified document payload was received successfully.";
     case "verification.session.cancelled":
@@ -357,6 +388,7 @@ export function buildDemoWebhookEventPreview(
   }
 
   const failureCode = toNonEmptyString(parsed.data.failure_code);
+  const failureMessage = getDemoAttemptFailureMessage(failureCode);
 
   return {
     contractVersion:
@@ -369,6 +401,8 @@ export function buildDemoWebhookEventPreview(
     }),
     eventType: parsed.type,
     failureCode,
+    failureDescription: failureMessage?.description ?? null,
+    failureTitle: failureMessage?.title ?? null,
     title: formatWebhookEventLabel(parsed.type),
     verificationAttemptId: toNonEmptyString(
       parsed.metadata?.verification_attempt_id

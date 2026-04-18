@@ -58,3 +58,4 @@ apps/ios/.derived-data-device/
 
 # Python
 *.pyc
+tmp/icao-pkd-trust-store.sql

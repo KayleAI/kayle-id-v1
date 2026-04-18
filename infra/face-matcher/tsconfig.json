@@ -10,8 +10,8 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
-    "lib": ["ESNext", "DOM"],
-    "types": ["node"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["bun", "node"],
     "paths": {
       "*": ["./*"],
       "@/*": ["../../apps/api/src/*"]

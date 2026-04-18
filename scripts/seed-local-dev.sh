@@ -15,14 +15,12 @@ CAPNPROTO_SWIFT_ROOT="${CAPNPROTO_SWIFT_PATH:-${HOME}/Work/capnproto-swift}"
 CAPNPROTO_SWIFT_BIN="${CAPNPROTO_SWIFT_ROOT}/.build/xcframework/macosx/capnproto/c++/src/capnp/capnp"
 PKD_OBJECTS_LDIF="${ICAO_PKD_OBJECTS_LDIF:-${HOME}/Downloads/icaopkd-001-complete-10023.ldif}"
 PKD_MASTER_LISTS_LDIF="${ICAO_PKD_MASTER_LISTS_LDIF:-${HOME}/Downloads/icaopkd-002-complete-508.ldif}"
-PKD_BUNDLE_OUTPUT="${PKD_BUNDLE_OUTPUT:-${ROOT_DIR}/temp/icao-pkd-bundle.json}"
-PKD_LEGACY_LOCAL_ASSET_OUTPUT="${ROOT_DIR}/apps/api/public/verify/pkd-trust/latest.json"
-PKD_LOCAL_BUCKET_NAME="${PKD_LOCAL_BUCKET_NAME:-kayle-id-r2}"
-PKD_LOCAL_OBJECT_KEY="${PKD_LOCAL_OBJECT_KEY:-verify/pkd-trust/latest.json}"
+PKD_BUNDLE_OUTPUT="${PKD_BUNDLE_OUTPUT:-${ROOT_DIR}/temp/icao-pkd-trust-store.sql}"
+TRUST_STORE_DATABASE_NAME="${TRUST_STORE_DATABASE_NAME:-kayle-id-trust-store}"
 SKIP_CAPNP="false"
 SKIP_DB="false"
 SKIP_PKD_IMPORT="false"
-SKIP_R2_UPLOAD="false"
+SKIP_D1_SEED="false"
 
 usage() {
   cat <<EOF
@@ -32,9 +30,8 @@ Usage:
 Options:
   --objects <path>          Path to the ICAO PKD objects LDIF.
   --master-lists <path>     Path to the ICAO PKD CSCA master-list LDIF.
-  --output <path>           Output path for the generated PKD bundle JSON.
-  --bucket <name>           Local R2 bucket name for PKD upload.
-  --key <key>               Local R2 object key for PKD upload.
+  --output <path>           Output path for the generated trust-store seed SQL.
+  --database <name>         Local D1 database name for trust-store seeding.
   --compose-file <path>     Docker Compose file for local Postgres.
   --project-name <name>     Docker Compose project name.
   --postgres-service <name> Docker Compose service name for Postgres.
@@ -42,24 +39,23 @@ Options:
   --skip-db                 Skip local Postgres startup and Drizzle migrations.
   --skip-capnp              Skip Cap'n Proto generation checks.
   --skip-pkd-import         Skip PKD bundle generation and reuse --output as-is.
-  --skip-r2-upload          Skip uploading the PKD bundle to local R2.
+  --skip-d1-seed            Skip applying migrations and importing the trust-store seed into local D1.
   -h, --help                Show this help text.
 
 Defaults:
   objects LDIF:      ${PKD_OBJECTS_LDIF}
   master-list LDIF:  ${PKD_MASTER_LISTS_LDIF}
-  bundle output:     ${PKD_BUNDLE_OUTPUT}
-  local R2 bucket:   ${PKD_LOCAL_BUCKET_NAME}
-  local R2 key:      ${PKD_LOCAL_OBJECT_KEY}
+  seed output:       ${PKD_BUNDLE_OUTPUT}
+  local D1 DB:       ${TRUST_STORE_DATABASE_NAME}
 
 Examples:
   bash ./scripts/seed-local-dev.sh \\
     --objects ./temp/icao-pkd-objects.ldif \\
     --master-lists ./temp/icao-pkd-master-lists.ldif \\
-    --output ./temp/icao-pkd-bundle.json
+    --output ./temp/icao-pkd-trust-store.sql
 
   bash ./scripts/seed-local-dev.sh \\
-    --output ./temp/icao-pkd-bundle.json \\
+    --output ./temp/icao-pkd-trust-store.sql \\
     --skip-pkd-import
 EOF
 }
@@ -71,6 +67,14 @@ log() {
 fail() {
   printf '%s\n' "$1" >&2
   exit 1
+}
+
+cleanup_temp_log() {
+  local log_file="$1"
+
+  if [[ -n "${log_file}" && -f "${log_file}" ]]; then
+    rm -f "${log_file}"
+  fi
 }
 
 require_file() {
@@ -109,18 +113,6 @@ absolute_path() {
   printf '%s/%s\n' "${INITIAL_WORKDIR}" "${path#./}"
 }
 
-pkd_segment_dir_for_output() {
-  local output_path="$1"
-  local output_dir
-  local output_name
-
-  output_dir="$(dirname "${output_path}")"
-  output_name="$(basename "${output_path}")"
-  output_name="${output_name%.*}"
-
-  printf '%s/%s.dsc-country\n' "${output_dir}" "${output_name}"
-}
-
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -136,12 +128,8 @@ parse_args() {
         PKD_BUNDLE_OUTPUT="$2"
         shift 2
         ;;
-      --bucket)
-        PKD_LOCAL_BUCKET_NAME="$2"
-        shift 2
-        ;;
-      --key)
-        PKD_LOCAL_OBJECT_KEY="$2"
+      --database)
+        TRUST_STORE_DATABASE_NAME="$2"
         shift 2
         ;;
       --compose-file)
@@ -173,8 +161,8 @@ parse_args() {
         SKIP_PKD_IMPORT="true"
         shift
         ;;
-      --skip-r2-upload)
-        SKIP_R2_UPLOAD="true"
+      --skip-d1-seed|--skip-r2-upload)
+        SKIP_D1_SEED="true"
         shift
         ;;
       -h|--help)
@@ -293,46 +281,51 @@ generate_pkd_bundle_if_needed() {
   log "Reusing existing ICAO PKD bundle at ${PKD_BUNDLE_OUTPUT}."
 }
 
-remove_legacy_local_pkd_asset() {
-  if [[ ! -f "${PKD_LEGACY_LOCAL_ASSET_OUTPUT}" ]]; then
-    return
-  fi
-
-  rm -f "${PKD_LEGACY_LOCAL_ASSET_OUTPUT}"
-  log "Removed legacy PKD asset copy at ${PKD_LEGACY_LOCAL_ASSET_OUTPUT}; local development now relies on R2 only."
-}
-
-upload_pkd_bundle_to_local_r2() {
-  if [[ "${SKIP_R2_UPLOAD}" == "true" ]]; then
-    log "Skipping local R2 upload."
+seed_local_trust_store() {
+  if [[ "${SKIP_D1_SEED}" == "true" ]]; then
+    log "Skipping local D1 trust-store seed."
     return
   fi
 
   require_file "${PKD_BUNDLE_OUTPUT}"
-  local segment_dir
-  segment_dir="$(pkd_segment_dir_for_output "${PKD_BUNDLE_OUTPUT}")"
+
+  local execute_log_file=""
+  execute_log_file="$(mktemp)"
 
   (
     cd "${ROOT_DIR}/apps/api"
-    if [[ -d "${segment_dir}" ]]; then
-      for segment_file in "${segment_dir}"/*.json; do
-        [[ -e "${segment_file}" ]] || continue
-        local segment_name
-        segment_name="$(basename "${segment_file}")"
-        log "Uploading ICAO PKD DSC segment to local R2 (${PKD_LOCAL_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name})..."
-        bunx wrangler r2 object put \
-          "${PKD_LOCAL_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name}" \
-          --file "${segment_file}" \
-          --local
-      done
-    fi
-
-    log "Uploading ICAO PKD manifest to local R2 (${PKD_LOCAL_BUCKET_NAME}/${PKD_LOCAL_OBJECT_KEY})..."
-    bunx wrangler r2 object put \
-      "${PKD_LOCAL_BUCKET_NAME}/${PKD_LOCAL_OBJECT_KEY}" \
-      --file "${PKD_BUNDLE_OUTPUT}" \
+    log "Applying local trust-store migrations..."
+    bunx wrangler d1 migrations apply \
+      "${TRUST_STORE_DATABASE_NAME}" \
+      --config ./wrangler.jsonc \
       --local
+    log "Importing ICAO PKD trust-store seed into local D1..."
+    if ! bunx wrangler d1 execute \
+      "${TRUST_STORE_DATABASE_NAME}" \
+      --config ./wrangler.jsonc \
+      --file "${PKD_BUNDLE_OUTPUT}" \
+      --local \
+      >"${execute_log_file}" 2>&1; then
+      cat "${execute_log_file}" >&2
+      cleanup_temp_log "${execute_log_file}"
+      fail "Local D1 trust-store seed import failed."
+    fi
   )
+
+  local execute_summary=""
+  execute_summary="$(
+    LC_ALL=C grep -Eo '🚣 [0-9]+ commands executed successfully\.' \
+      "${execute_log_file}" \
+      | tail -n 1
+  )"
+
+  if [[ -n "${execute_summary}" ]]; then
+    log "${execute_summary}"
+  else
+    log "Local D1 trust-store seed import completed."
+  fi
+
+  cleanup_temp_log "${execute_log_file}"
 }
 
 main() {
@@ -341,8 +334,7 @@ main() {
   run_database_setup
   generate_capnp_if_needed
   generate_pkd_bundle_if_needed
-  remove_legacy_local_pkd_asset
-  upload_pkd_bundle_to_local_r2
+  seed_local_trust_store
   log "Local development seed complete."
 }
 

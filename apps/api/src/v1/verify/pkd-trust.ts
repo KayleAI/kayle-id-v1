@@ -25,10 +25,29 @@ type PkdTrustR2Bucket = {
   get(key: string): Promise<PkdTrustR2ObjectBody | null>;
 };
 
+type PkdTrustD1PreparedStatement = {
+  all<T = Record<string, unknown>>(): Promise<{
+    results?: T[];
+  }>;
+  bind(...values: unknown[]): PkdTrustD1PreparedStatement;
+  first<T = Record<string, unknown>>(): Promise<T | null>;
+};
+
+type PkdTrustD1Database = {
+  prepare(query: string): PkdTrustD1PreparedStatement;
+};
+
 type PkdTrustBundleLoader = () => Promise<PkdTrustBundle | null>;
 type PkdTrustBundleDscSegmentLoader = (
   segmentKey: string
 ) => Promise<PkdTrustBundleDscSegment | null>;
+type PkdTrustBundleDscRecordByIssuerSerialLoader = (
+  issuerKey: string,
+  serialNumberHex: string
+) => Promise<PkdCertificateRecord | null>;
+type PkdTrustBundleDscRecordsBySkiLoader = (
+  skiHex: string
+) => Promise<PkdCertificateRecord[]>;
 
 export type PkdTrustBundleSource = {
   countryCode: string | null;
@@ -125,6 +144,8 @@ export type PkdTrustBundle = {
   dscSegmentKeysByIssuerSerial: Map<string, string[]>;
   dscSegmentKeysBySkiHex: Map<string, string[]>;
   dscSegments: Map<string, PkdTrustBundleDscSegment>;
+  dscRecordLoaderByIssuerSerial: PkdTrustBundleDscRecordByIssuerSerialLoader | null;
+  dscRecordsLoaderBySkiHex: PkdTrustBundleDscRecordsBySkiLoader | null;
   dscSegmentLoader: PkdTrustBundleDscSegmentLoader | null;
   dscsBySkiHex: Map<string, PkdTrustBundleCertificate[]>;
   dscsByIssuerSerial: Map<string, PkdTrustBundleCertificate>;
@@ -139,6 +160,41 @@ export type PkdTrustBundleDscSegment = {
   raw: PkdTrustBundleDscSegmentJson;
 };
 
+type TrustStoreMetadataRow = {
+  cscaCount: number;
+  crlCount: number;
+  dscCount: number;
+  generatedAt: string;
+  ignoredBcsc: number;
+  ignoredBcscNc: number;
+  masterListsLdifPath: string;
+  masterListsLdifVersion: string | null;
+  objectLdifPath: string;
+  objectLdifVersion: string | null;
+  version: number;
+};
+
+type TrustStoreCscaRow = Omit<PkdCscaRecord, "masterListSources"> & {
+  masterListSourcesJson: string;
+};
+
+type TrustStoreCrlRow = {
+  akiHex: string | null;
+  derBase64: string;
+  id: number;
+  issuerKey: string;
+  issuerName: string;
+  nextUpdate: string | null;
+  sourceCountryCode: string | null;
+  sourceDn: string;
+  thisUpdate: string;
+};
+
+type TrustStoreCrlRevocationRow = {
+  crlId: number;
+  revokedSerialNumberHex: string;
+};
+
 type PkdTrustBundleCache = {
   bundle: PkdTrustBundle | null;
   etag: string | null;
@@ -146,9 +202,104 @@ type PkdTrustBundleCache = {
 };
 
 const INLINE_PKD_TRUST_BUNDLE_ENV_KEY = "VERIFY_PKD_TRUST_BUNDLE_JSON";
+const TRUST_STORE_METADATA_ID = 1;
+
+const SELECT_TRUST_STORE_METADATA_SQL = `
+  SELECT
+    generated_at AS generatedAt,
+    version,
+    object_ldif_path AS objectLdifPath,
+    object_ldif_version AS objectLdifVersion,
+    master_lists_ldif_path AS masterListsLdifPath,
+    master_lists_ldif_version AS masterListsLdifVersion,
+    csca_count AS cscaCount,
+    dsc_count AS dscCount,
+    crl_count AS crlCount,
+    ignored_bcsc AS ignoredBcsc,
+    ignored_bcsc_nc AS ignoredBcscNc
+  FROM trust_store_metadata
+  WHERE id = ?
+`;
+
+const SELECT_TRUST_STORE_CSCAS_SQL = `
+  SELECT
+    aki_hex AS akiHex,
+    der_base64 AS derBase64,
+    issuer_key AS issuerKey,
+    issuer_name AS issuerName,
+    master_list_sources_json AS masterListSourcesJson,
+    not_after AS notAfter,
+    not_before AS notBefore,
+    serial_number_hex AS serialNumberHex,
+    ski_hex AS skiHex,
+    source_country_code AS sourceCountryCode,
+    source_dn AS sourceDn,
+    subject_key AS subjectKey,
+    subject_name AS subjectName
+  FROM trust_store_cscas
+`;
+
+const SELECT_TRUST_STORE_CRLS_SQL = `
+  SELECT
+    id,
+    aki_hex AS akiHex,
+    der_base64 AS derBase64,
+    issuer_key AS issuerKey,
+    issuer_name AS issuerName,
+    next_update AS nextUpdate,
+    source_country_code AS sourceCountryCode,
+    source_dn AS sourceDn,
+    this_update AS thisUpdate
+  FROM trust_store_crls
+`;
+
+const SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL = `
+  SELECT
+    crl_id AS crlId,
+    revoked_serial_number_hex AS revokedSerialNumberHex
+  FROM trust_store_crl_revocations
+`;
+
+const SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL = `
+  SELECT
+    aki_hex AS akiHex,
+    der_base64 AS derBase64,
+    issuer_key AS issuerKey,
+    issuer_name AS issuerName,
+    not_after AS notAfter,
+    not_before AS notBefore,
+    serial_number_hex AS serialNumberHex,
+    ski_hex AS skiHex,
+    source_country_code AS sourceCountryCode,
+    source_dn AS sourceDn,
+    subject_key AS subjectKey,
+    subject_name AS subjectName
+  FROM trust_store_dscs
+  WHERE issuer_key = ? AND serial_number_hex = ?
+  LIMIT 1
+`;
+
+const SELECT_TRUST_STORE_DSCS_BY_SKI_SQL = `
+  SELECT
+    aki_hex AS akiHex,
+    der_base64 AS derBase64,
+    issuer_key AS issuerKey,
+    issuer_name AS issuerName,
+    not_after AS notAfter,
+    not_before AS notBefore,
+    serial_number_hex AS serialNumberHex,
+    ski_hex AS skiHex,
+    source_country_code AS sourceCountryCode,
+    source_dn AS sourceDn,
+    subject_key AS subjectKey,
+    subject_name AS subjectName
+  FROM trust_store_dscs
+  WHERE ski_hex = ?
+`;
 
 let pkijsConfigured = false;
 let trustBundleLoader: PkdTrustBundleLoader | null = null;
+let configuredTrustStoreDatabase: PkdTrustD1Database | null = null;
 let configuredR2Bucket: PkdTrustR2Bucket | null = null;
 let configuredInlineTrustBundleJson: string | null = null;
 let trustBundleCache: PkdTrustBundleCache = {
@@ -465,6 +616,20 @@ function getR2Bucket(env: unknown): PkdTrustR2Bucket | null {
     : null;
 }
 
+function getTrustStoreDatabase(env: unknown): PkdTrustD1Database | null {
+  if (!env || typeof env !== "object") {
+    return null;
+  }
+
+  const candidate = Reflect.get(env, "TRUST_STORE");
+
+  return candidate &&
+    typeof candidate === "object" &&
+    typeof Reflect.get(candidate, "prepare") === "function"
+    ? (candidate as PkdTrustD1Database)
+    : null;
+}
+
 function parseTextJson(bytes: Uint8Array): unknown {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
@@ -549,6 +714,176 @@ async function loadTrustBundleDscSegmentFromR2Bucket(
   return hydratePkdTrustBundleDscSegment(parseTextJson(bytes));
 }
 
+async function queryFirstRow<T>(
+  database: PkdTrustD1Database,
+  query: string,
+  ...values: unknown[]
+): Promise<T | null> {
+  return database.prepare(query).bind(...values).first<T>();
+}
+
+async function queryRows<T>(
+  database: PkdTrustD1Database,
+  query: string,
+  ...values: unknown[]
+): Promise<T[]> {
+  const result = await database.prepare(query).bind(...values).all<T>();
+  return result.results ?? [];
+}
+
+function parseMasterListSourcesJson(value: string): PkdTrustBundleSource[] {
+  const parsed = JSON.parse(value) as unknown;
+
+  return Array.isArray(parsed)
+    ? parsed.filter(
+        (entry): entry is PkdTrustBundleSource =>
+          Boolean(
+            entry &&
+              typeof entry === "object" &&
+              typeof Reflect.get(entry, "dn") === "string" &&
+              (Reflect.get(entry, "countryCode") === null ||
+                typeof Reflect.get(entry, "countryCode") === "string")
+          )
+      )
+    : [];
+}
+
+function mapTrustStoreCscaRow(row: TrustStoreCscaRow): PkdCscaRecord {
+  return {
+    akiHex: row.akiHex,
+    derBase64: row.derBase64,
+    issuerKey: row.issuerKey,
+    issuerName: row.issuerName,
+    masterListSources: parseMasterListSourcesJson(row.masterListSourcesJson),
+    notAfter: row.notAfter,
+    notBefore: row.notBefore,
+    serialNumberHex: row.serialNumberHex,
+    skiHex: row.skiHex,
+    sourceCountryCode: row.sourceCountryCode,
+    sourceDn: row.sourceDn,
+    subjectKey: row.subjectKey,
+    subjectName: row.subjectName,
+  };
+}
+
+function mapTrustStoreDscRow(row: PkdCertificateRecord): PkdCertificateRecord {
+  return {
+    akiHex: row.akiHex,
+    derBase64: row.derBase64,
+    issuerKey: row.issuerKey,
+    issuerName: row.issuerName,
+    notAfter: row.notAfter,
+    notBefore: row.notBefore,
+    serialNumberHex: row.serialNumberHex,
+    skiHex: row.skiHex,
+    sourceCountryCode: row.sourceCountryCode,
+    sourceDn: row.sourceDn,
+    subjectKey: row.subjectKey,
+    subjectName: row.subjectName,
+  };
+}
+
+async function loadTrustBundleFromD1Database(
+  database: PkdTrustD1Database
+): Promise<PkdTrustBundle | null> {
+  if (trustBundleCache.bundle && !pkdTrustBundleCacheExpired()) {
+    return trustBundleCache.bundle;
+  }
+
+  const metadata = await queryFirstRow<TrustStoreMetadataRow>(
+    database,
+    SELECT_TRUST_STORE_METADATA_SQL,
+    TRUST_STORE_METADATA_ID
+  );
+
+  if (!metadata) {
+    clearPkdTrustBundleCache();
+    return null;
+  }
+
+  const [cscaRows, crlRows, crlRevocationRows] = await Promise.all([
+    queryRows<TrustStoreCscaRow>(database, SELECT_TRUST_STORE_CSCAS_SQL),
+    queryRows<TrustStoreCrlRow>(database, SELECT_TRUST_STORE_CRLS_SQL),
+    queryRows<TrustStoreCrlRevocationRow>(
+      database,
+      SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL
+    ),
+  ]);
+  const revokedSerialsByCrlId = new Map<string, string[]>();
+
+  for (const row of crlRevocationRows) {
+    addIndexedValue(
+      revokedSerialsByCrlId,
+      String(row.crlId),
+      row.revokedSerialNumberHex
+    );
+  }
+
+  const raw: PkdTrustBundleJson = {
+    counts: {
+      cscas: metadata.cscaCount,
+      crls: metadata.crlCount,
+      dscs: metadata.dscCount,
+      ignoredBcsc: metadata.ignoredBcsc,
+      ignoredBcscNc: metadata.ignoredBcscNc,
+    },
+    cscas: cscaRows.map(mapTrustStoreCscaRow),
+    crls: crlRows.map((row) => ({
+      akiHex: row.akiHex,
+      derBase64: row.derBase64,
+      issuerKey: row.issuerKey,
+      issuerName: row.issuerName,
+      nextUpdate: row.nextUpdate,
+      revokedSerialNumbersHex:
+        revokedSerialsByCrlId.get(String(row.id))?.map((value) => value) ?? [],
+      sourceCountryCode: row.sourceCountryCode,
+      sourceDn: row.sourceDn,
+      thisUpdate: row.thisUpdate,
+    })),
+    dscs: [],
+    generatedAt: metadata.generatedAt,
+    sources: {
+      masterListsLdif: {
+        path: metadata.masterListsLdifPath,
+        version: metadata.masterListsLdifVersion,
+      },
+      objectLdif: {
+        path: metadata.objectLdifPath,
+        version: metadata.objectLdifVersion,
+      },
+    },
+    version: metadata.version as typeof PKD_TRUST_BUNDLE_VERSION,
+  };
+  const hydrated = hydratePkdTrustBundle(raw, {
+    dscRecordLoaderByIssuerSerial: async (issuerKey, serialNumberHex) => {
+      const row = await queryFirstRow<PkdCertificateRecord>(
+        database,
+        SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
+        issuerKey,
+        serialNumberHex.toLowerCase()
+      );
+
+      return row ? mapTrustStoreDscRow(row) : null;
+    },
+    dscRecordsLoaderBySkiHex: async (skiHex) =>
+      (
+        await queryRows<PkdCertificateRecord>(
+          database,
+          SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
+          skiHex.toLowerCase()
+        )
+      ).map(mapTrustStoreDscRow),
+  });
+
+  trustBundleCache = {
+    bundle: hydrated,
+    etag: null,
+    expiresAt: Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS,
+  };
+
+  return hydrated;
+}
+
 export function ensurePkijsEngine(): void {
   if (pkijsConfigured) {
     return;
@@ -569,6 +904,7 @@ export function clearPkdTrustBundleCache(): void {
 export function configurePkdTrustBundleLoader(
   loader: PkdTrustBundleLoader | null
 ): void {
+  configuredTrustStoreDatabase = null;
   configuredR2Bucket = null;
   configuredInlineTrustBundleJson = null;
   trustBundleLoader = loader;
@@ -590,9 +926,28 @@ export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
     }
 
     configuredR2Bucket = null;
+    configuredTrustStoreDatabase = null;
     configuredInlineTrustBundleJson = inlineTrustBundleJson;
     trustBundleLoader = async () =>
       hydratePkdTrustBundle(JSON.parse(inlineTrustBundleJson));
+    clearPkdTrustBundleCache();
+    return;
+  }
+
+  const trustStoreDatabase = getTrustStoreDatabase(env);
+
+  if (trustStoreDatabase) {
+    if (
+      configuredTrustStoreDatabase === trustStoreDatabase &&
+      trustBundleLoader
+    ) {
+      return;
+    }
+
+    configuredTrustStoreDatabase = trustStoreDatabase;
+    configuredR2Bucket = null;
+    configuredInlineTrustBundleJson = null;
+    trustBundleLoader = () => loadTrustBundleFromD1Database(trustStoreDatabase);
     clearPkdTrustBundleCache();
     return;
   }
@@ -602,6 +957,7 @@ export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
   if (!bucket) {
     if (
       !(
+        configuredTrustStoreDatabase ||
         configuredR2Bucket ||
         configuredInlineTrustBundleJson ||
         trustBundleLoader
@@ -618,6 +974,7 @@ export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
     return;
   }
 
+  configuredTrustStoreDatabase = null;
   configuredR2Bucket = bucket;
   configuredInlineTrustBundleJson = null;
   trustBundleLoader = () => loadTrustBundleFromR2Bucket(bucket);
@@ -767,6 +1124,10 @@ export function hydratePkdTrustBundleDscSegment(
 export function hydratePkdTrustBundle(
   value: unknown,
   options?: {
+    dscRecordLoaderByIssuerSerial?:
+      | PkdTrustBundleDscRecordByIssuerSerialLoader
+      | null;
+    dscRecordsLoaderBySkiHex?: PkdTrustBundleDscRecordsBySkiLoader | null;
     dscSegmentLoader?: PkdTrustBundleDscSegmentLoader | null;
   }
 ): PkdTrustBundle {
@@ -824,6 +1185,9 @@ export function hydratePkdTrustBundle(
     dscSegmentKeysByIssuerSerial,
     dscSegmentKeysBySkiHex,
     dscSegments: new Map<string, PkdTrustBundleDscSegment>(),
+    dscRecordLoaderByIssuerSerial:
+      options?.dscRecordLoaderByIssuerSerial ?? null,
+    dscRecordsLoaderBySkiHex: options?.dscRecordsLoaderBySkiHex ?? null,
     dscSegmentLoader: options?.dscSegmentLoader ?? null,
     dscsByIssuerSerial: new Map<string, PkdTrustBundleCertificate>(),
     dscsBySkiHex: new Map<string, PkdTrustBundleCertificate[]>(),
@@ -986,6 +1350,27 @@ export async function resolvePkdDscCertificate(
     }
   }
 
+  if (bundle.dscRecordLoaderByIssuerSerial) {
+    const record = await bundle.dscRecordLoaderByIssuerSerial(
+      issuerKey,
+      serialNumberHex
+    );
+
+    if (record) {
+      bundle.dscRecordsByIssuerSerial.set(
+        dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+        record
+      );
+      addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
+
+      return resolveInlinePkdDscCertificate(
+        bundle,
+        record.issuerKey,
+        record.serialNumberHex
+      );
+    }
+  }
+
   return null;
 }
 
@@ -1009,6 +1394,20 @@ export async function resolvePkdDscCertificatesBySki(
     }
 
     for (const entry of resolveSegmentPkdDscCertificatesBySki(segment, skiHex)) {
+      deduped.set(entry.record.derBase64, entry);
+    }
+  }
+
+  if (bundle.dscRecordsLoaderBySkiHex) {
+    for (const record of await bundle.dscRecordsLoaderBySkiHex(skiHex)) {
+      bundle.dscRecordsByIssuerSerial.set(
+        dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+        record
+      );
+      addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
+    }
+
+    for (const entry of resolveInlinePkdDscCertificatesBySki(bundle, skiHex)) {
       deduped.set(entry.record.derBase64, entry);
     }
   }

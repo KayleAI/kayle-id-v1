@@ -52,6 +52,9 @@ type MagicAdapterContext = {
           emailVerified: boolean;
         }
       ) => Promise<unknown>;
+      deleteVerificationByIdentifier: (
+        identifier: string
+      ) => Promise<unknown>;
     };
   };
 };
@@ -182,8 +185,8 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
 
           const { email, type } = JSON.parse(tokenValue.value);
 
-          await ctx.context.internalAdapter.deleteVerificationValue(
-            tokenValue.id
+          await ctx.context.internalAdapter.deleteVerificationByIdentifier(
+            `link-${token}`
           );
 
           const user = await handleUserCreationOrUpdate(
@@ -233,8 +236,8 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
             });
           }
 
-          await ctx.context.internalAdapter.deleteVerificationValue(
-            otpValue.id
+          await ctx.context.internalAdapter.deleteVerificationByIdentifier(
+            `otp-${email}`
           );
 
           const user = await handleUserCreationOrUpdate(ctx, opts, email, type);

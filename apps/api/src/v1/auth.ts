@@ -1,4 +1,4 @@
-import { auth } from "@kayle-id/auth/server";
+import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
@@ -21,12 +21,14 @@ const sessionMiddleware = createMiddleware<{
     return unauthorized(c);
   }
 
-  if (!response.session?.activeOrganizationId) {
+  const activeOrganizationId = getActiveOrganizationId(response.session);
+
+  if (!activeOrganizationId) {
     return forbidden(c);
   }
 
   c.set("type", "session");
-  c.set("organizationId", response.session?.activeOrganizationId);
+  c.set("organizationId", activeOrganizationId);
   c.set("userId", response.session?.userId);
   await next();
 });
@@ -80,13 +82,15 @@ const authenticate = createMiddleware<{
     return unauthorized(c);
   }
 
-  if (!response.session?.activeOrganizationId) {
+  const activeOrganizationId = getActiveOrganizationId(response.session);
+
+  if (!activeOrganizationId) {
     return forbidden(c);
   }
 
   c.set("type", "session");
   c.set("environment", "live");
-  c.set("organizationId", response.session?.activeOrganizationId);
+  c.set("organizationId", activeOrganizationId);
   await next();
 });
 

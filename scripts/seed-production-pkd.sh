@@ -5,11 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INITIAL_WORKDIR="$(pwd)"
 PKD_OBJECTS_LDIF="${ICAO_PKD_OBJECTS_LDIF:-${ROOT_DIR}/temp/icaopkd-001-complete-10023.ldif}"
 PKD_MASTER_LISTS_LDIF="${ICAO_PKD_MASTER_LISTS_LDIF:-${ROOT_DIR}/temp/icaopkd-002-complete-508.ldif}"
-PKD_BUNDLE_OUTPUT="${PKD_BUNDLE_OUTPUT:-${ROOT_DIR}/temp/icao-pkd-bundle.json}"
-PKD_REMOTE_BUCKET_NAME="${PKD_REMOTE_BUCKET_NAME:-kayle-id-r2}"
-PKD_REMOTE_OBJECT_KEY="${PKD_REMOTE_OBJECT_KEY:-verify/pkd-trust/latest.json}"
+PKD_BUNDLE_OUTPUT="${PKD_BUNDLE_OUTPUT:-${ROOT_DIR}/temp/icao-pkd-trust-store.sql}"
+TRUST_STORE_DATABASE_NAME="${TRUST_STORE_DATABASE_NAME:-kayle-id-trust-store}"
 SKIP_PKD_IMPORT="false"
-SKIP_R2_UPLOAD="false"
+SKIP_D1_SEED="false"
 
 usage() {
   cat <<EOF
@@ -19,25 +18,23 @@ Usage:
 Options:
   --objects <path>       Path to the ICAO PKD objects LDIF.
   --master-lists <path>  Path to the ICAO PKD CSCA master-list LDIF.
-  --output <path>        Output path for the generated PKD bundle JSON.
-  --bucket <name>        Remote R2 bucket name for PKD upload.
-  --key <key>            Remote R2 object key for PKD upload.
+  --output <path>        Output path for the generated trust-store seed SQL.
+  --database <name>      Remote D1 database name for trust-store seeding.
   --skip-pkd-import      Skip PKD bundle generation and reuse --output as-is.
-  --skip-r2-upload       Skip uploading the PKD bundle to remote R2.
+  --skip-d1-seed         Skip applying migrations and importing the trust-store seed into remote D1.
   -h, --help             Show this help text.
 
 Defaults:
   objects LDIF:      ${PKD_OBJECTS_LDIF}
   master-list LDIF:  ${PKD_MASTER_LISTS_LDIF}
-  bundle output:     ${PKD_BUNDLE_OUTPUT}
-  remote R2 bucket:  ${PKD_REMOTE_BUCKET_NAME}
-  remote R2 key:     ${PKD_REMOTE_OBJECT_KEY}
+  seed output:       ${PKD_BUNDLE_OUTPUT}
+  remote D1 DB:      ${TRUST_STORE_DATABASE_NAME}
 
 Example:
   bash ./scripts/seed-production-pkd.sh \\
     --objects ./temp/icao-pkd-objects.ldif \\
     --master-lists ./temp/icao-pkd-master-lists.ldif \\
-    --output ./temp/icao-pkd-bundle.json
+    --output ./temp/icao-pkd-trust-store.sql
 EOF
 }
 
@@ -48,6 +45,14 @@ log() {
 fail() {
   printf '%s\n' "$1" >&2
   exit 1
+}
+
+cleanup_temp_log() {
+  local log_file="$1"
+
+  if [[ -n "${log_file}" && -f "${log_file}" ]]; then
+    rm -f "${log_file}"
+  fi
 }
 
 require_file() {
@@ -86,18 +91,6 @@ absolute_path() {
   printf '%s/%s\n' "${INITIAL_WORKDIR}" "${path#./}"
 }
 
-pkd_segment_dir_for_output() {
-  local output_path="$1"
-  local output_dir
-  local output_name
-
-  output_dir="$(dirname "${output_path}")"
-  output_name="$(basename "${output_path}")"
-  output_name="${output_name%.*}"
-
-  printf '%s/%s.dsc-country\n' "${output_dir}" "${output_name}"
-}
-
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -113,20 +106,16 @@ parse_args() {
         PKD_BUNDLE_OUTPUT="$2"
         shift 2
         ;;
-      --bucket)
-        PKD_REMOTE_BUCKET_NAME="$2"
-        shift 2
-        ;;
-      --key)
-        PKD_REMOTE_OBJECT_KEY="$2"
+      --database)
+        TRUST_STORE_DATABASE_NAME="$2"
         shift 2
         ;;
       --skip-pkd-import)
         SKIP_PKD_IMPORT="true"
         shift
         ;;
-      --skip-r2-upload)
-        SKIP_R2_UPLOAD="true"
+      --skip-d1-seed|--skip-r2-upload)
+        SKIP_D1_SEED="true"
         shift
         ;;
       -h|--help)
@@ -180,44 +169,58 @@ generate_pkd_bundle_if_needed() {
   log "Reusing existing ICAO PKD bundle at ${PKD_BUNDLE_OUTPUT}."
 }
 
-upload_pkd_bundle_to_remote_r2() {
-  if [[ "${SKIP_R2_UPLOAD}" == "true" ]]; then
-    log "Skipping remote R2 upload."
+seed_remote_trust_store() {
+  if [[ "${SKIP_D1_SEED}" == "true" ]]; then
+    log "Skipping remote D1 trust-store seed."
     return
   fi
 
   require_file "${PKD_BUNDLE_OUTPUT}"
-  local segment_dir
-  segment_dir="$(pkd_segment_dir_for_output "${PKD_BUNDLE_OUTPUT}")"
+
+  local execute_log_file=""
+  execute_log_file="$(mktemp)"
 
   (
     cd "${ROOT_DIR}/apps/api"
-    if [[ -d "${segment_dir}" ]]; then
-      for segment_file in "${segment_dir}"/*.json; do
-        [[ -e "${segment_file}" ]] || continue
-        local segment_name
-        segment_name="$(basename "${segment_file}")"
-        log "Uploading ICAO PKD DSC segment to remote R2 (${PKD_REMOTE_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name})..."
-        bunx wrangler r2 object put \
-          "${PKD_REMOTE_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name}" \
-          --file "${segment_file}" \
-          --remote
-      done
-    fi
-
-    log "Uploading ICAO PKD manifest to remote R2 (${PKD_REMOTE_BUCKET_NAME}/${PKD_REMOTE_OBJECT_KEY})..."
-    bunx wrangler r2 object put \
-      "${PKD_REMOTE_BUCKET_NAME}/${PKD_REMOTE_OBJECT_KEY}" \
-      --file "${PKD_BUNDLE_OUTPUT}" \
+    log "Applying remote trust-store migrations..."
+    bunx wrangler d1 migrations apply \
+      "${TRUST_STORE_DATABASE_NAME}" \
+      --config ./wrangler.jsonc \
       --remote
+    log "Importing ICAO PKD trust-store seed into remote D1..."
+    if ! bunx wrangler d1 execute \
+      "${TRUST_STORE_DATABASE_NAME}" \
+      --config ./wrangler.jsonc \
+      --file "${PKD_BUNDLE_OUTPUT}" \
+      --remote \
+      >"${execute_log_file}" 2>&1; then
+      cat "${execute_log_file}" >&2
+      cleanup_temp_log "${execute_log_file}"
+      fail "Remote D1 trust-store seed import failed."
+    fi
   )
+
+  local execute_summary=""
+  execute_summary="$(
+    LC_ALL=C grep -Eo '🚣 [0-9]+ commands executed successfully\.' \
+      "${execute_log_file}" \
+      | tail -n 1
+  )"
+
+  if [[ -n "${execute_summary}" ]]; then
+    log "${execute_summary}"
+  else
+    log "Remote D1 trust-store seed import completed."
+  fi
+
+  cleanup_temp_log "${execute_log_file}"
 }
 
 main() {
   parse_args "$@"
   validate_inputs
   generate_pkd_bundle_if_needed
-  upload_pkd_bundle_to_remote_r2
+  seed_remote_trust_store
   log "Production PKD seed complete."
 }
 

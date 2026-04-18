@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { auth } from "@kayle-id/auth/server";
+import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
 import createOrganizationRoute from "./create";
@@ -20,8 +20,10 @@ const organizationMiddleware = createMiddleware<{
     return unauthorized(c);
   }
 
+  const activeOrganizationId = getActiveOrganizationId(response.session);
+
   c.set("type", "session");
-  c.set("organizationId", response.session?.activeOrganizationId ?? null);
+  c.set("organizationId", activeOrganizationId);
   c.set("userId", response.session?.userId);
   await next();
 });

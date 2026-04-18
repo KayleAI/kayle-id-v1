@@ -1,9 +1,11 @@
 {
-  "name": "@kayle-id/database",
+  "name": "@kayle-id/trust-store",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "devDependencies": {
+    "@cloudflare/workers-types": "4.20260317.1",
+    "@types/better-sqlite3": "7.6.13",
     "@types/bun": "latest",
     "@types/pg": "8.15.6",
     "drizzle-kit": "0.31.10"
@@ -12,15 +14,11 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@kayle-id/config": "*",
-    "@upstash/redis": "1.35.6",
-    "drizzle-orm": "0.45.2",
-    "pg": "8.16.3"
+    "drizzle-orm": "0.45.2"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config ./drizzle.config.ts",
-    "db:seed": "bun ./src/seed.ts",
     "db:studio": "drizzle-kit studio --config ./drizzle.config.ts"
   },
   "exports": {

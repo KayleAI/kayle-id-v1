@@ -23,6 +23,8 @@ type CliArgs = {
   outputPath: string;
 };
 
+type OutputFormat = "json" | "sql";
+
 type LdifEntry = Map<string, string[]>;
 
 type CscaAccumulator = {
@@ -42,17 +44,20 @@ const LDIF_VERSION_REGEX = /-(\d+)\.ldif$/i;
 const PKD_OBJECT_TYPES = new Set(["bcsc", "bcsc-nc", "cr", "crl", "dsc"]);
 const MAX_DSCS_PER_SEGMENT = 1000;
 const UNKNOWN_DSC_SEGMENT_KEY = "UNKNOWN";
+const MAX_SQL_STATEMENT_LENGTH = 90_000;
 
 function usage(): string {
   return [
     "Usage:",
     "  bun ./scripts/import-icao-pkd.ts --objects <path> --master-lists <path> --output <path>",
+    "  Output ending in .sql generates a D1 seed file.",
+    "  Output ending in .json generates the legacy R2 trust-bundle format.",
     "",
     "Example:",
     "  bun ./scripts/import-icao-pkd.ts \\",
     "    --objects ~/Downloads/icaopkd-001-complete-10023.ldif \\",
     "    --master-lists ~/Downloads/icaopkd-002-complete-508.ldif \\",
-    "    --output /tmp/icao-pkd-bundle.json",
+    "    --output /tmp/icao-pkd-trust-store.sql",
   ].join("\n");
 }
 
@@ -110,6 +115,10 @@ function dscSegmentDirectoryPath(outputPath: string): string {
 
 function dscCountrySegmentKey(record: PkdCertificateRecord): string {
   return record.sourceCountryCode?.toUpperCase() ?? UNKNOWN_DSC_SEGMENT_KEY;
+}
+
+function outputFormatFromPath(outputPath: string): OutputFormat {
+  return path.extname(outputPath).toLowerCase() === ".sql" ? "sql" : "json";
 }
 
 function chunkItems<T>(items: T[], chunkSize: number): T[][] {
@@ -492,18 +501,10 @@ async function buildTrustBundle({
   manifest: PkdTrustBundleJson;
   segments: PkdTrustBundleDscSegmentJson[];
 }> {
-  const [masterListsText, objectText] = await Promise.all([
-    readFile(masterListsPath, "utf8"),
-    readFile(objectPath, "utf8"),
-  ]);
-  const [cscas, objectEntries] = await Promise.all([
-    importMasterListCscas({
-      entries: parseLdifEntries(masterListsText),
-    }),
-    importObjectEntries({
-      entries: parseLdifEntries(objectText),
-    }),
-  ]);
+  const { cscas, objectEntries } = await loadImportedTrustStoreEntries({
+    masterListsPath,
+    objectPath,
+  });
   const dscSegmentIndex: NonNullable<PkdTrustBundleJson["dscSegmentIndex"]> = {
     issuerSerial: {},
     skiHex: {},
@@ -580,16 +581,290 @@ async function buildTrustBundle({
   };
 }
 
+async function loadImportedTrustStoreEntries({
+  masterListsPath,
+  objectPath,
+}: {
+  masterListsPath: string;
+  objectPath: string;
+}): Promise<{
+  cscas: PkdCscaRecord[];
+  objectEntries: Awaited<ReturnType<typeof importObjectEntries>>;
+}> {
+  const [masterListsText, objectText] = await Promise.all([
+    readFile(masterListsPath, "utf8"),
+    readFile(objectPath, "utf8"),
+  ]);
+  const [cscas, objectEntries] = await Promise.all([
+    importMasterListCscas({
+      entries: parseLdifEntries(masterListsText),
+    }),
+    importObjectEntries({
+      entries: parseLdifEntries(objectText),
+    }),
+  ]);
+
+  return {
+    cscas,
+    objectEntries,
+  };
+}
+
+function sqlLiteral(value: boolean | number | string | null): string {
+  if (value === null) {
+    return "NULL";
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "NULL";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function buildInsertStatements(
+  columns: string[],
+  rows: string[][],
+  tableName: string
+): string[] {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const prefix = `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES `;
+  const statements: string[] = [];
+  let currentValues: string[] = [];
+  let currentLength = prefix.length;
+
+  for (const row of rows) {
+    const rowSql = `(${row.join(", ")})`;
+    const separatorLength = currentValues.length === 0 ? 0 : 2;
+
+    if (
+      currentValues.length > 0 &&
+      currentLength + separatorLength + rowSql.length + 1 >
+        MAX_SQL_STATEMENT_LENGTH
+    ) {
+      statements.push(`${prefix}${currentValues.join(", ")};`);
+      currentValues = [rowSql];
+      currentLength = prefix.length + rowSql.length;
+      continue;
+    }
+
+    currentValues.push(rowSql);
+    currentLength += separatorLength + rowSql.length;
+  }
+
+  if (currentValues.length > 0) {
+    statements.push(`${prefix}${currentValues.join(", ")};`);
+  }
+
+  return statements;
+}
+
+async function buildTrustStoreSeedSql({
+  masterListsPath,
+  objectPath,
+}: {
+  masterListsPath: string;
+  objectPath: string;
+}): Promise<string> {
+  const { cscas, objectEntries } = await loadImportedTrustStoreEntries({
+    masterListsPath,
+    objectPath,
+  });
+  const generatedAt = new Date().toISOString();
+  const metadataRows = [
+    [
+      sqlLiteral(1),
+      sqlLiteral(generatedAt),
+      sqlLiteral(pkdTrustBundleVersion()),
+      sqlLiteral(objectPath),
+      sqlLiteral(ldifVersionFromPath(objectPath)),
+      sqlLiteral(masterListsPath),
+      sqlLiteral(ldifVersionFromPath(masterListsPath)),
+      sqlLiteral(cscas.length),
+      sqlLiteral(objectEntries.dscs.length),
+      sqlLiteral(objectEntries.crls.length),
+      sqlLiteral(objectEntries.ignoredBcsc),
+      sqlLiteral(objectEntries.ignoredBcscNc),
+    ],
+  ];
+  const cscaRows = cscas.map((record) => [
+    sqlLiteral(record.akiHex),
+    sqlLiteral(record.derBase64),
+    sqlLiteral(record.issuerKey),
+    sqlLiteral(record.issuerName),
+    sqlLiteral(JSON.stringify(record.masterListSources)),
+    sqlLiteral(record.notAfter),
+    sqlLiteral(record.notBefore),
+    sqlLiteral(record.serialNumberHex.toLowerCase()),
+    sqlLiteral(record.skiHex),
+    sqlLiteral(record.sourceCountryCode),
+    sqlLiteral(record.sourceDn),
+    sqlLiteral(record.subjectKey),
+    sqlLiteral(record.subjectName),
+  ]);
+  const dscRows = objectEntries.dscs.map((record) => [
+    sqlLiteral(record.akiHex),
+    sqlLiteral(record.derBase64),
+    sqlLiteral(record.issuerKey),
+    sqlLiteral(record.issuerName),
+    sqlLiteral(record.notAfter),
+    sqlLiteral(record.notBefore),
+    sqlLiteral(record.serialNumberHex.toLowerCase()),
+    sqlLiteral(record.skiHex),
+    sqlLiteral(record.sourceCountryCode),
+    sqlLiteral(record.sourceDn),
+    sqlLiteral(record.subjectKey),
+    sqlLiteral(record.subjectName),
+  ]);
+  const crlRows = objectEntries.crls.map((record, index) => [
+    sqlLiteral(index + 1),
+    sqlLiteral(record.akiHex),
+    sqlLiteral(record.derBase64),
+    sqlLiteral(record.issuerKey),
+    sqlLiteral(record.issuerName),
+    sqlLiteral(record.nextUpdate),
+    sqlLiteral(record.sourceCountryCode),
+    sqlLiteral(record.sourceDn),
+    sqlLiteral(record.thisUpdate),
+  ]);
+  const crlRevocationRows = objectEntries.crls.flatMap((record, index) =>
+    record.revokedSerialNumbersHex.map((revokedSerialNumberHex) => [
+      sqlLiteral(index + 1),
+      sqlLiteral(record.issuerKey),
+      sqlLiteral(revokedSerialNumberHex.toLowerCase()),
+    ])
+  );
+
+  const statements = [
+    "PRAGMA foreign_keys = ON;",
+    "BEGIN TRANSACTION;",
+    "DELETE FROM trust_store_crl_revocations;",
+    "DELETE FROM trust_store_crls;",
+    "DELETE FROM trust_store_dscs;",
+    "DELETE FROM trust_store_cscas;",
+    "DELETE FROM trust_store_metadata;",
+    ...buildInsertStatements(
+      [
+        "id",
+        "generated_at",
+        "version",
+        "object_ldif_path",
+        "object_ldif_version",
+        "master_lists_ldif_path",
+        "master_lists_ldif_version",
+        "csca_count",
+        "dsc_count",
+        "crl_count",
+        "ignored_bcsc",
+        "ignored_bcsc_nc",
+      ],
+      metadataRows,
+      "trust_store_metadata"
+    ),
+    ...buildInsertStatements(
+      [
+        "aki_hex",
+        "der_base64",
+        "issuer_key",
+        "issuer_name",
+        "master_list_sources_json",
+        "not_after",
+        "not_before",
+        "serial_number_hex",
+        "ski_hex",
+        "source_country_code",
+        "source_dn",
+        "subject_key",
+        "subject_name",
+      ],
+      cscaRows,
+      "trust_store_cscas"
+    ),
+    ...buildInsertStatements(
+      [
+        "aki_hex",
+        "der_base64",
+        "issuer_key",
+        "issuer_name",
+        "not_after",
+        "not_before",
+        "serial_number_hex",
+        "ski_hex",
+        "source_country_code",
+        "source_dn",
+        "subject_key",
+        "subject_name",
+      ],
+      dscRows,
+      "trust_store_dscs"
+    ),
+    ...buildInsertStatements(
+      [
+        "id",
+        "aki_hex",
+        "der_base64",
+        "issuer_key",
+        "issuer_name",
+        "next_update",
+        "source_country_code",
+        "source_dn",
+        "this_update",
+      ],
+      crlRows,
+      "trust_store_crls"
+    ),
+    ...buildInsertStatements(
+      ["crl_id", "issuer_key", "revoked_serial_number_hex"],
+      crlRevocationRows,
+      "trust_store_crl_revocations"
+    ),
+    "COMMIT;",
+    "",
+  ];
+
+  return `${statements.join("\n")}\n`;
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  const outputFormat = outputFormatFromPath(args.outputPath);
+  await mkdir(path.dirname(args.outputPath), {
+    recursive: true,
+  });
+
+  if (outputFormat === "sql") {
+    const sql = await buildTrustStoreSeedSql({
+      masterListsPath: args.masterListsPath,
+      objectPath: args.objectPath,
+    });
+
+    await writeFile(args.outputPath, sql, "utf8");
+
+    process.stdout.write(
+      [
+        "ICAO PKD import complete.",
+        `Output: ${args.outputPath}`,
+        "Format: sql",
+        "Target: D1 trust-store seed",
+        `Object LDIF version: ${ldifVersionFromPath(args.objectPath) ?? "unknown"}`,
+        `Master-list LDIF version: ${ldifVersionFromPath(args.masterListsPath) ?? "unknown"}`,
+      ].join("\n")
+    );
+    return;
+  }
+
   const bundle = await buildTrustBundle({
     masterListsPath: args.masterListsPath,
     objectPath: args.objectPath,
   });
   const segmentDir = dscSegmentDirectoryPath(args.outputPath);
-  await mkdir(path.dirname(args.outputPath), {
-    recursive: true,
-  });
   await rm(segmentDir, {
     force: true,
     recursive: true,
@@ -615,6 +890,7 @@ async function main(): Promise<void> {
     [
       "ICAO PKD import complete.",
       `Output: ${args.outputPath}`,
+      "Format: json",
       `Runtime key: ${pkdTrustBundleKey()}`,
       `DSC segment directory: ${segmentDir}`,
       `DSC segment runtime prefix: ${pkdTrustBundleDscSegmentKey("<segment>").replace("/<segment>.json", "")}`,

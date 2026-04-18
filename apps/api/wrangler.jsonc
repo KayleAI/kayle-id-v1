@@ -13,9 +13,13 @@
     }
   },
   "triggers": {
-    "crons": ["* * * * *"]
+    "crons": [
+      "* * * * *"
+    ]
   },
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
     "binding": "ASSETS",
     "directory": "./public",
@@ -43,6 +47,14 @@
       "binding": "STORAGE",
       "bucket_name": "kayle-id-r2",
       "remote": false
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "TRUST_STORE",
+      "database_name": "kayle-id-trust-store",
+      "database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
+      "migrations_dir": "../../database/trust-store"
     }
   ],
   "routes": [

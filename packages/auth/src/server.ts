@@ -32,6 +32,17 @@ type MagicOtpPayload = {
   type: "sign-in" | "email-verification";
 };
 
+export function getActiveOrganizationId(session: unknown): string | null {
+  if (!(session && typeof session === "object")) {
+    return null;
+  }
+
+  const candidate = Reflect.get(session, "activeOrganizationId");
+  return typeof candidate === "string" && candidate.length > 0
+    ? candidate
+    : null;
+}
+
 function logDevelopmentMagicOtp(
   payload: MagicOtpPayload,
   request?: Request
@@ -192,6 +203,7 @@ export const auth = betterAuth({
       async ({ user: authUser, session: authSession }) => {
         // Extend the session with more fields
         let activeOrganization: Organization | null = null;
+        const activeOrganizationId = getActiveOrganizationId(authSession);
 
         const organizations: Organization[] = await db
           .select({
@@ -207,11 +219,9 @@ export const auth = betterAuth({
           )
           .where(eq(auth_organization_members.userId, authUser.id));
 
-        if (authSession.activeOrganizationId) {
+        if (activeOrganizationId) {
           const foundOrg =
-            organizations.find(
-              (o) => o.id === authSession.activeOrganizationId
-            ) ??
+            organizations.find((o) => o.id === activeOrganizationId) ??
             organizations[0] ??
             null;
           activeOrganization = foundOrg ? { ...foundOrg } : null;

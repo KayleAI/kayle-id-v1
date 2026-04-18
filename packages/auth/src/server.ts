@@ -160,13 +160,6 @@ export const auth = betterAuth({
     modelName: "auth_sessions",
     updateAge: 60 * 1000, // 60 seconds
     freshAge: 60 * 60 * 1000, // 1 hour
-    cookieCache: {
-      enabled: true,
-      maxAge: 60, // 60 seconds
-      strategy: "jwe",
-      version: "1",
-      refreshCache: true,
-    },
   },
   verification: {
     modelName: "auth_verifications",

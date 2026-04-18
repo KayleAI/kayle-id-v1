@@ -21,6 +21,7 @@ import {
 import {
   authorityKeyIdentifierHex,
   ensurePkijsEngine,
+  exactBytes,
   hexBytes,
   loadPkdTrustBundle,
   type PkdTrustBundle,
@@ -143,10 +144,6 @@ type ExplicitEcCurveParameters = {
   orderHex: string;
   primeHex: string;
 };
-
-function exactBytes(bytes: Uint8Array): Uint8Array {
-  return new Uint8Array(bytes);
-}
 
 function bufferBytes(bytes: Uint8Array): ArrayBuffer {
   return bytes.slice().buffer;

@@ -6,7 +6,7 @@ PORT="${FACE_MATCHER_PORT:-8788}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 STARTUP_TIMEOUT_SECONDS=30
 
-bunx wrangler dev --env-file ../../.env --ip 0.0.0.0 --port "${PORT}" --inspector-port 9230 &
+bunx wrangler dev --env-file ../../.env --ip 0.0.0.0 --port "${PORT}" --inspector-port 9232 &
 WRANGLER_PID=$!
 
 cleanup() {

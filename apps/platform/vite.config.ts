@@ -99,7 +99,7 @@ function createLocalDemoWebhookBridge(): Plugin {
 
 const config = defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9230 }),
+    cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9231 }),
     tailwindcss(),
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],

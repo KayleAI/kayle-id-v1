@@ -187,7 +187,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertTrue(shouldSuppressReconnectAfterHandledVerdict(verdict))
   }
 
-  func testDefaultSelectedShareFieldKeysOnlyIncludesAutomaticSecurityFields() {
+  func testDefaultSelectedShareFieldKeysIncludeSecurityAndRequiredDetails() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
       sessionId: "vs_test_123",
@@ -212,7 +212,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
 
     XCTAssertEqual(
       defaultSelectedShareFieldKeys(shareRequest),
-      Set(["kayle_document_id"])
+      Set(["kayle_document_id", "date_of_birth"])
     )
   }
 
@@ -323,6 +323,30 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertEqual(
       optionalShareRequestFields(shareRequest).map(\.key),
       ["document_photo"]
+    )
+  }
+
+  func testVisibleKayleShareRequestFieldsHideKayleHumanIdByDefault() {
+    let shareRequest = VerifyShareRequest(
+      contractVersion: 1,
+      sessionId: "vs_test_123",
+      fields: [
+        VerifyShareRequestField(
+          key: "kayle_document_id",
+          reason: "Kayle document identifier.",
+          required: true
+        ),
+        VerifyShareRequestField(
+          key: "kayle_human_id",
+          reason: "Kayle human identifier.",
+          required: true
+        ),
+      ]
+    )
+
+    XCTAssertEqual(
+      visibleKayleShareRequestFields(shareRequest).map(\.key),
+      ["kayle_document_id"]
     )
   }
 
@@ -439,6 +463,90 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     )
   }
 
+  func testHasUnselectedOptionalShareFieldsOnlyTracksOptionalDetails() {
+    let shareRequest = VerifyShareRequest(
+      contractVersion: 1,
+      sessionId: "vs_test_123",
+      fields: [
+        VerifyShareRequestField(
+          key: "kayle_document_id",
+          reason: "Document ID is required.",
+          required: true
+        ),
+        VerifyShareRequestField(
+          key: "date_of_birth",
+          reason: "Date of birth is required.",
+          required: true
+        ),
+        VerifyShareRequestField(
+          key: "nationality_code",
+          reason: "Nationality code is optional.",
+          required: false
+        ),
+      ]
+    )
+
+    XCTAssertTrue(
+      hasUnselectedOptionalShareFields(
+        shareRequest: shareRequest,
+        selectedShareFieldKeys: Set(["kayle_document_id", "date_of_birth"])
+      )
+    )
+
+    XCTAssertFalse(
+      hasUnselectedOptionalShareFields(
+        shareRequest: shareRequest,
+        selectedShareFieldKeys: Set([
+          "kayle_document_id",
+          "date_of_birth",
+          "nationality_code",
+        ])
+      )
+    )
+  }
+
+  func testSelectedShareFieldKeysIncludingAllOptionalFieldsAddsOnlyOptionalDetails() {
+    let shareRequest = VerifyShareRequest(
+      contractVersion: 1,
+      sessionId: "vs_test_123",
+      fields: [
+        VerifyShareRequestField(
+          key: "kayle_document_id",
+          reason: "Document ID is required.",
+          required: true
+        ),
+        VerifyShareRequestField(
+          key: "date_of_birth",
+          reason: "Date of birth is required.",
+          required: true
+        ),
+        VerifyShareRequestField(
+          key: "nationality_code",
+          reason: "Nationality code is optional.",
+          required: false
+        ),
+        VerifyShareRequestField(
+          key: "document_photo",
+          reason: "Document photo is optional.",
+          required: false
+        ),
+      ]
+    )
+
+    XCTAssertEqual(
+      selectedShareFieldKeysIncludingAllOptionalFields(
+        shareRequest: shareRequest,
+        selectedShareFieldKeys: Set(["kayle_document_id", "date_of_birth"])
+      ),
+      Set([
+        "kayle_document_id",
+        "date_of_birth",
+        "nationality_code",
+        "document_photo",
+      ])
+    )
+  }
+
   func testShareSelectionIsOnlySubmittableWhenRequiredDetailFieldsAreSelected() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
@@ -472,7 +580,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     )
   }
 
-  func testShareFieldSelectionOnlyLocksKayleSecurityFields() {
+  func testShareFieldSelectionLocksSecurityAndRequiredFields() {
     let kayleHumanField = VerifyShareRequestField(
       key: "kayle_human_id",
       reason: "Human ID supports anti-fraud checks.",
@@ -491,6 +599,6 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
 
     XCTAssertTrue(isShareFieldSelectionLocked(kayleHumanField))
     XCTAssertTrue(isShareFieldSelectionLocked(kayleDocumentField))
-    XCTAssertFalse(isShareFieldSelectionLocked(requiredDetailField))
+    XCTAssertTrue(isShareFieldSelectionLocked(requiredDetailField))
   }
 }

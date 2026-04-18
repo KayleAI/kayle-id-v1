@@ -34,7 +34,6 @@ struct SelfieCaptureView: View {
   @State private var captureProgress: Int = 0
   @State private var isCapturing = false
   @State private var isProcessing = false
-  @State private var statusMessage = "Position your face in the frame"
 
   var body: some View {
     ZStack {
@@ -55,44 +54,23 @@ struct SelfieCaptureView: View {
         .ignoresSafeArea()
       }
 
-      SelfieOverlayView(faceInBox: faceInBox, captureProgress: captureProgress)
+      ScannerOverlayView(
+        cutout: .centeredRectangle(
+          width: SelfieCaptureConstants.boxWidth,
+          height: SelfieCaptureConstants.boxHeight,
+          cornerRadius: SelfieCaptureConstants.cornerRadius,
+          verticalOffset: SelfieCaptureConstants.verticalOffset
+        ),
+        title: displayText,
+        subtitle: subtitleText,
+        borderColor: faceInBox ? .green : .white,
+        borderWidth: SelfieCaptureConstants.borderWidth,
+        instructionBottomPadding: 60,
+        flashTrigger: captureProgress
+      )
 
       if isProcessing {
-        Color.black.opacity(0.4).ignoresSafeArea()
-        ProgressView("Uploading selfies...")
-          .tint(.white)
-          .foregroundStyle(.white)
-      }
-
-      VStack {
-        Spacer()
-
-        VStack(spacing: 16) {
-          Text(displayText)
-            .font(.headline)
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
-
-          Text(subtitleText)
-            .font(.subheadline)
-            .foregroundStyle(.white.opacity(0.8))
-            .multilineTextAlignment(.center)
-
-          // Progress indicator during capture
-          if isCapturing {
-            HStack(spacing: 8) {
-              ForEach(0..<SelfieCaptureConstants.captureCount, id: \.self) { index in
-                Circle()
-                  .fill(index < captureProgress ? Color.green : Color.white.opacity(0.3))
-                  .frame(width: 12, height: 12)
-              }
-            }
-            .padding(.top, 8)
-          }
-
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 60)
+        BlockingLoadingOverlay(message: "Uploading selfies...")
       }
     }
     .onChange(of: capturedImages) { images in
@@ -825,58 +803,6 @@ extension SelfieCameraViewController: AVCapturePhotoCaptureDelegate {
         self.delegate?.didCompleteCapture()
       }
     }
-  }
-}
-
-// MARK: - Selfie Overlay (Vertical Rectangle)
-
-struct SelfieOverlayView: View {
-  let faceInBox: Bool
-  let captureProgress: Int
-
-  var body: some View {
-    GeometryReader { geo in
-      let center = CGPoint(
-        x: geo.size.width / 2,
-        y: geo.size.height / 2 + SelfieCaptureConstants.verticalOffset
-      )
-
-      ZStack {
-        // Dimmed background
-        Color.black.opacity(0.6)
-
-        // Cut out rectangle for face
-        RoundedRectangle(cornerRadius: SelfieCaptureConstants.cornerRadius)
-          .frame(
-            width: SelfieCaptureConstants.boxWidth,
-            height: SelfieCaptureConstants.boxHeight
-          )
-          .position(center)
-          .blendMode(.destinationOut)
-      }
-      .compositingGroup()
-
-      // Border around face area
-      RoundedRectangle(cornerRadius: SelfieCaptureConstants.cornerRadius)
-        .stroke(
-          faceInBox ? Color.green : Color.white,
-          lineWidth: SelfieCaptureConstants.borderWidth
-        )
-        .frame(
-          width: SelfieCaptureConstants.boxWidth,
-          height: SelfieCaptureConstants.boxHeight
-        )
-        .position(center)
-
-      // Capture flash effect
-      if captureProgress > 0 {
-        Color.white
-          .opacity(0.3)
-          .ignoresSafeArea()
-          .animation(.easeOut(duration: 0.1), value: captureProgress)
-      }
-    }
-    .ignoresSafeArea()
   }
 }
 

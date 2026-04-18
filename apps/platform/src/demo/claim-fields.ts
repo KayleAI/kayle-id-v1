@@ -17,6 +17,20 @@ export type DemoClaimSection = {
   title: string;
 };
 
+export const showKayleHumanIdInPublicUi = false;
+
+export function isPublicDemoClaimVisible(claimKey: string): boolean {
+  if (claimKey === "kayle_human_id") {
+    return showKayleHumanIdInPublicUi;
+  }
+
+  return true;
+}
+
+function visibleDemoClaimKeys(claimKeys: readonly string[]): string[] {
+  return claimKeys.filter((claimKey) => isPublicDemoClaimVisible(claimKey));
+}
+
 export const lockedDemoClaimKeys = [
   "kayle_document_id",
   "kayle_human_id",
@@ -50,9 +64,10 @@ export const demoClaimSections: DemoClaimSection[] = [
   },
   {
     title: "Security",
-    description:
-      "Kayle adds a document identifier to every session and reserves a human identifier for future anti-fraud checks.",
-    claims: ["kayle_document_id", "kayle_human_id"],
+    description: showKayleHumanIdInPublicUi
+      ? "Kayle adds a document identifier to every session and reserves a human identifier for future anti-fraud checks."
+      : "Kayle adds a document identifier to every session to protect services from abuse.",
+    claims: visibleDemoClaimKeys(["kayle_document_id", "kayle_human_id"]),
   },
 ];
 
@@ -223,6 +238,56 @@ export function getClaimDescription(claimKey: string): string {
   }
 
   return claimDescriptions[claimKey] ?? "Verified field from the document.";
+}
+
+export function countVisibleDemoClaims(
+  fields: Record<string, unknown> | null | undefined
+): number {
+  return Object.keys(fields ?? {}).filter((claimKey) =>
+    isPublicDemoClaimVisible(claimKey)
+  ).length;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizePublicDemoPayloadValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (typeof item === "string" && !isPublicDemoClaimVisible(item)) {
+        return [];
+      }
+
+      return [sanitizePublicDemoPayloadValue(item)];
+    });
+  }
+
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([key, nestedValue]) => {
+        if (!isPublicDemoClaimVisible(key)) {
+          return [];
+        }
+
+        return [[key, sanitizePublicDemoPayloadValue(nestedValue)]];
+      })
+    );
+  }
+
+  return value;
+}
+
+export function formatPublicDemoPayload(payload: string): string {
+  try {
+    return JSON.stringify(
+      sanitizePublicDemoPayloadValue(JSON.parse(payload)),
+      null,
+      2
+    );
+  } catch {
+    return payload;
+  }
 }
 
 function sortShareFields(

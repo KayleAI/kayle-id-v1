@@ -3,39 +3,27 @@ import SwiftUI
 /// Standalone NFC reading view - can be used in App Clips or main app.
 struct NFCReadingView: View {
   @ObservedObject var nfcReader: PassportNFCReader
-  /// Pre-computed MRZ key for BAC authentication (document number + birth date + expiry date with check digits)
-  let mrzKey: String
-  let cardAccessNumber: String?
+  var documentName = "document"
   let uploadProgress: Double
   let isUploading: Bool
+  let hasStarted: Bool
+  var onBack: (() -> Void)? = nil
+  let onStart: () -> Void
   let onComplete: (PassportReadResult) -> Void
 
-  @State private var hasStarted = false
-
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Spacer()
-
+    StepScreen(layout: .centered, onBack: onBack) {
+      StepHero(
+        variant: .step,
+        visual: .systemImage(name: "wave.3.right.circle.fill", size: 72),
+        title: primaryStatusText,
+        subtitle: secondaryStatusText
+      )
+    } content: {
       VStack(alignment: .center, spacing: 10) {
-        Text(primaryStatusText)
-          .font(.headline)
-          .foregroundStyle(.black)
-          .multilineTextAlignment(.center)
-
-        Text(secondaryStatusText)
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
-
         if let error = nfcReader.errorMessage {
           Text(error)
             .foregroundStyle(.red)
-            .multilineTextAlignment(.center)
-            .padding(.top, 8)
-        } else if !isUploading, !nfcReader.status.isEmpty {
-          Text(nfcReader.status)
-            .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.6))
             .multilineTextAlignment(.center)
             .padding(.top, 8)
         }
@@ -48,38 +36,15 @@ struct NFCReadingView: View {
           Text("\(Int((uploadProgress * 100).rounded()))% uploaded")
             .font(.caption)
             .foregroundStyle(.black.opacity(0.5))
-        } else if nfcReader.progress > 0 && nfcReader.progress < 4 {
-          StatusProgressBar(progress: Double(nfcReader.progress) / 4)
-            .padding(.top, 16)
-            .padding(.horizontal, 32)
         }
       }
-      .frame(maxWidth: .infinity)
-
-      Spacer()
-
-      VStack(spacing: 12) {
-        if nfcReader.errorMessage != nil && !isUploading {
-          PrimaryActionButton(title: "Try Again") {
-            hasStarted = false
-            nfcReader.start(mrzKey: mrzKey, cardAccessNumber: cardAccessNumber)
-          }
-        }
-      }
-    }
-    .padding(16)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color.white.ignoresSafeArea())
-    .onAppear {
-      if PreviewSupport.isRunningInXcodePreview {
-        return
-      }
-
-      guard !hasStarted else { return }
-      hasStarted = true
-      // Start NFC reading on main thread
-      DispatchQueue.main.async {
-        nfcReader.start(mrzKey: mrzKey, cardAccessNumber: cardAccessNumber)
+    } footer: {
+      if !isUploading {
+        ActionButton(
+          style: .primary,
+          title: nfcReader.errorMessage == nil ? "Start Scanning" : "Try Again",
+          action: onStart
+        )
       }
     }
     .onChange(of: nfcReader.result) { result in
@@ -91,10 +56,10 @@ struct NFCReadingView: View {
 
   private var primaryStatusText: String {
     if isUploading {
-      return "Uploading your document securely"
+      return "Uploading your \(documentName) securely"
     }
 
-    return "Keep your iPhone close to your document."
+    return "Keep your iPhone close to your \(documentName)."
   }
 
   private var secondaryStatusText: String {
@@ -102,27 +67,10 @@ struct NFCReadingView: View {
       return "Keep this screen open while we finish the secure transfer."
     }
 
-    return "This can take up to a minute."
-  }
-}
-
-private struct StatusProgressBar: View {
-  let progress: Double
-
-  var body: some View {
-    GeometryReader { geometry in
-      let clampedProgress = min(max(progress, 0), 1)
-
-      ZStack(alignment: .leading) {
-        Capsule()
-          .fill(Color.black.opacity(0.1))
-
-        Capsule()
-          .fill(Color.black)
-          .frame(width: geometry.size.width * clampedProgress)
-      }
+    if hasStarted {
+      return "Follow the NFC prompt and hold the top of your iPhone against the chip."
     }
-    .frame(height: 6)
-    .animation(.easeInOut(duration: 0.2), value: progress)
+
+    return "When you're ready, tap Start Scanning and follow the NFC prompt."
   }
 }

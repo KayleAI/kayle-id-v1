@@ -83,13 +83,22 @@ final class PassportNFCReader: NSObject, ObservableObject {
     reader.trackingDelegate = self
   }
 
-  /// Start NFC reading with a pre-computed MRZ key (BAC authentication key).
-  /// The mrzKey should be: documentNumber + checkDigit + birthDate + checkDigit + expiryDate + checkDigit
-  func start(mrzKey: String, cardAccessNumber: String? = nil) {
-    // Reset state
+  func stop() {
+    readTask?.cancel()
+    readTask = nil
+    currentMRZ = ""
+    currentMRZKey = ""
+    currentCardAccessNumber = nil
     result = nil
     errorMessage = nil
     progress = 0
+    status = "Idle"
+  }
+
+  /// Start NFC reading with a pre-computed MRZ key (BAC authentication key).
+  /// The mrzKey should be: documentNumber + checkDigit + birthDate + checkDigit + expiryDate + checkDigit
+  func start(mrzKey: String, cardAccessNumber: String? = nil) {
+    stop()
     status = "Initializing NFC reader..."
     
     // Setup delegate first
@@ -145,10 +154,14 @@ final class PassportNFCReader: NSObject, ObservableObject {
       let passport = try await reader.read(configuration: config)
 
       let result = buildResult(from: passport)
+      guard !Task.isCancelled else { return }
       self.result = result
       self.progress = 4
       self.status = "Document read complete."
+    } catch is CancellationError {
+      return
     } catch {
+      guard !Task.isCancelled else { return }
       self.errorMessage = error.localizedDescription
       self.status = "NFC read failed."
     }

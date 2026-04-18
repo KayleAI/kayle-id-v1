@@ -1,5 +1,9 @@
 import Foundation
 
+nonisolated private enum PublicShareFieldVisibility {
+  static let showsKayleHumanId = false
+}
+
 nonisolated private func shareFieldDisplayName(_ key: String) -> String? {
   switch key {
   case "document_type_code":
@@ -307,6 +311,28 @@ nonisolated func defaultSelectedShareFieldKeys(
   )
 }
 
+nonisolated func hasUnselectedOptionalShareFields(
+  shareRequest: VerifyShareRequest?,
+  selectedShareFieldKeys: Set<String>
+) -> Bool {
+  optionalShareRequestFields(shareRequest).contains { field in
+    !selectedShareFieldKeys.contains(field.key)
+  }
+}
+
+nonisolated func selectedShareFieldKeysIncludingAllOptionalFields(
+  shareRequest: VerifyShareRequest?,
+  selectedShareFieldKeys: Set<String>
+) -> Set<String> {
+  var nextSelectedShareFieldKeys = selectedShareFieldKeys
+
+  for field in optionalShareRequestFields(shareRequest) {
+    nextSelectedShareFieldKeys.insert(field.key)
+  }
+
+  return nextSelectedShareFieldKeys
+}
+
 nonisolated func orderedSelectedShareFieldKeys(
   shareRequest: VerifyShareRequest?,
   selectedShareFieldKeys: Set<String>
@@ -338,11 +364,19 @@ nonisolated func isShareSelectionSubmittable(
 }
 
 nonisolated func isShareFieldSelectionLocked(_ field: VerifyShareRequestField) -> Bool {
-  isKayleShareField(field.key)
+  field.required || isKayleShareField(field.key)
 }
 
 nonisolated func isKayleShareField(_ key: String) -> Bool {
   key.hasPrefix("kayle_")
+}
+
+nonisolated func isPubliclyVisibleShareField(_ key: String) -> Bool {
+  if key == "kayle_human_id" {
+    return PublicShareFieldVisibility.showsKayleHumanId
+  }
+
+  return true
 }
 
 nonisolated func kayleShareRequestFields(
@@ -354,6 +388,14 @@ nonisolated func kayleShareRequestFields(
 
   return shareRequest.fields.filter { field in
     isKayleShareField(field.key)
+  }
+}
+
+nonisolated func visibleKayleShareRequestFields(
+  _ shareRequest: VerifyShareRequest?
+) -> [VerifyShareRequestField] {
+  kayleShareRequestFields(shareRequest).filter { field in
+    isPubliclyVisibleShareField(field.key)
   }
 }
 

@@ -2,25 +2,29 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-struct CameraPermissionGate<Destination: View>: View {
-  private enum CameraPermissionState {
-    case authorized
-    case notDetermined
-    case deniedOrRestricted
-  }
+enum CameraPermissionGateState {
+  case authorized
+  case notDetermined
+  case deniedOrRestricted
+}
 
+struct CameraPermissionGate<Destination: View>: View {
   @Environment(\.scenePhase) private var scenePhase
-  @State private var permissionState: CameraPermissionState = .notDetermined
+  @State private var permissionState: CameraPermissionGateState
 
   let onCancel: () -> Void
   private let destination: Destination
+  private let previewPermissionState: CameraPermissionGateState?
 
   init(
+    previewPermissionState: CameraPermissionGateState? = nil,
     onCancel: @escaping () -> Void,
     @ViewBuilder destination: () -> Destination
   ) {
+    self.previewPermissionState = previewPermissionState
     self.onCancel = onCancel
     self.destination = destination()
+    _permissionState = State(initialValue: previewPermissionState ?? .notDetermined)
   }
 
   var body: some View {
@@ -42,75 +46,25 @@ struct CameraPermissionGate<Destination: View>: View {
   }
 
   private var prePermissionView: some View {
-    VStack(alignment: .center, spacing: 16) {
-      Spacer()
-
-      VStack(spacing: 12) {
-        Text("Enable camera to scan your document")
-          .font(.title3).bold()
-          .foregroundStyle(.black)
-
-        Text("We use the camera to scan the lines at the bottom of your passport or ID card. This is required to read document data.")
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
-      }
-      .frame(maxWidth: 360)
-
-      Spacer()
-
-      VStack(spacing: 12) {
-        PrimaryActionButton(title: "Enable camera") {
-          requestCameraAccess()
-        }
-
-        SecondaryActionButton(title: "Cancel") {
-          onCancel()
-        }
-      }
-      .frame(maxWidth: 360)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(16)
-    .background(Color.white.ignoresSafeArea())
+    permissionStepView(
+      title: "Enable camera to scan your document",
+      subtitle: "We use the camera to scan the lines at the bottom of your document. This is required to read document data.",
+      primaryButtonTitle: "Enable camera",
+      onPrimaryAction: requestCameraAccess
+    )
   }
 
   private var deniedView: some View {
-    VStack(alignment: .center, spacing: 16) {
-      Spacer()
-
-      VStack(spacing: 12) {
-        Text("Camera access required")
-          .font(.title3).bold()
-          .foregroundStyle(.black)
-
-        Text("Without camera access, the app can't scan your document and can't read your passport or ID card.")
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
-      }
-      .frame(maxWidth: 360)
-
-      Spacer()
-
-      VStack(spacing: 12) {
-        PrimaryActionButton(title: "Open Settings") {
-          openAppSettings()
-        }
-
-        SecondaryActionButton(title: "Cancel") {
-          onCancel()
-        }
-      }
-      .frame(maxWidth: 360)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(16)
-    .background(Color.white.ignoresSafeArea())
+    permissionStepView(
+      title: "Camera access required",
+      subtitle: "Without camera access, the app can't scan your document and can't read your document chip.",
+      primaryButtonTitle: "Open Settings",
+      onPrimaryAction: openAppSettings
+    )
   }
 
   private func refreshPermissionState() {
-    permissionState = mapPermissionState()
+    permissionState = previewPermissionState ?? mapPermissionState()
   }
 
   private func requestCameraAccess() {
@@ -126,7 +80,7 @@ struct CameraPermissionGate<Destination: View>: View {
     UIApplication.shared.open(url)
   }
 
-  private func mapPermissionState() -> CameraPermissionState {
+  private func mapPermissionState() -> CameraPermissionGateState {
     if PreviewSupport.isRunningInXcodePreview {
       return .authorized
     }
@@ -140,6 +94,27 @@ struct CameraPermissionGate<Destination: View>: View {
       return .deniedOrRestricted
     @unknown default:
       return .deniedOrRestricted
+    }
+  }
+
+  private func permissionStepView(
+    title: String,
+    subtitle: String,
+    primaryButtonTitle: String,
+    onPrimaryAction: @escaping () -> Void
+  ) -> some View {
+    StepScreen(layout: .centered) {
+      StepHero(
+        variant: .step,
+        visual: nil,
+        title: title,
+        subtitle: subtitle
+      )
+    } content: {
+      EmptyView()
+    } footer: {
+      ActionButton(style: .primary, title: primaryButtonTitle, action: onPrimaryAction)
+      ActionButton(style: .secondary, title: "Cancel", action: onCancel)
     }
   }
 }

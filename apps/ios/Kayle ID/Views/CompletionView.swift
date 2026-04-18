@@ -9,44 +9,25 @@ struct CompletionView: View {
   let onSecondaryAction: (() -> Void)?
 
   var body: some View {
-    VStack(spacing: 24) {
-      Spacer()
+    StepScreen(layout: .centered) {
+      StepHero(
+        variant: .step,
+        visual: .systemImage(
+          name: isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill",
+          size: 80
+        ),
+        title: isSuccess ? "Verification Complete" : "Verification Failed",
+        subtitle: message,
+        visualColor: isSuccess ? .green : .red
+      )
+    } content: {
+      EmptyView()
+    } footer: {
+      ActionButton(style: .primary, title: primaryButtonTitle, action: onPrimaryAction)
 
-      VStack(spacing: 16) {
-        Image(systemName: isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
-          .font(.system(size: 80))
-          .foregroundStyle(isSuccess ? .green : .red)
-
-        Text(isSuccess ? "Verification Complete" : "Verification Failed")
-          .font(.title2).bold()
-          .foregroundStyle(.black)
-
-        Text(message)
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
-          .frame(maxWidth: 300)
+      if let secondaryButtonTitle, let onSecondaryAction {
+        ActionButton(style: .secondary, title: secondaryButtonTitle, action: onSecondaryAction)
       }
-
-      Spacer()
-
-      VStack(spacing: 12) {
-        PrimaryActionButton(title: primaryButtonTitle) {
-          onPrimaryAction()
-        }
-        .frame(maxWidth: 300)
-
-        if let secondaryButtonTitle, let onSecondaryAction {
-          SecondaryActionButton(title: secondaryButtonTitle) {
-            onSecondaryAction()
-          }
-          .frame(maxWidth: 300)
-        }
-      }
-      .padding(.bottom, 32)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(16)
-    .background(Color.white.ignoresSafeArea())
   }
 }

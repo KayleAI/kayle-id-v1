@@ -7,12 +7,12 @@ private struct ContentViewPreviewScreen: View {
 
   private let session: VerificationSession
   private let nfcReader: PassportNFCReader
-  private let initialMRZSheetPresented: Bool
+  private let initialCameraDrawer: CameraCaptureDrawer?
   private let initialAboutSheetPresented: Bool
 
   init(
     step: VerificationStep,
-    initialMRZSheetPresented: Bool = false,
+    initialCameraDrawer: CameraCaptureDrawer? = nil,
     initialAboutSheetPresented: Bool = false,
     configure: (VerificationSession, PassportNFCReader) -> Void = { _, _ in }
   ) {
@@ -25,7 +25,7 @@ private struct ContentViewPreviewScreen: View {
 
     self.session = session
     self.nfcReader = nfcReader
-    self.initialMRZSheetPresented = initialMRZSheetPresented
+    self.initialCameraDrawer = initialCameraDrawer
     self.initialAboutSheetPresented = initialAboutSheetPresented
   }
 
@@ -34,7 +34,7 @@ private struct ContentViewPreviewScreen: View {
       pendingQRCode: $pendingQRCode,
       session: session,
       nfcReader: nfcReader,
-      initialMRZSheetPresented: initialMRZSheetPresented,
+      initialCameraDrawer: initialCameraDrawer,
       initialAboutSheetPresented: initialAboutSheetPresented
     )
   }
@@ -169,11 +169,19 @@ private enum PreviewFixtures {
 }
 
 #Preview("Photo Page Scan Sheet") {
-  ContentViewPreviewScreen(step: .mrz, initialMRZSheetPresented: true)
+  ContentViewPreviewScreen(step: .mrz, initialCameraDrawer: .mrz)
 }
 
 #Preview("RFID Check") {
-  ContentViewPreviewScreen(step: .rfidCheck)
+  ContentViewPreviewScreen(step: .rfidCheck) { session, _ in
+    session.mrzResult = PreviewFixtures.mrzResult
+  }
+}
+
+#Preview("Unsupported RFID") {
+  ContentViewPreviewScreen(step: .rfidUnsupported) { session, _ in
+    session.mrzResult = PreviewFixtures.mrzResult
+  }
 }
 
 #Preview("NFC Read") {
@@ -198,7 +206,23 @@ private enum PreviewFixtures {
 }
 
 #Preview("Selfie Capture") {
-  ContentViewPreviewScreen(step: .selfie)
+  ContentViewPreviewScreen(step: .selfie, initialCameraDrawer: .selfie)
+}
+
+#Preview("QR Scan Drawer") {
+  ContentViewPreviewScreen(step: .scanning, initialCameraDrawer: .qr)
+}
+
+#Preview("Camera Permission Prompt") {
+  CameraPermissionGate(previewPermissionState: .notDetermined, onCancel: {}) {
+    Color.black.ignoresSafeArea()
+  }
+}
+
+#Preview("Camera Permission Denied") {
+  CameraPermissionGate(previewPermissionState: .deniedOrRestricted, onCancel: {}) {
+    Color.black.ignoresSafeArea()
+  }
 }
 
 #Preview("Share Details") {
@@ -230,6 +254,7 @@ private enum PreviewFixtures {
 
 #Preview("Error") {
   ContentViewPreviewScreen(step: .error) { session, _ in
+    session.mrzResult = PreviewFixtures.mrzResult
     session.errorMessage = "Missing DG2 from NFC read. Please scan your passport chip again."
   }
 }

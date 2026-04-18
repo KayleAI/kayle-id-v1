@@ -1,6 +1,12 @@
 import { staticClaims } from "@kayle-id/config/share-claims";
 import { expect, test } from "vitest";
-import { buildRequestedShareFields, getClaimDescription } from "./claim-fields";
+import {
+  buildRequestedShareFields,
+  countVisibleDemoClaims,
+  demoClaimSections,
+  formatPublicDemoPayload,
+  getClaimDescription,
+} from "./claim-fields";
 
 test("buildRequestedShareFields omits share_fields when every field is off", () => {
   const result = buildRequestedShareFields({
@@ -112,5 +118,61 @@ test("getClaimDescription includes the requested threshold for age gates", () =>
   expect(getClaimDescription("age_over_21")).toContain("21");
   expect(getClaimDescription("age_over_21")).toContain(
     "without sharing the full date of birth"
+  );
+});
+
+test("security section hides Kayle Human ID in public demo UI", () => {
+  expect(demoClaimSections.find((section) => section.title === "Security")).toEqual(
+    expect.objectContaining({
+      claims: ["kayle_document_id"],
+    })
+  );
+});
+
+test("countVisibleDemoClaims excludes hidden public claims", () => {
+  expect(
+    countVisibleDemoClaims({
+      kayle_document_id: {
+        reason: 'Sharing "Kayle Document ID"',
+        required: true,
+      },
+      kayle_human_id: {
+        reason: 'Sharing "Kayle Human ID"',
+        required: true,
+      },
+      nationality_code: {
+        reason: 'Sharing "Nationality Code"',
+        required: false,
+      },
+    })
+  ).toBe(2);
+});
+
+test("formatPublicDemoPayload removes hidden claims from visible JSON", () => {
+  expect(
+    formatPublicDemoPayload(
+      JSON.stringify({
+        data: {
+          claims: {
+            kayle_document_id: "doc_123",
+            kayle_human_id: null,
+          },
+          selected_field_keys: ["kayle_document_id", "kayle_human_id"],
+        },
+      })
+    )
+  ).toBe(
+    JSON.stringify(
+      {
+        data: {
+          claims: {
+            kayle_document_id: "doc_123",
+          },
+          selected_field_keys: ["kayle_document_id"],
+        },
+      },
+      null,
+      2
+    )
   );
 });

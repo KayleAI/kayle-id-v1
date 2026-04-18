@@ -26,7 +26,9 @@ import { toast } from "sonner";
 import { PageHeading } from "@/components/page-heading";
 import {
   buildRequestedShareFields,
+  countVisibleDemoClaims,
   demoClaimSections,
+  formatPublicDemoPayload,
   getClaimDescription,
   getModeLabel,
   initialFieldModes,
@@ -231,7 +233,7 @@ async function processWebhookReceipt({
     });
     const decryptedPayload = (() => {
       try {
-        return JSON.stringify(JSON.parse(plaintext), null, 2);
+        return formatPublicDemoPayload(plaintext);
       } catch {
         return plaintext;
       }
@@ -1621,7 +1623,7 @@ export function Demo() {
   const sessionStatus = run?.session_status ?? null;
   const hasSession = Boolean(run?.session_id);
   const canReviewOutcome = Boolean(sessionStatus?.is_terminal || run?.webhook);
-  const requestedFieldCount = Object.keys(run?.share_fields ?? {}).length;
+  const requestedFieldCount = countVisibleDemoClaims(run?.share_fields);
 
   const clearRunState = useCallback(() => {
     setOpenStep("step-1");

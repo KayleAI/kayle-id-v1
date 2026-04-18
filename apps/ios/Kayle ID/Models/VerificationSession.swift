@@ -43,6 +43,7 @@ enum VerificationStep: Int, CaseIterable {
   case scanning       // Scanning QR code
   case mrz            // Scanning passport MRZ
   case rfidCheck      // Asking if document has RFID (required, no skip)
+  case rfidUnsupported // Document does not support RFID/NFC
   case nfc            // Reading NFC chip
   case selfieIntro    // Preparing the user for selfie capture
   case selfie         // Taking selfie
@@ -56,6 +57,7 @@ enum VerificationStep: Int, CaseIterable {
     case .scanning: return "Scan QR Code"
     case .mrz: return "Scan Document"
     case .rfidCheck: return "RFID Check"
+    case .rfidUnsupported: return "Unsupported Document"
     case .nfc: return "Read Chip"
     case .selfieIntro: return "Selfie Instructions"
     case .selfie: return "Take Selfie"
@@ -132,7 +134,7 @@ final class VerificationSession: ObservableObject {
       throw QRCodePayloadError.invalidPayload
     }
 
-    resetAttemptState(clearPayload: false)
+    teardownAttemptState(clearPayload: true)
     try await bootstrapAttempt(with: payload)
   }
 
@@ -308,22 +310,35 @@ final class VerificationSession: ObservableObject {
     }
 
     let resolvedError = resolveDisplayError(error)
+    let terminalAttemptId = attemptId ?? payload?.attemptId
     verdict = nil
     errorMessage = resolvedError.localizedDescription
     step = .error
     selfieUploadCancelled = true
 
-    Task {
+    Task { @MainActor [weak self] in
+      guard let self else { return }
       await updatePhase(.error, error: resolvedError.localizedDescription)
+      await waitForPendingPhaseUpdates()
+      guard let terminalAttemptId else { return }
+
+      guard
+        shouldHandleAttemptScopedEvent(
+          currentAttemptId: self.payload?.attemptId,
+          eventAttemptId: terminalAttemptId
+        )
+      else {
+        return
+      }
+
+      self.closeActiveAttemptConnection()
     }
   }
 
   /// Reset the session for a new verification attempt.
   func reset() {
     step = .welcome
-    let activeWebSocketService = webSocketService
-    resetAttemptState(clearPayload: true)
-    activeWebSocketService?.disconnect()
+    teardownAttemptState(clearPayload: true)
   }
 
   func retryVerification() async throws {
@@ -331,8 +346,7 @@ final class VerificationSession: ObservableObject {
       throw VerificationError.notInitialized
     }
 
-    webSocketService?.disconnect()
-    resetAttemptState(clearPayload: false)
+    teardownAttemptState(clearPayload: false)
 
     let nextPayload = try await fetchFreshHandoffPayload(
       sessionId: currentPayload.sessionId
@@ -340,6 +354,14 @@ final class VerificationSession: ObservableObject {
 
     try await bootstrapAttempt(with: nextPayload)
     moveToStep(.mrz)
+  }
+
+  func clearDocumentCaptureState() {
+    mrzResult = nil
+    nfcResult = nil
+    selfieImages = []
+    hasRFIDSymbol = nil
+    resetNFCUploadState()
   }
 
   private func fetchFreshHandoffPayload(sessionId: String) async throws -> QRCodePayload {
@@ -451,6 +473,21 @@ final class VerificationSession: ObservableObject {
     pendingPhaseUpdateTask = nil
   }
 
+  private func teardownAttemptState(clearPayload: Bool) {
+    let activeWebSocketService = webSocketService
+    resetAttemptState(clearPayload: clearPayload)
+    activeWebSocketService?.disconnect()
+  }
+
+  private func closeActiveAttemptConnection() {
+    let activeWebSocketService = webSocketService
+    webSocketService = nil
+    pendingPhaseUpdateTask?.cancel()
+    pendingPhaseUpdateTask = nil
+    resetNFCUploadState()
+    activeWebSocketService?.disconnect()
+  }
+
   private func handleVerdict(_ verdict: VerifyServerVerdict) {
     self.verdict = verdict
     errorMessage = nil
@@ -459,7 +496,7 @@ final class VerificationSession: ObservableObject {
     selfieUploadCancelled = isRejectedVerdict(verdict)
 
     if isRejectedVerdict(verdict) {
-      webSocketService?.disconnect()
+      closeActiveAttemptConnection()
       shareRequest = nil
       selectedShareFieldKeys = []
       moveToStep(.complete)
@@ -501,6 +538,21 @@ final class VerificationSession: ObservableObject {
     )
   }
 
+  func canSelectAllAvailableShareFields() -> Bool {
+    hasUnselectedOptionalShareFields(
+      shareRequest: shareRequest,
+      selectedShareFieldKeys: selectedShareFieldKeys
+    )
+  }
+
+  func selectAllAvailableShareFields() {
+    selectedShareFieldKeys = selectedShareFieldKeysIncludingAllOptionalFields(
+      shareRequest: shareRequest,
+      selectedShareFieldKeys: selectedShareFieldKeys
+    )
+    shareSelectionErrorMessage = nil
+  }
+
   func submitShareSelection() async {
     guard let shareRequest, let webSocketService else {
       handleError(VerificationError.notInitialized)
@@ -530,6 +582,7 @@ final class VerificationSession: ObservableObject {
       if let shareReady = response.shareReady {
         selectedShareFieldKeys = Set(shareReady.selectedFieldKeys)
         isSubmittingShareSelection = false
+        closeActiveAttemptConnection()
         moveToStep(.complete)
         return
       }
@@ -760,15 +813,24 @@ final class VerificationSession: ObservableObject {
 
   private func buildNFCUploadPlans(from result: PassportReadResult) throws -> [NFCUploadPlan] {
     guard let dg1 = result.dataGroups.first(where: { $0.id == 0x61 }) else {
-      throw VerificationError.missingRequiredNFCData("DG1")
+      throw VerificationError.missingRequiredNFCData(
+        "DG1",
+        documentChipName: mrzResult?.userFacingDocumentChipName ?? "document chip"
+      )
     }
 
     guard let dg2 = result.dataGroups.first(where: { $0.id == 0x75 }) else {
-      throw VerificationError.missingRequiredNFCData("DG2")
+      throw VerificationError.missingRequiredNFCData(
+        "DG2",
+        documentChipName: mrzResult?.userFacingDocumentChipName ?? "document chip"
+      )
     }
 
     guard let sod = result.dataGroups.first(where: { $0.id == 0x77 }) else {
-      throw VerificationError.missingRequiredNFCData("SOD")
+      throw VerificationError.missingRequiredNFCData(
+        "SOD",
+        documentChipName: mrzResult?.userFacingDocumentChipName ?? "document chip"
+      )
     }
 
     return [
@@ -1057,7 +1119,7 @@ enum VerificationError: LocalizedError {
   case notInitialized
   case encryptionFailed
   case uploadFailed
-  case missingRequiredNFCData(String)
+  case missingRequiredNFCData(String, documentChipName: String)
 
   var errorDescription: String? {
     switch self {
@@ -1067,8 +1129,8 @@ enum VerificationError: LocalizedError {
       return "Failed to encrypt data."
     case .uploadFailed:
       return "Failed to upload data. Please try again."
-    case .missingRequiredNFCData(let dataGroup):
-      return "Missing \(dataGroup) from NFC read. Please scan your passport chip again."
+    case .missingRequiredNFCData(let dataGroup, let documentChipName):
+      return "Missing \(dataGroup) from NFC read. Please scan your \(documentChipName) again."
     }
   }
 }

@@ -1,132 +1,101 @@
 import SwiftUI
 
-private enum AppAbout {
-  static let appName = "Kayle ID"
-  static let privacyPolicyURL = URL(string: "https://kayle.id/privacy")
-  static let termsOfServiceURL = URL(string: "https://kayle.id/terms")
+enum CameraCaptureDrawer: String, Identifiable {
+  case qr
+  case mrz
+  case selfie
 
-  static func versionDescription(bundle: Bundle = .main) -> String {
-    let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-    let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-
-    switch (version?.trimmingCharacters(in: .whitespacesAndNewlines), build?.trimmingCharacters(in: .whitespacesAndNewlines)) {
-    case let (version?, build?) where !version.isEmpty && !build.isEmpty && version != build:
-      return "Version \(version) (\(build))"
-    case let (version?, _) where !version.isEmpty:
-      return "Version \(version)"
-    case let (_, build?) where !build.isEmpty:
-      return "Build \(build)"
-    default:
-      return "Version unavailable"
-    }
+  var id: String {
+    rawValue
   }
 }
 
-private struct AboutLinkRow: View {
-  let title: String
-  let subtitle: String
-  let destination: URL?
+private struct NFCRenderSnapshot {
+  let documentName: String
+  let uploadProgress: Double
+  let isUploading: Bool
+  let hasStarted: Bool
+  let errorMessage: String?
+  let result: PassportReadResult?
+}
+
+private struct DocumentCopySnapshot {
+  let documentName: String
+  let documentNameWithArticle: String
+  let rfidSymbolLocationDescription: String
+}
+
+private struct ShareDetailsRenderSnapshot {
+  let shareRequest: VerifyShareRequest?
+  let selectedShareFieldKeys: Set<String>
+  let shareSelectionErrorMessage: String?
+  let isSubmittingShareSelection: Bool
+  let nfcResult: PassportReadResult?
+  let mrzResult: MRZResult?
+}
+
+private struct CompletionRenderSnapshot {
+  let isSuccess: Bool
+  let message: String
+  let primaryButtonTitle: String
+  let secondaryButtonTitle: String?
+}
+
+private struct StepRenderSnapshot: Identifiable {
+  let id = UUID()
+  let step: VerificationStep
+  var showsBackButton = false
+  var documentCopy: DocumentCopySnapshot? = nil
+  var nfc: NFCRenderSnapshot? = nil
+  var shareDetails: ShareDetailsRenderSnapshot? = nil
+  var completion: CompletionRenderSnapshot? = nil
+}
+
+@MainActor
+private struct FrozenNFCReadingView: View {
+  let snapshot: NFCRenderSnapshot
+  var onBack: (() -> Void)? = nil
 
   var body: some View {
-    Group {
-      if let destination {
-        Link(destination: destination) {
-          rowContent
-        }
-      } else {
-        rowContent
-      }
-    }
-    .buttonStyle(.plain)
+    NFCReadingView(
+      nfcReader: snapshotReader,
+      documentName: snapshot.documentName,
+      uploadProgress: snapshot.uploadProgress,
+      isUploading: snapshot.isUploading,
+      hasStarted: snapshot.hasStarted,
+      onBack: onBack,
+      onStart: {},
+      onComplete: { _ in }
+    )
+    .allowsHitTesting(false)
   }
 
-  private var rowContent: some View {
-    HStack(alignment: .center, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text(title)
-          .font(.headline)
-          .foregroundStyle(.black)
-
-        Text(subtitle)
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-      }
-
-      Spacer(minLength: 12)
-
-      Image(systemName: destination == nil ? "exclamationmark.circle" : "arrow.up.right")
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.black.opacity(0.5))
-    }
-    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-    .padding(16)
-    .background(Color.black.opacity(0.03))
-    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-    .contentShape(Rectangle())
+  private var snapshotReader: PassportNFCReader {
+    let reader = PassportNFCReader()
+    reader.errorMessage = snapshot.errorMessage
+    reader.result = snapshot.result
+    return reader
   }
 }
 
-private struct AboutSheetView: View {
-  @Environment(\.dismiss) private var dismiss
-
-  private let versionDescription = AppAbout.versionDescription()
+@MainActor
+private struct FrozenShareDetailsView: View {
+  let snapshot: ShareDetailsRenderSnapshot
 
   var body: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(spacing: 24) {
-          VStack(spacing: 12) {
-            Image("Logo")
-              .resizable()
-              .scaledToFit()
-              .frame(width: 96, height: 96)
-              .clipShape(RoundedRectangle(cornerRadius: 20))
-              .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                  .stroke(Color.black.opacity(0.1), lineWidth: 1)
-              )
+    ShareDetailsView(session: snapshotSession, onSubmit: {}, onCancel: {})
+      .allowsHitTesting(false)
+  }
 
-            Text(AppAbout.appName)
-              .font(.title2).bold()
-              .foregroundStyle(.black)
-
-            Text(versionDescription)
-              .font(.subheadline)
-              .foregroundStyle(.black.opacity(0.6))
-          }
-          .frame(maxWidth: .infinity)
-          .padding(.top, 8)
-
-          VStack(alignment: .leading, spacing: 12) {
-            AboutLinkRow(
-              title: "Terms of Service",
-              subtitle: "Terms for using Kayle ID and its identity verification features.",
-              destination: AppAbout.termsOfServiceURL
-            )
-
-            AboutLinkRow(
-              title: "Privacy Policy",
-              subtitle: "How Kayle ID collects, uses, and protects your information.",
-              destination: AppAbout.privacyPolicyURL
-            )
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(24)
-      }
-      .background(Color.white)
-      .navigationTitle("About")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .topBarTrailing) {
-          Button("Done") {
-            dismiss()
-          }
-          .foregroundStyle(.black)
-        }
-      }
-    }
-    .presentationDragIndicator(.visible)
+  private var snapshotSession: VerificationSession {
+    let session = VerificationSession()
+    session.shareRequest = snapshot.shareRequest
+    session.selectedShareFieldKeys = snapshot.selectedShareFieldKeys
+    session.shareSelectionErrorMessage = snapshot.shareSelectionErrorMessage
+    session.isSubmittingShareSelection = snapshot.isSubmittingShareSelection
+    session.nfcResult = snapshot.nfcResult
+    session.mrzResult = snapshot.mrzResult
+    return session
   }
 }
 
@@ -141,27 +110,28 @@ struct ContentView: View {
   @StateObject private var session: VerificationSession
   @StateObject private var nfcReader: PassportNFCReader
 
-  @State private var previousStep: VerificationStep?
+  @State private var outgoingStepSnapshot: StepRenderSnapshot?
   @State private var lastStep: VerificationStep = .welcome
   @State private var navDirection: NavigationDirection = .forward
   @State private var transitionProgress: CGFloat = 1
 
-  // MRZ scanning state
-  @State private var isMRZSheetPresented = false
+  @State private var activeCameraDrawer: CameraCaptureDrawer?
   @State private var isMRZLocked = false
   @State private var cameraBlur: CGFloat = 0
   @State private var didTriggerMRZ = false
   @State private var cardAccessNumber: String?
-  @State private var isShareCancelConfirmationPresented = false
   @State private var isAboutSheetPresented = false
   @State private var isResolvingQRCode = false
+  @State private var hasStartedNFCScan = false
+  @State private var isRetainingNFCUploadUI = false
+  @State private var retainedNFCUploadProgress: Double = 0
 
   @MainActor
   init(
     pendingQRCode: Binding<String?>,
     session: VerificationSession? = nil,
     nfcReader: PassportNFCReader? = nil,
-    initialMRZSheetPresented: Bool = false,
+    initialCameraDrawer: CameraCaptureDrawer? = nil,
     initialAboutSheetPresented: Bool = false
   ) {
     let resolvedSession = session ?? VerificationSession()
@@ -170,7 +140,7 @@ struct ContentView: View {
     _pendingQRCode = pendingQRCode
     _session = StateObject(wrappedValue: resolvedSession)
     _nfcReader = StateObject(wrappedValue: resolvedNFCReader)
-    _isMRZSheetPresented = State(initialValue: initialMRZSheetPresented)
+    _activeCameraDrawer = State(initialValue: initialCameraDrawer)
     _isAboutSheetPresented = State(initialValue: initialAboutSheetPresented)
   }
 
@@ -179,58 +149,76 @@ struct ContentView: View {
       ZStack {
         Color.white.ignoresSafeArea()
 
-        GeometryReader { geo in
-          let width = geo.size.width
+        GeometryReader { geometry in
+          let width = geometry.size.width
           let directionSign: CGFloat = navDirection == .forward ? 1 : -1
 
           ZStack {
-            if let previousStep {
-              stepView(for: previousStep)
-                .frame(width: width, height: geo.size.height)
+            if let outgoingStepSnapshot {
+              stepView(for: outgoingStepSnapshot)
+                .frame(width: width, height: geometry.size.height)
                 .offset(x: -directionSign * width * transitionProgress)
+                .allowsHitTesting(false)
             }
 
             stepView(for: session.step)
-              .frame(width: width, height: geo.size.height)
+              .frame(width: width, height: geometry.size.height)
               .offset(x: directionSign * width * (1 - transitionProgress))
           }
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .clipped()
         }
-        .ignoresSafeArea(
-          edges: usesFullScreenCameraBackground ? [.top, .bottom] : []
-        )
       }
     }
     .tint(.black)
     .onAppear {
       lastStep = session.step
     }
+    .onChange(of: session.isUploadingNFC) { isUploading in
+      if isUploading {
+        isRetainingNFCUploadUI = true
+        retainedNFCUploadProgress = session.nfcUploadProgress
+      }
+    }
+    .onChange(of: session.nfcUploadProgress) { progress in
+      if session.step == .nfc, session.isUploadingNFC {
+        retainedNFCUploadProgress = progress
+      }
+    }
     .onChange(of: session.step) { newStep in
       guard newStep != lastStep else { return }
+
+      let outgoingStep = lastStep
       navDirection = newStep.rawValue >= lastStep.rawValue ? .forward : .backward
-      previousStep = lastStep
+
+      if outgoingStepSnapshot?.step != outgoingStep {
+        outgoingStepSnapshot = makeStepRenderSnapshot(for: outgoingStep)
+      }
+
       lastStep = newStep
       transitionProgress = 0
+
+      if let activeCameraDrawer, !drawerMatchesStep(activeCameraDrawer, step: newStep) {
+        self.activeCameraDrawer = nil
+      }
+
+      if outgoingStep == .nfc, newStep != .nfc {
+        clearRetainedNFCUploadUI()
+      }
 
       withAnimation(.easeInOut(duration: 0.35)) {
         transitionProgress = 1
       }
 
-      let outgoingStep = previousStep
+      let snapshotID = outgoingStepSnapshot?.id
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-        if previousStep == outgoingStep {
-          previousStep = nil
+        if outgoingStepSnapshot?.id == snapshotID {
+          outgoingStepSnapshot = nil
         }
       }
     }
-    .sheet(isPresented: $isMRZSheetPresented, onDismiss: handleMRZSheetDismiss) {
-      CameraPermissionGate(onCancel: {
-        isMRZSheetPresented = false
-        session.moveToStep(.scanning)
-      }) {
-        mrzScannerSheet
-      }
+    .sheet(item: $activeCameraDrawer, onDismiss: handleCameraDrawerDismiss) { drawer in
+      cameraDrawer(for: drawer)
       .presentationDetents([.large])
       .presentationDragIndicator(.visible)
     }
@@ -247,68 +235,73 @@ struct ContentView: View {
     }
   }
 
-  // MARK: - Scanning View
-
-  private var scanningView: some View {
-    CameraPermissionGate(onCancel: {
-      // User cancelled - show error
-      session.errorMessage = "Camera permission is required to scan QR codes."
-      session.moveToStep(.error)
-    }) {
-      ZStack {
-        QRScannerView { code in
-          handleQRCode(code)
-        }
-
-        if isResolvingQRCode {
-          Color.black.opacity(0.45)
-            .ignoresSafeArea()
-
-          VStack(spacing: 12) {
-            ProgressView()
-              .progressViewStyle(.circular)
-              .tint(.white)
-
-            Text("Checking verification…")
-              .font(.headline)
-              .foregroundStyle(.white)
-          }
-          .padding(24)
-        }
-      }
-    }
-  }
-
-  @ViewBuilder
-  private func stepView(for step: VerificationStep) -> some View {
+  private func stepView(for step: VerificationStep) -> AnyView {
     switch step {
     case .welcome:
-      welcomeView
+      return AnyView(
+        WelcomeView(
+        onGetStarted: {
+          startQRScanning()
+        },
+        onAbout: {
+          isAboutSheetPresented = true
+        }
+      )
+      )
     case .scanning:
-      scanningView
+      return AnyView(scanningView)
     case .mrz:
-      mrzStepView
+      return AnyView(
+        MRZIntroView(
+          onContinue: presentMRZDrawer,
+          onBack: goBackFromMRZ
+        )
+      )
     case .rfidCheck:
-      RFIDCheckView(
+      return AnyView(
+        RFIDCheckView(
+        rfidSymbolLocationDescription: currentRFIDSymbolLocationDescription,
         onHasRFID: {
+          resetNFCReaderState()
           session.hasRFIDSymbol = true
+          hasStartedNFCScan = false
           session.moveToStep(.nfc)
           Task {
             await session.updatePhase(.nfcReading)
           }
-        }
+        },
+        onNoRFID: {
+          session.hasRFIDSymbol = false
+          session.moveToStep(.rfidUnsupported)
+        },
+        onBack: goBackFromRFIDCheck
+      )
+      )
+    case .rfidUnsupported:
+      return AnyView(
+        RFIDUnsupportedView(
+        documentName: currentDocumentName,
+        documentNameWithArticle: currentDocumentNameWithArticle,
+        rfidSymbolLocationDescription: currentRFIDSymbolLocationDescription,
+        onTryAnotherDocument: tryAnotherDocument,
+        onReturnHome: resetVerificationFlow,
+        onBack: goBackFromRFIDUnsupported
+      )
       )
     case .nfc:
-      NFCReadingView(
+      return AnyView(
+        NFCReadingView(
         nfcReader: nfcReader,
-        mrzKey: session.mrzResult?.mrzKey ?? "",
-        cardAccessNumber: cardAccessNumber,
-        uploadProgress: session.nfcUploadProgress,
-        isUploading: session.isUploadingNFC,
+        documentName: currentDocumentName,
+        uploadProgress: displayedNFCUploadProgress,
+        isUploading: isDisplayingNFCUploadUI,
+        hasStarted: hasStartedNFCScan,
+        onBack: nfcBackAction,
+        onStart: startNFCScan,
         onComplete: { result in
           session.nfcResult = result
           let attemptId = session.payload?.attemptId
-          // Upload NFC data immediately
+
           Task {
             do {
               let shouldContinue = try await session.uploadNFCData()
@@ -321,144 +314,233 @@ struct ContentView: View {
           }
         }
       )
+      )
     case .selfieIntro:
-      selfieIntroductionView
+      return AnyView(SelfieIntroView(onContinue: startSelfieCapture))
     case .selfie:
-      CameraPermissionGate(onCancel: {
-        session.moveToStep(.error)
-        session.errorMessage = "Camera permission is required for selfie capture."
-      }) {
-        SelfieCaptureView(
-          onCapture: { images in
-            session.selfieImages = images
-          },
-          onPhotoCaptured: { image, index, total in
-            session.selfieImages.append(image)
-            let attemptId = session.payload?.attemptId
-            Task {
-              do {
-                _ = try await session.sendSelfieImage(image, index: index, total: total)
-              } catch {
-                session.handleError(error, forAttemptId: attemptId)
-              }
-            }
-          }
-        )
-      }
+      return AnyView(SelfieIntroView(onContinue: presentSelfieDrawer))
     case .shareDetails:
-      shareSelectionView
+      return AnyView(
+        ShareDetailsView(
+        session: session,
+        onSubmit: {
+          Task {
+            await session.submitShareSelection()
+          }
+        },
+        onCancel: resetVerificationFlow
+      )
+      )
     case .complete:
-      CompletionView(
+      let secondaryButtonTitle = completionSecondaryButtonTitle
+      let secondaryAction: (() -> Void)?
+
+      if secondaryButtonTitle == nil {
+        secondaryAction = nil
+      } else {
+        secondaryAction = { resetVerificationFlow() }
+      }
+
+      return AnyView(
+        CompletionView(
         isSuccess: isAcceptedVerdict(session.verdict),
         message: completionMessage,
         primaryButtonTitle: completionPrimaryButtonTitle,
-        onPrimaryAction: {
-          handleCompletionPrimaryAction()
-        },
-        secondaryButtonTitle: completionSecondaryButtonTitle,
-        onSecondaryAction: completionSecondaryButtonTitle == nil ? nil : {
-          session.reset()
-        }
+        onPrimaryAction: handleCompletionPrimaryAction,
+        secondaryButtonTitle: secondaryButtonTitle,
+        onSecondaryAction: secondaryAction
+      )
       )
     case .error:
-      CompletionView(
+      return AnyView(
+        CompletionView(
         isSuccess: false,
         message: session.errorMessage ?? "An unexpected error occurred.",
         primaryButtonTitle: "Done",
-        onPrimaryAction: {
-          session.reset()
-        },
+        onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
         onSecondaryAction: nil
+      )
       )
     }
   }
 
-  // MARK: - Welcome View
-
-  private var welcomeView: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Spacer()
-
-      VStack(alignment: .center, spacing: 12) {
-        Image("Logo")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 96, height: 96)
-          .clipShape(RoundedRectangle(cornerRadius: 20))
-          .overlay(
-            RoundedRectangle(cornerRadius: 20)
-              .stroke(Color.black.opacity(0.1), lineWidth: 1)
+  private func stepView(for snapshot: StepRenderSnapshot) -> AnyView {
+    switch snapshot.step {
+    case .welcome:
+      return AnyView(WelcomeView(onGetStarted: {}, onAbout: {}))
+    case .scanning:
+      return AnyView(
+        QRIntroView(
+          onContinue: {},
+          onBack: snapshot.showsBackButton ? {} : nil
+        )
+      )
+    case .mrz:
+      return AnyView(
+        MRZIntroView(
+          onContinue: {},
+          onBack: snapshot.showsBackButton ? {} : nil
+        )
+      )
+    case .rfidCheck:
+      return AnyView(
+        RFIDCheckView(
+          rfidSymbolLocationDescription:
+            snapshot.documentCopy?.rfidSymbolLocationDescription ??
+            defaultRFIDSymbolLocationDescription,
+          onHasRFID: {},
+          onNoRFID: {},
+          onBack: snapshot.showsBackButton ? {} : nil
+        )
+      )
+    case .rfidUnsupported:
+      return AnyView(
+        RFIDUnsupportedView(
+          documentName: snapshot.documentCopy?.documentName ?? defaultDocumentName,
+          documentNameWithArticle:
+            snapshot.documentCopy?.documentNameWithArticle ??
+            defaultDocumentNameWithArticle,
+          rfidSymbolLocationDescription:
+            snapshot.documentCopy?.rfidSymbolLocationDescription ??
+            defaultRFIDSymbolLocationDescription,
+          onTryAnotherDocument: {},
+          onReturnHome: {},
+          onBack: snapshot.showsBackButton ? {} : nil
+        )
+      )
+    case .nfc:
+      if let nfcSnapshot = snapshot.nfc {
+        return AnyView(
+          FrozenNFCReadingView(
+            snapshot: nfcSnapshot,
+            onBack: snapshot.showsBackButton ? {} : nil
           )
-
-        Text("Kayle ID")
-          .font(.title2).bold()
-          .foregroundStyle(.black)
-
-        Text("Let’s verify your identity in a few quick steps.")
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
+        )
+      } else {
+        return AnyView(Color.clear)
       }
-      .frame(maxWidth: .infinity)
-
-      Spacer()
-
-      VStack(spacing: 12) {
-        PrimaryActionButton(title: "Get Started") {
-          session.moveToStep(.scanning)
-        }
-
-        SecondaryActionButton(title: "About") {
-          isAboutSheetPresented = true
-        }
+    case .selfieIntro, .selfie:
+      return AnyView(SelfieIntroView(onContinue: {}))
+    case .shareDetails:
+      if let shareDetailsSnapshot = snapshot.shareDetails {
+        return AnyView(FrozenShareDetailsView(snapshot: shareDetailsSnapshot))
+      } else {
+        return AnyView(Color.clear)
+      }
+    case .complete, .error:
+      if let completionSnapshot = snapshot.completion {
+        return AnyView(
+          CompletionView(
+          isSuccess: completionSnapshot.isSuccess,
+          message: completionSnapshot.message,
+          primaryButtonTitle: completionSnapshot.primaryButtonTitle,
+          onPrimaryAction: {},
+          secondaryButtonTitle: completionSnapshot.secondaryButtonTitle,
+          onSecondaryAction: nil
+        )
+        )
+      } else {
+        return AnyView(Color.clear)
       }
     }
-    .padding(16)
   }
 
-  // MARK: - MRZ Step View
+  private var scanningView: some View {
+    QRIntroView(
+      onContinue: presentQRDrawer,
+      onBack: scanningBackAction
+    )
+  }
 
-  private var mrzStepView: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Spacer()
+  private var scanningBackAction: (() -> Void)? {
+    if session.payload == nil {
+      return { goBackFromScanning() }
+    }
 
-      VStack(alignment: .center, spacing: 12) {
-        Image("Logo")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 96, height: 96)
-          .clipShape(RoundedRectangle(cornerRadius: 20))
-          .overlay(
-            RoundedRectangle(cornerRadius: 20)
-              .stroke(Color.black.opacity(0.1), lineWidth: 1)
-          )
+    return nil
+  }
 
-        Text("Let's read your ID")
-          .font(.title3).bold()
-          .foregroundStyle(.black)
+  private var nfcBackAction: (() -> Void)? {
+    if isDisplayingNFCUploadUI {
+      return nil
+    }
 
-        Text("Use your camera to scan your photo page, then read the chip if it has one.")
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
+    return { goBackFromNFC() }
+  }
+
+  private var currentDocumentCopySnapshot: DocumentCopySnapshot {
+    DocumentCopySnapshot(
+      documentName: currentDocumentName,
+      documentNameWithArticle: currentDocumentNameWithArticle,
+      rfidSymbolLocationDescription: currentRFIDSymbolLocationDescription
+    )
+  }
+
+  private var currentDocumentName: String {
+    session.mrzResult?.userFacingDocumentName ?? defaultDocumentName
+  }
+
+  private var currentDocumentNameWithArticle: String {
+    session.mrzResult?.userFacingDocumentNameWithArticle ?? defaultDocumentNameWithArticle
+  }
+
+  private var currentRFIDSymbolLocationDescription: String {
+    session.mrzResult?.userFacingRFIDSymbolLocationDescription ??
+      defaultRFIDSymbolLocationDescription
+  }
+
+  private var defaultDocumentName: String {
+    "document"
+  }
+
+  private var defaultDocumentNameWithArticle: String {
+    "a document"
+  }
+
+  private var defaultRFIDSymbolLocationDescription: String {
+    "the cover or photo page of your document"
+  }
+
+  @ViewBuilder
+  private func cameraDrawer(for drawer: CameraCaptureDrawer) -> some View {
+    switch drawer {
+    case .qr:
+      CameraPermissionGate(onCancel: {
+        activeCameraDrawer = nil
+      }) {
+        qrScannerDrawer
       }
-      .frame(maxWidth: .infinity)
-
-      Spacer()
-
-      PrimaryActionButton(title: "Continue") {
-        presentMRZSheet()
+    case .mrz:
+      CameraPermissionGate(onCancel: {
+        activeCameraDrawer = nil
+      }) {
+        mrzScannerDrawer
+      }
+    case .selfie:
+      CameraPermissionGate(onCancel: {
+        activeCameraDrawer = nil
+      }) {
+        selfieCaptureDrawer
       }
     }
-    .padding(16)
   }
 
-  // MARK: - MRZ Scanner Sheet
-
-  private var mrzScannerSheet: some View {
+  private var qrScannerDrawer: some View {
     ZStack {
-      MRZScannerView(onValidMRZ: { validMRZ, result, can in
+      QRScannerView { code in
+        handleQRCode(code)
+      }
+
+      if isResolvingQRCode {
+        BlockingLoadingOverlay(message: "Checking verification…")
+      }
+    }
+  }
+
+  private var mrzScannerDrawer: some View {
+    ZStack {
+      MRZScannerView(onValidMRZ: { _, result, can in
         guard !didTriggerMRZ else { return }
         didTriggerMRZ = true
 
@@ -474,8 +556,9 @@ struct ContentView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
           withAnimation(.easeInOut(duration: 0.25)) {
-            isMRZSheetPresented = false
+            activeCameraDrawer = nil
           }
+
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             session.moveToStep(.rfidCheck)
             session.syncCompletedMRZScan()
@@ -485,255 +568,44 @@ struct ContentView: View {
       .ignoresSafeArea()
       .blur(radius: cameraBlur)
 
-      MRZScanOverlayView(isLocked: isMRZLocked)
-        .allowsHitTesting(false)
-
-      VStack(spacing: 6) {
-        Spacer()
-        Text("Scan your photo page")
-          .font(.headline)
-          .foregroundStyle(.white)
-
-        Text("Align the photo page within the box.")
-          .font(.subheadline)
-          .foregroundStyle(.white.opacity(0.85))
-      }
-      .frame(maxWidth: .infinity)
-      .padding(.horizontal, 24)
-      .padding(.bottom, 24)
+      ScannerOverlayView(
+        cutout: .topSafeAreaRectangle(
+          horizontalInset: 16,
+          topInset: 16,
+          aspectRatio: 0.75,
+          cornerRadius: 12
+        ),
+        title: "Scan your photo page",
+        subtitle: "Align the photo page within the box.",
+        borderColor: isMRZLocked ? .green : .white,
+        borderWidth: 6,
+        overlayOpacity: 0.55,
+        instructionBottomPadding: CameraDrawerMetrics.instructionBottomPadding
+      )
+      .allowsHitTesting(false)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
-  private var shareSelectionView: some View {
-    let kayleFields = kayleShareRequestFields(session.shareRequest)
-    let requiredFields = requiredShareRequestFields(session.shareRequest)
-    let optionalFields = optionalShareRequestFields(session.shareRequest)
+  private var selfieCaptureDrawer: some View {
+    SelfieCaptureView(
+      onCapture: { images in
+        session.selfieImages = images
+      },
+      onPhotoCaptured: { image, index, total in
+        session.selfieImages.append(image)
+        let attemptId = session.payload?.attemptId
 
-    return VStack(alignment: .leading, spacing: 20) {
-      Text("Choose what to share")
-        .font(.title3).bold()
-        .foregroundStyle(.black)
-
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 20) {
-          shareFieldSection(
-            title: "Security Details",
-            description: "These identifiers are always included to protect services from abuse.",
-            fields: kayleFields
-          )
-
-          shareFieldSection(
-            title: "Required Details",
-            description: "Review the details requested for this verification.",
-            fields: requiredFields
-          )
-
-          shareFieldSection(
-            title: "Optional Details",
-            description: "You can optionally choose to share these details.",
-            fields: optionalFields
-          )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-      }
-
-      if session.isSubmittingShareSelection {
-        HStack(spacing: 10) {
-          ProgressView()
-            .progressViewStyle(.circular)
-            .tint(.black)
-
-          Text("Submitting your selection…")
-            .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.7))
-        }
-      }
-
-      if let errorMessage = session.shareSelectionErrorMessage {
-        Text(errorMessage)
-          .font(.subheadline)
-          .foregroundStyle(Color.red)
-      }
-
-      VStack(spacing: 12) {
-        PrimaryActionButton(
-          title: session.isSubmittingShareSelection ? "Submitting..." : "Continue",
-          isDisabled: session.isSubmittingShareSelection || !session.canSubmitShareSelection()
-        ) {
-          Task {
-            await session.submitShareSelection()
+        Task {
+          do {
+            _ = try await session.sendSelfieImage(image, index: index, total: total)
+          } catch {
+            session.handleError(error, forAttemptId: attemptId)
           }
         }
-
-        SecondaryActionButton(title: "Cancel") {
-          isShareCancelConfirmationPresented = true
-        }
       }
-    }
-    .padding(16)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .background(Color.white.ignoresSafeArea())
-    .tint(Color(uiColor: .systemBlue))
-    .confirmationDialog(
-      "Cancel verification?",
-      isPresented: $isShareCancelConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button("Cancel verification", role: .destructive) {
-        session.reset()
-      }
-      Button("Stay here", role: .cancel) {}
-    } message: {
-      Text("This will stop the current verification on this device.")
-    }
-  }
-
-  private var selfieIntroductionView: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Spacer()
-
-      VStack(alignment: .center, spacing: 12) {
-        Image(systemName: "person.crop.circle")
-          .font(.system(size: 72))
-          .foregroundStyle(.black)
-
-        Text("Next, take a quick selfie")
-          .font(.title3).bold()
-          .foregroundStyle(.black)
-
-        Text("We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.")
-          .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
-          .multilineTextAlignment(.center)
-      }
-      .frame(maxWidth: .infinity)
-
-      Spacer()
-
-      PrimaryActionButton(title: "Continue") {
-        startSelfieCapture()
-      }
-    }
-    .padding(16)
-    .background(Color.white.ignoresSafeArea())
-  }
-
-  private func shareFieldRow(_ field: VerifyShareRequestField) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack(alignment: .center, spacing: 12) {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(
-            displayNameForShareField(
-              field.key,
-              previewContext: sharePreviewContext
-            )
-          )
-            .font(.headline)
-            .foregroundStyle(.black)
-
-          Text(shareFieldDetailText(field, previewContext: sharePreviewContext))
-            .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.6))
-        }
-
-        Spacer(minLength: 12)
-
-        Toggle(
-          "",
-          isOn: Binding(
-            get: {
-              session.isShareFieldSelected(field.key)
-            },
-            set: { isSelected in
-              session.setShareFieldSelected(field.key, isSelected: isSelected)
-            }
-          )
-        )
-        .labelsHidden()
-        .tint(.green)
-        .disabled(isShareFieldSelectionLocked(field))
-      }
-    }
-    .padding(16)
-    .background(Color.black.opacity(0.03))
-    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-  }
-
-  private var sharePreviewContext: VerifySharePreviewContext? {
-    if session.nfcResult == nil && session.mrzResult == nil {
-      return nil
-    }
-
-    return VerifySharePreviewContext(
-      birthDate: nonEmptySharePreviewValue(
-        session.nfcResult?.dateOfBirth ?? session.mrzResult?.birthDateYYMMDD
-      ),
-      documentNumber: nonEmptySharePreviewValue(
-        session.nfcResult?.documentNumber ?? session.mrzResult?.documentNumber
-      ),
-      documentType: nonEmptySharePreviewValue(
-        session.nfcResult?.documentType ?? session.mrzResult?.documentType
-      ),
-      expiryDate: nonEmptySharePreviewValue(
-        session.nfcResult?.expiryDate ?? session.mrzResult?.expiryDateYYMMDD
-      ),
-      givenNames: nonEmptySharePreviewValue(
-        session.nfcResult?.firstName ?? session.mrzResult?.givenNames
-      ),
-      issuingCountry: nonEmptySharePreviewValue(
-        session.mrzResult?.issuingCountry ?? session.nfcResult?.issuingAuthority
-      ),
-      nationality: nonEmptySharePreviewValue(
-        session.nfcResult?.nationality ?? session.mrzResult?.nationality
-      ),
-      optionalData: nonEmptySharePreviewValue(session.mrzResult?.optionalData),
-      sex: nonEmptySharePreviewValue(
-        session.nfcResult?.gender ?? session.mrzResult?.sex
-      ),
-      surname: nonEmptySharePreviewValue(
-        session.nfcResult?.lastName ?? session.mrzResult?.surnames
-      )
     )
   }
-
-  private func nonEmptySharePreviewValue(_ value: String?) -> String? {
-    guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-      return nil
-    }
-
-    return trimmed.isEmpty ? nil : trimmed
-  }
-
-  @ViewBuilder
-  private func shareFieldSection(
-    title: String,
-    description: String,
-    fields: [VerifyShareRequestField]
-  ) -> some View {
-    if !fields.isEmpty {
-      VStack(alignment: .leading, spacing: 12) {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(title)
-            .font(.headline)
-            .foregroundStyle(.black)
-
-          Text(description)
-            .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.6))
-        }
-
-        LazyVStack(spacing: 12) {
-          ForEach(fields) { field in
-            shareFieldRow(field)
-          }
-        }
-      }
-    }
-  }
-
-  // MARK: - Helpers
 
   private var completionMessage: String {
     guard let verdict = session.verdict else {
@@ -769,6 +641,7 @@ struct ContentView: View {
 
   private func handleCompletionPrimaryAction() {
     if let verdict = session.verdict, isRejectedVerdict(verdict), verdict.retryAllowed {
+      captureCurrentStepSnapshot()
       let attemptId = session.payload?.attemptId
       Task {
         do {
@@ -780,7 +653,7 @@ struct ContentView: View {
       return
     }
 
-    session.reset()
+    resetVerificationFlow()
   }
 
   private func handleQRCode(_ code: String) {
@@ -788,6 +661,7 @@ struct ContentView: View {
       return
     }
 
+    activeCameraDrawer = nil
     isResolvingQRCode = true
 
     Task { @MainActor in
@@ -798,7 +672,6 @@ struct ContentView: View {
       do {
         let payload = try QRCodePayload.parse(from: code)
         try await session.initialize(with: payload)
-        // Show ID scan instructions before RFID check.
         session.moveToStep(.mrz)
       } catch {
         session.handleError(error)
@@ -806,41 +679,214 @@ struct ContentView: View {
     }
   }
 
-  private func presentMRZSheet() {
+  private func startQRScanning() {
+    session.moveToStep(.scanning)
+    presentQRDrawer()
+  }
+
+  private func goBackFromScanning() {
+    session.moveToStep(.welcome)
+  }
+
+  private func goBackFromMRZ() {
+    session.moveToStep(.scanning)
+  }
+
+  private func goBackFromRFIDCheck() {
+    session.hasRFIDSymbol = nil
+    session.moveToStep(.mrz)
+  }
+
+  private func goBackFromRFIDUnsupported() {
+    session.hasRFIDSymbol = nil
+    session.moveToStep(.rfidCheck)
+  }
+
+  private func goBackFromNFC() {
+    hasStartedNFCScan = false
+    clearRetainedNFCUploadUI()
+    resetNFCReaderState()
+    session.nfcResult = nil
+    session.hasRFIDSymbol = nil
+    session.moveToStep(.rfidCheck)
+  }
+
+  private func presentQRDrawer() {
+    activeCameraDrawer = .qr
+  }
+
+  private func presentMRZDrawer() {
     isMRZLocked = false
     cameraBlur = 0
     didTriggerMRZ = false
-    isMRZSheetPresented = true
+    activeCameraDrawer = .mrz
     Task {
       await session.updatePhase(.mrzScanning)
     }
   }
 
-  private func handleMRZSheetDismiss() {
+  private func handleCameraDrawerDismiss() {
     isMRZLocked = false
     cameraBlur = 0
     didTriggerMRZ = false
   }
 
-  private var usesFullScreenCameraBackground: Bool {
-    requiresFullScreenCameraBackground(session.step) ||
-      previousStep.map(requiresFullScreenCameraBackground) == true
-  }
-
-  private func requiresFullScreenCameraBackground(_ step: VerificationStep) -> Bool {
-    switch step {
-    case .scanning, .selfie:
-      return true
-    default:
-      return false
-    }
-  }
-
   private func startSelfieCapture() {
     session.moveToStep(.selfie)
+    presentSelfieDrawer()
     Task {
       await session.updatePhase(.selfieCapturing)
     }
   }
 
+  private func presentSelfieDrawer() {
+    activeCameraDrawer = .selfie
+  }
+
+  private func startNFCScan() {
+    clearRetainedNFCUploadUI()
+    hasStartedNFCScan = true
+    nfcReader.start(
+      mrzKey: session.mrzResult?.mrzKey ?? "",
+      cardAccessNumber: cardAccessNumber
+    )
+  }
+
+  private func captureCurrentStepSnapshot() {
+    outgoingStepSnapshot = makeStepRenderSnapshot(for: session.step)
+  }
+
+  private func tryAnotherDocument() {
+    clearDocumentCaptureUIState()
+    session.clearDocumentCaptureState()
+    session.moveToStep(.mrz)
+  }
+
+  private func resetVerificationFlow() {
+    captureCurrentStepSnapshot()
+    clearDocumentCaptureUIState()
+    session.reset()
+  }
+
+  private func makeStepRenderSnapshot(for step: VerificationStep) -> StepRenderSnapshot {
+    switch step {
+    case .welcome:
+      return StepRenderSnapshot(step: .welcome)
+    case .scanning:
+      return StepRenderSnapshot(
+        step: .scanning,
+        showsBackButton: session.payload == nil
+      )
+    case .mrz:
+      return StepRenderSnapshot(step: .mrz, showsBackButton: true)
+    case .rfidCheck:
+      return StepRenderSnapshot(
+        step: .rfidCheck,
+        showsBackButton: true,
+        documentCopy: currentDocumentCopySnapshot
+      )
+    case .rfidUnsupported:
+      return StepRenderSnapshot(
+        step: .rfidUnsupported,
+        showsBackButton: true,
+        documentCopy: currentDocumentCopySnapshot
+      )
+    case .nfc:
+      return StepRenderSnapshot(
+        step: .nfc,
+        showsBackButton: !isDisplayingNFCUploadUI,
+        nfc: NFCRenderSnapshot(
+          documentName: currentDocumentName,
+          uploadProgress: displayedNFCUploadProgress,
+          isUploading: isDisplayingNFCUploadUI,
+          hasStarted: hasStartedNFCScan,
+          errorMessage: nfcReader.errorMessage,
+          result: nfcReader.result
+        )
+      )
+    case .selfieIntro:
+      return StepRenderSnapshot(step: .selfieIntro)
+    case .selfie:
+      return StepRenderSnapshot(step: .selfie)
+    case .shareDetails:
+      return StepRenderSnapshot(
+        step: .shareDetails,
+        shareDetails: ShareDetailsRenderSnapshot(
+          shareRequest: session.shareRequest,
+          selectedShareFieldKeys: session.selectedShareFieldKeys,
+          shareSelectionErrorMessage: session.shareSelectionErrorMessage,
+          isSubmittingShareSelection: session.isSubmittingShareSelection,
+          nfcResult: session.nfcResult,
+          mrzResult: session.mrzResult
+        )
+      )
+    case .complete:
+      return StepRenderSnapshot(
+        step: .complete,
+        completion: CompletionRenderSnapshot(
+          isSuccess: isAcceptedVerdict(session.verdict),
+          message: completionMessage,
+          primaryButtonTitle: completionPrimaryButtonTitle,
+          secondaryButtonTitle: completionSecondaryButtonTitle
+        )
+      )
+    case .error:
+      return StepRenderSnapshot(
+        step: .error,
+        completion: CompletionRenderSnapshot(
+          isSuccess: false,
+          message: session.errorMessage ?? "An unexpected error occurred.",
+          primaryButtonTitle: "Done",
+          secondaryButtonTitle: nil
+        )
+      )
+    }
+  }
+
+  private func resetNFCReaderState() {
+    nfcReader.stop()
+  }
+
+  private func clearDocumentCaptureUIState() {
+    activeCameraDrawer = nil
+    isMRZLocked = false
+    cameraBlur = 0
+    didTriggerMRZ = false
+    cardAccessNumber = nil
+    hasStartedNFCScan = false
+    clearRetainedNFCUploadUI()
+    resetNFCReaderState()
+  }
+
+  private var isDisplayingNFCUploadUI: Bool {
+    session.isUploadingNFC || isRetainingNFCUploadUI
+  }
+
+  private var displayedNFCUploadProgress: Double {
+    if session.isUploadingNFC {
+      return session.nfcUploadProgress
+    }
+
+    if isRetainingNFCUploadUI {
+      return retainedNFCUploadProgress
+    }
+
+    return session.nfcUploadProgress
+  }
+
+  private func clearRetainedNFCUploadUI() {
+    isRetainingNFCUploadUI = false
+    retainedNFCUploadProgress = 0
+  }
+
+  private func drawerMatchesStep(_ drawer: CameraCaptureDrawer, step: VerificationStep) -> Bool {
+    switch drawer {
+    case .qr:
+      return step == .scanning
+    case .mrz:
+      return step == .mrz
+    case .selfie:
+      return step == .selfie
+    }
+  }
 }

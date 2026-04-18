@@ -28,61 +28,14 @@ struct QRScannerView: View {
         .ignoresSafeArea()
       }
 
-      QRScannerOverlay()
+      ScannerOverlayView(
+        cutout: .centeredSquare(size: 250, cornerRadius: 24),
+        title: "Scan QR Code",
+        subtitle: "Point your camera at the QR code on the screen",
+        instructionHorizontalPadding: 32,
+        instructionBottomPadding: CameraDrawerMetrics.instructionBottomPadding
+      )
     }
-  }
-}
-
-// MARK: - Scanner Overlay
-
-private struct QRScannerOverlay: View {
-  private let cornerRadius: CGFloat = 24
-  private let borderWidth: CGFloat = 4
-  private let boxSize: CGFloat = 250
-
-  var body: some View {
-    GeometryReader { geo in
-      let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
-
-      ZStack {
-        // Dimmed background
-        Color.black.opacity(0.6)
-
-        // Cut out the scanner area
-        RoundedRectangle(cornerRadius: cornerRadius)
-          .frame(width: boxSize, height: boxSize)
-          .position(center)
-          .blendMode(.destinationOut)
-      }
-      .compositingGroup()
-
-      // Border around scanner area
-      RoundedRectangle(cornerRadius: cornerRadius)
-        .stroke(Color.white, lineWidth: borderWidth)
-        .frame(width: boxSize, height: boxSize)
-        .position(center)
-
-      // Instructions
-      VStack {
-        Spacer()
-
-        VStack(spacing: 8) {
-          Text("Scan QR Code")
-            .font(.headline)
-            .foregroundStyle(.white)
-
-          Text("Point your camera at the QR code on the screen")
-            .font(.subheadline)
-            .foregroundStyle(.white.opacity(0.8))
-            .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 32)
-        .padding(.bottom, 100)
-      }
-      .frame(maxWidth: .infinity)
-    }
-    .ignoresSafeArea()
   }
 }
 

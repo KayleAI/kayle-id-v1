@@ -744,7 +744,6 @@ async function buildTrustStoreSeedSql({
 
   const statements = [
     "PRAGMA foreign_keys = ON;",
-    "BEGIN TRANSACTION;",
     "DELETE FROM trust_store_crl_revocations;",
     "DELETE FROM trust_store_crls;",
     "DELETE FROM trust_store_dscs;",
@@ -825,7 +824,6 @@ async function buildTrustStoreSeedSql({
       crlRevocationRows,
       "trust_store_crl_revocations"
     ),
-    "COMMIT;",
     "",
   ];
 

@@ -124,8 +124,8 @@ function outputFormatFromPath(outputPath: string): OutputFormat {
 function chunkItems<T>(items: T[], chunkSize: number): T[][] {
   const chunks: T[][] = [];
 
-  for (let index = 0; index < items.length; index += chunkSize) {
-    chunks.push(items.slice(index, index + chunkSize));
+  for (let chunkStart = 0; chunkStart < items.length; chunkStart += chunkSize) {
+    chunks.push(items.slice(chunkStart, chunkStart + chunkSize));
   }
 
   return chunks;

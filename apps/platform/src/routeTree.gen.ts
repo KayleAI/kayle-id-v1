@@ -172,6 +172,7 @@ const ApiApiAnalyticsSplatRoute = ApiApiAnalyticsSplatRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof MarketingIndexRoute
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
@@ -179,15 +180,14 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
-  '/': typeof MarketingIndexRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/account/settings': typeof AuthAccountSettingsRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
   '/organizations/select': typeof AuthOrganizationsSelectRoute
-  '/api-keys': typeof AppApiKeysIndexRoute
-  '/webhooks': typeof AppWebhooksIndexRoute
-  '/account': typeof AuthAccountIndexRoute
+  '/api-keys/': typeof AppApiKeysIndexRoute
+  '/webhooks/': typeof AppWebhooksIndexRoute
+  '/account/': typeof AuthAccountIndexRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -197,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/organizations/settings': typeof AuthOrganizationsActiveSettingsRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof MarketingIndexRoute
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
@@ -204,7 +205,6 @@ export interface FileRoutesByTo {
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
-  '/': typeof MarketingIndexRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/account/settings': typeof AuthAccountSettingsRoute
@@ -254,6 +254,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/dashboard'
     | '/sign-in'
     | '/sign-out'
@@ -261,15 +262,14 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/demo'
-    | '/'
     | '/api-keys/$key'
     | '/webhooks/$endpoint'
     | '/account/settings'
     | '/organizations/create'
     | '/organizations/select'
-    | '/api-keys'
-    | '/webhooks'
-    | '/account'
+    | '/api-keys/'
+    | '/webhooks/'
+    | '/account/'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
@@ -279,6 +279,7 @@ export interface FileRouteTypes {
     | '/organizations/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/dashboard'
     | '/sign-in'
     | '/sign-out'
@@ -286,7 +287,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/demo'
-    | '/'
     | '/api-keys/$key'
     | '/webhooks/$endpoint'
     | '/account/settings'
@@ -349,28 +349,28 @@ declare module '@tanstack/react-router' {
     '/_marketing': {
       id: '/_marketing'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof MarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_legal': {
       id: '/_legal'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof LegalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth': {
       id: '/_auth'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
       id: '/_app'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -433,21 +433,21 @@ declare module '@tanstack/react-router' {
     '/_auth/account/': {
       id: '/_auth/account/'
       path: '/account'
-      fullPath: '/account'
+      fullPath: '/account/'
       preLoaderRoute: typeof AuthAccountIndexRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_app/webhooks/': {
       id: '/_app/webhooks/'
       path: '/webhooks'
-      fullPath: '/webhooks'
+      fullPath: '/webhooks/'
       preLoaderRoute: typeof AppWebhooksIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/api-keys/': {
       id: '/_app/api-keys/'
       path: '/api-keys'
-      fullPath: '/api-keys'
+      fullPath: '/api-keys/'
       preLoaderRoute: typeof AppApiKeysIndexRouteImport
       parentRoute: typeof AppRoute
     }

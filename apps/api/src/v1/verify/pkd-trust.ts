@@ -581,27 +581,6 @@ function addIndexedValue<T>(
   index.set(key, [value]);
 }
 
-function addIndexedKey(
-  index: Map<string, string[]>,
-  key: string | null,
-  value: string
-): void {
-  if (!key) {
-    return;
-  }
-
-  const existing = index.get(key);
-
-  if (existing) {
-    if (!existing.includes(value)) {
-      existing.push(value);
-    }
-    return;
-  }
-
-  index.set(key, [value]);
-}
-
 function getR2Bucket(env: unknown): PkdTrustR2Bucket | null {
   if (!env || typeof env !== "object") {
     return null;

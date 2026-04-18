@@ -188,6 +188,7 @@ seed_remote_trust_store() {
       --config ./wrangler.jsonc \
       --remote
     log "Importing ICAO PKD trust-store seed into remote D1..."
+    log "Executing: bunx wrangler d1 execute \"${TRUST_STORE_DATABASE_NAME}\" --config ./wrangler.jsonc --file \"${PKD_BUNDLE_OUTPUT}\" --remote (capturing output to ${execute_log_file})"
     if ! bunx wrangler d1 execute \
       "${TRUST_STORE_DATABASE_NAME}" \
       --config ./wrangler.jsonc \
@@ -202,7 +203,7 @@ seed_remote_trust_store() {
 
   local execute_summary=""
   execute_summary="$(
-    LC_ALL=C grep -Eo '🚣 [0-9]+ commands executed successfully\.' \
+    LC_ALL=C grep -Eo '[0-9]+ commands executed successfully\.' \
       "${execute_log_file}" \
       | tail -n 1
   )"

@@ -1,7 +1,7 @@
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
-//import { redis } from "@kayle-id/database/redis";
+import { redis } from "@kayle-id/database/redis";
 import { auth as authSchema } from "@kayle-id/database/schema";
 import {
   auth_organization_members,
@@ -18,7 +18,10 @@ import type { Organization } from "./types";
 const user = {
   modelName: "auth_users",
   deleteUser: {
-    // TODO: implement delete user
+    enabled: false,
+    deleteUser: async () => {
+      throw new Error("User deletion is not supported.");
+    },
   },
 } satisfies BetterAuthOptions["user"];
 
@@ -115,14 +118,17 @@ export const auth = betterAuth({
   }),
   basePath: "/v1/auth",
   experimental: {
-    // Eventually we'll want to enable joins but for now we're facing an issue with them not.
+    // Eventually we'll want to enable joins, but for now they are disabled due to a known issue.
     joins: false,
   },
   emailAndPassword: {
     enabled: process.env.NODE_ENV === "test",
     autoSignIn: true,
   },
-  trustedOrigins: ["https://localhost:3000", "https://kayle.id"],
+  trustedOrigins:
+    process.env.NODE_ENV === "production"
+      ? ["https://kayle.id"]
+      : ["https://localhost:3000", "https://kayle.id"],
   appName: "Kayle ID",
   advanced: {
     cookiePrefix: "kayle-id",
@@ -172,9 +178,8 @@ export const auth = betterAuth({
       redirectURI: `${env.PUBLIC_AUTH_URL}/api/auth/callback/google`,
     },
   },
-  /*...(process.env.NODE_ENV === "production"
-    ? // Only enable secondary storage in production
-      {
+  ...(process.env.NODE_ENV === "production"
+    ? {
         secondaryStorage: {
           get: async (key) => await redis.get(key),
           set: async (key, value, ttl) => {
@@ -189,7 +194,7 @@ export const auth = betterAuth({
           },
         },
       }
-    : {}),*/
+    : {}),
   plugins: [
     ...plugins,
     customSession(

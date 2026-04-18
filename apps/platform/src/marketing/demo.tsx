@@ -415,12 +415,21 @@ function DemoStepPanel({
   title: string;
 }) {
   const handleOpen = useCallback(
-    (event: unknown) => {
+    (
+      event:
+        | React.MouseEvent<HTMLElement>
+        | React.KeyboardEvent<HTMLElement>
+    ) => {
       if (isLocked || isOpen) {
         return;
       }
-      (event as React.MouseEvent<HTMLDivElement>).preventDefault();
-      (event as React.MouseEvent<HTMLDivElement>).stopPropagation();
+
+      if ("key" in event && event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
 
       onOpen?.();
     },
@@ -428,8 +437,9 @@ function DemoStepPanel({
   );
 
   return (
-    // biome-ignore lint/a11y: intentional
     <section
+      aria-disabled={isLocked}
+      aria-expanded={isOpen}
       className={cn(
         "scroll-mt-[180px] px-4 py-4 sm:scroll-mt-[240px] sm:px-5 sm:py-5",
         isLocked && "pointer-events-none blur-[2px]"
@@ -437,7 +447,8 @@ function DemoStepPanel({
       id={getDemoStepSectionId(stepId)}
       onClick={handleOpen}
       onKeyDown={handleOpen}
-      onKeyUp={handleOpen}
+      role="button"
+      tabIndex={isLocked || isOpen ? -1 : 0}
     >
       <div className="flex w-full flex-col items-start gap-3 sm:gap-4">
         <div className="relative flex w-full flex-col items-start gap-2.5 sm:flex-row sm:gap-5">

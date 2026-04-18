@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -369,6 +370,17 @@ async function importMasterListCscas({
     }
   >();
 
+  const toPkdCscaRecord = (
+    record: Awaited<ReturnType<typeof createPkdCertificateRecord>>,
+    dn: string
+  ): PkdCscaRecord => {
+    if ("masterListSources" in record) {
+      return record;
+    }
+
+    throw new Error(`Expected CSCA record from master list entry: ${dn}`);
+  };
+
   for (const entry of entries) {
     const dn = firstEntryValue(entry, "dn");
     const encodedMasterList = firstEntryValue(entry, MASTER_LIST_BINARY);
@@ -386,7 +398,8 @@ async function importMasterListCscas({
 
     for (const cert of extractCscaCertificatesFromMasterList(masterListBytes)) {
       const certBytes = new Uint8Array(cert.toSchema().toBER(false));
-      const key = `${relativeDistinguishedNameKey(cert.subject)}:${Buffer.from(certBytes).toString("base64")}`;
+      const certDigest = createHash("sha256").update(certBytes).digest("base64");
+      const key = `${relativeDistinguishedNameKey(cert.subject)}:${certDigest}`;
       const existing = cscasByKey.get(key);
 
       if (existing) {
@@ -394,13 +407,14 @@ async function importMasterListCscas({
         continue;
       }
 
-      const certRecord = (await createPkdCertificateRecord({
+      const certificateRecord = await createPkdCertificateRecord({
         cert,
         derBytes: certBytes,
         masterListSources: [source],
         sourceCountryCode: countryCode,
         sourceDn: dn,
-      })) as PkdCscaRecord;
+      });
+      const certRecord = toPkdCscaRecord(certificateRecord, dn);
 
       cscasByKey.set(key, {
         certBytes,
@@ -855,7 +869,7 @@ async function main(): Promise<void> {
         "Target: D1 trust-store seed",
         `Object LDIF version: ${ldifVersionFromPath(args.objectPath) ?? "unknown"}`,
         `Master-list LDIF version: ${ldifVersionFromPath(args.masterListsPath) ?? "unknown"}`,
-      ].join("\n")
+      ].join("\n") + "\n"
     );
     return;
   }

@@ -1,10 +1,12 @@
 :root {
+  --background: oklch(1 0 0);
   --secondary: oklch(0.984 0.002 286.35);
   --muted: oklch(0.984 0.002 286.35);
   --accent: oklch(0.985 0.006 154.8);
   --border: oklch(0.932 0.004 286.32);
   --input: oklch(0.932 0.004 286.32);
   --ring: oklch(0.696 0.17 162.48);
+  --foreground: oklch(0.145 0 0);
   --radius: 1rem;
   --sidebar: oklch(0.992 0.002 286.32);
   --sidebar-accent: oklch(0.984 0.002 286.32);
@@ -13,12 +15,14 @@
 }
 
 .dark {
+  --background: oklch(0.145 0 0);
   --secondary: oklch(0.242 0.006 286.033);
   --muted: oklch(0.242 0.006 286.033);
   --accent: oklch(0.286 0.012 162.48);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.696 0.17 162.48);
+  --foreground: oklch(0.985 0 0);
   --sidebar: oklch(0.242 0.006 286.033);
   --sidebar-accent: oklch(0.242 0.006 286.033);
   --sidebar-border: oklch(1 0 0 / 12%);

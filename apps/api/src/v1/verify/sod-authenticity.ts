@@ -577,7 +577,7 @@ async function resolveSignerCertificates({
   const subjectKeyIdentifier = subjectKeyIdentifierFromSignerInfo(signerInfo);
 
   if (signerIdentifier) {
-    const dsc = resolvePkdDscCertificate(
+    const dsc = await resolvePkdDscCertificate(
       bundle,
       signerIdentifier.issuerKey,
       signerIdentifier.serialNumberHex
@@ -592,7 +592,7 @@ async function resolveSignerCertificates({
   }
 
   if (subjectKeyIdentifier) {
-    for (const dsc of resolvePkdDscCertificatesBySki(
+    for (const dsc of await resolvePkdDscCertificatesBySki(
       bundle,
       subjectKeyIdentifier
     )) {

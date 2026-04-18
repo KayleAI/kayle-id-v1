@@ -4,6 +4,10 @@ import {
   configurePkdTrustBundleLoader,
   configurePkdTrustBundleLoaderFromEnv,
   loadPkdTrustBundle,
+  pkdTrustBundleDscSegmentKey,
+  pkdTrustBundleKey,
+  resolvePkdDscCertificate,
+  resolvePkdDscCertificatesBySki,
 } from "@/v1/verify/pkd-trust";
 import { createPassiveAuthTestChain } from "../helpers/verify-artifacts";
 
@@ -28,7 +32,6 @@ describe("PKD trust bundle loader", () => {
 
   test.serial("loads the trust bundle from R2 when available", async () => {
     const chain = await createPassiveAuthTestChain();
-    const expectedKey = "verify/pkd-trust/latest.json";
     const responseBytes = new TextEncoder().encode(
       JSON.stringify(chain.trustBundle.raw)
     );
@@ -49,10 +52,92 @@ describe("PKD trust bundle loader", () => {
 
     const loaded = await loadPkdTrustBundle();
 
-    expect(requestedKey).toBe(expectedKey);
+    expect(requestedKey).toBe(pkdTrustBundleKey());
     expect(loaded?.raw.counts).toEqual(chain.trustBundle.raw.counts);
     expect(loaded?.raw.generatedAt).toBe(chain.trustBundle.raw.generatedAt);
   });
+
+  test.serial(
+    "loads DSC segments lazily from R2 when bundle fallback needs them",
+    async () => {
+      const chain = await createPassiveAuthTestChain();
+      const [dscRecord] = chain.trustBundle.raw.dscs;
+
+      expect(dscRecord?.skiHex).not.toBeNull();
+
+      const manifestBytes = new TextEncoder().encode(
+        JSON.stringify({
+          ...chain.trustBundle.raw,
+          dscSegmentIndex: {
+            issuerSerial: {
+              [`${dscRecord?.issuerKey}:${dscRecord?.serialNumberHex.toLowerCase()}`]:
+                ["UT"],
+            },
+            skiHex: {
+              [dscRecord?.skiHex ?? ""]: ["UT"],
+            },
+          },
+          dscs: [],
+        })
+      );
+      const segmentBytes = new TextEncoder().encode(
+        JSON.stringify({
+          dscs: chain.trustBundle.raw.dscs,
+          segmentKey: "UT",
+          version: chain.trustBundle.raw.version,
+        })
+      );
+      const requestedKeys: string[] = [];
+
+      configurePkdTrustBundleLoaderFromEnv({
+        STORAGE: {
+          get: (key: string) => {
+            requestedKeys.push(key);
+
+            if (key === pkdTrustBundleKey()) {
+              return Promise.resolve({
+                arrayBuffer: () => Promise.resolve(manifestBytes.slice().buffer),
+                httpEtag: "manifest-etag",
+              });
+            }
+
+            if (key === pkdTrustBundleDscSegmentKey("UT")) {
+              return Promise.resolve({
+                arrayBuffer: () => Promise.resolve(segmentBytes.slice().buffer),
+                httpEtag: "segment-etag",
+              });
+            }
+
+            return Promise.resolve(null);
+          },
+        },
+      });
+
+      const loaded = await loadPkdTrustBundle();
+
+      expect(loaded).not.toBeNull();
+      expect(requestedKeys).toEqual([pkdTrustBundleKey()]);
+
+      const resolvedByIssuerSerial = await resolvePkdDscCertificate(
+        loaded!,
+        dscRecord?.issuerKey ?? "",
+        dscRecord?.serialNumberHex ?? ""
+      );
+      const resolvedBySki = await resolvePkdDscCertificatesBySki(
+        loaded!,
+        dscRecord?.skiHex ?? ""
+      );
+
+      expect(resolvedByIssuerSerial?.record.derBase64).toBe(dscRecord?.derBase64);
+      expect(resolvedBySki.map((entry) => entry.record.derBase64)).toEqual([
+        dscRecord?.derBase64,
+      ]);
+      expect(requestedKeys).toEqual([
+        pkdTrustBundleKey(),
+        pkdTrustBundleDscSegmentKey("UT"),
+      ]);
+    }
+  );
 
   test.serial(
     "loads the trust bundle from inline env JSON before consulting R2",

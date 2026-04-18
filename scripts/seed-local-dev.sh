@@ -109,6 +109,18 @@ absolute_path() {
   printf '%s/%s\n' "${INITIAL_WORKDIR}" "${path#./}"
 }
 
+pkd_segment_dir_for_output() {
+  local output_path="$1"
+  local output_dir
+  local output_name
+
+  output_dir="$(dirname "${output_path}")"
+  output_name="$(basename "${output_path}")"
+  output_name="${output_name%.*}"
+
+  printf '%s/%s.dsc-country\n' "${output_dir}" "${output_name}"
+}
+
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -297,10 +309,25 @@ upload_pkd_bundle_to_local_r2() {
   fi
 
   require_file "${PKD_BUNDLE_OUTPUT}"
+  local segment_dir
+  segment_dir="$(pkd_segment_dir_for_output "${PKD_BUNDLE_OUTPUT}")"
 
-  log "Uploading ICAO PKD bundle to local R2 (${PKD_LOCAL_BUCKET_NAME}/${PKD_LOCAL_OBJECT_KEY})..."
   (
     cd "${ROOT_DIR}/apps/api"
+    if [[ -d "${segment_dir}" ]]; then
+      for segment_file in "${segment_dir}"/*.json; do
+        [[ -e "${segment_file}" ]] || continue
+        local segment_name
+        segment_name="$(basename "${segment_file}")"
+        log "Uploading ICAO PKD DSC segment to local R2 (${PKD_LOCAL_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name})..."
+        bunx wrangler r2 object put \
+          "${PKD_LOCAL_BUCKET_NAME}/verify/pkd-trust/dsc-country/${segment_name}" \
+          --file "${segment_file}" \
+          --local
+      done
+    fi
+
+    log "Uploading ICAO PKD manifest to local R2 (${PKD_LOCAL_BUCKET_NAME}/${PKD_LOCAL_OBJECT_KEY})..."
     bunx wrangler r2 object put \
       "${PKD_LOCAL_BUCKET_NAME}/${PKD_LOCAL_OBJECT_KEY}" \
       --file "${PKD_BUNDLE_OUTPUT}" \

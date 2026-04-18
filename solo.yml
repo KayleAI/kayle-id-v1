@@ -50,15 +50,30 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
-  Local Dev Seed:
+  Seed:
     command: bun run dev:seed -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-bundle.json
     working_dir: ./
     auto_start: false
     auto_restart: false
     restart_when_changed: []
     env: {}
-  iOS Device:
+  Seed (Production):
+    command: bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-bundle.json
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  iOS (Local):
     command: bash ./apps/ios/scripts/run-on-connected-device.sh
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ""
+  iOS (Production):
+    command: bash ./apps/ios/scripts/run-on-connected-device.sh --api-base-url https://api.kayle.id
     working_dir: ./
     auto_start: false
     auto_restart: false

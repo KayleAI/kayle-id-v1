@@ -1,14 +1,17 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   createPkdCertificateRecord,
   createPkdCrlRecord,
   extractCscaCertificatesFromMasterList,
   type PkdCscaRecord,
+  type PkdCertificateRecord,
+  type PkdTrustBundleDscSegmentJson,
   type PkdTrustBundleJson,
   type PkdTrustBundleSource,
   parseDerCertificate,
   parseDerCertificateRevocationList,
+  pkdTrustBundleDscSegmentKey,
   pkdTrustBundleKey,
   pkdTrustBundleVersion,
   relativeDistinguishedNameKey,
@@ -37,6 +40,8 @@ const CRL_BINARY = "certificaterevocationlist;binary";
 const MASTER_LIST_BINARY = "pkdmasterlistcontent;binary";
 const LDIF_VERSION_REGEX = /-(\d+)\.ldif$/i;
 const PKD_OBJECT_TYPES = new Set(["bcsc", "bcsc-nc", "cr", "crl", "dsc"]);
+const MAX_DSCS_PER_SEGMENT = 1000;
+const UNKNOWN_DSC_SEGMENT_KEY = "UNKNOWN";
 
 function usage(): string {
   return [
@@ -96,6 +101,43 @@ function parseArgs(argv: string[]): CliArgs {
 function ldifVersionFromPath(filePath: string): string | null {
   const match = LDIF_VERSION_REGEX.exec(path.basename(filePath));
   return match?.[1] ?? null;
+}
+
+function dscSegmentDirectoryPath(outputPath: string): string {
+  const parsed = path.parse(outputPath);
+  return path.join(parsed.dir, `${parsed.name}.dsc-country`);
+}
+
+function dscCountrySegmentKey(record: PkdCertificateRecord): string {
+  return record.sourceCountryCode?.toUpperCase() ?? UNKNOWN_DSC_SEGMENT_KEY;
+}
+
+function chunkItems<T>(items: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+
+  return chunks;
+}
+
+function addIndexSegment(
+  index: Record<string, string[]>,
+  key: string,
+  segmentKey: string
+): void {
+  const normalizedKey = key.toLowerCase();
+  const existing = index[normalizedKey];
+
+  if (existing) {
+    if (!existing.includes(segmentKey)) {
+      existing.push(segmentKey);
+    }
+    return;
+  }
+
+  index[normalizedKey] = [segmentKey];
 }
 
 function normalizeLdifText(text: string): string[] {
@@ -446,7 +488,10 @@ async function buildTrustBundle({
 }: {
   masterListsPath: string;
   objectPath: string;
-}): Promise<PkdTrustBundleJson> {
+}): Promise<{
+  manifest: PkdTrustBundleJson;
+  segments: PkdTrustBundleDscSegmentJson[];
+}> {
   const [masterListsText, objectText] = await Promise.all([
     readFile(masterListsPath, "utf8"),
     readFile(objectPath, "utf8"),
@@ -459,30 +504,79 @@ async function buildTrustBundle({
       entries: parseLdifEntries(objectText),
     }),
   ]);
+  const dscSegmentIndex: NonNullable<PkdTrustBundleJson["dscSegmentIndex"]> = {
+    issuerSerial: {},
+    skiHex: {},
+  };
+  const dscsByCountrySegment = new Map<string, PkdCertificateRecord[]>();
+
+  for (const record of objectEntries.dscs) {
+    const countrySegment = dscCountrySegmentKey(record);
+    const segmentEntries = dscsByCountrySegment.get(countrySegment);
+
+    if (segmentEntries) {
+      segmentEntries.push(record);
+    } else {
+      dscsByCountrySegment.set(countrySegment, [record]);
+    }
+  }
+
+  const segments = [...dscsByCountrySegment.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .flatMap(([countrySegment, dscs]) =>
+      chunkItems(dscs, MAX_DSCS_PER_SEGMENT).map((segmentDscs, index, chunks) => {
+        const segmentKey =
+          chunks.length === 1
+            ? countrySegment
+            : `${countrySegment}-${String(index + 1).padStart(2, "0")}`;
+
+        for (const record of segmentDscs) {
+          addIndexSegment(
+            dscSegmentIndex.issuerSerial,
+            `${record.issuerKey}:${record.serialNumberHex.toLowerCase()}`,
+            segmentKey
+          );
+
+          if (record.skiHex) {
+            addIndexSegment(dscSegmentIndex.skiHex, record.skiHex, segmentKey);
+          }
+        }
+
+        return {
+          dscs: segmentDscs,
+          segmentKey,
+          version: pkdTrustBundleVersion(),
+        };
+      })
+    );
 
   return {
-    counts: {
-      cscas: cscas.length,
-      crls: objectEntries.crls.length,
-      dscs: objectEntries.dscs.length,
-      ignoredBcsc: objectEntries.ignoredBcsc,
-      ignoredBcscNc: objectEntries.ignoredBcscNc,
-    },
-    cscas,
-    crls: objectEntries.crls,
-    dscs: objectEntries.dscs,
-    generatedAt: new Date().toISOString(),
-    sources: {
-      masterListsLdif: {
-        path: masterListsPath,
-        version: ldifVersionFromPath(masterListsPath),
+    manifest: {
+      counts: {
+        cscas: cscas.length,
+        crls: objectEntries.crls.length,
+        dscs: objectEntries.dscs.length,
+        ignoredBcsc: objectEntries.ignoredBcsc,
+        ignoredBcscNc: objectEntries.ignoredBcscNc,
       },
-      objectLdif: {
-        path: objectPath,
-        version: ldifVersionFromPath(objectPath),
+      cscas,
+      crls: objectEntries.crls,
+      dscSegmentIndex,
+      dscs: [],
+      generatedAt: new Date().toISOString(),
+      sources: {
+        masterListsLdif: {
+          path: masterListsPath,
+          version: ldifVersionFromPath(masterListsPath),
+        },
+        objectLdif: {
+          path: objectPath,
+          version: ldifVersionFromPath(objectPath),
+        },
       },
+      version: pkdTrustBundleVersion(),
     },
-    version: pkdTrustBundleVersion(),
+    segments,
   };
 }
 
@@ -492,23 +586,45 @@ async function main(): Promise<void> {
     masterListsPath: args.masterListsPath,
     objectPath: args.objectPath,
   });
+  const segmentDir = dscSegmentDirectoryPath(args.outputPath);
   await mkdir(path.dirname(args.outputPath), {
     recursive: true,
   });
-  await writeFile(args.outputPath, `${JSON.stringify(bundle)}\n`, "utf8");
+  await rm(segmentDir, {
+    force: true,
+    recursive: true,
+  });
+  await mkdir(segmentDir, {
+    recursive: true,
+  });
+  await writeFile(
+    args.outputPath,
+    `${JSON.stringify(bundle.manifest)}\n`,
+    "utf8"
+  );
+
+  for (const segment of bundle.segments) {
+    await writeFile(
+      path.join(segmentDir, `${segment.segmentKey}.json`),
+      `${JSON.stringify(segment)}\n`,
+      "utf8"
+    );
+  }
 
   process.stdout.write(
     [
       "ICAO PKD import complete.",
       `Output: ${args.outputPath}`,
       `Runtime key: ${pkdTrustBundleKey()}`,
-      `CSCA count: ${bundle.counts.cscas}`,
-      `DSC count: ${bundle.counts.dscs}`,
-      `CRL count: ${bundle.counts.crls}`,
-      `Ignored BCSC count: ${bundle.counts.ignoredBcsc}`,
-      `Ignored BCSC-NC count: ${bundle.counts.ignoredBcscNc}`,
-      `Object LDIF version: ${bundle.sources.objectLdif.version ?? "unknown"}`,
-      `Master-list LDIF version: ${bundle.sources.masterListsLdif.version ?? "unknown"}`,
+      `DSC segment directory: ${segmentDir}`,
+      `DSC segment runtime prefix: ${pkdTrustBundleDscSegmentKey("<segment>").replace("/<segment>.json", "")}`,
+      `CSCA count: ${bundle.manifest.counts.cscas}`,
+      `DSC count: ${bundle.manifest.counts.dscs}`,
+      `CRL count: ${bundle.manifest.counts.crls}`,
+      `Ignored BCSC count: ${bundle.manifest.counts.ignoredBcsc}`,
+      `Ignored BCSC-NC count: ${bundle.manifest.counts.ignoredBcscNc}`,
+      `Object LDIF version: ${bundle.manifest.sources.objectLdif.version ?? "unknown"}`,
+      `Master-list LDIF version: ${bundle.manifest.sources.masterListsLdif.version ?? "unknown"}`,
     ].join("\n")
   );
 }

@@ -192,7 +192,9 @@ function parseLdifEntries(text: string): LdifEntry[] {
     const separatorIndex = line.indexOf(":");
 
     if (separatorIndex <= 0) {
-      throw new Error(`ldif_line_invalid:${line}`);
+      throw new Error(
+        `Invalid LDIF line format (missing colon separator): ${line}`,
+      );
     }
 
     const rawName = line.slice(0, separatorIndex).toLowerCase();

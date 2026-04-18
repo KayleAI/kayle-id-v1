@@ -114,7 +114,7 @@ parse_args() {
         SKIP_PKD_IMPORT="true"
         shift
         ;;
-      --skip-d1-seed|--skip-r2-upload)
+      --skip-d1-seed)
         SKIP_D1_SEED="true"
         shift
         ;;

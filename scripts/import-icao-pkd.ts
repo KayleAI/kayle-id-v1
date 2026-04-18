@@ -71,24 +71,24 @@ function parseArgs(argv: string[]): CliArgs {
   let masterListsPath: string | null = null;
   let outputPath: string | null = null;
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
+  for (let argIndex = 0; argIndex < argv.length; argIndex += 1) {
+    const value = argv[argIndex];
 
     if (value === "--objects") {
-      objectPath = argv[index + 1] ?? null;
-      index += 1;
+      objectPath = argv[argIndex + 1] ?? null;
+      argIndex += 1;
       continue;
     }
 
     if (value === "--master-lists") {
-      masterListsPath = argv[index + 1] ?? null;
-      index += 1;
+      masterListsPath = argv[argIndex + 1] ?? null;
+      argIndex += 1;
       continue;
     }
 
     if (value === "--output") {
-      outputPath = argv[index + 1] ?? null;
-      index += 1;
+      outputPath = argv[argIndex + 1] ?? null;
+      argIndex += 1;
     }
   }
 
@@ -124,8 +124,8 @@ function outputFormatFromPath(outputPath: string): OutputFormat {
 function chunkItems<T>(items: T[], chunkSize: number): T[][] {
   const chunks: T[][] = [];
 
-  for (let index = 0; index < items.length; index += chunkSize) {
-    chunks.push(items.slice(index, index + chunkSize));
+  for (let chunkStart = 0; chunkStart < items.length; chunkStart += chunkSize) {
+    chunks.push(items.slice(chunkStart, chunkStart + chunkSize));
   }
 
   return chunks;
@@ -158,7 +158,7 @@ function normalizeLdifText(text: string): string[] {
       const previous = unfolded.pop();
 
       if (typeof previous !== "string") {
-        throw new Error("ldif_continuation_without_previous_line");
+        throw new Error("LDIF continuation line found without a previous line");
       }
 
       unfolded.push(`${previous}${rawLine.slice(1)}`);
@@ -192,7 +192,9 @@ function parseLdifEntries(text: string): LdifEntry[] {
     const separatorIndex = line.indexOf(":");
 
     if (separatorIndex <= 0) {
-      throw new Error(`ldif_line_invalid:${line}`);
+      throw new Error(
+        `Invalid LDIF line format (missing colon separator): ${line}`,
+      );
     }
 
     const rawName = line.slice(0, separatorIndex).toLowerCase();

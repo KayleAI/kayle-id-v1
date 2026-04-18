@@ -158,7 +158,7 @@ function normalizeLdifText(text: string): string[] {
       const previous = unfolded.pop();
 
       if (typeof previous !== "string") {
-        throw new Error("ldif_continuation_without_previous_line");
+        throw new Error("LDIF continuation line found without a previous line");
       }
 
       unfolded.push(`${previous}${rawLine.slice(1)}`);

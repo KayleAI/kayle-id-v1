@@ -225,7 +225,7 @@ jobs:
           if [[ "${{ steps.context.outputs.release_allowed }}" == "true" ]]; then
             echo "Production worker deployment is unlocked for version ${{ steps.context.outputs.app_version }}, and every worker will be rebuilt and redeployed."
           else
-            echo "Running preview builds only. Production deployment remains locked until the root package version changes on main."
+            echo "Running preview builds only. Production deployment remains locked until the root package version is newer than the latest published release tag."
           fi
 
   preview_face_matcher:

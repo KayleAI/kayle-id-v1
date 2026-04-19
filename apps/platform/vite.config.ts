@@ -1,5 +1,6 @@
 import http from "node:http";
 import https from "node:https";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
@@ -12,6 +13,9 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 const LOCAL_DEMO_WEBHOOK_BRIDGE_HOST = "127.0.0.1";
 const LOCAL_DEMO_WEBHOOK_BRIDGE_PORT = 3001;
 const PLATFORM_DEV_ORIGIN = "https://localhost:3000";
+const APP_VERSION = JSON.parse(
+  readFileSync(path.resolve(__dirname, "../../package.json"), "utf8")
+).version as string;
 
 function createLocalDemoWebhookBridge(): Plugin {
   let bridgeServer: http.Server | null = null;
@@ -98,6 +102,9 @@ function createLocalDemoWebhookBridge(): Plugin {
 }
 
 const config = defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [
     cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9231 }),
     tailwindcss(),

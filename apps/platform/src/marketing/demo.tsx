@@ -258,7 +258,7 @@ function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
   return (
     <div
       className={cn(
-        "border border-red-200/70 bg-red-50/40 px-4 py-3",
+        "border border-red-200/70 bg-red-50/40 px-4 py-3 rounded-[1rem]",
         className
       )}
       role="alert"
@@ -487,7 +487,7 @@ function AgeGateSelector({
             </button>
             <div
               className={cn(
-                "flex min-h-10 min-w-0 items-center transition-colors",
+                "flex min-h-10 min-w-0 items-center transition-colors rounded-[1rem]",
                 ageThresholdStateClassName
               )}
             >
@@ -497,7 +497,7 @@ function AgeGateSelector({
               <Input
                 aria-describedby={hasError ? "age-threshold-error" : undefined}
                 aria-invalid={hasError || undefined}
-                className="h-10 w-full min-w-0 border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0 sm:w-24"
+                className="h-10 w-full min-w-0 border-0 bg-transparent px-0 text-center text-base shadow-none focus-visible:ring-0 sm:w-24 rounded-[1rem]"
                 id="age-threshold"
                 inputMode="numeric"
                 min={minAgeThreshold}

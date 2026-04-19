@@ -43,7 +43,7 @@ function FooterColumn({ title, links }: FooterColumnProps) {
   return (
     <div>
       <h4 className="mb-4 font-medium text-neutral-900 text-sm">{title}</h4>
-      <ul className="space-y-3">
+      <ul className="space-y-3" role="list">
         {links.map((link) => (
           <li key={link.to}>
             <Link
@@ -81,6 +81,44 @@ export function Footer({ className }: { readonly className?: string }) {
             <p className="mt-3 max-w-xs text-balance text-neutral-500 text-sm leading-relaxed">
               Primitives for Identity Verification
             </p>
+            <div className="mt-4 flex items-center gap-6">
+              <a
+                aria-label="Discord"
+                className="text-neutral-600 hover:text-neutral-900"
+                href="https://go.kayle.ai/discord"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <DiscordIcon className="size-4" />
+              </a>
+              <a
+                aria-label="LinkedIn"
+                className="text-neutral-600 hover:text-neutral-900"
+                href="https://go.kayle.ai/linkedin"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <LinkedInIcon className="size-4" />
+              </a>
+              <a
+                aria-label="GitHub"
+                className="text-neutral-600 hover:text-neutral-900"
+                href="https://github.com/kayleai/kayle-id"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <GithubIcon className="size-4" />
+              </a>
+              <a
+                aria-label="X"
+                className="text-neutral-600 hover:text-neutral-900"
+                href="https://go.kayle.ai/x"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <TwitterIcon className="size-4" />
+              </a>
+            </div>
           </div>
           {columns.map((column) => (
             <FooterColumn key={column.title} {...column} />
@@ -100,40 +138,14 @@ export function Footer({ className }: { readonly className?: string }) {
             </a>{" "}
             All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <a
-              className="text-neutral-400 transition-colors hover:text-neutral-900"
-              href="https://go.kayle.ai/discord"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <DiscordIcon className="size-4" />
-            </a>
-            <a
-              className="text-neutral-400 transition-colors hover:text-neutral-900"
-              href="https://go.kayle.ai/linkedin"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <LinkedInIcon className="size-4" />
-            </a>
-            <a
-              className="text-neutral-400 transition-colors hover:text-neutral-900"
-              href="https://github.com/kayleai/kayle-id"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <GithubIcon className="size-4" />
-            </a>
-            <a
-              className="text-neutral-400 transition-colors hover:text-neutral-900"
-              href="https://go.kayle.ai/x"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <TwitterIcon className="size-4" />
-            </a>
-          </div>
+          <a
+            className="font-semibold text-neutral-700 underline decoration-dashed underline-offset-2 transition-colors hover:text-neutral-950 text-xs tabular-nums"
+            href={`https://github.com/kayleai/kayle-id/releases/tag/v${__APP_VERSION__}`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {`v${__APP_VERSION__}`}
+          </a>
         </div>
       </div>
     </footer>

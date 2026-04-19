@@ -716,9 +716,12 @@ export async function createMismatchValidationSelfies(): Promise<Uint8Array[]> {
 }
 
 export async function createMatchingValidationSelfies(): Promise<Uint8Array[]> {
+  const [lowSimilaritySelfie] = createLowSimilaritySelfies();
+
   return [
     await createValidationPortraitJpeg(),
-    ...createLowSimilaritySelfies(),
+    await createValidationPortraitJpeg(),
+    lowSimilaritySelfie,
   ];
 }
 

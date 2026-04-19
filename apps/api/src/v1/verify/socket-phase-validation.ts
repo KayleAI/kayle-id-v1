@@ -8,6 +8,16 @@ import type { VerifySocketContext } from "./socket-context";
 import { validateAuthenticity } from "./validation";
 import type { FaceScoreResult } from "./validation-types";
 
+export function shouldRejectSuccessfulFallbackMatch({
+  faceResult,
+  nodeEnv = process.env.NODE_ENV,
+}: {
+  faceResult: FaceScoreResult;
+  nodeEnv?: string;
+}): boolean {
+  return nodeEnv === "production" && faceResult.passed && faceResult.usedFallback;
+}
+
 export function buildMissingDataMessage(
   context: VerifySocketContext,
   nextPhase: string
@@ -102,7 +112,22 @@ async function resolveSelfieVerdict(
   attemptId: string,
   faceResult: FaceScoreResult
 ) {
-  if (!faceResult.passed) {
+  if (
+    !faceResult.passed ||
+    shouldRejectSuccessfulFallbackMatch({ faceResult })
+  ) {
+    if (faceResult.passed && faceResult.usedFallback) {
+      logEvent(context.log, {
+        details: {
+          attempt_id: attemptId,
+          face_score: faceResult.faceScore,
+          node_env: process.env.NODE_ENV ?? null,
+        },
+        event: "verify.ws.fallback_accept_blocked",
+        level: "warn",
+      });
+    }
+
     const verdict = await rejectAttemptWithVerdict({
       attemptId,
       code: "selfie_face_mismatch",

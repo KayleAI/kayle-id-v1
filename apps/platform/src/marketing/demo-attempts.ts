@@ -1,4 +1,7 @@
-import type { DemoWebhookEnvelope } from "@/demo/types";
+import type {
+  DemoSessionStatus,
+  DemoWebhookEnvelope,
+} from "@/demo/types";
 import { getDemoWebhookReceiptId } from "@/demo/webhook-history";
 import {
   buildDemoWebhookEventPreview,
@@ -31,6 +34,77 @@ export const defaultProcessedWebhookState: ProcessedWebhookState = {
   error: null,
   status: "idle",
 };
+
+function getExpectedTerminalEventType(
+  sessionStatus: DemoSessionStatus
+): DemoWebhookEnvelope["event_type"] {
+  switch (sessionStatus.status) {
+    case "cancelled":
+      return "verification.session.cancelled";
+    case "expired":
+      return "verification.session.expired";
+    case "completed":
+      switch (sessionStatus.latest_attempt?.status) {
+        case "failed":
+          return "verification.attempt.failed";
+        case "succeeded":
+          return "verification.attempt.succeeded";
+        default:
+          return null;
+      }
+    default:
+      return null;
+  }
+}
+
+export function isDemoRunSettled({
+  processedWebhooks,
+  sessionStatus,
+  webhooks,
+}: {
+  processedWebhooks: ProcessedWebhookMap;
+  sessionStatus: DemoSessionStatus | null | undefined;
+  webhooks: DemoWebhookEnvelope[];
+}): boolean {
+  if (!sessionStatus?.is_terminal) {
+    return false;
+  }
+
+  const expectedEventType = getExpectedTerminalEventType(sessionStatus);
+  if (!expectedEventType) {
+    return false;
+  }
+
+  if (
+    expectedEventType === "verification.session.cancelled" ||
+    expectedEventType === "verification.session.expired"
+  ) {
+    return webhooks.some((webhook) => webhook.event_type === expectedEventType);
+  }
+
+  const latestAttemptId = sessionStatus.latest_attempt?.id;
+  if (!latestAttemptId) {
+    return false;
+  }
+
+  return webhooks.some((webhook) => {
+    if (webhook.event_type !== expectedEventType) {
+      return false;
+    }
+
+    const processedWebhook =
+      processedWebhooks[getDemoWebhookReceiptId(webhook)] ??
+      defaultProcessedWebhookState;
+    const eventPreview = buildDemoWebhookEventPreview(
+      processedWebhook.decryptedPayload
+    );
+
+    return (
+      eventPreview?.eventType === expectedEventType &&
+      eventPreview.verificationAttemptId === latestAttemptId
+    );
+  });
+}
 
 export function buildDemoAttemptViews({
   processedWebhooks,

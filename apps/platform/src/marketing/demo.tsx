@@ -51,6 +51,7 @@ import type {
 } from "@/demo/types";
 import {
   getDemoWebhookHistory,
+  getDemoWebhookReplayReceiptIds,
   getDemoWebhookReceiptId,
   getLatestDemoWebhook,
 } from "@/demo/webhook-history";
@@ -64,6 +65,7 @@ import {
 import {
   buildDemoAttemptViews,
   defaultProcessedWebhookState,
+  isDemoRunSettled,
   type ProcessedWebhookMap,
   type ProcessedWebhookState,
 } from "@/marketing/demo-attempts";
@@ -197,10 +199,12 @@ async function getDemoRun(runId: string): Promise<DemoRunView> {
 }
 
 async function processWebhookReceipt({
+  isReplay,
   privateKey,
   secret,
   webhook,
 }: {
+  isReplay: boolean;
   privateKey: CryptoKey;
   secret: string;
   webhook: DemoWebhookEnvelope;
@@ -215,7 +219,10 @@ async function processWebhookReceipt({
   }
 
   const verification = await verifyWebhookSignature({
+    deliveryId: webhook.delivery_id,
+    isReplay,
     payload: webhook.body,
+    receivedAt: webhook.received_at,
     secret,
     signatureHeader,
   });
@@ -1427,16 +1434,18 @@ function useDemoStepScroll({ openStep }: { openStep: DemoStepId }) {
 }
 
 function useDemoRunPolling({
+  isRunSettled,
   onRunError,
   onRunLoaded,
   runId,
 }: {
+  isRunSettled: boolean;
   onRunError: (message: string) => void;
   onRunLoaded: (nextRun: DemoRunView) => void;
   runId: string | null;
 }) {
   useEffect(() => {
-    if (!runId) {
+    if (!(runId && !isRunSettled)) {
       return;
     }
 
@@ -1467,7 +1476,7 @@ function useDemoRunPolling({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [onRunError, onRunLoaded, runId]);
+  }, [isRunSettled, onRunError, onRunLoaded, runId]);
 }
 
 function useProcessedWebhookReceipts({
@@ -1485,6 +1494,10 @@ function useProcessedWebhookReceipts({
 }) {
   const processedReceiptIdsRef = useRef(new Set<string>());
   const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
+  const replayReceiptIds = useMemo(
+    () => getDemoWebhookReplayReceiptIds(webhookHistory),
+    [webhookHistory]
+  );
 
   useEffect(() => {
     processedReceiptIdsRef.current = new Set(Object.keys(processedWebhooks));
@@ -1528,6 +1541,7 @@ function useProcessedWebhookReceipts({
         return {
           receiptId: getDemoWebhookReceiptId(webhook),
           state: await processWebhookReceipt({
+            isReplay: replayReceiptIds.has(getDemoWebhookReceiptId(webhook)),
             privateKey,
             secret: signingSecret,
             webhook,
@@ -1557,6 +1571,7 @@ function useProcessedWebhookReceipts({
     onProcessedWebhooksChange,
     privateKey,
     signingSecret,
+    replayReceiptIds,
     webhookHistory,
   ]);
 }
@@ -1746,7 +1761,12 @@ function DemoOutcomeStep({
   const sessionStatus = run?.session_status ?? null;
   const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
   const isWaitingForTerminalWebhook = Boolean(
-    sessionStatus?.is_terminal && webhookHistory.length === 0
+    sessionStatus?.is_terminal &&
+      !isDemoRunSettled({
+        processedWebhooks,
+        sessionStatus,
+        webhooks: webhookHistory,
+      })
   );
 
   return (
@@ -1803,6 +1823,11 @@ export function Demo() {
   );
   const sessionStatus = run?.session_status ?? null;
   const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
+  const isRunSettled = isDemoRunSettled({
+    processedWebhooks,
+    sessionStatus,
+    webhooks: webhookHistory,
+  });
   const hasSession = Boolean(run?.session_id);
   const canReviewOutcome = Boolean(
     sessionStatus?.is_terminal || webhookHistory.length > 0
@@ -1984,6 +2009,7 @@ export function Demo() {
   });
 
   useDemoRunPolling({
+    isRunSettled,
     onRunError: handleRunError,
     onRunLoaded: handleRunLoaded,
     runId,
@@ -2001,7 +2027,7 @@ export function Demo() {
     <main className="relative min-h-screen overflow-hidden">
       <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <PageHeading
-          description="Test Kayle ID in your local browser — no data is stored as part of our privacy guarantee."
+          description="Test Kayle ID in your local browser — demo session metadata and webhook deliveries are stored temporarily, then automatically deleted."
           title="See how Kayle ID works with a demo."
         />
 

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { getDemoWebhookReceiptId } from "@/demo/webhook-history";
-import { buildDemoAttemptViews } from "./demo-attempts";
+import { buildDemoAttemptViews, isDemoRunSettled } from "./demo-attempts";
 
 function createWebhook({
   deliveryId,
@@ -114,4 +114,88 @@ test("buildDemoAttemptViews falls back to the receipt id before payload metadata
   expect(attempts).toHaveLength(1);
   expect(attempts[0]?.id).toBe(getDemoWebhookReceiptId(pendingAttempt));
   expect(attempts[0]?.eventPreview).toBeNull();
+});
+
+test("isDemoRunSettled waits for the terminal webhook of the latest attempt", () => {
+  const firstAttempt = createWebhook({
+    deliveryId: "whd_attempt_1",
+    receivedAt: "2026-04-19T10:00:00.000Z",
+  });
+  const secondAttempt = createWebhook({
+    deliveryId: "whd_attempt_2",
+    eventType: "verification.attempt.succeeded",
+    receivedAt: "2026-04-19T10:03:00.000Z",
+  });
+  const sessionStatus = {
+    completed_at: "2026-04-19T10:03:00.000Z",
+    is_terminal: true,
+    latest_attempt: {
+      completed_at: "2026-04-19T10:03:00.000Z",
+      failure_code: null,
+      id: "va_2",
+      status: "succeeded" as const,
+    },
+    redirect_url: null,
+    session_id: "vs_demo_test",
+    status: "completed" as const,
+  };
+
+  expect(
+    isDemoRunSettled({
+      processedWebhooks: {
+        [getDemoWebhookReceiptId(firstAttempt)]: {
+          decryptedPayload: JSON.stringify({
+            type: "verification.attempt.failed",
+            data: {
+              failure_code: "selfie_mismatch",
+            },
+            metadata: {
+              verification_attempt_id: "va_1",
+            },
+          }),
+          error: null,
+          status: "decrypted",
+        },
+      },
+      sessionStatus,
+      webhooks: [firstAttempt],
+    })
+  ).toBe(false);
+
+  expect(
+    isDemoRunSettled({
+      processedWebhooks: {
+        [getDemoWebhookReceiptId(firstAttempt)]: {
+          decryptedPayload: JSON.stringify({
+            type: "verification.attempt.failed",
+            data: {
+              failure_code: "selfie_mismatch",
+            },
+            metadata: {
+              verification_attempt_id: "va_1",
+            },
+          }),
+          error: null,
+          status: "decrypted",
+        },
+        [getDemoWebhookReceiptId(secondAttempt)]: {
+          decryptedPayload: JSON.stringify({
+            type: "verification.attempt.succeeded",
+            data: {
+              claims: {
+                family_name: "DOE",
+              },
+            },
+            metadata: {
+              verification_attempt_id: "va_2",
+            },
+          }),
+          error: null,
+          status: "decrypted",
+        },
+      },
+      sessionStatus,
+      webhooks: [firstAttempt, secondAttempt],
+    })
+  ).toBe(true);
 });

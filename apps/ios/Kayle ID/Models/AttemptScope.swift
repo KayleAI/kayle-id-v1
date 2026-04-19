@@ -12,3 +12,10 @@ nonisolated func shouldHandleAttemptScopedEvent(
 
   return currentAttemptId == eventAttemptId
 }
+
+nonisolated func shouldPreventDeviceSleepDuringVerification(
+  hasActiveAttempt: Bool,
+  isTerminalStep: Bool
+) -> Bool {
+  hasActiveAttempt && !isTerminalStep
+}

@@ -418,11 +418,13 @@ class MatcherHandler(BaseHTTPRequestHandler):
 
         try:
             result = RUNTIME.match(payload)
+            threshold = float(payload.get("threshold") or DEFAULT_THRESHOLD)
             emit_log(
                 "container_completed",
                 dg2_width=payload.get("dg2Image", {}).get("width"),
                 dg2_height=payload.get("dg2Image", {}).get("height"),
                 selfie_count=len(payload.get("selfiesBase64", [])),
+                threshold=threshold,
                 face_score=result.get("faceScore"),
                 passed=result.get("passed"),
                 reason=result.get("reason"),

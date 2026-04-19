@@ -129,10 +129,6 @@ final class VerificationSession: ObservableObject {
     let chunks: [Data]
   }
 
-  var requiresAuthenticatedCancellation: Bool {
-    shouldRequireAuthenticatedCancellation(payload: payload)
-  }
-
   /// Initialize a new session from a scanned QR code payload.
   func initialize(with payload: QRCodePayload) async throws {
     guard payload.isValid else {
@@ -176,25 +172,10 @@ final class VerificationSession: ObservableObject {
     try await webSocketService.reconnectForTransfer()
     nfcUploadStatusMessage = "Preparing secure upload…"
 
-    while true {
-      do {
-        for plan in plans {
-          try await uploadNFCPlan(
-            plan,
-            via: webSocketService,
-            onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
-              guard let self else { return }
-              if acknowledgedChunks.insert(chunkKey).inserted {
-                self.nfcUploadProgress =
-                  Double(acknowledgedChunks.count) / Double(totalChunkCount)
-              }
-            }
-          )
-        }
-
-        nfcUploadStatusMessage = "Waiting for secure verification…"
-        let shouldContinue = try await completeNFCPhase(
-          plans: plans,
+    do {
+      for plan in plans {
+        try await uploadNFCPlan(
+          plan,
           via: webSocketService,
           onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
             guard let self else { return }
@@ -204,24 +185,25 @@ final class VerificationSession: ObservableObject {
             }
           }
         )
-        resetNFCUploadState()
-        return shouldContinue
-      } catch let socketError as VerifyWebSocketError {
-        switch socketError {
-        case .connectionClosed, .notConnected, .reconnectFailed, .serverResponseTimedOut:
-          acknowledgedChunks.removeAll()
-          nfcUploadProgress = 0
-          nfcUploadStatusMessage = "Reconnecting to continue secure upload…"
-          try await Task.sleep(nanoseconds: 300_000_000)
-          continue
-        default:
-          resetNFCUploadState()
-          throw socketError
-        }
-      } catch {
-        resetNFCUploadState()
-        throw error
       }
+
+      nfcUploadStatusMessage = "Waiting for secure verification…"
+      let shouldContinue = try await completeNFCPhase(
+        plans: plans,
+        via: webSocketService,
+        onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
+          guard let self else { return }
+          if acknowledgedChunks.insert(chunkKey).inserted {
+            self.nfcUploadProgress =
+              Double(acknowledgedChunks.count) / Double(totalChunkCount)
+          }
+        }
+      )
+      resetNFCUploadState()
+      return shouldContinue
+    } catch {
+      resetNFCUploadState()
+      throw error
     }
   }
   
@@ -260,28 +242,16 @@ final class VerificationSession: ObservableObject {
 
     selfiePayloadsByIndex[index] = jpeg
 
-    while true {
-      do {
-        let plans = try buildKnownSelfieUploadPlans()
-        try await uploadKnownSelfiePlans(plans, via: webSocketService)
+    let plans = try buildKnownSelfieUploadPlans()
+    try await uploadKnownSelfiePlans(plans, via: webSocketService)
 
-        let hasAllSelfies = selfiePayloadsByIndex.count == requiredSelfieTotal
-        guard hasAllSelfies else {
-          return false
-        }
-
-        try await completeSelfiePhase(plans: plans, via: webSocketService)
-        return true
-      } catch let socketError as VerifyWebSocketError {
-        if !isTransientSocketError(socketError) {
-          throw socketError
-        }
-
-        // Server transfer state is memory-only and reset on disconnect, so resend all.
-        selfieSentIndices.removeAll()
-        try await Task.sleep(nanoseconds: 300_000_000)
-      }
+    let hasAllSelfies = selfiePayloadsByIndex.count == requiredSelfieTotal
+    guard hasAllSelfies else {
+      return false
     }
+
+    try await completeSelfiePhase(plans: plans, via: webSocketService)
+    return true
   }
 
   /// Move to the next step in the flow.
@@ -312,6 +282,10 @@ final class VerificationSession: ObservableObject {
       else {
         return
       }
+    }
+
+    guard step != .error else {
+      return
     }
 
     let resolvedError = resolveDisplayError(error)
@@ -424,9 +398,6 @@ final class VerificationSession: ObservableObject {
               eventAttemptId: attemptId
             )
           else {
-            return
-          }
-          if self.shouldDeferSocketFailure(socketError) {
             return
           }
           self.handleError(socketError, forAttemptId: attemptId)
@@ -648,21 +619,6 @@ final class VerificationSession: ObservableObject {
     }
 
     return plans
-  }
-
-  private func isTransientSocketError(_ error: VerifyWebSocketError) -> Bool {
-    switch error {
-    case .connectionClosed,
-      .notConnected,
-      .sendFailed,
-      .sendFailedWithReason,
-      .helloTimedOut,
-      .serverResponseTimedOut,
-      .reconnectFailed:
-      return true
-    default:
-      return false
-    }
   }
 
   private func uploadKnownSelfiePlans(
@@ -1092,31 +1048,11 @@ final class VerificationSession: ObservableObject {
       return error
     }
 
-    switch socketError {
-    case .connectionClosed:
-      return VerifyWebSocketError.reconnectFailed
-    default:
-      return socketError
-    }
-  }
-
-  private func shouldDeferSocketFailure(_ error: VerifyWebSocketError) -> Bool {
-    guard step == .nfc, !isUploadingNFC else {
-      return false
+    if isVerificationSessionConnectionLoss(socketError) {
+      return VerificationError.verificationInterrupted
     }
 
-    switch error {
-    case .connectionClosed,
-      .notConnected,
-      .sendFailed,
-      .sendFailedWithReason,
-      .helloTimedOut,
-      .serverResponseTimedOut,
-      .reconnectFailed:
-      return true
-    default:
-      return false
-    }
+    return socketError
   }
 
   private func beginNFCUpload(totalChunkCount: Int) {
@@ -1137,6 +1073,7 @@ enum VerificationError: LocalizedError {
   case notInitialized
   case encryptionFailed
   case uploadFailed
+  case verificationInterrupted
   case missingRequiredNFCData(String, documentChipName: String)
 
   var errorDescription: String? {
@@ -1147,6 +1084,8 @@ enum VerificationError: LocalizedError {
       return "Failed to encrypt data."
     case .uploadFailed:
       return "Failed to upload data. Please try again."
+    case .verificationInterrupted:
+      return "Connection to the verification session was lost. Start again from the beginning."
     case .missingRequiredNFCData(let dataGroup, let documentChipName):
       return "Missing \(dataGroup) from NFC read. Please scan your \(documentChipName) again."
     }

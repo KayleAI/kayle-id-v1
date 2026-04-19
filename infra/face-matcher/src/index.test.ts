@@ -59,6 +59,7 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
       body: createFaceMatcherRequestFormData({
         dg2Image: dg2,
         selfies: [portrait],
+        threshold: 0.7853,
       }),
       headers: {
         [FACE_MATCHER_AUTH_HEADER]: "test-secret",
@@ -90,6 +91,7 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
         width: expect.any(Number),
       }),
       selfiesBase64: [expect.any(String)],
+      threshold: 0.7853,
     })
   );
   const payload = (await response.json()) as Record<string, unknown>;

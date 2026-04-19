@@ -19,7 +19,6 @@ let package = Package(
       path: "Kayle ID",
       sources: [
         "Models/AttemptScope.swift",
-        "Models/CancellationPolicy.swift",
         "Models/MRZResult.swift",
         "Models/QRCodePayload.swift",
         "Models/VerifyWebSocketAuthPolicy.swift",

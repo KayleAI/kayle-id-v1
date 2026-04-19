@@ -28,7 +28,7 @@ export const VERIFY_HANDOFF_COPY = {
       defaultMessageDescription:
         "Scan the QR code with the phone you want to use for verification.",
       headerDescription:
-        "This verification continues in the Kayle ID mobile app.",
+        "This ID check continues in the Kayle ID mobile app.",
       headerTitle: "Open Kayle ID on your phone",
       iosMessageDescription:
         "Open the app directly on this device to continue your verification session.",
@@ -39,7 +39,7 @@ export const VERIFY_HANDOFF_COPY = {
         "This verification must stay on the mobile device that already started it.",
       headerTitle: "Verification failed",
       messageDescription:
-        "The verification did not complete successfully. Retry on that same device, or cancel it there if you want to stop. This browser cannot create a new QR handoff for this session.",
+        "The verification did not complete successfully. Retry on that same device, or cancel it there if you want to stop.",
       messageTitle: "Retry on the same device",
     },
     sameDeviceOnly: {

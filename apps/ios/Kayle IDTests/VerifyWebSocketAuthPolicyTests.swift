@@ -47,6 +47,16 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertFalse(canRetry)
   }
 
+  func testDetectsVerificationSessionConnectionLossErrors() {
+    XCTAssertTrue(isVerificationSessionConnectionLoss(.connectionClosed))
+    XCTAssertTrue(isVerificationSessionConnectionLoss(.serverResponseTimedOut))
+    XCTAssertFalse(
+      isVerificationSessionConnectionLoss(
+        .serverError(code: "NFC_REQUIRED_DATA_MISSING", message: "retry")
+      )
+    )
+  }
+
   func testParsesDataChunkRetryInstruction() {
     let instruction = parseChunkRetryInstruction(
       errorCode: "DATA_CHUNK_RETRY",

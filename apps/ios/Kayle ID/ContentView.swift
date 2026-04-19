@@ -1,5 +1,5 @@
-import LocalAuthentication
 import SwiftUI
+import UIKit
 
 enum CameraCaptureDrawer: String, Identifiable {
   case qr
@@ -125,7 +125,6 @@ struct ContentView: View {
   @State private var isAboutSheetPresented = false
   @State private var isResolvingQRCode = false
   @State private var isCancelVerificationConfirmationPresented = false
-  @State private var isAuthenticatingCancellation = false
   @State private var hasStartedNFCScan = false
   @State private var isRetainingNFCUploadUI = false
   @State private var retainedNFCUploadProgress: Double = 0
@@ -177,6 +176,13 @@ struct ContentView: View {
     .tint(.black)
     .onAppear {
       lastStep = session.step
+      syncIdleTimerState()
+    }
+    .onDisappear {
+      setIdleTimerDisabled(false)
+    }
+    .onChange(of: shouldKeepDeviceAwake) { _ in
+      syncIdleTimerState()
     }
     .onChange(of: session.isUploadingNFC) { isUploading in
       if isUploading {
@@ -397,7 +403,7 @@ struct ContentView: View {
         CompletionView(
         isSuccess: false,
         message: session.errorMessage ?? "An unexpected error occurred.",
-        primaryButtonTitle: "Done",
+        primaryButtonTitle: "Start Again",
         onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
         onSecondaryAction: nil
@@ -744,10 +750,7 @@ struct ContentView: View {
   }
 
   private func presentCancelVerificationConfirmation() {
-    Task { @MainActor in
-      guard await authenticateCancellationIfNeeded() else { return }
-      isCancelVerificationConfirmationPresented = true
-    }
+    isCancelVerificationConfirmationPresented = true
   }
 
   private func dismissCancelVerificationConfirmation() {
@@ -757,37 +760,6 @@ struct ContentView: View {
   private func confirmCancelVerification() {
     dismissCancelVerificationConfirmation()
     cancelVerificationFlow()
-  }
-
-  private func authenticateCancellationIfNeeded() async -> Bool {
-    guard session.requiresAuthenticatedCancellation else {
-      return true
-    }
-
-    guard !isAuthenticatingCancellation else {
-      return false
-    }
-
-    isAuthenticatingCancellation = true
-    defer {
-      isAuthenticatingCancellation = false
-    }
-
-    let context = LAContext()
-    var error: NSError?
-
-    guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-      return false
-    }
-
-    return await withCheckedContinuation { continuation in
-      context.evaluatePolicy(
-        .deviceOwnerAuthentication,
-        localizedReason: "Authenticate to cancel this verification."
-      ) { success, _ in
-        continuation.resume(returning: success)
-      }
-    }
   }
 
   private func goBackFromRFIDCheck() {
@@ -953,7 +925,7 @@ struct ContentView: View {
         completion: CompletionRenderSnapshot(
           isSuccess: false,
           message: session.errorMessage ?? "An unexpected error occurred.",
-          primaryButtonTitle: "Done",
+          primaryButtonTitle: "Start Again",
           secondaryButtonTitle: nil
         )
       )
@@ -979,6 +951,13 @@ struct ContentView: View {
     session.isUploadingNFC || isRetainingNFCUploadUI
   }
 
+  private var shouldKeepDeviceAwake: Bool {
+    shouldPreventDeviceSleepDuringVerification(
+      hasActiveAttempt: session.payload != nil,
+      isTerminalStep: session.step == .complete || session.step == .error
+    )
+  }
+
   private var displayedNFCUploadProgress: Double {
     if session.isUploadingNFC {
       return session.nfcUploadProgress
@@ -994,6 +973,14 @@ struct ContentView: View {
   private func clearRetainedNFCUploadUI() {
     isRetainingNFCUploadUI = false
     retainedNFCUploadProgress = 0
+  }
+
+  private func syncIdleTimerState() {
+    setIdleTimerDisabled(shouldKeepDeviceAwake)
+  }
+
+  private func setIdleTimerDisabled(_ disabled: Bool) {
+    UIApplication.shared.isIdleTimerDisabled = disabled
   }
 
   private func drawerMatchesStep(_ drawer: CameraCaptureDrawer, step: VerificationStep) -> Bool {

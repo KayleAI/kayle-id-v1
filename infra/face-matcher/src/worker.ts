@@ -232,6 +232,7 @@ async function handleMatchRequest({
         (total: number, selfie: Uint8Array) => total + selfie.length,
         0
       ),
+      threshold: payload.threshold ?? null,
       face_score: response.faceScore,
       passed: response.passed,
       used_fallback: response.usedFallback,

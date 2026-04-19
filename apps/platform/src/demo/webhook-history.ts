@@ -46,3 +46,26 @@ export function getLatestDemoWebhook(
 ): DemoWebhookEnvelope | null {
   return getDemoWebhookHistory(source).at(-1) ?? null;
 }
+
+export function getDemoWebhookReplayReceiptIds(
+  webhooks: DemoWebhookEnvelope[]
+): Set<string> {
+  const seenDeliveryIds = new Set<string>();
+  const replayReceiptIds = new Set<string>();
+
+  for (const webhook of webhooks) {
+    const deliveryId = webhook.delivery_id?.trim();
+    if (!deliveryId) {
+      continue;
+    }
+
+    if (seenDeliveryIds.has(deliveryId)) {
+      replayReceiptIds.add(getDemoWebhookReceiptId(webhook));
+      continue;
+    }
+
+    seenDeliveryIds.add(deliveryId);
+  }
+
+  return replayReceiptIds;
+}

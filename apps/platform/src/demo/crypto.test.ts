@@ -42,14 +42,16 @@ async function createSignatureHeader({
 test("verifyWebhookSignature accepts a valid platform demo signature", async () => {
   const payload = "encrypted-payload";
   const secret = "whsec_demo_test_secret";
+  const timestamp = 1_700_000_000;
   const signatureHeader = await createSignatureHeader({
     payload,
     secret,
-    timestamp: 1_700_000_000,
+    timestamp,
   });
 
   const result = await verifyWebhookSignature({
     payload,
+    receivedAt: new Date(timestamp * 1000).toISOString(),
     secret,
     signatureHeader,
   });
@@ -76,6 +78,58 @@ test("verifyWebhookSignature rejects a tampered payload", async () => {
   }
 
   expect(result.message).toContain("verification failed");
+});
+
+test("verifyWebhookSignature rejects stale deliveries outside the freshness window", async () => {
+  const payload = "encrypted-payload";
+  const secret = "whsec_demo_test_secret";
+  const timestamp = 1_700_000_000;
+  const signatureHeader = await createSignatureHeader({
+    payload,
+    secret,
+    timestamp,
+  });
+
+  const result = await verifyWebhookSignature({
+    payload,
+    receivedAt: new Date(timestamp * 1000 + 6 * 60 * 1000).toISOString(),
+    secret,
+    signatureHeader,
+  });
+
+  expect(result.ok).toBe(false);
+  if (result.ok) {
+    throw new Error("expected_stale_signature_failure");
+  }
+
+  expect(result.message).toContain("allowed window");
+});
+
+test("verifyWebhookSignature rejects replayed deliveries", async () => {
+  const payload = "encrypted-payload";
+  const secret = "whsec_demo_test_secret";
+  const timestamp = 1_700_000_000;
+  const signatureHeader = await createSignatureHeader({
+    payload,
+    secret,
+    timestamp,
+  });
+
+  const result = await verifyWebhookSignature({
+    deliveryId: "whd_demo_replay",
+    isReplay: true,
+    payload,
+    receivedAt: new Date(timestamp * 1000).toISOString(),
+    secret,
+    signatureHeader,
+  });
+
+  expect(result.ok).toBe(false);
+  if (result.ok) {
+    throw new Error("expected_replay_failure");
+  }
+
+  expect(result.message).toContain("already been processed");
 });
 
 test("decryptCompactJwe decrypts the Phase 11 webhook payload locally", async () => {

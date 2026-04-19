@@ -1,4 +1,5 @@
 const BASE64_URL_PADDING_PATTERN = /=+$/u;
+const DEFAULT_WEBHOOK_SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder();
 const RSA_PUBLIC_EXPONENT = new Uint8Array([1, 0, 1]);
@@ -37,14 +38,19 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 function parseSignatureHeader(signatureHeader: string): {
-  timestamp: string;
+  timestamp: number;
   v1: string;
 } | null {
   const parts = signatureHeader.split(",").map((part) => part.trim());
-  const timestamp = parts.find((part) => part.startsWith("t="))?.slice(2);
+  const timestampValue = parts.find((part) => part.startsWith("t="))?.slice(2);
   const signature = parts.find((part) => part.startsWith("v1="))?.slice(3);
 
-  if (!(timestamp && signature)) {
+  if (!(timestampValue && signature)) {
+    return null;
+  }
+
+  const timestamp = Number(timestampValue);
+  if (!(Number.isSafeInteger(timestamp) && timestamp >= 0)) {
     return null;
   }
 
@@ -52,6 +58,26 @@ function parseSignatureHeader(signatureHeader: string): {
     timestamp,
     v1: signature,
   };
+}
+
+function parseVerificationTimeMs(
+  value: Date | number | string | undefined
+): number | null {
+  if (value === undefined) {
+    return Date.now();
+  }
+
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isFinite(time) ? time : null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : null;
 }
 
 function signaturesMatch(left: string, right: string): boolean {
@@ -118,19 +144,37 @@ export async function generateDemoKeyPair(): Promise<{
 }
 
 export async function verifyWebhookSignature({
+  deliveryId,
+  isReplay = false,
+  receivedAt,
+  now,
   payload,
   secret,
   signatureHeader,
+  toleranceMs = DEFAULT_WEBHOOK_SIGNATURE_TOLERANCE_MS,
 }: {
+  deliveryId?: string | null;
+  isReplay?: boolean;
+  receivedAt?: Date | number | string;
+  now?: Date | number | string;
   payload: string;
   secret: string;
   signatureHeader: string;
+  toleranceMs?: number;
 }): Promise<{ ok: true } | { message: string; ok: false }> {
   const parsed = parseSignatureHeader(signatureHeader);
   if (!parsed) {
     return {
       ok: false,
       message: "Webhook signature header is malformed.",
+    };
+  }
+
+  const verificationTimeMs = parseVerificationTimeMs(receivedAt ?? now);
+  if (verificationTimeMs === null) {
+    return {
+      ok: false,
+      message: "Webhook receipt timestamp is invalid.",
     };
   }
 
@@ -143,6 +187,24 @@ export async function verifyWebhookSignature({
     return {
       ok: false,
       message: "Webhook signature verification failed.",
+    };
+  }
+
+  if (
+    Math.abs(verificationTimeMs - parsed.timestamp * 1000) > toleranceMs
+  ) {
+    return {
+      ok: false,
+      message: "Webhook signature timestamp is outside the allowed window.",
+    };
+  }
+
+  if (isReplay) {
+    return {
+      ok: false,
+      message: deliveryId
+        ? `Webhook delivery ${deliveryId} has already been processed.`
+        : "This webhook delivery has already been processed.",
     };
   }
 

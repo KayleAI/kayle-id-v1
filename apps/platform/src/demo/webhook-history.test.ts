@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { getDemoWebhookHistory, getLatestDemoWebhook } from "./webhook-history";
+import {
+  getDemoWebhookHistory,
+  getDemoWebhookReplayReceiptIds,
+  getDemoWebhookReceiptId,
+  getLatestDemoWebhook,
+} from "./webhook-history";
 
 const legacyWebhook = {
   body: "legacy",
@@ -38,4 +43,24 @@ test("getDemoWebhookHistory appends the latest webhook when the stored history i
       webhooks: [legacyWebhook],
     })
   ).toEqual(newerWebhook);
+});
+
+test("getDemoWebhookReplayReceiptIds flags repeated delivery ids as replays", () => {
+  const replayedWebhook = {
+    ...legacyWebhook,
+    received_at: "2026-04-19T10:01:00.000Z",
+  };
+  const distinctWebhook = {
+    ...legacyWebhook,
+    delivery_id: "whd_distinct",
+    received_at: "2026-04-19T10:02:00.000Z",
+  };
+
+  expect(
+    getDemoWebhookReplayReceiptIds([
+      legacyWebhook,
+      replayedWebhook,
+      distinctWebhook,
+    ])
+  ).toEqual(new Set([getDemoWebhookReceiptId(replayedWebhook)]));
 });

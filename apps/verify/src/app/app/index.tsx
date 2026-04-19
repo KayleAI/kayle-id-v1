@@ -1,62 +1,37 @@
-import InfoCard from "@/components/info";
-import { useDevice } from "@/utils/use-device";
-import { useVerificationStore } from "../../stores/session";
+import {
+  canRenderWithoutSession,
+  useVerificationStore,
+} from "../../stores/session";
 import { ErrorCard } from "../error";
 import { useSession } from "../session-provider";
 import { SessionConsent } from "./consent";
 import { SessionExplain } from "./explain";
-import { SessionNfcCapture } from "./nfc-capture";
-import { SessionPassportCapture } from "./passport-capture";
-import { UnsupportedDevice } from "./unsupported-device";
+import { Handoff } from "./handoff";
 
 export function SessionApp() {
-  const { session } = useSession();
-  const { supported: deviceSupported } = useDevice();
+  const { error, isSessionDetailsReady, organizationName, session } =
+    useSession();
   const step = useVerificationStore((state) => state.step);
 
-  if (!deviceSupported) {
-    return <UnsupportedDevice />;
-  }
-
-  if (!session) {
+  if (error) {
     return null;
   }
 
-  // Render components based on current verification step
+  if (!isSessionDetailsReady) {
+    return null;
+  }
+
+  if (!session && !canRenderWithoutSession(step)) {
+    return null;
+  }
+
   switch (step) {
     case "explain":
-      return <SessionExplain />;
+      return <SessionExplain organizationName={organizationName} />;
     case "consent":
-      return <SessionConsent />;
-    case "passport-capture":
-      return <SessionPassportCapture />;
-    case "nfc-capture":
-      return <SessionNfcCapture />;
-    case "selfie-capture":
-    case "result":
-    case "share-details":
-    case "teardown":
-      // Placeholder for other steps - to be implemented later
-      return (
-        <InfoCard
-          buttons={{
-            primary: {
-              label: "Continue",
-              onClick: () => window.location.reload(),
-            },
-          }}
-          colour="emerald"
-          footer={true}
-          header={{
-            title: "Verification Complete",
-            description: "You have successfully verified your identity.",
-          }}
-          message={{
-            title: "Thank you for verifying your identity",
-            description: "You can now close this page.",
-          }}
-        />
-      );
+      return <SessionConsent organizationName={organizationName} />;
+    case "handoff":
+      return <Handoff />;
     default:
       return (
         <ErrorCard error={{ code: "UNKNOWN", message: "Unknown error" }} />

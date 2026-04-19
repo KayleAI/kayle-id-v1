@@ -23,6 +23,11 @@ export type VerifySessionStatusPayload = {
   status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 };
 
+export type VerifySessionDetailsPayload = {
+  organization_name: string;
+  session_id: string;
+};
+
 type VerifyApiError = {
   code: string;
   message: string;
@@ -85,7 +90,29 @@ export async function requestVerifySessionStatus(
   return payload.data;
 }
 
-export async function requestCancelVerifySession(sessionId: string): Promise<void> {
+export async function requestVerifySessionDetails(
+  sessionId: string
+): Promise<VerifySessionDetailsPayload> {
+  const response = await fetch(`/v1/verify/session/${sessionId}/details`, {
+    method: "GET",
+  });
+
+  const payload =
+    (await response.json()) as VerifyApiResponse<VerifySessionDetailsPayload>;
+
+  if (!(response.ok && payload.data) || payload.error) {
+    throw createVerifyRequestError(
+      payload.error?.code ?? "UNKNOWN",
+      payload.error?.message ?? "Failed to fetch verification session details."
+    );
+  }
+
+  return payload.data;
+}
+
+export async function requestCancelVerifySession(
+  sessionId: string
+): Promise<void> {
   const response = await fetch(`/v1/verify/session/${sessionId}/cancel`, {
     method: "POST",
   });

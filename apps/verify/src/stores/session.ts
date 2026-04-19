@@ -3,22 +3,26 @@ import { create } from "zustand";
 export type VerificationStep =
   | "explain"
   | "consent"
-  | "passport-capture"
-  | "nfc-capture"
-  | "selfie-capture"
+  | "handoff"
   | "result"
-  | "share-details"
   | "teardown";
+
+const SESSION_OPTIONAL_STEPS = new Set<VerificationStep>([
+  "explain",
+  "consent",
+  "handoff",
+]);
+
+export function canRenderWithoutSession(step: VerificationStep): boolean {
+  return SESSION_OPTIONAL_STEPS.has(step);
+}
 
 type VerificationStore = {
   step: VerificationStep;
   goToExplain: () => void;
   goToConsent: () => void;
-  goToPassportCapture: () => void;
-  goToNfcCapture: () => void;
-  goToSelfieCapture: () => void;
+  goToHandoff: () => void;
   goToResult: () => void;
-  goToShareDetails: () => void;
   goToTeardown: () => void;
 };
 
@@ -33,25 +37,13 @@ export const useVerificationStore = create<VerificationStore>((set) => ({
    */
   goToConsent: () => set({ step: "consent" }),
   /**
-   * Capture the passport's photo page.
+   * Continue the verification in the mobile handoff flow.
    */
-  goToPassportCapture: () => set({ step: "passport-capture" }),
-  /**
-   * Capture the passport's NFC data.
-   */
-  goToNfcCapture: () => set({ step: "nfc-capture" }),
-  /**
-   * Capture a selfie of the user.
-   */
-  goToSelfieCapture: () => set({ step: "selfie-capture" }),
+  goToHandoff: () => set({ step: "handoff" }),
   /**
    * Show the result of the verification.
    */
   goToResult: () => set({ step: "result" }),
-  /**
-   * Share details with the platform.
-   */
-  goToShareDetails: () => set({ step: "share-details" }),
   /**
    * Teardown the verification session.
    */

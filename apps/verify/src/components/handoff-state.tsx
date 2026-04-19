@@ -1,10 +1,10 @@
-import { VERIFY_UNSUPPORTED_DEVICE_COPY } from "@kayle-id/config/verify-unsupported-device-copy";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import { Button } from "@kayleai/ui/button";
 import { QRCodeSVG } from "qrcode.react";
 import OctagonWarning from "@/icons/octagon-warning";
 import Spinner from "@/icons/spinner";
 
-type UnsupportedDeviceHandoffStateProps = {
+type HandoffStateProps = {
   handoffError: string | null;
   handoffLoading: boolean;
   handoffUrl: string | null;
@@ -12,18 +12,18 @@ type UnsupportedDeviceHandoffStateProps = {
   os: string | null;
 };
 
-export function UnsupportedDeviceHandoffState({
+export function HandoffState({
   handoffError,
   handoffLoading,
   handoffUrl,
   onRetry,
   os,
-}: UnsupportedDeviceHandoffStateProps) {
+}: HandoffStateProps) {
   if (handoffLoading) {
     return (
       <div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
         <Spinner className="size-5" />
-        <p>{VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.loadingDescription}</p>
+        <p>{VERIFY_HANDOFF_COPY.handoff.loadingDescription}</p>
       </div>
     );
   }
@@ -36,7 +36,7 @@ export function UnsupportedDeviceHandoffState({
           <p>{handoffError}</p>
         </div>
         <Button className="w-full" onClick={onRetry} type="button">
-          {VERIFY_UNSUPPORTED_DEVICE_COPY.actions.tryAgain}
+          {VERIFY_HANDOFF_COPY.actions.tryAgain}
         </Button>
       </div>
     );
@@ -46,7 +46,7 @@ export function UnsupportedDeviceHandoffState({
     return (
       <div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
         <Spinner className="size-5" />
-        <p>{VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.waitingDescription}</p>
+        <p>{VERIFY_HANDOFF_COPY.handoff.waitingDescription}</p>
       </div>
     );
   }
@@ -58,12 +58,10 @@ export function UnsupportedDeviceHandoffState({
           className="w-full"
           nativeButton={false}
           render={
-            <a href={handoffUrl}>
-              {VERIFY_UNSUPPORTED_DEVICE_COPY.actions.openKayleIdApp}
-            </a>
+            <a href={handoffUrl}>{VERIFY_HANDOFF_COPY.actions.openKayleIdApp}</a>
           }
         >
-          {VERIFY_UNSUPPORTED_DEVICE_COPY.actions.openKayleIdApp}
+          {VERIFY_HANDOFF_COPY.actions.openKayleIdApp}
         </Button>
       ) : null}
       <div className="flex justify-center rounded-lg border border-blue-200 border-dashed bg-white p-4">

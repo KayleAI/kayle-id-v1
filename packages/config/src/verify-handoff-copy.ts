@@ -1,4 +1,4 @@
-export const VERIFY_UNSUPPORTED_DEVICE_COPY = {
+export const VERIFY_HANDOFF_COPY = {
   actions: {
     cancel: "Cancel",
     cancelConfirmation:

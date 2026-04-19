@@ -14,7 +14,13 @@ import type {
   VerifySession,
 } from "@/config/capnp";
 import { initialiseSession } from "@/config/capnp";
-import { requestHandoffPayload } from "@/config/handoff";
+import {
+  requestHandoffPayload,
+  requestVerifySessionDetails,
+  requestVerifySessionStatus,
+  type VerifySessionStatusPayload,
+} from "@/config/handoff";
+import { useVerificationStore } from "../stores/session";
 import { useDevice } from "@/utils/use-device";
 
 const WEB_DEVICE_ID_STORAGE_KEY = "kayle-id.verify.web-device-id";
@@ -155,7 +161,20 @@ async function bootstrapSupportedSession({
   }
 }
 
+function shouldStartInHandoff(
+  sessionStatus: VerifySessionStatusPayload
+): boolean {
+  return !(
+    sessionStatus.status === "created" &&
+    sessionStatus.latest_attempt === null &&
+    !sessionStatus.same_device_only
+  );
+}
+
 type SessionContextType = {
+  isSessionDetailsReady: boolean;
+  organizationName: string | null;
+  sessionStatus: VerifySessionStatusPayload | null;
   session: VerifySession | null;
   error: SessionError | null;
   onError: (callback: (sessionError: SessionError) => void) => () => void;
@@ -170,6 +189,10 @@ type SessionProviderProps = {
 
 export function SessionProvider({ sessionId, children }: SessionProviderProps) {
   const { supported: deviceSupported } = useDevice();
+  const [isSessionDetailsReady, setIsSessionDetailsReady] = useState(false);
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] =
+    useState<VerifySessionStatusPayload | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
   const [error, setError] = useState<SessionError | null>(null);
   const errorCallbacksRef = useRef<Set<(sessionError: SessionError) => void>>(
@@ -207,6 +230,43 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
   );
 
   useEffect(() => {
+    let isStale = false;
+
+    setIsSessionDetailsReady(false);
+    setOrganizationName(null);
+    setSessionStatus(null);
+
+    Promise.all([
+      requestVerifySessionDetails(sessionId),
+      requestVerifySessionStatus(sessionId),
+    ])
+      .then(([details, nextSessionStatus]) => {
+        if (isStale) {
+          return;
+        }
+
+        setOrganizationName(details.organization_name);
+        setSessionStatus(nextSessionStatus);
+        useVerificationStore.setState({
+          step: shouldStartInHandoff(nextSessionStatus) ? "handoff" : "explain",
+        });
+        setIsSessionDetailsReady(true);
+      })
+      .catch((detailsError) => {
+        if (isStale) {
+          return;
+        }
+
+        setIsSessionDetailsReady(true);
+        handleRpcError(toSessionError(detailsError));
+      });
+
+    return () => {
+      isStale = true;
+    };
+  }, [handleRpcError, sessionId]);
+
+  useEffect(() => {
     // Reset state when sessionId changes
     setIsSessionReady(false);
     setError(null);
@@ -236,14 +296,24 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
     };
   }, [deviceSupported, sessionId, handleRpcError]);
 
-  // Memoize the context value, providing session from ref only when ready
+    // Memoize the context value, providing session from ref only when ready
   const value: SessionContextType = useMemo(
     () => ({
+      isSessionDetailsReady,
+      organizationName,
+      sessionStatus,
       session: isSessionReady ? sessionStubRef.current : null,
       error,
       onError,
     }),
-    [isSessionReady, error, onError]
+    [
+      isSessionDetailsReady,
+      organizationName,
+      sessionStatus,
+      isSessionReady,
+      error,
+      onError,
+    ]
   );
 
   return (

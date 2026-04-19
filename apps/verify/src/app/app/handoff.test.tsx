@@ -46,6 +46,7 @@ const qrPropsSpy = vi.fn();
 const assignLocationSpy = vi.fn();
 const closeSpy = vi.fn();
 const confirmSpy = vi.fn();
+const mockedUseSession = vi.fn();
 const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
 const requestVerifySessionStatusMock = vi.fn();
@@ -64,6 +65,10 @@ vi.mock("@/utils/use-device", () => ({
 
 vi.mock("@/utils/navigation", () => ({
   redirectToUrl: (targetUrl: string) => assignLocationSpy(targetUrl),
+}));
+
+vi.mock("../session-provider", () => ({
+  useSession: () => mockedUseSession(),
 }));
 
 vi.mock("@/config/handoff", () => ({
@@ -159,7 +164,7 @@ vi.mock("qrcode.react", () => ({
   },
 }));
 
-import { UnsupportedDevice } from "./unsupported-device";
+import { Handoff } from "./handoff";
 
 function createHandoffPayload(
   overrides: Partial<HandoffPayload> = {}
@@ -216,6 +221,7 @@ async function flushUi(): Promise<void> {
 
 beforeEach(() => {
   mockedUseDevice.mockReset();
+  mockedUseSession.mockReset();
   qrPropsSpy.mockReset();
   assignLocationSpy.mockReset();
   closeSpy.mockReset();
@@ -224,6 +230,9 @@ beforeEach(() => {
   requestVerifySessionStatusMock.mockReset();
   confirmSpy.mockReset();
   confirmSpy.mockReturnValue(true);
+  mockedUseSession.mockReturnValue({
+    sessionStatus: null,
+  });
   Object.defineProperty(window, "confirm", {
     configurable: true,
     value: confirmSpy,
@@ -242,8 +251,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("UnsupportedDevice", () => {
-  test("renders the inline handoff screen on entry instead of an unsupported-device dialog", async () => {
+describe("Handoff", () => {
+  test("renders the inline handoff screen on entry instead of a separate handoff dialog", async () => {
     mockedUseDevice.mockReturnValue({
       supported: false,
       os: "ios",
@@ -252,7 +261,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     expect(await view.findByText("Open Kayle ID on your phone")).not.toBeNull();
     expect(view.queryByText("Unsupported Device")).toBeNull();
@@ -278,6 +287,34 @@ describe("UnsupportedDevice", () => {
     expect(view.getByRole("button", { name: "Cancel" })).not.toBeNull();
   });
 
+  test("renders a prefetched terminal status without reloading session status first", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "unknown",
+    });
+    mockedUseSession.mockReturnValue({
+      sessionStatus: createSessionStatus({
+        completed_at: "2099-01-01T00:00:00.000Z",
+        is_terminal: true,
+        latest_attempt: {
+          completed_at: "2099-01-01T00:00:00.000Z",
+          failure_code: null,
+          handoff_claimed: true,
+          id: "va_test_attempt123",
+          retry_allowed: false,
+          status: "succeeded",
+        },
+        status: "completed",
+      }),
+    });
+
+    const view = render(<Handoff />);
+
+    expect(await view.findByText("Verification complete")).not.toBeNull();
+    expect(requestVerifySessionStatusMock).not.toHaveBeenCalled();
+    expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
+  });
+
   test("hides the handoff QR code once the mobile device connects", async () => {
     vi.useFakeTimers();
 
@@ -295,7 +332,7 @@ describe("UnsupportedDevice", () => {
         })
       );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -336,7 +373,7 @@ describe("UnsupportedDevice", () => {
       );
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
@@ -365,7 +402,7 @@ describe("UnsupportedDevice", () => {
     );
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     expect(
       await view.findByText("Unable to generate handoff QR code.")
@@ -400,7 +437,7 @@ describe("UnsupportedDevice", () => {
         })
       );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -448,7 +485,7 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
 
@@ -468,7 +505,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -509,7 +546,7 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
 
@@ -532,7 +569,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
 
@@ -577,7 +614,7 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(
@@ -627,7 +664,7 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     expect(await view.findByText(CLOSE_PAGE_TEXT)).not.toBeNull();
     expect(view.getByText(CLOSE_PAGE_TEXT)).not.toBeNull();

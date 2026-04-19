@@ -1,21 +1,23 @@
-import { VERIFY_UNSUPPORTED_DEVICE_COPY } from "@kayle-id/config/verify-unsupported-device-copy";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import { useLoaderData } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   buildConnectedScreenContent,
+  buildHandoffUrl,
   buildInitialScreenContent,
   buildRetryableFailureScreenContent,
   buildSameDeviceScreenContent,
   buildTerminalContent,
   buildTerminalScreenContent,
+  isHandoffPayloadExpired,
   isRetryableFailureState,
   requiresSameDeviceOnly,
   shouldCloseBrowserOnly,
   shouldShowHandoff,
-} from "@/app/app/unsupported-device-content";
+} from "@/app/app/handoff-content";
 import InfoCard from "@/components/info";
-import { UnsupportedDeviceHandoffState } from "@/components/unsupported-device-handoff-state";
+import { HandoffState } from "@/components/handoff-state";
 import type {
   HandoffPayload,
   VerifySessionStatusPayload,
@@ -27,21 +29,11 @@ import {
 } from "@/config/handoff";
 import { redirectToUrl } from "@/utils/navigation";
 import { useDevice } from "@/utils/use-device";
+import { useSession } from "../session-provider";
 
 const REDIRECT_COUNTDOWN_SECONDS = 3;
 const HANDOFF_REFRESH_INTERVAL_MS = 60_000;
 const STATUS_POLL_INTERVAL_MS = 2000;
-
-function buildHandoffUrl(payload: HandoffPayload): string {
-  return `kayle-id://${encodeURIComponent(JSON.stringify(payload))}`;
-}
-
-function isHandoffPayloadExpired(
-  payload: HandoffPayload,
-  nowMs: number
-): boolean {
-  return new Date(payload.expires_at).getTime() <= nowMs;
-}
 
 function buildRedirectTargetUrl({
   redirectUrl,
@@ -96,8 +88,9 @@ function buildCancelledSessionStatus({
   };
 }
 
-export function UnsupportedDevice() {
+export function Handoff() {
   const { os } = useDevice();
+  const { sessionStatus: prefetchedSessionStatus } = useSession();
   const { sessionId } = useLoaderData({
     from: "/$",
   });
@@ -107,8 +100,10 @@ export function UnsupportedDevice() {
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] =
-    useState<VerifySessionStatusPayload | null>(null);
-  const [statusLoading, setStatusLoading] = useState(true);
+    useState<VerifySessionStatusPayload | null>(prefetchedSessionStatus);
+  const [statusLoading, setStatusLoading] = useState(
+    prefetchedSessionStatus === null
+  );
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(
     null
   );
@@ -174,7 +169,7 @@ export function UnsupportedDevice() {
         return;
       }
 
-      setHandoffError(VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.refreshError);
+      setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
       return null;
     } finally {
       setHandoffLoading(false);
@@ -190,7 +185,7 @@ export function UnsupportedDevice() {
 
     if (!nextStatus) {
       setHandoffPayload(null);
-      setHandoffError(VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.loadStatusError);
+      setHandoffError(VERIFY_HANDOFF_COPY.handoff.loadStatusError);
       return;
     }
 
@@ -225,7 +220,7 @@ export function UnsupportedDevice() {
       }
 
       setHandoffPayload(null);
-      setHandoffError(VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.refreshError);
+      setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
     }
   }, [handoffPayload, pollSessionStatus, sessionId]);
 
@@ -233,9 +228,7 @@ export function UnsupportedDevice() {
     if (
       typeof window !== "undefined" &&
       typeof window.confirm === "function" &&
-      !window.confirm(
-        VERIFY_UNSUPPORTED_DEVICE_COPY.actions.cancelConfirmation
-      )
+      !window.confirm(VERIFY_HANDOFF_COPY.actions.cancelConfirmation)
     ) {
       return;
     }
@@ -253,7 +246,7 @@ export function UnsupportedDevice() {
         })
       );
     } catch {
-      setHandoffError(VERIFY_UNSUPPORTED_DEVICE_COPY.handoff.cancelError);
+      setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
     }
   }, [sessionId, sessionStatus]);
 
@@ -313,10 +306,24 @@ export function UnsupportedDevice() {
   }, [isTerminal, pollSessionStatus]);
 
   useEffect(() => {
-    loadHandoffState().catch(() => {
-      // loadHandoffState already stores the error state that the UI renders.
+    if (!prefetchedSessionStatus) {
+      loadHandoffState().catch(() => {
+        // loadHandoffState already stores the error state that the UI renders.
+      });
+      return;
+    }
+
+    setSessionStatus(prefetchedSessionStatus);
+    setStatusLoading(false);
+
+    if (!shouldShowHandoff(prefetchedSessionStatus)) {
+      return;
+    }
+
+    fetchHandoffPayload().catch(() => {
+      // fetchHandoffPayload already stores the error state that the UI renders.
     });
-  }, [loadHandoffState]);
+  }, [fetchHandoffPayload, loadHandoffState, prefetchedSessionStatus]);
 
   useEffect(() => {
     if (isTerminal || !shouldShowHandoff(sessionStatus)) {
@@ -378,7 +385,7 @@ export function UnsupportedDevice() {
 
   if (statusLoading || shouldShowHandoff(sessionStatus) || handoffError) {
     stateContent = (
-      <UnsupportedDeviceHandoffState
+      <HandoffState
         handoffError={handoffError}
         handoffLoading={handoffLoading || statusLoading}
         handoffUrl={handoffUrl}
@@ -391,7 +398,7 @@ export function UnsupportedDevice() {
   if (redirectTargetUrl) {
     buttons = {
       primary: {
-        label: VERIFY_UNSUPPORTED_DEVICE_COPY.actions.continueNow,
+        label: VERIFY_HANDOFF_COPY.actions.continueNow,
         onClick: () => {
           redirectToUrl(redirectTargetUrl);
         },
@@ -400,7 +407,7 @@ export function UnsupportedDevice() {
   } else if (isTerminal) {
     buttons = {
       primary: {
-        label: VERIFY_UNSUPPORTED_DEVICE_COPY.actions.closeThisPage,
+        label: VERIFY_HANDOFF_COPY.actions.closeThisPage,
         onClick: () => {
           closeBrowserPage();
         },
@@ -409,7 +416,7 @@ export function UnsupportedDevice() {
   } else if (shouldDismissLocally) {
     buttons = {
       secondary: {
-        label: VERIFY_UNSUPPORTED_DEVICE_COPY.actions.closeThisPage,
+        label: VERIFY_HANDOFF_COPY.actions.closeThisPage,
         onClick: () => {
           closeBrowserPage();
         },
@@ -418,7 +425,7 @@ export function UnsupportedDevice() {
   } else {
     buttons = {
       secondary: {
-        label: VERIFY_UNSUPPORTED_DEVICE_COPY.actions.cancel,
+        label: VERIFY_HANDOFF_COPY.actions.cancel,
         onClick: () => {
           handleCancelVerification().catch(() => {
             // handleCancelVerification already stores the error state that the UI renders.

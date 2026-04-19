@@ -12,6 +12,7 @@ import {
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
 import { loadActiveVerifySession } from "./session-context";
+import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
 import { webSocketErrorResponse } from "./utils";
@@ -74,6 +75,40 @@ verify.post(
     return c.json(
       {
         data: handoff.data,
+        error: null,
+      },
+      200
+    );
+  }
+);
+
+verify.get(
+  "/session/:id/details",
+  validator("param", sessionParamJsonValidator),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const details = await getPublicVerifySessionDetails({
+      sessionId: id,
+    });
+
+    if (!details) {
+      const response = createVerifyJsonErrorResponse({
+        code: "SESSION_NOT_FOUND",
+        status: 404,
+      });
+
+      return c.json(
+        {
+          data: response.data,
+          error: response.error,
+        },
+        response.status
+      );
+    }
+
+    return c.json(
+      {
+        data: details,
         error: null,
       },
       200

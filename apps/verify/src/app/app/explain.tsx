@@ -1,12 +1,18 @@
 import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
 import { useVerificationStore } from "../../stores/session";
+import { getPlatformNameLabel } from "./platform-name";
 
 /**
  * This component is used to explain the verification process to the user.
  */
-export function SessionExplain() {
+export function SessionExplain({
+  organizationName,
+}: {
+  organizationName?: string | null;
+}) {
   const goToConsent = useVerificationStore((state) => state.goToConsent);
+  const platformName = getPlatformNameLabel(organizationName);
 
   return (
     <div className="relative flex w-full flex-col items-center justify-center">
@@ -38,7 +44,7 @@ export function SessionExplain() {
                 Shares only the verification result and details you choose to
                 share with{" "}
                 <span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-                  Platform Name
+                  {platformName}
                 </span>
               </li>
             </ul>

@@ -59,6 +59,17 @@ type VerifySessionStatusResponse = {
   } | null;
 };
 
+type VerifySessionDetailsResponse = {
+  data: {
+    organization_name: string;
+    session_id: string;
+  } | null;
+  error: {
+    code: string;
+    message: string;
+  } | null;
+};
+
 async function createSession({
   redirectUrl,
 }: {
@@ -293,6 +304,39 @@ describe("/v1/verify/session/:id/handoff", () => {
 });
 
 describe("/v1/verify/session/:id/status", () => {
+  test.serial("Returns 400 for invalid session ID details requests", async () => {
+    const response = await app.request(
+      "/v1/verify/session/not-a-session/details",
+      {
+        method: "GET",
+      }
+    );
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as VerifySessionDetailsResponse;
+    expect(payload.error?.code).toBe("INVALID_SESSION_ID");
+  });
+
+  test.serial("Returns the public session details with organization name", async () => {
+    const sessionId = await createSession();
+
+    const response = await app.request(
+      `/v1/verify/session/${sessionId}/details`,
+      {
+        method: "GET",
+      }
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as VerifySessionDetailsResponse;
+
+    expect(payload.error).toBeNull();
+    expect(payload.data).toEqual({
+      organization_name: "Test Organization",
+      session_id: sessionId,
+    });
+  });
+
   test.serial("Cancels a live verification session via the public verify route", async () => {
     const sessionId = await createSession();
 

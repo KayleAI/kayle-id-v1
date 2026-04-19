@@ -3,8 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "email dev --dir ./emails --port 3002",
-    "test": "bun test ./src"
+    "dev": "email dev --dir ./emails --port 3002"
   },
   "devDependencies": {
     "@react-email/preview-server": "5.2.10",

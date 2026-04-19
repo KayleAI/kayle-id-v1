@@ -1,12 +1,16 @@
 import { logEvent } from "@kayle-id/config/logging";
 import { attemptWebhookDelivery } from "@/v1/webhooks/deliveries/service";
 import { getNfcTransferStatus, getSelfieTransferStatus } from "./data-payload";
+import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
 import { resolveVerifyErrorMessage } from "./error-response";
 import { matchFaces } from "./face-matcher-client";
 import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
 import type { VerifySocketContext } from "./socket-context";
 import { validateAuthenticity } from "./validation";
-import type { FaceScoreResult } from "./validation-types";
+import {
+  DEFAULT_FACE_MATCH_THRESHOLD,
+  type FaceScoreResult,
+} from "./validation-types";
 
 export function shouldRejectSuccessfulFallbackMatch({
   faceResult,
@@ -159,6 +163,36 @@ async function resolveSelfieVerdict(
   };
 }
 
+function resolveSelfieMatchThreshold(
+  context: VerifySocketContext,
+  attemptId: string
+): number {
+  const dg1 = context.state.transfer.dg1;
+
+  if (!dg1) {
+    return DEFAULT_FACE_MATCH_THRESHOLD;
+  }
+
+  try {
+    return resolveFaceMatchThresholdFromDg1({
+      dg1,
+      now: new Date(),
+    });
+  } catch (error) {
+    logEvent(context.log, {
+      details: {
+        attempt_id: attemptId,
+        error:
+          error instanceof Error ? error.message : "face_match_threshold_invalid",
+      },
+      event: "verify.ws.face_match_threshold_defaulted",
+      level: "warn",
+    });
+
+    return DEFAULT_FACE_MATCH_THRESHOLD;
+  }
+}
+
 export async function runPhaseValidation(
   context: VerifySocketContext,
   attemptId: string,
@@ -203,9 +237,12 @@ export async function runPhaseValidation(
     return null;
   }
 
+  const threshold = resolveSelfieMatchThreshold(context, attemptId);
+
   const result = await matchFaces({
     dg2Image: documentPortrait,
     selfies: Array.from(context.state.transfer.selfies.values()),
+    threshold,
     env: context.env,
     attemptId,
     logger: context.log,
@@ -214,6 +251,7 @@ export async function runPhaseValidation(
     details: {
       attempt_id: attemptId,
       face_score: result.faceScore,
+      face_match_threshold: threshold,
       passed: result.passed,
       reason: result.reason ?? null,
       used_fallback: result.usedFallback,

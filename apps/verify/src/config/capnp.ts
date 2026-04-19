@@ -14,7 +14,7 @@ export type SessionError = {
 export type VerifySession = {
   connect: () => Promise<void>;
   ping: () => Promise<string>;
-  notifyUnsupportedDevice: () => Promise<void>;
+  notifyHandoff: () => Promise<void>;
   sendPhase: (phase: string, error?: string) => Promise<void>;
   sendData: (
     kind: number,
@@ -259,8 +259,8 @@ export function initialiseSession(
     ping() {
       return sendWithAck(encodePhase("ping"));
     },
-    async notifyUnsupportedDevice() {
-      await sendWithAck(encodePhase("unsupported_device"));
+    async notifyHandoff() {
+      await sendWithAck(encodePhase("handoff"));
     },
     async sendPhase(phase: string, error?: string) {
       await sendWithAck(encodePhase(phase, error));

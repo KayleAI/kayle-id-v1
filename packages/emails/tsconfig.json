@@ -1,7 +1,13 @@
 {
-  "include": ["src/**/*.ts", "src/**/*.tsx", "emails/**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "emails/**/*.tsx"
+  ],
   "compilerOptions": {
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
@@ -19,9 +25,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "*": [
+        "./*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     }
   }
 }

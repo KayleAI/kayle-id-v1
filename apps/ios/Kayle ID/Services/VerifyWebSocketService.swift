@@ -8,58 +8,6 @@ enum VerifyDataKind: Int {
   case selfie = 3
 }
 
-enum VerifyWebSocketError: LocalizedError {
-  case notConnected
-  case invalidURL
-  case sendFailed
-  case sendFailedWithReason(String)
-  case connectionClosed
-  case helloTimedOut
-  case serverResponseTimedOut
-  case serverError(code: String, message: String)
-  case unexpectedServerResponse(String)
-  case reconnectFailed
-
-  var errorDescription: String? {
-    switch self {
-    case .notConnected:
-      return "WebSocket not connected."
-    case .invalidURL:
-      return "Invalid WebSocket URL."
-    case .sendFailed:
-      return "Failed to send WebSocket message."
-    case .sendFailedWithReason(let message):
-      return "Failed to send WebSocket message: \(message)"
-    case .connectionClosed:
-      return "WebSocket connection closed unexpectedly."
-    case .helloTimedOut:
-      return "Timed out waiting for verification handshake."
-    case .serverResponseTimedOut:
-      return "Timed out waiting for verification server response."
-    case .serverError(_, let message):
-      return message
-    case .unexpectedServerResponse(let message):
-      return message
-    case .reconnectFailed:
-      return "Failed to reconnect verification session."
-    }
-  }
-
-  var serverErrorCode: String? {
-    if case .serverError(let code, _) = self {
-      return code
-    }
-    return nil
-  }
-
-  var isNonRetryableAuthFailure: Bool {
-    guard let code = serverErrorCode else {
-      return false
-    }
-    return isNonRetryableAuthErrorCode(code)
-  }
-}
-
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   // The verification flow keeps the socket open while the user scans MRZ and reads NFC.
   private let requestTimeoutSeconds = 10 * 60.0
@@ -75,14 +23,10 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
   private var webSocketTask: URLSessionWebSocketTask?
   private let stateQueue = DispatchQueue(label: "com.kayle.verify.websocket.state")
-  private let maxReconnectAttempts = 8
   private let helloAckTimeoutNs: UInt64 = 8_000_000_000
   private let serverResponseTimeoutNs: UInt64 = 8_000_000_000
 
-  private var isAuthenticated = false
   private var isClosing = false
-  private var isReconnecting = false
-  private var reconnectAttempt = 0
   private var helloDeviceId: String?
   private var helloAppVersion: String?
   private var pendingHelloContinuation: CheckedContinuation<Void, Error>?
@@ -475,12 +419,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func setAuthenticated(_ value: Bool) {
-    stateQueue.sync {
-      isAuthenticated = value
-    }
-  }
-
   private func startKeepalive() {
     stopKeepalive()
     keepaliveTask = Task { [weak self] in
@@ -503,17 +441,13 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 #if DEBUG
           print("WebSocket keepalive failed: \(wsError.localizedDescription)")
 #endif
-          resolvePendingHello(.failure(.connectionClosed))
-          resolvePendingServerResponse(.failure(.connectionClosed))
-          scheduleReconnect(lastErrorCode: wsError.serverErrorCode)
+          handleUnexpectedConnectionLoss()
           return
         } catch {
 #if DEBUG
           print("WebSocket keepalive failed: \(error.localizedDescription)")
 #endif
-          resolvePendingHello(.failure(.connectionClosed))
-          resolvePendingServerResponse(.failure(.connectionClosed))
-          scheduleReconnect(lastErrorCode: nil)
+          handleUnexpectedConnectionLoss()
           return
         }
       }
@@ -537,93 +471,25 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func scheduleReconnect(lastErrorCode: String?) {
-    let shouldStart = stateQueue.sync { () -> Bool in
-      guard !isClosing, !isReconnecting else {
+  private func handleUnexpectedConnectionLoss() {
+    let shouldHandle = stateQueue.sync { () -> Bool in
+      guard !isClosing else {
         return false
       }
-      let nextAttempt = reconnectAttempt + 1
-      guard
-        shouldRetryReconnect(
-          isAuthenticated: isAuthenticated,
-          lastErrorCode: lastErrorCode,
-          attempt: nextAttempt,
-          maxAttempts: maxReconnectAttempts
-        )
-      else {
-        return false
-      }
-      isReconnecting = true
+      isClosing = true
+      expectedVerdictClose = false
       return true
     }
 
-    guard shouldStart else {
-      if let lastErrorCode, isNonRetryableAuthErrorCode(lastErrorCode) {
-        handleFatalError(.serverError(code: lastErrorCode, message: lastErrorCode))
-      }
+    guard shouldHandle else {
       return
     }
 
-    Task {
-      await reconnectLoop(lastErrorCode: lastErrorCode)
-    }
-  }
-
-  private func reconnectLoop(lastErrorCode: String?) async {
-    var lastError: VerifyWebSocketError = .reconnectFailed
-
-    while true {
-      let (attempt, canContinue) = stateQueue.sync { () -> (Int, Bool) in
-        let nextAttempt = reconnectAttempt + 1
-        let allowed = shouldRetryReconnect(
-          isAuthenticated: isAuthenticated,
-          lastErrorCode: lastErrorCode,
-          attempt: nextAttempt,
-          maxAttempts: maxReconnectAttempts
-        )
-        if allowed {
-          reconnectAttempt = nextAttempt
-        }
-        return (nextAttempt, allowed)
-      }
-
-      guard canContinue else {
-        break
-      }
-
-      let delayNs = UInt64(min(attempt, 5)) * 1_000_000_000
-      try? await Task.sleep(nanoseconds: delayNs)
-
-      do {
-        guard let url = websocketURL() else {
-          throw VerifyWebSocketError.invalidURL
-        }
-
-        startSocket(url: url)
-        try await sendHello()
-
-        stateQueue.sync {
-          reconnectAttempt = 0
-          isReconnecting = false
-          isAuthenticated = true
-        }
-        startKeepalive()
-
-        return
-      } catch let wsError as VerifyWebSocketError {
-        lastError = wsError
-        if wsError.isNonRetryableAuthFailure {
-          break
-        }
-      } catch {
-        lastError = .reconnectFailed
-      }
-    }
-
-    stateQueue.sync {
-      isReconnecting = false
-    }
-    handleFatalError(resolveReconnectFailure(lastError))
+    stopKeepalive()
+    resolvePendingHello(.failure(.connectionClosed))
+    resolvePendingServerResponse(.failure(.connectionClosed))
+    closeSocket()
+    handleFatalError(.connectionClosed)
   }
 
   private func send(data: Data) async throws {
@@ -634,15 +500,18 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       task.send(.data(data)) { error in
         if let error {
-          if self.isTimedOutError(error) {
+          if self.isConnectionLossError(error) {
 #if DEBUG
-            print("WebSocket send timed out. Reconnecting…")
+            print("WebSocket send failed after connection loss: \(error.localizedDescription)")
 #endif
+            self.stateQueue.sync {
+              self.isClosing = true
+              self.expectedVerdictClose = false
+            }
             self.stopKeepalive()
             self.closeSocket()
             self.resolvePendingHello(.failure(.connectionClosed))
             self.resolvePendingServerResponse(.failure(.connectionClosed))
-            self.scheduleReconnect(lastErrorCode: nil)
             continuation.resume(throwing: VerifyWebSocketError.connectionClosed)
             return
           }
@@ -662,27 +531,28 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func isTimedOutError(_ error: Error) -> Bool {
+  private func isConnectionLossError(_ error: Error) -> Bool {
     if let urlError = error as? URLError {
-      return urlError.code == .timedOut
+      switch urlError.code {
+      case .timedOut, .networkConnectionLost, .notConnectedToInternet:
+        return true
+      default:
+        return false
+      }
     }
 
     let nsError = error as NSError
-    return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorTimedOut
-  }
+    guard nsError.domain == NSURLErrorDomain else {
+      return false
+    }
 
-  private func resolveReconnectFailure(
-    _ error: VerifyWebSocketError
-  ) -> VerifyWebSocketError {
-    switch error {
-    case .connectionClosed,
-      .notConnected,
-      .sendFailed,
-      .sendFailedWithReason,
-      .serverResponseTimedOut:
-      return .reconnectFailed
+    switch nsError.code {
+    case NSURLErrorTimedOut,
+      NSURLErrorNetworkConnectionLost,
+      NSURLErrorNotConnectedToInternet:
+      return true
     default:
-      return error
+      return false
     }
   }
 
@@ -724,10 +594,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
               ) {
                 switch helloResponse {
                 case .success:
-                  self.setAuthenticated(true)
-                  self.stateQueue.sync {
-                    self.reconnectAttempt = 0
-                  }
                   self.startKeepalive()
                   self.resolvePendingHello(.success(()))
                 case .failure(let code, let message):
@@ -834,10 +700,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
         if self.consumeExpectedVerdictClose() {
           return
         }
-        self.stopKeepalive()
-        self.resolvePendingHello(.failure(.connectionClosed))
-        self.resolvePendingServerResponse(.failure(.connectionClosed))
-        self.scheduleReconnect(lastErrorCode: nil)
+        self.handleUnexpectedConnectionLoss()
         return
       }
       self.receiveLoop(for: task)
@@ -862,9 +725,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    stopKeepalive()
-    resolvePendingHello(.failure(.connectionClosed))
-    resolvePendingServerResponse(.failure(.connectionClosed))
-    scheduleReconnect(lastErrorCode: nil)
+    handleUnexpectedConnectionLoss()
   }
 }

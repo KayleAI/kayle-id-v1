@@ -1,5 +1,57 @@
 import Foundation
 
+enum VerifyWebSocketError: LocalizedError {
+  case notConnected
+  case invalidURL
+  case sendFailed
+  case sendFailedWithReason(String)
+  case connectionClosed
+  case helloTimedOut
+  case serverResponseTimedOut
+  case serverError(code: String, message: String)
+  case unexpectedServerResponse(String)
+  case reconnectFailed
+
+  var errorDescription: String? {
+    switch self {
+    case .notConnected:
+      return "WebSocket not connected."
+    case .invalidURL:
+      return "Invalid WebSocket URL."
+    case .sendFailed:
+      return "Failed to send WebSocket message."
+    case .sendFailedWithReason(let message):
+      return "Failed to send WebSocket message: \(message)"
+    case .connectionClosed:
+      return "WebSocket connection closed unexpectedly."
+    case .helloTimedOut:
+      return "Timed out waiting for verification handshake."
+    case .serverResponseTimedOut:
+      return "Timed out waiting for verification server response."
+    case .serverError(_, let message):
+      return message
+    case .unexpectedServerResponse(let message):
+      return message
+    case .reconnectFailed:
+      return "Failed to reconnect verification session."
+    }
+  }
+
+  var serverErrorCode: String? {
+    if case .serverError(let code, _) = self {
+      return code
+    }
+    return nil
+  }
+
+  var isNonRetryableAuthFailure: Bool {
+    guard let code = serverErrorCode else {
+      return false
+    }
+    return isNonRetryableAuthErrorCode(code)
+  }
+}
+
 nonisolated private enum PublicShareFieldVisibility {
   static let showsKayleHumanId = false
 }
@@ -743,6 +795,23 @@ nonisolated func isNonRetryableAuthErrorCode(_ code: String) -> Bool {
     "HANDOFF_TOKEN_EXPIRED",
     "HANDOFF_TOKEN_CONSUMED",
     "HANDOFF_DEVICE_MISMATCH":
+    return true
+  default:
+    return false
+  }
+}
+
+nonisolated func isVerificationSessionConnectionLoss(
+  _ error: VerifyWebSocketError
+) -> Bool {
+  switch error {
+  case .connectionClosed,
+    .notConnected,
+    .sendFailed,
+    .sendFailedWithReason,
+    .helloTimedOut,
+    .serverResponseTimedOut,
+    .reconnectFailed:
     return true
   default:
     return false

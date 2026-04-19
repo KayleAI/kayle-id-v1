@@ -10,16 +10,12 @@ import {
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
+import {
+  ageFromDateOfBirth,
+  parseTd3MrzClaims,
+  type Dg1Claims,
+} from "./dg1-claims";
 import { extractDg2FaceImage } from "./dg2-face-image";
-import { readTlv } from "./tlv";
-
-const DG1_ROOT_TAG = 0x61;
-const MRZ_DATA_TAG = 0x5f_1f;
-const MRZ_LINE_LENGTH = 44;
-const MIN_BIRTH_YEAR_OFFSET = 130;
-const MAX_EXPIRY_PAST_OFFSET = 50;
-const MAX_EXPIRY_FUTURE_OFFSET = 50;
-const SIX_DIGIT_DATE_REGEX = /^\d{6}$/;
 
 type ShareSelectionValidationCode =
   | "INVALID_SESSION_ID"
@@ -43,19 +39,6 @@ export type VerifyShareManifest = {
   sessionId: string;
 };
 
-type Dg1Claims = {
-  birthDateIso: string;
-  documentNumber: string;
-  documentType: string;
-  expiryDateIso: string;
-  givenNames: string;
-  issuingCountry: string;
-  nationality: string;
-  optionalData: string;
-  sex: string;
-  surname: string;
-};
-
 const defaultNormalizedShareFields = (() => {
   const normalized = normalizeShareFields(undefined);
 
@@ -68,201 +51,6 @@ const defaultNormalizedShareFields = (() => {
 
 function resolveErrorMessage(code: ShareSelectionValidationCode): string {
   return ERROR_MESSAGES[code].description;
-}
-
-function normalizeMrzText(raw: string): string {
-  const filtered = raw
-    .toUpperCase()
-    .replaceAll(" ", "")
-    .replaceAll("\r", "")
-    .split("")
-    .filter((character) => {
-      if (character === "\n" || character === "<") {
-        return true;
-      }
-
-      return (
-        (character >= "A" && character <= "Z") ||
-        (character >= "0" && character <= "9")
-      );
-    })
-    .join("");
-
-  const flattened = filtered.replaceAll("\n", "");
-
-  if (flattened.length !== MRZ_LINE_LENGTH * 2 || !flattened.startsWith("P")) {
-    throw new Error("dg1_mrz_invalid");
-  }
-
-  return `${flattened.slice(0, MRZ_LINE_LENGTH)}\n${flattened.slice(
-    MRZ_LINE_LENGTH
-  )}`;
-}
-
-function extractMrzTextFromDg1(dg1: Uint8Array): string {
-  try {
-    return normalizeMrzText(new TextDecoder().decode(dg1));
-  } catch {
-    // Fall through to TLV parsing when DG1 is encoded as a data group.
-  }
-
-  let offset = 0;
-
-  while (offset < dg1.length) {
-    const entry = readTlv(dg1, offset);
-
-    if (entry.tag === MRZ_DATA_TAG) {
-      return normalizeMrzText(new TextDecoder().decode(entry.value));
-    }
-
-    if (entry.tag === DG1_ROOT_TAG) {
-      let innerOffset = 0;
-
-      while (innerOffset < entry.value.length) {
-        const nestedEntry = readTlv(entry.value, innerOffset);
-        if (nestedEntry.tag === MRZ_DATA_TAG) {
-          return normalizeMrzText(new TextDecoder().decode(nestedEntry.value));
-        }
-        innerOffset = nestedEntry.nextOffset;
-      }
-    }
-
-    offset = entry.nextOffset;
-  }
-
-  throw new Error("dg1_mrz_not_found");
-}
-
-function sliceText(value: string, start: number, end: number): string {
-  return value.slice(start, end);
-}
-
-function mrzChar(value: string, index: number): string {
-  return value[index] ?? "";
-}
-
-function unfill(value: string): string {
-  return value.replaceAll("<", "").trim();
-}
-
-function parseNames(value: string): {
-  givenNames: string;
-  surname: string;
-} {
-  const raw = value.replaceAll("<<", "|");
-  const pieces = raw.split("|");
-  const surname = unfill((pieces[0] ?? "").replaceAll("<", " ")).trim();
-  const givenNames = unfill(
-    pieces.slice(1).join(" ").replaceAll("<", " ")
-  ).trim();
-
-  return {
-    givenNames,
-    surname,
-  };
-}
-
-function expandMrzDateWithinRange({
-  maxYear,
-  minYear,
-  value,
-}: {
-  maxYear: number;
-  minYear: number;
-  value: string;
-}): string {
-  if (!SIX_DIGIT_DATE_REGEX.test(value)) {
-    throw new Error("mrz_date_invalid");
-  }
-
-  const yearSuffix = Number.parseInt(value.slice(0, 2), 10);
-  const month = Number.parseInt(value.slice(2, 4), 10);
-  const day = Number.parseInt(value.slice(4, 6), 10);
-  const baseCentury = Math.floor(maxYear / 100) * 100;
-  const candidateYears = new Set<number>();
-
-  for (const offset of [-200, -100, 0, 100]) {
-    candidateYears.add(baseCentury + offset + yearSuffix);
-  }
-
-  const validYears = [...candidateYears]
-    .filter(
-      (candidateYear) => candidateYear >= minYear && candidateYear <= maxYear
-    )
-    .sort((left, right) => right - left);
-  const resolvedYear = validYears[0];
-
-  if (!resolvedYear || month < 1 || month > 12 || day < 1 || day > 31) {
-    throw new Error("mrz_date_invalid");
-  }
-
-  return `${resolvedYear.toString().padStart(4, "0")}-${value.slice(
-    2,
-    4
-  )}-${value.slice(4, 6)}`;
-}
-
-function parseTd3MrzClaims(dg1: Uint8Array, now: Date): Dg1Claims {
-  const [lineOne, lineTwo] = extractMrzTextFromDg1(dg1).split("\n");
-
-  if (
-    !(
-      lineOne &&
-      lineTwo &&
-      lineOne.length === MRZ_LINE_LENGTH &&
-      lineTwo.length === MRZ_LINE_LENGTH &&
-      lineOne.startsWith("P")
-    )
-  ) {
-    throw new Error("dg1_td3_invalid");
-  }
-
-  const { givenNames, surname } = parseNames(sliceText(lineOne, 5, 44));
-  const birthYearMax = now.getUTCFullYear();
-  const expiryYear = now.getUTCFullYear();
-  const sex = mrzChar(lineTwo, 20);
-
-  return {
-    birthDateIso: expandMrzDateWithinRange({
-      value: sliceText(lineTwo, 13, 19),
-      minYear: birthYearMax - MIN_BIRTH_YEAR_OFFSET,
-      maxYear: birthYearMax,
-    }),
-    documentNumber: unfill(sliceText(lineTwo, 0, 9)),
-    documentType: unfill(sliceText(lineOne, 0, 2)),
-    expiryDateIso: expandMrzDateWithinRange({
-      value: sliceText(lineTwo, 21, 27),
-      minYear: expiryYear - MAX_EXPIRY_PAST_OFFSET,
-      maxYear: expiryYear + MAX_EXPIRY_FUTURE_OFFSET,
-    }),
-    givenNames,
-    issuingCountry: unfill(sliceText(lineOne, 2, 5)),
-    nationality: unfill(sliceText(lineTwo, 10, 13)),
-    optionalData: unfill(sliceText(lineTwo, 28, 42)),
-    sex: sex === "<" ? "X" : sex,
-    surname,
-  };
-}
-
-function ageFromDateOfBirth(dateOfBirthIso: string, now: Date): number {
-  const [yearText, monthText, dayText] = dateOfBirthIso.split("-");
-
-  if (!(yearText && monthText && dayText)) {
-    throw new Error("date_of_birth_invalid");
-  }
-
-  const year = Number.parseInt(yearText, 10);
-  const month = Number.parseInt(monthText, 10);
-  const day = Number.parseInt(dayText, 10);
-  let age = now.getUTCFullYear() - year;
-  const monthDelta = now.getUTCMonth() + 1 - month;
-  const dayDelta = now.getUTCDate() - day;
-
-  if (monthDelta < 0 || (monthDelta === 0 && dayDelta < 0)) {
-    age -= 1;
-  }
-
-  return age;
 }
 
 function encodeBase64(bytes: Uint8Array): string {

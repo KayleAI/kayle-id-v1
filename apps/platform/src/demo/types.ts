@@ -50,6 +50,7 @@ export type DemoRunRecord = {
   share_fields: DemoSessionShareFields | null;
   verification_url: string | null;
   webhook: DemoWebhookEnvelope | null;
+  webhooks: DemoWebhookEnvelope[];
 };
 
 export type DemoRunView = {
@@ -62,6 +63,7 @@ export type DemoRunView = {
   share_fields: DemoSessionShareFields | null;
   verification_url: string | null;
   webhook: DemoWebhookEnvelope | null;
+  webhooks: DemoWebhookEnvelope[];
 };
 
 export type DemoRunCreateResult = {

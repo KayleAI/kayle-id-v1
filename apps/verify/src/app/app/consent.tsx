@@ -4,20 +4,24 @@ import { Label } from "@kayleai/ui/label";
 import { Logo } from "@kayleai/ui/logo";
 import { useState } from "react";
 import { useVerificationStore } from "../../stores/session";
+import { getPlatformNameLabel } from "./platform-name";
 
 /**
  * This component is used to get the user's consent to completing Identity Verification with Kayle ID.
  */
-export function SessionConsent() {
+export function SessionConsent({
+  organizationName,
+}: {
+  organizationName?: string | null;
+}) {
   const [consentChecked, setConsentChecked] = useState(false);
-  const goToPassportCapture = useVerificationStore(
-    (state) => state.goToPassportCapture
-  );
+  const goToHandoff = useVerificationStore((state) => state.goToHandoff);
   const goToExplain = useVerificationStore((state) => state.goToExplain);
+  const platformName = getPlatformNameLabel(organizationName);
 
   const handleStartVerification = () => {
     if (consentChecked) {
-      goToPassportCapture();
+      goToHandoff();
     }
   };
 
@@ -49,7 +53,7 @@ export function SessionConsent() {
               I allow Kayle ID to share the verification result and details I
               choose to share with{" "}
               <span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-                Platform Name
+                {platformName}
               </span>
             </li>
           </ul>

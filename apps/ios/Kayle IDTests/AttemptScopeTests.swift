@@ -37,4 +37,31 @@ final class AttemptScopeTests: XCTestCase {
       )
     )
   }
+
+  func testPreventsDeviceSleepDuringActiveNonTerminalVerification() {
+    XCTAssertTrue(
+      shouldPreventDeviceSleepDuringVerification(
+        hasActiveAttempt: true,
+        isTerminalStep: false
+      )
+    )
+  }
+
+  func testAllowsDeviceSleepWhenThereIsNoActiveVerificationAttempt() {
+    XCTAssertFalse(
+      shouldPreventDeviceSleepDuringVerification(
+        hasActiveAttempt: false,
+        isTerminalStep: false
+      )
+    )
+  }
+
+  func testAllowsDeviceSleepAfterVerificationReachesTerminalStep() {
+    XCTAssertFalse(
+      shouldPreventDeviceSleepDuringVerification(
+        hasActiveAttempt: true,
+        isTerminalStep: true
+      )
+    )
+  }
 }

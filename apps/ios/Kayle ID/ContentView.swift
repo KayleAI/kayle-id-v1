@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum CameraCaptureDrawer: String, Identifiable {
   case qr
@@ -175,6 +176,13 @@ struct ContentView: View {
     .tint(.black)
     .onAppear {
       lastStep = session.step
+      syncIdleTimerState()
+    }
+    .onDisappear {
+      setIdleTimerDisabled(false)
+    }
+    .onChange(of: shouldKeepDeviceAwake) { _ in
+      syncIdleTimerState()
     }
     .onChange(of: session.isUploadingNFC) { isUploading in
       if isUploading {
@@ -379,6 +387,11 @@ struct ContentView: View {
         CompletionView(
         isSuccess: isAcceptedVerdict(session.verdict),
         message: completionMessage,
+        isPrimaryLoading:
+          isRejectedVerdict(session.verdict) &&
+          session.verdict?.retryAllowed == true &&
+          session.isRetryingVerification,
+        isSecondaryDisabled: session.isRetryingVerification,
         primaryButtonTitle: completionPrimaryButtonTitle,
         onPrimaryAction: handleCompletionPrimaryAction,
         secondaryButtonTitle: secondaryButtonTitle,
@@ -390,7 +403,7 @@ struct ContentView: View {
         CompletionView(
         isSuccess: false,
         message: session.errorMessage ?? "An unexpected error occurred.",
-        primaryButtonTitle: "Done",
+        primaryButtonTitle: "Start Again",
         onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
         onSecondaryAction: nil
@@ -651,6 +664,15 @@ struct ContentView: View {
       return "Your identity verification data has been securely transmitted. You can now close this app and return to your browser."
     }
 
+    if
+      isRejectedVerdict(verdict),
+      verdict.retryAllowed,
+      let errorMessage = session.errorMessage,
+      !errorMessage.isEmpty
+    {
+      return "\(verdict.reasonMessage)\n\n\(errorMessage)"
+    }
+
     return verdict.reasonMessage
   }
 
@@ -682,7 +704,7 @@ struct ContentView: View {
         do {
           try await session.retryVerification()
         } catch {
-          session.handleError(error, forAttemptId: attemptId)
+          session.handleRetryError(error, forAttemptId: attemptId)
         }
       }
       return
@@ -903,7 +925,7 @@ struct ContentView: View {
         completion: CompletionRenderSnapshot(
           isSuccess: false,
           message: session.errorMessage ?? "An unexpected error occurred.",
-          primaryButtonTitle: "Done",
+          primaryButtonTitle: "Start Again",
           secondaryButtonTitle: nil
         )
       )
@@ -929,6 +951,13 @@ struct ContentView: View {
     session.isUploadingNFC || isRetainingNFCUploadUI
   }
 
+  private var shouldKeepDeviceAwake: Bool {
+    shouldPreventDeviceSleepDuringVerification(
+      hasActiveAttempt: session.payload != nil,
+      isTerminalStep: session.step == .complete || session.step == .error
+    )
+  }
+
   private var displayedNFCUploadProgress: Double {
     if session.isUploadingNFC {
       return session.nfcUploadProgress
@@ -944,6 +973,14 @@ struct ContentView: View {
   private func clearRetainedNFCUploadUI() {
     isRetainingNFCUploadUI = false
     retainedNFCUploadProgress = 0
+  }
+
+  private func syncIdleTimerState() {
+    setIdleTimerDisabled(shouldKeepDeviceAwake)
+  }
+
+  private func setIdleTimerDisabled(_ disabled: Bool) {
+    UIApplication.shared.isIdleTimerDisabled = disabled
   }
 
   private func drawerMatchesStep(_ drawer: CameraCaptureDrawer, step: VerificationStep) -> Bool {

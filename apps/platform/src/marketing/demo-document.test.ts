@@ -160,12 +160,12 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
   expect(preview).toEqual({
     contractVersion: 1,
     description:
-      "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
+      "We couldn’t verify your passport. Try again or use a different one.",
     eventType: "verification.attempt.failed",
     failureCode: "passport_authenticity_failed",
     failureDescription:
-      "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
-    failureTitle: "Passport authenticity failed",
+      "We couldn’t verify your passport. Try again or use a different one.",
+    failureTitle: "Passport check failed",
     title: "Attempt Failed",
     verificationAttemptId: "va_demo_test",
     verificationSessionId: "vs_demo_test",

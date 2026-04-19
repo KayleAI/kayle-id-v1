@@ -6,6 +6,7 @@ import type {
   DemoSessionStatus,
   DemoWebhookEnvelope,
 } from "./types";
+import { getDemoWebhookHistory } from "./webhook-history";
 
 const ABANDONED_RUN_RETENTION_MS = 2 * 60 * 60 * 1000;
 const TERMINAL_RUN_RETENTION_MS = 30 * 60 * 1000;
@@ -143,6 +144,7 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
       share_fields: null,
       verification_url: null,
       webhook: null,
+      webhooks: [],
     };
 
     await this.ctx.storage.put(RECORD_KEY, record);
@@ -192,6 +194,7 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
     await this.ctx.storage.put(RECORD_KEY, {
       ...record,
       webhook: envelope,
+      webhooks: [...getDemoWebhookHistory(record), envelope],
     });
     await this.ctx.storage.setAlarm(Date.now() + TERMINAL_RUN_RETENTION_MS);
   }

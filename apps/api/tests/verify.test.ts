@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { ClientMessage, DataKind, ServerMessage } from "@kayle-id/capnp";
 import { env } from "@kayle-id/config/env";
+import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
 import { db } from "@kayle-id/database/drizzle";
 import {
   events,
@@ -1842,8 +1843,7 @@ describe("Verification Flows", () => {
 
         expect((await awaitServerMessage(socket)).error).toEqual({
           code: "SHARE_SELECTION_INVALID_FIELD",
-          message:
-            "One or more selected details are not available for this verification. Review the requested details and try again.",
+          message: ERROR_MESSAGES.SHARE_SELECTION_INVALID_FIELD.description,
         });
         expect(socket.readyState).toBe(WebSocket.OPEN);
 
@@ -1964,7 +1964,7 @@ describe("Verification Flows", () => {
           outcome: "rejected",
           reasonCode: "passport_authenticity_failed",
           reasonMessage:
-            "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
+            ERROR_MESSAGES.passport_authenticity_failed.description,
           retryAllowed: true,
           remainingAttempts: 2,
         });
@@ -2042,8 +2042,7 @@ describe("Verification Flows", () => {
         expect(response.verdict).toEqual({
           outcome: "rejected",
           reasonCode: "selfie_face_mismatch",
-          reasonMessage:
-            "Selfie evidence did not match the passport photo. Please retry with a new verification attempt.",
+          reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
           retryAllowed: true,
           remainingAttempts: 2,
         });
@@ -2275,8 +2274,7 @@ describe("Verification Flows", () => {
         expect(response.verdict).toEqual({
           outcome: "rejected",
           reasonCode: "selfie_face_mismatch",
-          reasonMessage:
-            "Selfie evidence did not match the passport photo. Please retry with a new verification attempt.",
+          reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
           retryAllowed: true,
           remainingAttempts: 2,
         });

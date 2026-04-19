@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import { JSDOM } from "jsdom";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -44,12 +45,14 @@ if (typeof document === "undefined") {
 const mockedUseDevice = vi.fn();
 const qrPropsSpy = vi.fn();
 const assignLocationSpy = vi.fn();
+const closeSpy = vi.fn();
 const confirmSpy = vi.fn();
+const mockedUseSession = vi.fn();
 const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
 const requestVerifySessionStatusMock = vi.fn();
 const REDIRECT_COUNTDOWN_TEXT = /Redirecting in 3 seconds\./;
-const CLOSE_PAGE_TEXT = /You can now close this page\./;
+const SELFIE_FAILURE_CLOSE_PAGE_TEXT = `${VERIFY_HANDOFF_COPY.screens.terminal.selfieFaceMismatch.description} ${VERIFY_HANDOFF_COPY.screens.terminal.youCanCloseDescription}`;
 
 vi.mock("@tanstack/react-router", () => ({
   useLoaderData: () => ({
@@ -63,6 +66,10 @@ vi.mock("@/utils/use-device", () => ({
 
 vi.mock("@/utils/navigation", () => ({
   redirectToUrl: (targetUrl: string) => assignLocationSpy(targetUrl),
+}));
+
+vi.mock("../session-provider", () => ({
+  useSession: () => mockedUseSession(),
 }));
 
 vi.mock("@/config/handoff", () => ({
@@ -158,7 +165,7 @@ vi.mock("qrcode.react", () => ({
   },
 }));
 
-import { UnsupportedDevice } from "./unsupported-device";
+import { Handoff } from "./handoff";
 
 function createHandoffPayload(
   overrides: Partial<HandoffPayload> = {}
@@ -215,16 +222,25 @@ async function flushUi(): Promise<void> {
 
 beforeEach(() => {
   mockedUseDevice.mockReset();
+  mockedUseSession.mockReset();
   qrPropsSpy.mockReset();
   assignLocationSpy.mockReset();
+  closeSpy.mockReset();
   requestCancelVerifySessionMock.mockReset();
   requestHandoffPayloadMock.mockReset();
   requestVerifySessionStatusMock.mockReset();
   confirmSpy.mockReset();
   confirmSpy.mockReturnValue(true);
+  mockedUseSession.mockReturnValue({
+    sessionStatus: null,
+  });
   Object.defineProperty(window, "confirm", {
     configurable: true,
     value: confirmSpy,
+  });
+  Object.defineProperty(window, "close", {
+    configurable: true,
+    value: closeSpy,
   });
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -236,8 +252,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("UnsupportedDevice", () => {
-  test("renders the inline handoff screen on entry instead of an unsupported-device dialog", async () => {
+describe("Handoff", () => {
+  test("renders the inline handoff screen on entry instead of a separate handoff dialog", async () => {
     mockedUseDevice.mockReturnValue({
       supported: false,
       os: "ios",
@@ -246,7 +262,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     expect(await view.findByText("Open Kayle ID on your phone")).not.toBeNull();
     expect(view.queryByText("Unsupported Device")).toBeNull();
@@ -266,10 +282,42 @@ describe("UnsupportedDevice", () => {
     expect(qrValue).toContain("token_123");
 
     const openAppLink = view.getByRole("link", {
-      name: "Open Kayle ID app",
+      name: VERIFY_HANDOFF_COPY.actions.openKayleIdApp,
     });
     expect(openAppLink.getAttribute("href")).toContain("kayle-id://");
-    expect(view.getByRole("button", { name: "Cancel" })).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel })
+    ).not.toBeNull();
+  });
+
+  test("renders a prefetched terminal status without reloading session status first", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "unknown",
+    });
+    mockedUseSession.mockReturnValue({
+      sessionStatus: createSessionStatus({
+        completed_at: "2099-01-01T00:00:00.000Z",
+        is_terminal: true,
+        latest_attempt: {
+          completed_at: "2099-01-01T00:00:00.000Z",
+          failure_code: null,
+          handoff_claimed: true,
+          id: "va_test_attempt123",
+          retry_allowed: false,
+          status: "succeeded",
+        },
+        status: "completed",
+      }),
+    });
+
+    const view = render(<Handoff />);
+
+    expect(
+      await view.findByText(VERIFY_HANDOFF_COPY.screens.terminal.success.title)
+    ).not.toBeNull();
+    expect(requestVerifySessionStatusMock).not.toHaveBeenCalled();
+    expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
   });
 
   test("hides the handoff QR code once the mobile device connects", async () => {
@@ -289,7 +337,7 @@ describe("UnsupportedDevice", () => {
         })
       );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -300,9 +348,7 @@ describe("UnsupportedDevice", () => {
     await flushUi();
 
     expect(
-      view.getByText(
-        "Your mobile device is now connected to this verification session."
-      )
+      view.getByText(VERIFY_HANDOFF_COPY.screens.connected.headerDescription)
     ).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });
@@ -330,7 +376,7 @@ describe("UnsupportedDevice", () => {
       );
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
@@ -359,12 +405,14 @@ describe("UnsupportedDevice", () => {
     );
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     expect(
-      await view.findByText("Unable to generate handoff QR code.")
+      await view.findByText(VERIFY_HANDOFF_COPY.handoff.refreshError)
     ).not.toBeNull();
-    expect(view.getByRole("button", { name: "Cancel" })).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel })
+    ).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });
 
@@ -394,7 +442,7 @@ describe("UnsupportedDevice", () => {
         })
       );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -405,11 +453,16 @@ describe("UnsupportedDevice", () => {
     await flushUi();
 
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Retry on the same device")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.retryableFailure.headerTitle)
+    ).not.toBeNull();
     expect(
       view.getByText(
-        "The latest attempt did not pass. Retry or cancel in the Kayle ID app on that same device to continue."
+        VERIFY_HANDOFF_COPY.screens.retryableFailure.messageDescription
       )
+    ).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.closeThisPage })
     ).not.toBeNull();
 
     act(() => {
@@ -441,16 +494,21 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
 
     expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Retry on the same device")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.retryableFailure.headerTitle)
+    ).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.closeThisPage })
+    ).not.toBeNull();
   });
 
-  test("cancels the verification session instead of closing immediately", async () => {
+  test("cancels the verification session before mobile has claimed it", async () => {
     mockedUseDevice.mockReturnValue({
       supported: false,
       os: "ios",
@@ -460,7 +518,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(view.getByTestId("qr-code")).not.toBeNull();
@@ -471,13 +529,49 @@ describe("UnsupportedDevice", () => {
     await flushUi();
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      "Cancel? This will stop the current verification session."
+      VERIFY_HANDOFF_COPY.actions.cancelConfirmation
     );
     expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
       "vs_test_session123"
     );
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Verification cancelled")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.terminal.cancelled.title)
+    ).not.toBeNull();
+  });
+
+  test("closes the browser locally instead of cancelling a same-device session", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "ios",
+    });
+
+    requestVerifySessionStatusMock.mockResolvedValue(
+      createSessionStatus({
+        latest_attempt: {
+          completed_at: "2099-01-01T00:00:00.000Z",
+          failure_code: "selfie_face_mismatch",
+          handoff_claimed: true,
+          id: "va_test_attempt123",
+          retry_allowed: true,
+          status: "failed",
+        },
+        same_device_only: true,
+        status: "created",
+      })
+    );
+
+    const view = render(<Handoff />);
+
+    await flushUi();
+
+    act(() => {
+      view.getByRole("button", { name: "Close this page" }).click();
+    });
+
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
   });
 
   test("does not cancel when the browser confirmation is rejected", async () => {
@@ -490,7 +584,7 @@ describe("UnsupportedDevice", () => {
     requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
     requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
 
@@ -535,13 +629,17 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
     await flushUi();
     expect(
-      view.getByText("You can continue now or wait for the automatic redirect.")
+      view.getByText(
+        VERIFY_HANDOFF_COPY.screens.terminal.redirectHeaderDescription
+      )
     ).not.toBeNull();
-    expect(view.getByText("Continue now")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.actions.continueNow)
+    ).not.toBeNull();
     expect(view.getByText(REDIRECT_COUNTDOWN_TEXT)).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
 
@@ -585,10 +683,10 @@ describe("UnsupportedDevice", () => {
       })
     );
 
-    const view = render(<UnsupportedDevice />);
+    const view = render(<Handoff />);
 
-    expect(await view.findByText(CLOSE_PAGE_TEXT)).not.toBeNull();
-    expect(view.getByText(CLOSE_PAGE_TEXT)).not.toBeNull();
+    expect(await view.findByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
+    expect(view.getByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
     expect(assignLocationSpy).not.toHaveBeenCalled();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });

@@ -225,10 +225,7 @@
     "packages/trust-store": {
       "name": "@kayle-id/trust-store",
       "dependencies": {
-        "@kayle-id/config": "*",
-        "@upstash/redis": "1.35.6",
         "drizzle-orm": "0.45.2",
-        "pg": "8.16.3",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "4.20260317.1",

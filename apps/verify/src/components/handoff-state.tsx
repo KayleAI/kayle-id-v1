@@ -64,14 +64,17 @@ export function HandoffState({
           {VERIFY_HANDOFF_COPY.actions.openKayleIdApp}
         </Button>
       ) : null}
-      <div className="flex justify-center rounded-lg border border-blue-200 border-dashed bg-white p-4">
-        <QRCodeSVG
-          bgColor="transparent"
-          fgColor="currentColor"
-          level="M"
-          size={200}
-          value={handoffUrl}
-        />
+      <div className="flex justify-center">
+        <div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5">
+          <QRCodeSVG
+            bgColor="white"
+            className="text-slate-950"
+            fgColor="currentColor"
+            level="M"
+            size={216}
+            value={handoffUrl}
+          />
+        </div>
       </div>
     </div>
   );

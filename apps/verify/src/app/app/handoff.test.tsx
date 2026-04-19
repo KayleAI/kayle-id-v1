@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import { JSDOM } from "jsdom";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -51,7 +52,7 @@ const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
 const requestVerifySessionStatusMock = vi.fn();
 const REDIRECT_COUNTDOWN_TEXT = /Redirecting in 3 seconds\./;
-const CLOSE_PAGE_TEXT = /You can now close this page\./;
+const SELFIE_FAILURE_CLOSE_PAGE_TEXT = `${VERIFY_HANDOFF_COPY.screens.terminal.selfieFaceMismatch.description} ${VERIFY_HANDOFF_COPY.screens.terminal.youCanCloseDescription}`;
 
 vi.mock("@tanstack/react-router", () => ({
   useLoaderData: () => ({
@@ -281,10 +282,12 @@ describe("Handoff", () => {
     expect(qrValue).toContain("token_123");
 
     const openAppLink = view.getByRole("link", {
-      name: "Open Kayle ID app",
+      name: VERIFY_HANDOFF_COPY.actions.openKayleIdApp,
     });
     expect(openAppLink.getAttribute("href")).toContain("kayle-id://");
-    expect(view.getByRole("button", { name: "Cancel" })).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel })
+    ).not.toBeNull();
   });
 
   test("renders a prefetched terminal status without reloading session status first", async () => {
@@ -310,7 +313,9 @@ describe("Handoff", () => {
 
     const view = render(<Handoff />);
 
-    expect(await view.findByText("Verification complete")).not.toBeNull();
+    expect(
+      await view.findByText(VERIFY_HANDOFF_COPY.screens.terminal.success.title)
+    ).not.toBeNull();
     expect(requestVerifySessionStatusMock).not.toHaveBeenCalled();
     expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
   });
@@ -343,9 +348,7 @@ describe("Handoff", () => {
     await flushUi();
 
     expect(
-      view.getByText(
-        "Your mobile device is now connected to this verification session."
-      )
+      view.getByText(VERIFY_HANDOFF_COPY.screens.connected.headerDescription)
     ).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });
@@ -405,9 +408,11 @@ describe("Handoff", () => {
     const view = render(<Handoff />);
 
     expect(
-      await view.findByText("Unable to generate handoff QR code.")
+      await view.findByText(VERIFY_HANDOFF_COPY.handoff.refreshError)
     ).not.toBeNull();
-    expect(view.getByRole("button", { name: "Cancel" })).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel })
+    ).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });
 
@@ -448,13 +453,17 @@ describe("Handoff", () => {
     await flushUi();
 
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Verification failed")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.retryableFailure.headerTitle)
+    ).not.toBeNull();
     expect(
       view.getByText(
-        "The verification did not complete successfully. Retry on that same device, or cancel it there if you want to stop. This browser cannot create a new QR handoff for this session."
+        VERIFY_HANDOFF_COPY.screens.retryableFailure.messageDescription
       )
     ).not.toBeNull();
-    expect(view.getByRole("button", { name: "Close this page" })).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.closeThisPage })
+    ).not.toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(60_000);
@@ -491,8 +500,12 @@ describe("Handoff", () => {
 
     expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Verification failed")).not.toBeNull();
-    expect(view.getByRole("button", { name: "Close this page" })).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.retryableFailure.headerTitle)
+    ).not.toBeNull();
+    expect(
+      view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.closeThisPage })
+    ).not.toBeNull();
   });
 
   test("cancels the verification session before mobile has claimed it", async () => {
@@ -516,13 +529,15 @@ describe("Handoff", () => {
     await flushUi();
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      "Cancel? This will stop the current verification session."
+      VERIFY_HANDOFF_COPY.actions.cancelConfirmation
     );
     expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
       "vs_test_session123"
     );
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Verification cancelled")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.screens.terminal.cancelled.title)
+    ).not.toBeNull();
   });
 
   test("closes the browser locally instead of cancelling a same-device session", async () => {
@@ -618,9 +633,13 @@ describe("Handoff", () => {
 
     await flushUi();
     expect(
-      view.getByText("You can continue now or wait for the automatic redirect.")
+      view.getByText(
+        VERIFY_HANDOFF_COPY.screens.terminal.redirectHeaderDescription
+      )
     ).not.toBeNull();
-    expect(view.getByText("Continue now")).not.toBeNull();
+    expect(
+      view.getByText(VERIFY_HANDOFF_COPY.actions.continueNow)
+    ).not.toBeNull();
     expect(view.getByText(REDIRECT_COUNTDOWN_TEXT)).not.toBeNull();
     expect(view.queryByTestId("qr-code")).toBeNull();
 
@@ -666,8 +685,8 @@ describe("Handoff", () => {
 
     const view = render(<Handoff />);
 
-    expect(await view.findByText(CLOSE_PAGE_TEXT)).not.toBeNull();
-    expect(view.getByText(CLOSE_PAGE_TEXT)).not.toBeNull();
+    expect(await view.findByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
+    expect(view.getByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
     expect(assignLocationSpy).not.toHaveBeenCalled();
     expect(view.queryByTestId("qr-code")).toBeNull();
   });

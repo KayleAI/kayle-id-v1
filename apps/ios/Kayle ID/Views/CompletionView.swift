@@ -3,6 +3,8 @@ import SwiftUI
 struct CompletionView: View {
   let isSuccess: Bool
   let message: String
+  var isPrimaryLoading = false
+  var isSecondaryDisabled = false
   let primaryButtonTitle: String
   let onPrimaryAction: () -> Void
   let secondaryButtonTitle: String?
@@ -23,10 +25,22 @@ struct CompletionView: View {
     } content: {
       EmptyView()
     } footer: {
-      ActionButton(style: .primary, title: primaryButtonTitle, action: onPrimaryAction)
+      ActionButton(
+        style: .primary,
+        title: primaryButtonTitle,
+        isDisabled: isPrimaryLoading,
+        isLoading: isPrimaryLoading,
+        loadingTitle: primaryButtonTitle,
+        action: onPrimaryAction
+      )
 
       if let secondaryButtonTitle, let onSecondaryAction {
-        ActionButton(style: .secondary, title: secondaryButtonTitle, action: onSecondaryAction)
+        ActionButton(
+          style: .secondary,
+          title: secondaryButtonTitle,
+          isDisabled: isSecondaryDisabled,
+          action: onSecondaryAction
+        )
       }
     }
   }

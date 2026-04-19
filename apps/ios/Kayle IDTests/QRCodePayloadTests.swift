@@ -82,4 +82,11 @@ final class QRCodePayloadTests: XCTestCase {
     XCTAssertEqual(parsed.sessionId, "vs_test_session123")
     XCTAssertTrue(parsed.isValid)
   }
+
+  func testAuthenticatedCancellationIsOnlyRequiredForActivePayloads() throws {
+    XCTAssertFalse(shouldRequireAuthenticatedCancellation(payload: nil))
+
+    let payload = try QRCodePayload.parse(from: "kayle-id://\(makeJSON())")
+    XCTAssertTrue(shouldRequireAuthenticatedCancellation(payload: payload))
+  }
 }

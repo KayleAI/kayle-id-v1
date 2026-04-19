@@ -14,6 +14,10 @@ import type {
   DemoRunRecord,
   DemoRunView,
 } from "@/demo/types";
+import {
+  getDemoWebhookHistory,
+  getLatestDemoWebhook,
+} from "@/demo/webhook-history";
 
 const TRAILING_SLASH_PATTERN = /\/+$/u;
 
@@ -308,6 +312,8 @@ async function handleGetRun(runId: string): Promise<Response> {
     });
   }
 
+  const webhooks = getDemoWebhookHistory(run);
+
   return createJsonResponse({
     data: {
       id: runId,
@@ -318,7 +324,8 @@ async function handleGetRun(runId: string): Promise<Response> {
       session_status: sessionStatus ?? run.last_session_status,
       share_fields: run.share_fields,
       verification_url: run.verification_url,
-      webhook: run.webhook,
+      webhook: getLatestDemoWebhook(run),
+      webhooks,
     } satisfies DemoRunView,
     error: null,
   });

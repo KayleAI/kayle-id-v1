@@ -1,138 +1,116 @@
 export const ERROR_MESSAGES = {
   UNKNOWN: {
     title: "Something went wrong",
-    description:
-      "We couldn't complete the verification due to an unexpected issue. Please try again.",
+    description: "We couldn’t complete this check. Try again.",
   },
 
   INVALID_SESSION_ID: {
-    title: "Invalid verification link",
-    description:
-      "This verification link is not valid. Please restart the verification from the original source.",
+    title: "Invalid link",
+    description: "This link isn’t valid. Go back and open a new one.",
   },
 
   SESSION_EXPIRED: {
-    title: "Verification expired",
-    description:
-      "This verification session has expired for security reasons. Please restart the verification process.",
+    title: "Session expired",
+    description: "This session has expired. Start again.",
   },
 
   SESSION_NOT_FOUND: {
-    title: "Verification not found",
-    description:
-      "This verification session is no longer available. Please restart the verification process.",
+    title: "Session not found",
+    description: "We can’t find this session. Start again.",
   },
 
   SESSION_IN_PROGRESS: {
-    title: "Verification already in progress",
-    description:
-      "This verification is currently active on another device. Please continue on the device where you started the process.",
+    title: "Already in progress",
+    description: "Continue on the device where you started.",
   },
 
   HELLO_AUTH_REQUIRED: {
     title: "Authentication required",
-    description:
-      "This verification connection is missing required credentials. Please restart from the latest verification link.",
+    description: "This connection is missing credentials. Please try again.",
   },
 
   ATTEMPT_NOT_FOUND: {
-    title: "Verification attempt not found",
-    description:
-      "This verification attempt is no longer available. Please restart the verification process.",
+    title: "Session not found",
+    description: "This session is no longer available. Start again.",
   },
 
   HANDOFF_TOKEN_INVALID: {
-    title: "Invalid mobile handoff token",
-    description:
-      "This handoff credential is not valid. Please restart the verification flow from your browser.",
+    title: "Invalid QR code",
+    description: "This code isn’t valid. Scan a new one from your browser.",
   },
 
   HANDOFF_TOKEN_EXPIRED: {
-    title: "Mobile handoff token expired",
-    description:
-      "This handoff credential has expired. Please generate a new QR handoff from your browser.",
+    title: "QR code expired",
+    description: "This code has expired. Generate a new one.",
   },
 
   HANDOFF_TOKEN_CONSUMED: {
-    title: "Handoff token already used",
-    description:
-      "This handoff credential was already used. Please continue on your original device or restart the flow.",
+    title: "QR code already used",
+    description: "Continue on your original device or start again.",
   },
 
   HANDOFF_DEVICE_MISMATCH: {
-    title: "Wrong device for resume",
-    description:
-      "This verification attempt is bound to a different device. Continue on that device or start over.",
+    title: "Wrong device",
+    description: "Use the device you started with or start again.",
   },
 
   ATTEMPT_CONNECTION_ACTIVE: {
-    title: "Verification already connected",
-    description:
-      "This verification attempt is already active on another connection. Continue there or retry after it closes.",
+    title: "Already open",
+    description: "This session is active elsewhere. Continue there or try again later.",
   },
 
   PHASE_OUT_OF_ORDER: {
-    title: "Step order mismatch",
-    description:
-      "This verification step was sent out of order. Continue from the current step.",
+    title: "Out of order",
+    description: "Continue from the current step.",
   },
 
   NFC_DATA_PHASE_REQUIRED: {
-    title: "NFC upload not ready",
-    description:
-      "NFC data can only be uploaded during the NFC reading step. Continue from the current step.",
+    title: "Not ready yet",
+    description: "Scan your passport when prompted.",
   },
 
   DATA_CHUNK_RETRY: {
-    title: "Retry upload chunk",
-    description:
-      "A data chunk needs to be retried. Continue uploading from the current verification step.",
+    title: "Upload failed",
+    description: "Retry the upload.",
   },
 
   NFC_REQUIRED_DATA_MISSING: {
-    title: "NFC data missing",
-    description:
-      "Required passport chip data is still missing. Continue the NFC upload before finishing this step.",
+    title: "Passport scan incomplete",
+    description: "Finish scanning your passport to continue.",
   },
 
   SELFIE_DATA_PHASE_REQUIRED: {
-    title: "Selfie upload not ready",
-    description:
-      "Selfie data can only be uploaded during the selfie capture step. Continue from the current step.",
+    title: "Selfie needed",
+    description: "Take a selfie to continue.",
   },
 
   SELFIE_REQUIRED_DATA_MISSING: {
-    title: "Selfie data missing",
-    description:
-      "Required selfie data is still missing. Continue the selfie upload before finishing this step.",
+    title: "Selfie missing",
+    description: "Take a selfie to continue.",
   },
 
   SHARE_SELECTION_REQUIRED: {
-    title: "Select details to share",
-    description: "Choose at least one verification detail before continuing.",
+    title: "Select details",
+    description: "Choose at least one detail to continue.",
   },
 
   SHARE_SELECTION_INVALID_FIELD: {
-    title: "Invalid detail selected",
-    description:
-      "One or more selected details are not available for this verification. Review the requested details and try again.",
+    title: "Invalid selection",
+    description: "Some selected details aren’t available. Review and try again.",
   },
 
   SHARE_SELECTION_MISSING_REQUIRED: {
-    title: "Required details must stay selected",
-    description:
-      "Required verification details must stay selected before you can continue.",
+    title: "Required details missing",
+    description: "You must keep required details selected.",
   },
 
   passport_authenticity_failed: {
-    title: "Passport authenticity failed",
-    description:
-      "Passport chip integrity checks did not pass. Please retry with a new verification attempt.",
+    title: "Passport check failed",
+    description: "We couldn’t verify your passport. Try again or use a different one.",
   },
 
   selfie_face_mismatch: {
-    title: "Face match failed",
-    description:
-      "Selfie evidence did not match the passport photo. Please retry with a new verification attempt.",
+    title: "Face doesn’t match",
+    description: "Your selfie doesn’t match your passport photo. Try again.",
   },
 } as const;

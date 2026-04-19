@@ -90,6 +90,7 @@ final class VerificationSession: ObservableObject {
   @Published var step: VerificationStep = .welcome
   @Published var payload: QRCodePayload?
   @Published var errorMessage: String?
+  @Published var isRetryingVerification = false
   @Published var verdict: VerifyServerVerdict?
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
@@ -126,6 +127,10 @@ final class VerificationSession: ObservableObject {
   private struct SelfieUploadPlan {
     let index: Int
     let chunks: [Data]
+  }
+
+  var requiresAuthenticatedCancellation: Bool {
+    shouldRequireAuthenticatedCancellation(payload: payload)
   }
 
   /// Initialize a new session from a scanned QR code payload.
@@ -313,6 +318,7 @@ final class VerificationSession: ObservableObject {
     let terminalAttemptId = attemptId ?? payload?.attemptId
     verdict = nil
     errorMessage = resolvedError.localizedDescription
+    isRetryingVerification = false
     step = .error
     selfieUploadCancelled = true
 
@@ -335,6 +341,24 @@ final class VerificationSession: ObservableObject {
     }
   }
 
+  func handleRetryError(_ error: Error, forAttemptId attemptId: String? = nil) {
+    if let attemptId {
+      guard
+        shouldHandleAttemptScopedEvent(
+          currentAttemptId: payload?.attemptId,
+          eventAttemptId: attemptId
+        )
+      else {
+        return
+      }
+    }
+
+    let resolvedError = resolveDisplayError(error)
+    errorMessage = "Retry could not start. \(resolvedError.localizedDescription)"
+    isRetryingVerification = false
+    step = .complete
+  }
+
   /// Reset the session for a new verification attempt.
   func reset() {
     step = .welcome
@@ -346,8 +370,8 @@ final class VerificationSession: ObservableObject {
       throw VerificationError.notInitialized
     }
 
-    teardownAttemptState(clearPayload: false)
-
+    errorMessage = nil
+    isRetryingVerification = true
     let nextPayload = try await fetchFreshHandoffPayload(
       sessionId: currentPayload.sessionId
     )
@@ -383,13 +407,6 @@ final class VerificationSession: ObservableObject {
   }
 
   private func bootstrapAttempt(with payload: QRCodePayload) async throws {
-    self.payload = payload
-    verdict = nil
-    errorMessage = nil
-    shareSelectionErrorMessage = nil
-    isSubmittingShareSelection = false
-    selfieUploadCancelled = false
-
     let baseURL = APIService.baseURL(from: payload.sessionId)
     let attemptId = payload.attemptId
 
@@ -430,28 +447,20 @@ final class VerificationSession: ObservableObject {
         }
       }
     )
-    webSocketService = service
 
     do {
       try service.connect()
       try await service.sendHello()
     } catch {
       service.disconnect()
-      if webSocketService === service {
-        webSocketService = nil
-      }
       throw error
     }
 
-    guard
-      shouldHandleAttemptScopedEvent(
-        currentAttemptId: self.payload?.attemptId,
-        eventAttemptId: attemptId
-      )
-    else {
-      return
-    }
-
+    let activeWebSocketService = webSocketService
+    resetAttemptState(clearPayload: false)
+    activeWebSocketService?.disconnect()
+    self.payload = payload
+    webSocketService = service
     await updatePhase(.mobileConnected)
   }
 
@@ -462,6 +471,7 @@ final class VerificationSession: ObservableObject {
 
     verdict = nil
     errorMessage = nil
+    isRetryingVerification = false
     shareRequest = nil
     selectedShareFieldKeys = []
     shareSelectionErrorMessage = nil

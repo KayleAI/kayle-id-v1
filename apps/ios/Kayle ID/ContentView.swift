@@ -1,3 +1,4 @@
+import LocalAuthentication
 import SwiftUI
 
 enum CameraCaptureDrawer: String, Identifiable {
@@ -124,6 +125,7 @@ struct ContentView: View {
   @State private var isAboutSheetPresented = false
   @State private var isResolvingQRCode = false
   @State private var isCancelVerificationConfirmationPresented = false
+  @State private var isAuthenticatingCancellation = false
   @State private var hasStartedNFCScan = false
   @State private var isRetainingNFCUploadUI = false
   @State private var retainedNFCUploadProgress: Double = 0
@@ -379,6 +381,11 @@ struct ContentView: View {
         CompletionView(
         isSuccess: isAcceptedVerdict(session.verdict),
         message: completionMessage,
+        isPrimaryLoading:
+          isRejectedVerdict(session.verdict) &&
+          session.verdict?.retryAllowed == true &&
+          session.isRetryingVerification,
+        isSecondaryDisabled: session.isRetryingVerification,
         primaryButtonTitle: completionPrimaryButtonTitle,
         onPrimaryAction: handleCompletionPrimaryAction,
         secondaryButtonTitle: secondaryButtonTitle,
@@ -651,6 +658,15 @@ struct ContentView: View {
       return "Your identity verification data has been securely transmitted. You can now close this app and return to your browser."
     }
 
+    if
+      isRejectedVerdict(verdict),
+      verdict.retryAllowed,
+      let errorMessage = session.errorMessage,
+      !errorMessage.isEmpty
+    {
+      return "\(verdict.reasonMessage)\n\n\(errorMessage)"
+    }
+
     return verdict.reasonMessage
   }
 
@@ -682,7 +698,7 @@ struct ContentView: View {
         do {
           try await session.retryVerification()
         } catch {
-          session.handleError(error, forAttemptId: attemptId)
+          session.handleRetryError(error, forAttemptId: attemptId)
         }
       }
       return
@@ -728,7 +744,10 @@ struct ContentView: View {
   }
 
   private func presentCancelVerificationConfirmation() {
-    isCancelVerificationConfirmationPresented = true
+    Task { @MainActor in
+      guard await authenticateCancellationIfNeeded() else { return }
+      isCancelVerificationConfirmationPresented = true
+    }
   }
 
   private func dismissCancelVerificationConfirmation() {
@@ -738,6 +757,37 @@ struct ContentView: View {
   private func confirmCancelVerification() {
     dismissCancelVerificationConfirmation()
     cancelVerificationFlow()
+  }
+
+  private func authenticateCancellationIfNeeded() async -> Bool {
+    guard session.requiresAuthenticatedCancellation else {
+      return true
+    }
+
+    guard !isAuthenticatingCancellation else {
+      return false
+    }
+
+    isAuthenticatingCancellation = true
+    defer {
+      isAuthenticatingCancellation = false
+    }
+
+    let context = LAContext()
+    var error: NSError?
+
+    guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+      return false
+    }
+
+    return await withCheckedContinuation { continuation in
+      context.evaluatePolicy(
+        .deviceOwnerAuthentication,
+        localizedReason: "Authenticate to cancel this verification."
+      ) { success, _ in
+        continuation.resume(returning: success)
+      }
+    }
   }
 
   private func goBackFromRFIDCheck() {

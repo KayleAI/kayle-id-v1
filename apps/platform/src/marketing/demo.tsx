@@ -9,13 +9,17 @@ import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
 import { cn } from "@kayleai/ui/utils/cn";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
   Loader2Icon,
   ShieldAlertIcon,
   ShieldCheckIcon,
 } from "lucide-react";
 import {
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
@@ -43,7 +47,13 @@ import type {
   DemoRunCreateResult,
   DemoRunSessionResult,
   DemoRunView,
+  DemoWebhookEnvelope,
 } from "@/demo/types";
+import {
+  getDemoWebhookHistory,
+  getDemoWebhookReceiptId,
+  getLatestDemoWebhook,
+} from "@/demo/webhook-history";
 import {
   buildDemoDocumentPreview,
   buildDemoWebhookEventPreview,
@@ -51,6 +61,12 @@ import {
   type DemoWebhookEventPreview,
   formatDemoClaimValue,
 } from "@/marketing/demo-document";
+import {
+  buildDemoAttemptViews,
+  defaultProcessedWebhookState,
+  type ProcessedWebhookMap,
+  type ProcessedWebhookState,
+} from "@/marketing/demo-attempts";
 
 const POLL_INTERVAL_MS = 2000;
 const accordionPanelClass = "";
@@ -62,12 +78,6 @@ type ApiResponse<T> = {
     hint?: string | null;
     message?: string | null;
   } | null;
-};
-
-type ProcessedWebhookState = {
-  decryptedPayload: string | null;
-  error: string | null;
-  status: "idle" | "invalid" | "verified" | "decrypted";
 };
 
 type ModeSelectorProps = {
@@ -87,12 +97,6 @@ type DemoNoticeProps = {
 
 type DemoStepId = "step-1" | "step-2" | "step-3";
 type SelectionResult = ReturnType<typeof buildRequestedShareFields>;
-
-const defaultWebhookState: ProcessedWebhookState = {
-  decryptedPayload: null,
-  error: null,
-  status: "idle",
-};
 
 function getModeButtonClass({
   active,
@@ -199,7 +203,7 @@ async function processWebhookReceipt({
 }: {
   privateKey: CryptoKey;
   secret: string;
-  webhook: NonNullable<DemoRunView["webhook"]>;
+  webhook: DemoWebhookEnvelope;
 }): Promise<ProcessedWebhookState> {
   const signatureHeader = webhook.signature_header;
   if (!signatureHeader) {
@@ -295,6 +299,7 @@ function createDemoRunView(createdRun: DemoRunCreateResult): DemoRunView {
     share_fields: null,
     verification_url: null,
     webhook: null,
+    webhooks: [],
   };
 }
 
@@ -974,79 +979,32 @@ function WebhookPayloadDisclosure({
   );
 }
 
-function DemoFailedAttemptPreviewPanel({
+export function DemoFailedAttemptPreviewPanel({
   payload,
   preview,
 }: {
   payload: string;
   preview: DemoWebhookEventPreview;
 }) {
-  const summaryItems: WebhookMetadataItem[] = [
-    {
-      label: "Event Type",
-      monospace: true,
-      value: preview.eventType ?? "Unknown",
-    },
-    {
-      label: "Failure Code",
-      monospace: true,
-      value: preview.failureCode ?? "Unknown",
-    },
-    {
-      label: "Contract Version",
-      monospace: true,
-      value:
-        preview.contractVersion === null
-          ? "Unknown"
-          : String(preview.contractVersion),
-    },
-  ];
-  const identifierItems: WebhookMetadataItem[] = [
-    {
-      label: "Verification Session",
-      monospace: true,
-      value: preview.verificationSessionId ?? "Unknown",
-    },
-  ];
+  const metadataItems = buildWebhookMetadataItems(preview);
   const title = preview.failureTitle ?? preview.title;
   const description = preview.failureDescription ?? preview.description;
 
-  if (preview.verificationAttemptId) {
-    identifierItems.push({
-      label: "Verification Attempt",
-      monospace: true,
-      value: preview.verificationAttemptId,
-    });
-  }
-
   return (
-    <div className="border-neutral-200/80 border-t">
-      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
+    <div className="divide-y divide-neutral-200/80">
+      <section className="pb-6 sm:pb-8">
         <ResultSectionHeading
           description={description}
           title={title}
         />
       </section>
 
-      <section className="border-neutral-200/80 border-b py-6 sm:py-8">
-        <ResultSectionHeading
-          description="Failure metadata and identifiers from the webhook event."
-          title="Failure details"
-        />
-        <div className="mt-6 space-y-6">
-          <WebhookMetadataGrid columns={3} items={summaryItems} />
-          <WebhookMetadataGrid items={identifierItems} />
-        </div>
+      <section className="py-6 sm:py-8">
+        <WebhookMetadataGrid items={metadataItems} />
       </section>
 
       <section className="border-neutral-200/80 border-b py-6 sm:py-8">
-        <ResultSectionHeading
-          description="Inspect the verified failure payload exactly as it arrived."
-          title="Raw payload"
-        />
-        <div className="mt-6">
-          <WebhookPayloadDisclosure payload={payload} />
-        </div>
+        <WebhookPayloadDisclosure payload={payload} />
       </section>
     </div>
   );
@@ -1078,7 +1036,7 @@ function DemoWebhookEventPreviewPanel({
 
       <section className="border-neutral-200/80 border-b py-6 sm:py-8">
         <ResultSectionHeading
-          description="Identifiers and metadata from the latest verified event."
+          description="Identifiers and metadata from the selected verified event."
           title="Event details"
         />
         <div className="mt-6">
@@ -1121,20 +1079,22 @@ function DocumentStatePanel({
 function getWebhookPanelState({
   processedWebhook,
   run,
+  selectedWebhook,
 }: {
   processedWebhook: ProcessedWebhookState;
   run: DemoRunView | null;
+  selectedWebhook: DemoWebhookEnvelope | null;
 }): { description: string; title: string } | null {
   const sessionStatus = run?.session_status ?? null;
 
-  if (!run?.webhook) {
+  if (!selectedWebhook) {
     return {
       title: sessionStatus?.is_terminal
         ? "Waiting for the webhook"
         : "Waiting for the result",
       description: sessionStatus?.is_terminal
         ? "This run has ended. Waiting for the final webhook delivery to arrive."
-        : "Finish the verification on mobile and the latest webhook result will appear here.",
+        : "Finish the verification on mobile and the result will appear here.",
     };
   }
 
@@ -1155,7 +1115,7 @@ function getWebhookPanelState({
 
   return {
     title:
-      run.webhook.event_type === "verification.attempt.succeeded"
+      selectedWebhook.event_type === "verification.attempt.succeeded"
         ? "Document unavailable"
         : "Webhook event unavailable",
     description: "The result arrived, but it could not be formatted cleanly.",
@@ -1204,13 +1164,95 @@ function RunStatusPanel({ run }: { run: DemoRunView | null }) {
   );
 }
 
+function AttemptSelector({
+  onSelectNext,
+  onSelectPrevious,
+  selectedIndex,
+  total,
+}: {
+  onSelectNext: () => void;
+  onSelectPrevious: () => void;
+  selectedIndex: number;
+  total: number;
+}) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 border border-neutral-200/80 bg-neutral-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between rounded-[1.25rem]">
+      <div className="min-w-0">
+        <p className="font-medium text-sm text-neutral-950">Attempts</p>
+        <p className="mt-1 text-neutral-600 text-sm leading-relaxed">
+          Showing attempt {selectedIndex + 1} of {total}.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={selectedIndex === 0}
+          onClick={onSelectPrevious}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <ChevronLeftIcon className="mr-1 size-4" />
+          Previous
+        </Button>
+        <Button
+          disabled={selectedIndex >= total - 1}
+          onClick={onSelectNext}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          Next
+          <ChevronRightIcon className="ml-1 size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function WebhookPanel({
-  processedWebhook,
+  processedWebhooks,
   run,
 }: {
-  processedWebhook: ProcessedWebhookState;
+  processedWebhooks: ProcessedWebhookMap;
   run: DemoRunView | null;
 }) {
+  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
+  const latestWebhook = useMemo(() => getLatestDemoWebhook(run), [run]);
+  const attemptViews = useMemo(
+    () =>
+      buildDemoAttemptViews({
+        processedWebhooks,
+        webhooks: webhookHistory,
+      }),
+    [processedWebhooks, webhookHistory]
+  );
+  const latestAttemptId = attemptViews.at(-1)?.id ?? null;
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(
+    latestAttemptId
+  );
+
+  useEffect(() => {
+    setSelectedAttemptId(latestAttemptId);
+  }, [latestAttemptId]);
+
+  const selectedAttempt = useMemo(
+    () =>
+      attemptViews.find((attempt) => attempt.id === selectedAttemptId) ??
+      attemptViews.at(-1) ??
+      null,
+    [attemptViews, selectedAttemptId]
+  );
+  const selectedAttemptIndex = selectedAttempt
+    ? attemptViews.findIndex((attempt) => attempt.id === selectedAttempt.id)
+    : -1;
+  const selectedWebhook = selectedAttempt?.webhook ?? latestWebhook;
+  const processedWebhook = selectedAttempt
+    ? selectedAttempt.processedWebhook
+    : selectedWebhook
+      ? processedWebhooks[getDemoWebhookReceiptId(selectedWebhook)] ??
+        defaultProcessedWebhookState
+      : defaultProcessedWebhookState;
   const documentPreview = useMemo(
     () => buildDemoDocumentPreview(processedWebhook.decryptedPayload),
     [processedWebhook.decryptedPayload]
@@ -1220,45 +1262,75 @@ function WebhookPanel({
     [processedWebhook.decryptedPayload]
   );
   const state = useMemo(
-    () => getWebhookPanelState({ processedWebhook, run }),
-    [processedWebhook, run]
+    () =>
+      getWebhookPanelState({
+        processedWebhook,
+        run,
+        selectedWebhook,
+      }),
+    [processedWebhook, run, selectedWebhook]
   );
+  const content = (() => {
+    if (documentPreview) {
+      return (
+        <DemoDocumentPreviewPanel
+          payload={processedWebhook.decryptedPayload ?? ""}
+          preview={documentPreview}
+          webhookMetadataItems={
+            eventPreview ? buildWebhookMetadataItems(eventPreview) : []
+          }
+        />
+      );
+    }
 
-  if (documentPreview) {
+    if (eventPreview && processedWebhook.decryptedPayload) {
+      return (
+        <DemoWebhookEventPreviewPanel
+          payload={processedWebhook.decryptedPayload}
+          preview={eventPreview}
+        />
+      );
+    }
+
+    if (processedWebhook.error) {
+      return (
+        <DemoNotice title="Local verification failed">
+          {processedWebhook.error}
+        </DemoNotice>
+      );
+    }
+
+    if (!state) {
+      return null;
+    }
+
     return (
-      <DemoDocumentPreviewPanel
-        payload={processedWebhook.decryptedPayload ?? ""}
-        preview={documentPreview}
-        webhookMetadataItems={
-          eventPreview ? buildWebhookMetadataItems(eventPreview) : []
-        }
-      />
+      <DocumentStatePanel description={state.description} title={state.title} />
     );
-  }
-
-  if (eventPreview && processedWebhook.decryptedPayload) {
-    return (
-      <DemoWebhookEventPreviewPanel
-        payload={processedWebhook.decryptedPayload}
-        preview={eventPreview}
-      />
-    );
-  }
-
-  if (processedWebhook.error) {
-    return (
-      <DemoNotice title="Local verification failed">
-        {processedWebhook.error}
-      </DemoNotice>
-    );
-  }
-
-  if (!state) {
-    return null;
-  }
+  })();
 
   return (
-    <DocumentStatePanel description={state.description} title={state.title} />
+    <>
+      {attemptViews.length > 1 && selectedAttemptIndex >= 0 ? (
+        <AttemptSelector
+          onSelectNext={() => {
+            const nextAttempt = attemptViews[selectedAttemptIndex + 1];
+            if (nextAttempt) {
+              setSelectedAttemptId(nextAttempt.id);
+            }
+          }}
+          onSelectPrevious={() => {
+            const previousAttempt = attemptViews[selectedAttemptIndex - 1];
+            if (previousAttempt) {
+              setSelectedAttemptId(previousAttempt.id);
+            }
+          }}
+          selectedIndex={selectedAttemptIndex}
+          total={attemptViews.length}
+        />
+      ) : null}
+      {content}
+    </>
   );
 }
 
@@ -1398,65 +1470,94 @@ function useDemoRunPolling({
   }, [onRunError, onRunLoaded, runId]);
 }
 
-function useProcessedWebhookReceipt({
-  lastProcessedReceipt,
-  onProcessedWebhookChange,
-  onReceiptProcessed,
+function useProcessedWebhookReceipts({
+  onProcessedWebhooksChange,
   privateKey,
+  processedWebhooks,
   run,
   signingSecret,
 }: {
-  lastProcessedReceipt: string | null;
-  onProcessedWebhookChange: (nextState: ProcessedWebhookState) => void;
-  onReceiptProcessed: (receiptId: string) => void;
+  onProcessedWebhooksChange: Dispatch<SetStateAction<ProcessedWebhookMap>>;
   privateKey: CryptoKey | null;
+  processedWebhooks: ProcessedWebhookMap;
   run: DemoRunView | null;
   signingSecret: string | null;
 }) {
+  const processedReceiptIdsRef = useRef(new Set<string>());
+  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
+
   useEffect(() => {
-    const receiptId = run?.webhook
-      ? `${run.webhook.delivery_id ?? ""}:${run.webhook.received_at}`
-      : null;
+    processedReceiptIdsRef.current = new Set(Object.keys(processedWebhooks));
+  }, [processedWebhooks]);
 
-    if (!(receiptId && run?.webhook && privateKey && signingSecret)) {
+  useEffect(() => {
+    if (!(privateKey && signingSecret)) {
       return;
     }
 
-    if (receiptId === lastProcessedReceipt) {
-      return;
-    }
-
-    onReceiptProcessed(receiptId);
-
-    let cancelled = false;
-    const webhook = run.webhook;
-
-    onProcessedWebhookChange({
-      decryptedPayload: null,
-      error: null,
-      status: "verified",
+    const unprocessedWebhooks = webhookHistory.filter((webhook) => {
+      return !processedReceiptIdsRef.current.has(getDemoWebhookReceiptId(webhook));
     });
 
-    processWebhookReceipt({
-      privateKey,
-      secret: signingSecret,
-      webhook,
-    }).then((nextState) => {
-      if (!cancelled) {
-        onProcessedWebhookChange(nextState);
+    if (unprocessedWebhooks.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    for (const webhook of unprocessedWebhooks) {
+      processedReceiptIdsRef.current.add(getDemoWebhookReceiptId(webhook));
+    }
+
+    onProcessedWebhooksChange((current) => {
+      const nextState = { ...current };
+
+      for (const webhook of unprocessedWebhooks) {
+        nextState[getDemoWebhookReceiptId(webhook)] = {
+          decryptedPayload: null,
+          error: null,
+          status: "verified",
+        };
       }
+
+      return nextState;
+    });
+
+    Promise.all(
+      unprocessedWebhooks.map(async (webhook) => {
+        return {
+          receiptId: getDemoWebhookReceiptId(webhook),
+          state: await processWebhookReceipt({
+            privateKey,
+            secret: signingSecret,
+            webhook,
+          }),
+        };
+      })
+    ).then((results) => {
+      if (cancelled) {
+        return;
+      }
+
+      onProcessedWebhooksChange((current) => {
+        const nextState = { ...current };
+
+        for (const result of results) {
+          nextState[result.receiptId] = result.state;
+        }
+
+        return nextState;
+      });
     });
 
     return () => {
       cancelled = true;
     };
   }, [
-    lastProcessedReceipt,
-    onProcessedWebhookChange,
-    onReceiptProcessed,
+    onProcessedWebhooksChange,
     privateKey,
-    run,
     signingSecret,
+    webhookHistory,
   ]);
 }
 
@@ -1633,18 +1734,19 @@ function DemoOutcomeStep({
   canReviewOutcome,
   onOpenStep,
   openStep,
-  processedWebhook,
+  processedWebhooks,
   run,
 }: {
   canReviewOutcome: boolean;
   onOpenStep: (step: DemoStepId) => void;
   openStep: DemoStepId;
-  processedWebhook: ProcessedWebhookState;
+  processedWebhooks: ProcessedWebhookMap;
   run: DemoRunView | null;
 }) {
   const sessionStatus = run?.session_status ?? null;
+  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
   const isWaitingForTerminalWebhook = Boolean(
-    sessionStatus?.is_terminal && !run?.webhook
+    sessionStatus?.is_terminal && webhookHistory.length === 0
   );
 
   return (
@@ -1668,7 +1770,7 @@ function DemoOutcomeStep({
           </Alert>
         ) : null}
 
-        <WebhookPanel processedWebhook={processedWebhook} run={run} />
+        <WebhookPanel processedWebhooks={processedWebhooks} run={run} />
       </div>
     </DemoStepPanel>
   );
@@ -1687,11 +1789,8 @@ export function Demo() {
   const [isCreatingRun, setIsCreatingRun] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isRestartingDemo, setIsRestartingDemo] = useState(false);
-  const [processedWebhook, setProcessedWebhook] =
-    useState<ProcessedWebhookState>(defaultWebhookState);
-  const [lastProcessedReceipt, setLastProcessedReceipt] = useState<
-    string | null
-  >(null);
+  const [processedWebhooks, setProcessedWebhooks] =
+    useState<ProcessedWebhookMap>({});
   const [hasInitializedRun, setHasInitializedRun] = useState(false);
 
   const selectionResult = useMemo(
@@ -1703,8 +1802,11 @@ export function Demo() {
     [ageThresholdText, fieldModes]
   );
   const sessionStatus = run?.session_status ?? null;
+  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
   const hasSession = Boolean(run?.session_id);
-  const canReviewOutcome = Boolean(sessionStatus?.is_terminal || run?.webhook);
+  const canReviewOutcome = Boolean(
+    sessionStatus?.is_terminal || webhookHistory.length > 0
+  );
 
   const clearRunState = useCallback(() => {
     setOpenStep("step-1");
@@ -1716,8 +1818,7 @@ export function Demo() {
     setIsCreatingRun(false);
     setIsCreatingSession(false);
     setIsRestartingDemo(false);
-    setProcessedWebhook(defaultWebhookState);
-    setLastProcessedReceipt(null);
+    setProcessedWebhooks({});
     setHasInitializedRun(false);
   }, []);
 
@@ -1748,8 +1849,7 @@ export function Demo() {
   const handleGenerateRun = useCallback(async () => {
     setIsCreatingRun(true);
     setRunError(null);
-    setProcessedWebhook(defaultWebhookState);
-    setLastProcessedReceipt(null);
+    setProcessedWebhooks({});
 
     try {
       await provisionDemoRun();
@@ -1889,11 +1989,10 @@ export function Demo() {
     runId,
   });
 
-  useProcessedWebhookReceipt({
-    lastProcessedReceipt,
-    onProcessedWebhookChange: setProcessedWebhook,
-    onReceiptProcessed: setLastProcessedReceipt,
+  useProcessedWebhookReceipts({
+    onProcessedWebhooksChange: setProcessedWebhooks,
     privateKey,
+    processedWebhooks,
     run,
     signingSecret,
   });
@@ -1939,7 +2038,7 @@ export function Demo() {
                 canReviewOutcome={canReviewOutcome}
                 onOpenStep={handleOpenStep}
                 openStep={openStep}
-                processedWebhook={processedWebhook}
+                processedWebhooks={processedWebhooks}
                 run={run}
               />
             </div>

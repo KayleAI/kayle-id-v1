@@ -44,6 +44,7 @@ if (typeof document === "undefined") {
 const mockedUseDevice = vi.fn();
 const qrPropsSpy = vi.fn();
 const assignLocationSpy = vi.fn();
+const closeSpy = vi.fn();
 const confirmSpy = vi.fn();
 const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
@@ -217,6 +218,7 @@ beforeEach(() => {
   mockedUseDevice.mockReset();
   qrPropsSpy.mockReset();
   assignLocationSpy.mockReset();
+  closeSpy.mockReset();
   requestCancelVerifySessionMock.mockReset();
   requestHandoffPayloadMock.mockReset();
   requestVerifySessionStatusMock.mockReset();
@@ -225,6 +227,10 @@ beforeEach(() => {
   Object.defineProperty(window, "confirm", {
     configurable: true,
     value: confirmSpy,
+  });
+  Object.defineProperty(window, "close", {
+    configurable: true,
+    value: closeSpy,
   });
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -405,12 +411,13 @@ describe("UnsupportedDevice", () => {
     await flushUi();
 
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Retry on the same device")).not.toBeNull();
+    expect(view.getByText("Verification failed")).not.toBeNull();
     expect(
       view.getByText(
-        "The latest attempt did not pass. Retry or cancel in the Kayle ID app on that same device to continue."
+        "The verification did not complete successfully. Retry on that same device, or cancel it there if you want to stop. This browser cannot create a new QR handoff for this session."
       )
     ).not.toBeNull();
+    expect(view.getByRole("button", { name: "Close this page" })).not.toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(60_000);
@@ -447,10 +454,11 @@ describe("UnsupportedDevice", () => {
 
     expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("qr-code")).toBeNull();
-    expect(view.getByText("Retry on the same device")).not.toBeNull();
+    expect(view.getByText("Verification failed")).not.toBeNull();
+    expect(view.getByRole("button", { name: "Close this page" })).not.toBeNull();
   });
 
-  test("cancels the verification session instead of closing immediately", async () => {
+  test("cancels the verification session before mobile has claimed it", async () => {
     mockedUseDevice.mockReturnValue({
       supported: false,
       os: "ios",
@@ -478,6 +486,40 @@ describe("UnsupportedDevice", () => {
     );
     expect(view.queryByTestId("qr-code")).toBeNull();
     expect(view.getByText("Verification cancelled")).not.toBeNull();
+  });
+
+  test("closes the browser locally instead of cancelling a same-device session", async () => {
+    mockedUseDevice.mockReturnValue({
+      supported: false,
+      os: "ios",
+    });
+
+    requestVerifySessionStatusMock.mockResolvedValue(
+      createSessionStatus({
+        latest_attempt: {
+          completed_at: "2099-01-01T00:00:00.000Z",
+          failure_code: "selfie_face_mismatch",
+          handoff_claimed: true,
+          id: "va_test_attempt123",
+          retry_allowed: true,
+          status: "failed",
+        },
+        same_device_only: true,
+        status: "created",
+      })
+    );
+
+    const view = render(<UnsupportedDevice />);
+
+    await flushUi();
+
+    act(() => {
+      view.getByRole("button", { name: "Close this page" }).click();
+    });
+
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
   });
 
   test("does not cancel when the browser confirmation is rejected", async () => {

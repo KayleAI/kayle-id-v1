@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
 import { validateAndBuildShareManifest } from "@/v1/verify/share-manifest";
 import {
@@ -150,8 +151,7 @@ describe("verify share manifest", () => {
     expect(result).toEqual({
       ok: false,
       code: "SHARE_SELECTION_INVALID_FIELD",
-      message:
-        "One or more selected details are not available for this verification. Review the requested details and try again.",
+      message: ERROR_MESSAGES.SHARE_SELECTION_INVALID_FIELD.description,
     });
   });
 
@@ -181,8 +181,7 @@ describe("verify share manifest", () => {
     expect(result).toEqual({
       ok: false,
       code: "SHARE_SELECTION_MISSING_REQUIRED",
-      message:
-        "Required verification details must stay selected before you can continue.",
+      message: ERROR_MESSAGES.SHARE_SELECTION_MISSING_REQUIRED.description,
     });
   });
 });

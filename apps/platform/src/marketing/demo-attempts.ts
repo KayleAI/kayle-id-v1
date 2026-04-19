@@ -57,6 +57,23 @@ function getExpectedTerminalEventType(
   }
 }
 
+function getAcceptedWebhookEventPreview({
+  processedWebhooks,
+  webhook,
+}: {
+  processedWebhooks: ProcessedWebhookMap;
+  webhook: DemoWebhookEnvelope;
+}): DemoWebhookEventPreview | null {
+  const processedWebhook =
+    processedWebhooks[getDemoWebhookReceiptId(webhook)] ??
+    defaultProcessedWebhookState;
+  if (processedWebhook.status !== "decrypted") {
+    return null;
+  }
+
+  return buildDemoWebhookEventPreview(processedWebhook.decryptedPayload);
+}
+
 export function isDemoRunSettled({
   processedWebhooks,
   sessionStatus,
@@ -75,15 +92,12 @@ export function isDemoRunSettled({
     return false;
   }
 
-  if (
-    expectedEventType === "verification.session.cancelled" ||
-    expectedEventType === "verification.session.expired"
-  ) {
-    return webhooks.some((webhook) => webhook.event_type === expectedEventType);
-  }
-
   const latestAttemptId = sessionStatus.latest_attempt?.id;
-  if (!latestAttemptId) {
+  if (
+    expectedEventType !== "verification.session.cancelled" &&
+    expectedEventType !== "verification.session.expired" &&
+    !latestAttemptId
+  ) {
     return false;
   }
 
@@ -92,15 +106,26 @@ export function isDemoRunSettled({
       return false;
     }
 
-    const processedWebhook =
-      processedWebhooks[getDemoWebhookReceiptId(webhook)] ??
-      defaultProcessedWebhookState;
-    const eventPreview = buildDemoWebhookEventPreview(
-      processedWebhook.decryptedPayload
-    );
+    const eventPreview = getAcceptedWebhookEventPreview({
+      processedWebhooks,
+      webhook,
+    });
+    if (!(eventPreview?.eventType === expectedEventType)) {
+      return false;
+    }
+
+    if (eventPreview.verificationSessionId !== sessionStatus.session_id) {
+      return false;
+    }
+
+    if (
+      expectedEventType === "verification.session.cancelled" ||
+      expectedEventType === "verification.session.expired"
+    ) {
+      return true;
+    }
 
     return (
-      eventPreview?.eventType === expectedEventType &&
       eventPreview.verificationAttemptId === latestAttemptId
     );
   });

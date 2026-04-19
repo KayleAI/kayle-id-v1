@@ -10,7 +10,9 @@ function createWebhook({
   deliveryId: string;
   eventType?:
     | "verification.attempt.failed"
-    | "verification.attempt.succeeded";
+    | "verification.attempt.succeeded"
+    | "verification.session.cancelled"
+    | "verification.session.expired";
   receivedAt: string;
 }) {
   return {
@@ -150,6 +152,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
               failure_code: "selfie_mismatch",
             },
             metadata: {
+              verification_session_id: "vs_demo_test",
               verification_attempt_id: "va_1",
             },
           }),
@@ -172,6 +175,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
               failure_code: "selfie_mismatch",
             },
             metadata: {
+              verification_session_id: "vs_demo_test",
               verification_attempt_id: "va_1",
             },
           }),
@@ -187,6 +191,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
               },
             },
             metadata: {
+              verification_session_id: "vs_demo_test",
               verification_attempt_id: "va_2",
             },
           }),
@@ -196,6 +201,61 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
       },
       sessionStatus,
       webhooks: [firstAttempt, secondAttempt],
+    })
+  ).toBe(true);
+});
+
+test("isDemoRunSettled requires a decrypted session-terminal webhook for cancelled and expired runs", () => {
+  const terminalWebhook = createWebhook({
+    deliveryId: "whd_terminal",
+    eventType: "verification.session.cancelled",
+    receivedAt: "2026-04-19T10:05:00.000Z",
+  });
+  const cancelledStatus = {
+    completed_at: "2026-04-19T10:05:00.000Z",
+    is_terminal: true,
+    latest_attempt: {
+      completed_at: "2026-04-19T10:05:00.000Z",
+      failure_code: null,
+      id: "va_terminal",
+      status: "cancelled" as const,
+    },
+    redirect_url: null,
+    session_id: "vs_demo_test",
+    status: "cancelled" as const,
+  };
+
+  expect(
+    isDemoRunSettled({
+      processedWebhooks: {
+        [getDemoWebhookReceiptId(terminalWebhook)]: {
+          decryptedPayload: null,
+          error: "Webhook signature verification failed.",
+          status: "invalid",
+        },
+      },
+      sessionStatus: cancelledStatus,
+      webhooks: [terminalWebhook],
+    })
+  ).toBe(false);
+
+  expect(
+    isDemoRunSettled({
+      processedWebhooks: {
+        [getDemoWebhookReceiptId(terminalWebhook)]: {
+          decryptedPayload: JSON.stringify({
+            type: "verification.session.cancelled",
+            data: {},
+            metadata: {
+              verification_session_id: "vs_demo_test",
+            },
+          }),
+          error: null,
+          status: "decrypted",
+        },
+      },
+      sessionStatus: cancelledStatus,
+      webhooks: [terminalWebhook],
     })
   ).toBe(true);
 });

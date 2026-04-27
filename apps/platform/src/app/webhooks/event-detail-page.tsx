@@ -2,8 +2,14 @@ import InfoCard from "@kayle-id/ui/info-card";
 import { Button } from "@kayleai/ui/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AppHeading } from "@/components/app-heading";
+import { AppHeading } from "@/components/app-shell/heading";
 import { Loading } from "@/components/loading";
+import { DeliveriesTabContent } from "@/components/webhooks/deliveries/tab";
+import {
+	EventAttachedEndpointsCard,
+	EventOverviewCard,
+} from "@/components/webhooks/events/detail-cards";
+import { getErrorMessage } from "@/components/webhooks/shared";
 import {
 	listWebhookDeliveries,
 	listWebhookEndpoints,
@@ -11,12 +17,6 @@ import {
 	replayWebhookEvent,
 	retryWebhookDelivery,
 } from "./api";
-import { DeliveriesTabContent } from "./deliveries-tab";
-import {
-	EventAttachedEndpointsCard,
-	EventOverviewCard,
-} from "./event-detail-cards";
-import { getErrorMessage } from "./shared";
 import {
 	getDeliveriesForEvent,
 	getEndpointsById,

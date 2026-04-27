@@ -9,7 +9,12 @@ import {
 } from "@kayleai/ui/table";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import type { WebhookDelivery, WebhookEndpoint } from "./api";
+import type { WebhookDelivery, WebhookEndpoint } from "@/app/webhooks/api";
+import {
+	formatOptionalDate,
+	getEndpointDisplayName,
+	getEndpointSecondaryLabel,
+} from "@/app/webhooks/utils";
 import {
 	LoadingState,
 	QueryErrorAlert,
@@ -17,12 +22,7 @@ import {
 	SectionMessage,
 	StatusBadge,
 	showAsyncToast,
-} from "./shared";
-import {
-	formatOptionalDate,
-	getEndpointDisplayName,
-	getEndpointSecondaryLabel,
-} from "./utils";
+} from "../shared";
 
 export function DeliveriesTabContent({
 	context,

@@ -1,5 +1,5 @@
 import { createRouter, type NotFoundRouteProps } from "@tanstack/react-router";
-import { NotFound } from "./components/not-found";
+import { NotFound } from "@/components/not-found";
 import { routeTree } from "./routeTree.gen";
 
 function defaultNotFoundComponent(props: NotFoundRouteProps): React.ReactNode {

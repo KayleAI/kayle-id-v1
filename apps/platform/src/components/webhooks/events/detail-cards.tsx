@@ -10,15 +10,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Loader2Icon } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatDate } from "@/utils/format-date";
-import type { WebhookEndpoint, WebhookEvent } from "./api";
-import {
-	QueryErrorAlert,
-	ResponseCodeBadge,
-	SectionMessage,
-	StatusBadge,
-	showAsyncToast,
-} from "./shared";
+import type { WebhookEndpoint, WebhookEvent } from "@/app/webhooks/api";
 import {
 	formatCount,
 	formatOptionalDate,
@@ -27,7 +19,15 @@ import {
 	getEndpointSecondaryLabel,
 	getEventTriggerLabel,
 	getWebhookEventReplayDisabledReason,
-} from "./utils";
+} from "@/app/webhooks/utils";
+import { formatDate } from "@/utils/format-date";
+import {
+	QueryErrorAlert,
+	ResponseCodeBadge,
+	SectionMessage,
+	StatusBadge,
+	showAsyncToast,
+} from "../shared";
 
 export function EventAttachedEndpointsCard({
 	endpointsById,

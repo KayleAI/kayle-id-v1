@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalList, LegalSection } from "@/components/legal-document";
-import { PageHeading } from "@/components/page-heading";
+import { LegalList, LegalSection } from "@/components/site/legal-document";
+import { PageHeading } from "@/components/site/page-heading";
 
 const LAST_UPDATED = "March 20, 2026";
 

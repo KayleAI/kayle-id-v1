@@ -7,24 +7,24 @@ import {
 	RefreshCwIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatDate } from "@/utils/format-date";
-import { useCopyToClipboard } from "@/utils/use-copy";
-import type { WebhookEncryptionKey, WebhookEndpoint } from "./api";
-import { CreateKeyDialog } from "./create-key-dialog";
-import {
-	LoadingState,
-	QueryErrorAlert,
-	ResponseCodeBadge,
-	StatusBadge,
-	showAsyncToast,
-} from "./shared";
+import type { WebhookEncryptionKey, WebhookEndpoint } from "@/app/webhooks/api";
 import {
 	type DeliveryTrendPoint,
 	type EndpointDeliveryStats,
 	formatCount,
 	getEndpointDisplayName,
 	getEventSubscriptionSummary,
-} from "./utils";
+} from "@/app/webhooks/utils";
+import { formatDate } from "@/utils/format-date";
+import { useCopyToClipboard } from "@/utils/use-copy";
+import { CreateKeyDialog } from "../keys/create-dialog";
+import {
+	LoadingState,
+	QueryErrorAlert,
+	ResponseCodeBadge,
+	StatusBadge,
+	showAsyncToast,
+} from "../shared";
 
 export function EndpointPerformancePanel({
 	endpointDeliveryStats,

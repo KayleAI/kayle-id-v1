@@ -1,6 +1,6 @@
 import { Layout } from "@kayleai/ui/layout";
 import { SidebarInset, SidebarProvider } from "@kayleai/ui/sidebar";
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar } from "./sidebar";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
 	return (

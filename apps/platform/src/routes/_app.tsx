@@ -1,7 +1,7 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Toaster } from "@kayleai/ui/sonner";
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
-import { AppLayout } from "@/components/app-layout";
+import { AppLayout } from "@/components/app-shell/layout";
 import { Loading } from "@/components/loading";
 
 export const Route = createFileRoute("/_app")({

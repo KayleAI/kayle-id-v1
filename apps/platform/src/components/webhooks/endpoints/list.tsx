@@ -24,13 +24,7 @@ import {
 	TrashIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { WebhookEndpoint } from "./api";
-import {
-	QueryErrorAlert,
-	ResponseCodeBadge,
-	SectionMessage,
-	StatusBadge,
-} from "./shared";
+import type { WebhookEndpoint } from "@/app/webhooks/api";
 import {
 	EMPTY_ENDPOINT_DELIVERY_STATS,
 	type EndpointDeliveryStats,
@@ -39,7 +33,13 @@ import {
 	getEndpointSecondaryLabel,
 	getEventSubscriptionSummary,
 	TAB_OPTIONS,
-} from "./utils";
+} from "@/app/webhooks/utils";
+import {
+	QueryErrorAlert,
+	ResponseCodeBadge,
+	SectionMessage,
+	StatusBadge,
+} from "../shared";
 
 export function WebhooksToolbar() {
 	return (

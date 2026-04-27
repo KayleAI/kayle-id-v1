@@ -2,8 +2,15 @@ import { Tabs, TabsContent } from "@kayleai/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppHeading } from "@/components/app-heading";
+import { AppHeading } from "@/components/app-shell/heading";
 import { Loading } from "@/components/loading";
+import { CreateEndpointDrawer } from "@/components/webhooks/endpoints/create-drawer";
+import {
+	EndpointsTabContent,
+	WebhooksToolbar,
+} from "@/components/webhooks/endpoints/list";
+import { EventsTabContent } from "@/components/webhooks/events/tab";
+import { getErrorMessage } from "@/components/webhooks/shared";
 import {
 	createWebhookEndpoint,
 	createWebhookKey,
@@ -14,10 +21,6 @@ import {
 	updateWebhookEndpoint,
 	type WebhookEndpoint,
 } from "./api";
-import { CreateEndpointDrawer } from "./create-endpoint-drawer";
-import { EndpointsTabContent, WebhooksToolbar } from "./endpoint-list";
-import { EventsTabContent } from "./events-tab";
-import { getErrorMessage } from "./shared";
 import {
 	type CreateEndpointSubmission,
 	type CreateEndpointSubmissionResult,

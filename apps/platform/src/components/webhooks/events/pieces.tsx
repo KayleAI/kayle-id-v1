@@ -10,12 +10,12 @@ import {
 	DropdownMenuTrigger,
 } from "@kayleai/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
-import type { WebhookEvent } from "./api";
+import type { WebhookEvent } from "@/app/webhooks/api";
 import {
 	formatCountLabel,
 	getEventSubscriptionSummary,
 	getWebhookEventTypeDescription,
-} from "./utils";
+} from "@/app/webhooks/utils";
 
 export function EventDeliverySummary({
 	deliveries,

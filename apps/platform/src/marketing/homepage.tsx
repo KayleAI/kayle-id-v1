@@ -1,7 +1,7 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Button } from "@kayleai/ui/button";
 import { Link } from "@tanstack/react-router";
-import { PageHeading } from "@/components/page-heading";
+import { PageHeading } from "@/components/site/page-heading";
 
 const steps = [
 	{

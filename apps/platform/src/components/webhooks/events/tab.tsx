@@ -8,11 +8,11 @@ import {
 } from "@kayleai/ui/table";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import type { WebhookEvent } from "@/app/webhooks/api";
+import { getEventTriggerLabel } from "@/app/webhooks/utils";
 import { formatDate } from "@/utils/format-date";
-import type { WebhookEvent } from "./api";
-import { EventDeliverySummary } from "./event-pieces";
-import { LoadingState, QueryErrorAlert, SectionMessage } from "./shared";
-import { getEventTriggerLabel } from "./utils";
+import { LoadingState, QueryErrorAlert, SectionMessage } from "../shared";
+import { EventDeliverySummary } from "./pieces";
 
 export function EventsTabContent({
 	error,

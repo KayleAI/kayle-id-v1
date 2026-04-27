@@ -3,7 +3,7 @@ import InfoCard from "@kayle-id/ui/info-card";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ApiKeysTable, CreateApiKey } from "@/app/api-keys";
-import { AppHeading } from "@/components/app-heading";
+import { AppHeading } from "@/components/app-shell/heading";
 import { Loading } from "@/components/loading";
 
 export const Route = createFileRoute("/_app/api-keys/")({

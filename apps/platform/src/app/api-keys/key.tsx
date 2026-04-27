@@ -27,7 +27,7 @@ import { cn } from "@kayleai/ui/utils/cn";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppHeading } from "@/components/app-heading";
+import { AppHeading } from "@/components/app-shell/heading";
 import { formatDate } from "@/utils/format-date";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {

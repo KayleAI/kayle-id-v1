@@ -18,7 +18,7 @@ import { cn } from "@kayleai/ui/utils/cn";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";
-import { AppHeading } from "@/components/app-heading";
+import { AppHeading } from "@/components/app-shell/heading";
 import {
 	getSessionAnalyticsOverview,
 	type SessionAnalyticsTimelinePoint,

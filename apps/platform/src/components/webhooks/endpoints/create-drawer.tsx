@@ -14,14 +14,14 @@ import { cn } from "@kayleai/ui/utils/cn";
 import { ChevronDownIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { EventSubscriptionMenu } from "./event-pieces";
-import { PublicKeyFields } from "./public-key-fields";
 import {
 	type CreateEndpointSubmission,
 	type CreateEndpointSubmissionResult,
 	getCreateEndpointInitialPublicKey,
 	toggleEventSelection,
-} from "./utils";
+} from "@/app/webhooks/utils";
+import { EventSubscriptionMenu } from "../events/pieces";
+import { PublicKeyFields } from "../keys/fields";
 
 export function CreateEndpointDrawer({
 	onSubmit,

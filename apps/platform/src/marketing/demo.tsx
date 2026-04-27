@@ -19,7 +19,7 @@ import {
 	useState,
 } from "react";
 import { toast } from "sonner";
-import { PageHeading } from "@/components/page-heading";
+import { PageHeading } from "@/components/site/page-heading";
 import {
 	buildRequestedShareFields,
 	demoClaimSections,

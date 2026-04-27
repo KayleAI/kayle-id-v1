@@ -10,8 +10,8 @@ import {
 import { Switch } from "@kayleai/ui/switch";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
-import { EventSubscriptionMenu } from "./event-pieces";
-import { showAsyncToast } from "./shared";
+import { EventSubscriptionMenu } from "../events/pieces";
+import { showAsyncToast } from "../shared";
 
 export function EditEndpointDrawer({
 	endpointEnabled,

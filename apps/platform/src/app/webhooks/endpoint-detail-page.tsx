@@ -7,6 +7,21 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeftIcon, ShieldAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Loading } from "@/components/loading";
+import { DeliveriesTabContent } from "@/components/webhooks/deliveries/tab";
+import {
+	EndpointDetailsPanel,
+	EndpointKeysCard,
+	EndpointPerformancePanel,
+	EndpointResourcesCard,
+	EndpointSigningSecretCard,
+} from "@/components/webhooks/endpoints/detail-cards";
+import { EditEndpointDrawer } from "@/components/webhooks/endpoints/edit-drawer";
+import { EndpointActionsMenu } from "@/components/webhooks/endpoints/list";
+import {
+	getErrorMessage,
+	QueryErrorAlert,
+	StatusBadge,
+} from "@/components/webhooks/shared";
 import {
 	createWebhookKey,
 	deactivateWebhookKey,
@@ -21,17 +36,6 @@ import {
 	updateWebhookEndpoint,
 	type WebhookEndpoint,
 } from "./api";
-import { DeliveriesTabContent } from "./deliveries-tab";
-import { EditEndpointDrawer } from "./edit-endpoint-drawer";
-import {
-	EndpointDetailsPanel,
-	EndpointKeysCard,
-	EndpointPerformancePanel,
-	EndpointResourcesCard,
-	EndpointSigningSecretCard,
-} from "./endpoint-detail-cards";
-import { EndpointActionsMenu } from "./endpoint-list";
-import { getErrorMessage, QueryErrorAlert, StatusBadge } from "./shared";
 import {
 	type EndpointDetailTab,
 	getEndpointDeliveryTrend,

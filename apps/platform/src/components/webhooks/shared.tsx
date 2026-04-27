@@ -10,8 +10,11 @@ import {
 import { cn } from "@kayleai/ui/utils/cn";
 import { Loader2Icon, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
-import type { DeliveryStatus } from "./api";
-import { getResponseCodeClass, getStatusBadgeClass } from "./utils";
+import type { DeliveryStatus } from "@/app/webhooks/api";
+import {
+	getResponseCodeClass,
+	getStatusBadgeClass,
+} from "@/app/webhooks/utils";
 
 export function StatusBadge({
 	status,

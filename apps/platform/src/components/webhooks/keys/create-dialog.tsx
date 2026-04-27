@@ -11,8 +11,8 @@ import {
 import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { parsePublicKeyInput } from "./api";
-import { PublicKeyFields } from "./public-key-fields";
+import { parsePublicKeyInput } from "@/app/webhooks/api";
+import { PublicKeyFields } from "./fields";
 
 export function CreateKeyDialog({
 	endpointId,

@@ -15,168 +15,19 @@ import {
   createWebhookSignatureHeader,
   decryptWebhookSigningSecret,
 } from "@/v1/webhooks/signing-secret";
-
-const MAX_DELIVERY_ATTEMPTS = 3;
-const INITIAL_RETRY_DELAY_MS = 60_000;
-
-type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
-
-type VerificationAttemptFailedCode =
-  | "passport_authenticity_failed"
-  | "selfie_face_mismatch";
-
-type VerificationAttemptMetadata = {
-  contract_version: number;
-  event_id: string;
-  verification_attempt_id: string;
-  verification_session_id: string;
-};
-
-type VerificationSessionMetadata = {
-  contract_version: number;
-  event_id: string;
-  verification_session_id: string;
-};
-
-type VerificationSucceededPayload = {
-  data: {
-    claims: VerifyShareManifest["claims"];
-    selected_field_keys: string[];
-  };
-  metadata: VerificationAttemptMetadata;
-  type: "verification.attempt.succeeded";
-};
-
-type VerificationAttemptFailedPayload = {
-  data: {
-    failure_code: VerificationAttemptFailedCode;
-  };
-  metadata: VerificationAttemptMetadata;
-  type: "verification.attempt.failed";
-};
-
-type VerificationSessionExpiredPayload = {
-  data: Record<string, never>;
-  metadata: VerificationSessionMetadata;
-  type: "verification.session.expired";
-};
-
-type VerificationSessionCancelledPayload = {
-  data: Record<string, never>;
-  metadata: VerificationSessionMetadata;
-  type: "verification.session.cancelled";
-};
-
-type WebhookPayload =
-  | VerificationAttemptFailedPayload
-  | VerificationSessionCancelledPayload
-  | VerificationSessionExpiredPayload
-  | VerificationSucceededPayload;
-
-type DeliveryRowResponse = {
-  attempt_count: number;
-  created_at: string;
-  event_id: string;
-  id: string;
-  last_attempt_at: string | null;
-  last_status_code: number | null;
-  next_attempt_at: string | null;
-  status: DeliveryStatus;
-  updated_at: string;
-  webhook_encryption_key_id: string | null;
-  webhook_endpoint_id: string;
-};
-
-function buildVerificationSucceededPayload({
-  attemptId,
-  eventId,
-  manifest,
-}: {
-  attemptId: string;
-  eventId: string;
-  manifest: VerifyShareManifest;
-}): VerificationSucceededPayload {
-  return {
-    data: {
-      claims: manifest.claims,
-      selected_field_keys: manifest.selectedFieldKeys,
-    },
-    metadata: {
-      contract_version: manifest.contractVersion,
-      event_id: eventId,
-      verification_attempt_id: attemptId,
-      verification_session_id: manifest.sessionId,
-    },
-    type: "verification.attempt.succeeded",
-  };
-}
-
-function buildVerificationAttemptFailedPayload({
-  attemptId,
-  contractVersion,
-  eventId,
-  failureCode,
-  sessionId,
-}: {
-  attemptId: string;
-  contractVersion: number;
-  eventId: string;
-  failureCode: VerificationAttemptFailedCode;
-  sessionId: string;
-}): VerificationAttemptFailedPayload {
-  return {
-    data: {
-      failure_code: failureCode,
-    },
-    metadata: {
-      contract_version: contractVersion,
-      event_id: eventId,
-      verification_attempt_id: attemptId,
-      verification_session_id: sessionId,
-    },
-    type: "verification.attempt.failed",
-  };
-}
-
-function buildVerificationSessionExpiredPayload({
-  contractVersion,
-  eventId,
-  sessionId,
-}: {
-  contractVersion: number;
-  eventId: string;
-  sessionId: string;
-}): VerificationSessionExpiredPayload {
-  return {
-    data: {},
-    metadata: {
-      contract_version: contractVersion,
-      event_id: eventId,
-      verification_session_id: sessionId,
-    },
-    type: "verification.session.expired",
-  };
-}
-
-function buildVerificationSessionCancelledPayload({
-  contractVersion,
-  eventId,
-  sessionId,
-}: {
-  contractVersion: number;
-  eventId: string;
-  sessionId: string;
-}): VerificationSessionCancelledPayload {
-  return {
-    data: {},
-    metadata: {
-      contract_version: contractVersion,
-      event_id: eventId,
-      verification_session_id: sessionId,
-    },
-    type: "verification.session.cancelled",
-  };
-}
+import {
+  buildVerificationAttemptFailedPayload,
+  buildVerificationSessionCancelledPayload,
+  buildVerificationSessionExpiredPayload,
+  buildVerificationSucceededPayload,
+} from "./payloads";
+import {
+  type DeliveryRowResponse,
+  INITIAL_RETRY_DELAY_MS,
+  MAX_DELIVERY_ATTEMPTS,
+  type VerificationAttemptFailedCode,
+  type WebhookPayload,
+} from "./types";
 
 function computeNextAttemptAt(attemptCount: number): Date | null {
   if (attemptCount >= MAX_DELIVERY_ATTEMPTS) {

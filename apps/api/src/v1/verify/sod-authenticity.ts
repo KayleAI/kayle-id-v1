@@ -1,17 +1,8 @@
-import {
-  type AsnType,
-  fromBER,
-  Integer,
-  ObjectIdentifier,
-  OctetString,
-  Sequence,
-} from "asn1js";
+import { Integer, OctetString, Sequence } from "asn1js";
 import {
   AlgorithmIdentifier,
   Certificate,
   ContentInfo,
-  createECDSASignatureFromCMS,
-  ECNamedCurves,
   getHashAlgorithm,
   IssuerAndSerialNumber,
   RSASSAPSSParams,
@@ -32,6 +23,31 @@ import {
   subjectKeyIdentifierHex,
   subjectKeyIdentifierHexOrKeyHash,
 } from "./pkd-trust";
+import {
+  bufferBytes,
+  bytesEqual,
+  concatUint8Arrays,
+  exactBytes,
+  octetStringBytes,
+  oidString,
+  parseBer,
+  subtleAlgorithmFromOid,
+} from "./sod-asn1-utils";
+import {
+  CMS_SIGNED_DATA_OID,
+  CONTENT_TYPE_ATTRIBUTE_OID,
+  ICAO_LDS_SECURITY_OBJECT_OID,
+  MESSAGE_DIGEST_ATTRIBUTE_OID,
+  RSA_ENCRYPTION_OID,
+  RSA_PSS_OID,
+  SOD_ROOT_TAG,
+  SUPPORTED_NAMED_CURVES,
+} from "./sod-constants";
+import {
+  ecdsaSignatureBytes,
+  normalizedEcCertificatePublicKeyAlgorithm,
+  signerEcNamedCurve,
+} from "./sod-ec-curves";
 import { readTlv } from "./tlv";
 import type {
   AuthenticityValidationResult,
@@ -40,66 +56,6 @@ import type {
   PassiveAuthSignerSource,
   SupportedHashAlgorithm,
 } from "./validation-types";
-
-const ICAO_LDS_SECURITY_OBJECT_OID = "2.23.136.1.1.1";
-const CMS_SIGNED_DATA_OID = "1.2.840.113549.1.7.2";
-const SOD_ROOT_TAG = 0x77;
-const SHA_1_OID = "1.3.14.3.2.26";
-const SHA_256_OID = "2.16.840.1.101.3.4.2.1";
-const SHA_384_OID = "2.16.840.1.101.3.4.2.2";
-const SHA_512_OID = "2.16.840.1.101.3.4.2.3";
-const CONTENT_TYPE_ATTRIBUTE_OID = "1.2.840.113549.1.9.3";
-const MESSAGE_DIGEST_ATTRIBUTE_OID = "1.2.840.113549.1.9.4";
-const ECDSA_PUBLIC_KEY_OID = "1.2.840.10045.2.1";
-const EC_PRIME_FIELD_OID = "1.2.840.10045.1.1";
-const RSA_ENCRYPTION_OID = "1.2.840.113549.1.1.1";
-const RSA_PSS_OID = "1.2.840.113549.1.1.10";
-const OID_PATTERN = /^\d+(?:\.\d+)+$/;
-const SUPPORTED_NAMED_CURVES = ["P-256", "P-384", "P-521"] as const;
-const EXPLICIT_EC_CURVES = [
-  {
-    aHex: "ffffffff00000001000000000000000000000000fffffffffffffffffffffffc",
-    bHex: "5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b",
-    cofactorHex: "01",
-    fieldTypeOid: EC_PRIME_FIELD_OID,
-    generatorHex:
-      "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
-    name: "P-256",
-    namedCurveOid: "1.2.840.10045.3.1.7",
-    orderHex:
-      "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
-    primeHex:
-      "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
-  },
-  {
-    aHex: "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000fffffffc",
-    bHex: "b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef",
-    cofactorHex: "01",
-    fieldTypeOid: EC_PRIME_FIELD_OID,
-    generatorHex:
-      "04aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab73617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f",
-    name: "P-384",
-    namedCurveOid: "1.3.132.0.34",
-    orderHex:
-      "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973",
-    primeHex:
-      "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff",
-  },
-  {
-    aHex: "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc",
-    bHex: "0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00",
-    cofactorHex: "01",
-    fieldTypeOid: EC_PRIME_FIELD_OID,
-    generatorHex:
-      "0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
-    name: "P-521",
-    namedCurveOid: "1.3.132.0.35",
-    orderHex:
-      "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
-    primeHex:
-      "01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  },
-] as const;
 
 type ParsedSodSecurityObject = {
   algorithm: SupportedHashAlgorithm;
@@ -133,96 +89,6 @@ type CmsSignatureVerificationResult = {
   detail: string | null;
   ok: boolean;
 };
-
-type ExplicitEcCurveParameters = {
-  aHex: string;
-  bHex: string;
-  cofactorHex: string | null;
-  fieldTypeOid: string;
-  generatorHex: string;
-  orderHex: string;
-  primeHex: string;
-};
-
-function exactBytes(bytes: Uint8Array): Uint8Array {
-  return new Uint8Array(bytes);
-}
-
-function bufferBytes(bytes: Uint8Array): ArrayBuffer {
-  return bytes.slice().buffer;
-}
-
-function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function concatUint8Arrays(parts: Uint8Array[]): Uint8Array {
-  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-
-  for (const part of parts) {
-    combined.set(part, offset);
-    offset += part.length;
-  }
-
-  return combined;
-}
-
-function asn1Buffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.slice().buffer;
-}
-
-function subtleAlgorithmFromOid(oid: string): SupportedHashAlgorithm | null {
-  switch (oid) {
-    case SHA_1_OID:
-      return "SHA-1";
-    case SHA_256_OID:
-      return "SHA-256";
-    case SHA_384_OID:
-      return "SHA-384";
-    case SHA_512_OID:
-      return "SHA-512";
-    default:
-      return null;
-  }
-}
-
-function octetStringBytes(value: OctetString): Uint8Array {
-  if (!value.idBlock.isConstructed) {
-    return exactBytes(value.valueBlock.valueHexView);
-  }
-
-  const parts = value.valueBlock.value.map((child) => {
-    if (!(child instanceof OctetString)) {
-      throw new Error("invalid_octet_string_child");
-    }
-
-    return octetStringBytes(child);
-  });
-
-  return concatUint8Arrays(parts);
-}
-
-function parseBer(bytes: Uint8Array, errorCode: string): unknown {
-  const decoded = fromBER(asn1Buffer(bytes));
-
-  if (decoded.offset === -1) {
-    throw new Error(errorCode);
-  }
-
-  return decoded.result;
-}
 
 function parseContentInfo(sod: Uint8Array): ContentInfo {
   const schema = parseBer(unwrapSodContentInfoBytes(sod), "sod_parse_failed");
@@ -993,219 +859,6 @@ async function signedDataBytesForSignature({
   }
 
   return signedAttributesSignatureBytes(signerInfo);
-}
-
-function curveSizeBytes(namedCurve: string): number {
-  const curve = ECNamedCurves.find(namedCurve);
-
-  if (!curve) {
-    throw new Error("cms_signature_curve_invalid");
-  }
-
-  return curve.size;
-}
-
-function ecdsaSignatureBytes({
-  namedCurve,
-  signatureBytes,
-}: {
-  namedCurve: string;
-  signatureBytes: Uint8Array;
-}): Uint8Array {
-  const decoded = fromBER(bufferBytes(signatureBytes));
-
-  if (decoded.offset === -1) {
-    throw new Error("cms_signature_invalid_encoding");
-  }
-
-  return exactBytes(
-    new Uint8Array(
-      createECDSASignatureFromCMS(
-        decoded.result as AsnType,
-        curveSizeBytes(namedCurve)
-      )
-    )
-  );
-}
-
-function oidString(value: string): string | null {
-  return OID_PATTERN.test(value) ? value : null;
-}
-
-function integerHexValue(node: unknown): string | null {
-  if (!(node instanceof Integer)) {
-    return null;
-  }
-
-  const bytes = exactBytes(new Uint8Array(node.valueBlock.valueHexView));
-  let offset = 0;
-
-  while (offset < bytes.length - 1 && bytes[offset] === 0) {
-    offset += 1;
-  }
-
-  return hexBytes(bytes.subarray(offset));
-}
-
-function octetStringHexValue(node: unknown): string | null {
-  if (!(node instanceof OctetString)) {
-    return null;
-  }
-
-  return hexBytes(exactBytes(new Uint8Array(node.valueBlock.valueHexView)));
-}
-
-function sequenceChildren(node: unknown): unknown[] {
-  return node instanceof Sequence ? node.valueBlock.value : [];
-}
-
-function directObjectIdentifierValue(node: unknown): string | null {
-  return node instanceof ObjectIdentifier
-    ? oidString(node.valueBlock.toString())
-    : null;
-}
-
-function explicitEcCurveParameters(
-  algorithmParams: unknown
-): ExplicitEcCurveParameters | null {
-  if (!(algorithmParams instanceof Sequence)) {
-    return null;
-  }
-
-  const [version, fieldIdentifier, curve, generator, order, cofactor] =
-    sequenceChildren(algorithmParams);
-
-  if (
-    !(
-      version instanceof Integer &&
-      fieldIdentifier instanceof Sequence &&
-      curve instanceof Sequence &&
-      generator instanceof OctetString &&
-      order instanceof Integer
-    )
-  ) {
-    return null;
-  }
-
-  const [fieldType, prime] = sequenceChildren(fieldIdentifier);
-  const [aCoefficient, bCoefficient] = sequenceChildren(curve);
-  const fieldTypeOid = directObjectIdentifierValue(fieldType);
-  const primeHex = integerHexValue(prime);
-  const aHex = octetStringHexValue(aCoefficient);
-  const bHex = octetStringHexValue(bCoefficient);
-  const generatorHex = octetStringHexValue(generator);
-  const orderHex = integerHexValue(order);
-  const cofactorHex = integerHexValue(cofactor);
-
-  if (!(fieldTypeOid && primeHex && aHex && bHex && generatorHex && orderHex)) {
-    return null;
-  }
-
-  return {
-    aHex,
-    bHex,
-    cofactorHex,
-    fieldTypeOid,
-    generatorHex,
-    orderHex,
-    primeHex,
-  };
-}
-
-function resolveEcNamedCurve(
-  algorithmParams: unknown
-): { name: string; oid: string } | null {
-  const directOid = directObjectIdentifierValue(algorithmParams);
-
-  if (directOid) {
-    const curve = ECNamedCurves.find(directOid);
-
-    return curve ? { name: curve.name, oid: curve.id } : null;
-  }
-
-  const explicitCurve = explicitEcCurveParameters(algorithmParams);
-
-  if (!explicitCurve) {
-    return null;
-  }
-
-  const matchedCurve = EXPLICIT_EC_CURVES.find(
-    (candidate) =>
-      candidate.fieldTypeOid === explicitCurve.fieldTypeOid &&
-      candidate.primeHex === explicitCurve.primeHex &&
-      candidate.aHex === explicitCurve.aHex &&
-      candidate.bHex === explicitCurve.bHex &&
-      candidate.generatorHex === explicitCurve.generatorHex &&
-      candidate.orderHex === explicitCurve.orderHex &&
-      candidate.cofactorHex ===
-        (explicitCurve.cofactorHex ?? candidate.cofactorHex)
-  );
-
-  return matchedCurve
-    ? {
-        name: matchedCurve.name,
-        oid: matchedCurve.namedCurveOid,
-      }
-    : null;
-}
-
-function cloneCertificate(cert: Certificate): Certificate {
-  const encoded = cert.toSchema().toBER(false);
-  const decoded = fromBER(encoded);
-
-  if (decoded.offset === -1) {
-    throw new Error("certificate_clone_failed");
-  }
-
-  return new Certificate({
-    schema: decoded.result,
-  });
-}
-
-function normalizedEcCertificatePublicKeyAlgorithm(
-  cert: Certificate
-): Certificate {
-  const publicKeyAlgorithm = cert.subjectPublicKeyInfo.algorithm;
-
-  if (publicKeyAlgorithm.algorithmId !== ECDSA_PUBLIC_KEY_OID) {
-    return cert;
-  }
-
-  const namedCurve = resolveEcNamedCurve(publicKeyAlgorithm.algorithmParams);
-
-  if (!namedCurve) {
-    return cert;
-  }
-
-  const normalizedCert = cloneCertificate(cert);
-
-  if (
-    normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams instanceof
-      ObjectIdentifier &&
-    normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams.valueBlock.toString() ===
-      namedCurve.oid
-  ) {
-    return normalizedCert;
-  }
-
-  normalizedCert.subjectPublicKeyInfo.algorithm.algorithmParams =
-    new ObjectIdentifier({
-      value: namedCurve.oid,
-    });
-  normalizedCert.subjectPublicKeyInfo.parsedKey = undefined;
-  return normalizedCert;
-}
-
-function signerEcNamedCurve(signerCert: Certificate): string {
-  const curve = resolveEcNamedCurve(
-    signerCert.subjectPublicKeyInfo.algorithm.algorithmParams
-  );
-
-  if (!curve) {
-    throw new Error("cms_signature_curve_invalid");
-  }
-
-  return curve.name;
 }
 
 function importSignerVerificationKey({

@@ -17,9 +17,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import {
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
@@ -31,24 +29,30 @@ import { PageHeading } from "@/components/page-heading";
 import {
   buildRequestedShareFields,
   demoClaimSections,
-  formatPublicDemoPayload,
   getClaimDescription,
   getModeLabel,
   initialFieldModes,
   isLockedDemoClaim,
 } from "@/demo/claim-fields";
-import {
-  decryptCompactJwe,
-  generateDemoKeyPair,
-  verifyWebhookSignature,
-} from "@/demo/crypto";
+import { generateDemoKeyPair } from "@/demo/crypto";
 import type {
   DemoFieldMode,
   DemoRunCreateResult,
-  DemoRunSessionResult,
   DemoRunView,
-  DemoWebhookEnvelope,
 } from "@/demo/types";
+import {
+  createDemoRun,
+  createDemoVerificationSession,
+} from "@/marketing/demo-api";
+import {
+  type DemoStepId,
+  getDemoStepSectionId,
+  useDemoRunInitialization,
+  useDemoRunPolling,
+  useDemoStepProgression,
+  useDemoStepScroll,
+  useProcessedWebhookReceipts,
+} from "@/marketing/demo-hooks";
 import {
   getDemoWebhookHistory,
   getDemoWebhookReplayReceiptIds,
@@ -73,15 +77,6 @@ import {
 const POLL_INTERVAL_MS = 2000;
 const accordionPanelClass = "";
 
-type ApiResponse<T> = {
-  data: T | null;
-  error: {
-    code?: string | null;
-    hint?: string | null;
-    message?: string | null;
-  } | null;
-};
-
 type ModeSelectorProps = {
   description?: string;
   disabled?: boolean;
@@ -97,7 +92,6 @@ type DemoNoticeProps = {
   title?: string;
 };
 
-type DemoStepId = "step-1" | "step-2" | "step-3";
 type SelectionResult = ReturnType<typeof buildRequestedShareFields>;
 
 function getModeButtonClass({
@@ -116,153 +110,6 @@ function getModeButtonClass({
   }
 
   return "bg-white text-neutral-950";
-}
-
-async function readJsonResponse<T>(
-  response: Response
-): Promise<ApiResponse<T>> {
-  try {
-    return (await response.json()) as ApiResponse<T>;
-  } catch {
-    return {
-      data: null,
-      error: {
-        message: "Unexpected response from the demo backend.",
-      },
-    };
-  }
-}
-
-async function createDemoRun({
-  publicJwk,
-}: {
-  publicJwk: JsonWebKey;
-}): Promise<DemoRunCreateResult> {
-  const response = await fetch("/api/demo/runs", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      public_jwk: publicJwk,
-    }),
-  });
-
-  const payload = await readJsonResponse<DemoRunCreateResult>(response);
-  if (!(response.ok && payload.data)) {
-    throw new Error(payload.error?.message ?? "Failed to create demo run.");
-  }
-
-  return payload.data;
-}
-
-async function createDemoVerificationSession({
-  runId,
-  shareFields,
-}: {
-  runId: string;
-  shareFields:
-    | Record<string, { reason: string; required: boolean }>
-    | undefined;
-}): Promise<DemoRunSessionResult> {
-  const response = await fetch(`/api/demo/runs/${runId}/session`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(
-      shareFields
-        ? {
-            share_fields: shareFields,
-          }
-        : {}
-    ),
-  });
-
-  const payload = await readJsonResponse<DemoRunSessionResult>(response);
-  if (!(response.ok && payload.data)) {
-    throw new Error(payload.error?.message ?? "Failed to create demo session.");
-  }
-
-  return payload.data;
-}
-
-async function getDemoRun(runId: string): Promise<DemoRunView> {
-  const response = await fetch(`/api/demo/runs/${runId}`);
-  const payload = await readJsonResponse<DemoRunView>(response);
-
-  if (!(response.ok && payload.data)) {
-    throw new Error(payload.error?.message ?? "Failed to load demo run.");
-  }
-
-  return payload.data;
-}
-
-async function processWebhookReceipt({
-  isReplay,
-  privateKey,
-  secret,
-  webhook,
-}: {
-  isReplay: boolean;
-  privateKey: CryptoKey;
-  secret: string;
-  webhook: DemoWebhookEnvelope;
-}): Promise<ProcessedWebhookState> {
-  const signatureHeader = webhook.signature_header;
-  if (!signatureHeader) {
-    return {
-      decryptedPayload: null,
-      error: "The webhook signature header was missing.",
-      status: "invalid",
-    };
-  }
-
-  const verification = await verifyWebhookSignature({
-    deliveryId: webhook.delivery_id,
-    isReplay,
-    payload: webhook.body,
-    receivedAt: webhook.received_at,
-    secret,
-    signatureHeader,
-  });
-
-  if (!verification.ok) {
-    return {
-      decryptedPayload: null,
-      error: verification.message,
-      status: "invalid",
-    };
-  }
-
-  try {
-    const plaintext = await decryptCompactJwe({
-      jwe: webhook.body,
-      privateKey,
-    });
-    const decryptedPayload = (() => {
-      try {
-        return formatPublicDemoPayload(plaintext);
-      } catch {
-        return plaintext;
-      }
-    })();
-
-    return {
-      decryptedPayload,
-      error: null,
-      status: "decrypted",
-    };
-  } catch (error) {
-    return {
-      decryptedPayload: null,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to decrypt the webhook payload.",
-      status: "invalid",
-    };
-  }
 }
 
 function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
@@ -308,10 +155,6 @@ function createDemoRunView(createdRun: DemoRunCreateResult): DemoRunView {
     webhook: null,
     webhooks: [],
   };
-}
-
-function getDemoStepSectionId(stepId: DemoStepId): string {
-  return `demo-${stepId}`;
 }
 
 function DemoStepPanel({
@@ -1339,241 +1182,6 @@ function WebhookPanel({
       {content}
     </>
   );
-}
-
-function useDemoRunInitialization({
-  handleGenerateRun,
-  hasInitializedRun,
-  setHasInitializedRun,
-}: {
-  handleGenerateRun: () => void;
-  hasInitializedRun: boolean;
-  setHasInitializedRun: (value: boolean) => void;
-}) {
-  useEffect(() => {
-    if (hasInitializedRun) {
-      return;
-    }
-
-    setHasInitializedRun(true);
-    handleGenerateRun();
-  }, [handleGenerateRun, hasInitializedRun, setHasInitializedRun]);
-}
-
-function useDemoStepProgression({
-  canReviewOutcome,
-  hasSession,
-  onOpenStepChange,
-}: {
-  canReviewOutcome: boolean;
-  hasSession: boolean;
-  onOpenStepChange: (step: DemoStepId) => void;
-}) {
-  const previousHasSessionRef = useRef(false);
-  const previousCanReviewOutcomeRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasSession) {
-      previousHasSessionRef.current = false;
-      previousCanReviewOutcomeRef.current = false;
-      onOpenStepChange("step-1");
-      return;
-    }
-
-    if (!previousHasSessionRef.current) {
-      onOpenStepChange("step-2");
-    }
-
-    if (canReviewOutcome && !previousCanReviewOutcomeRef.current) {
-      onOpenStepChange("step-3");
-    }
-
-    previousHasSessionRef.current = hasSession;
-    previousCanReviewOutcomeRef.current = canReviewOutcome;
-  }, [canReviewOutcome, hasSession, onOpenStepChange]);
-}
-
-function useDemoStepScroll({ openStep }: { openStep: DemoStepId }) {
-  const hasMountedRef = useRef(false);
-  const hasProgressedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-
-    // This is to prevent the scroll from happening on page load.
-    if (!hasProgressedRef.current && openStep === "step-1") {
-      return;
-    }
-    if (openStep === "step-2") {
-      hasProgressedRef.current = true;
-    }
-
-    const panel = document.getElementById(getDemoStepSectionId(openStep));
-    if (!panel) {
-      return;
-    }
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    const frameId = window.requestAnimationFrame(() => {
-      panel.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "start",
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [openStep]);
-}
-
-function useDemoRunPolling({
-  isRunSettled,
-  onRunError,
-  onRunLoaded,
-  runId,
-}: {
-  isRunSettled: boolean;
-  onRunError: (message: string) => void;
-  onRunLoaded: (nextRun: DemoRunView) => void;
-  runId: string | null;
-}) {
-  useEffect(() => {
-    if (!(runId && !isRunSettled)) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const poll = () => {
-      getDemoRun(runId)
-        .then((nextRun) => {
-          if (!cancelled) {
-            onRunLoaded(nextRun);
-          }
-        })
-        .catch((error: unknown) => {
-          if (!cancelled) {
-            onRunError(
-              error instanceof Error
-                ? error.message
-                : "Failed to refresh demo run."
-            );
-          }
-        });
-    };
-
-    poll();
-    const interval = window.setInterval(poll, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [isRunSettled, onRunError, onRunLoaded, runId]);
-}
-
-function useProcessedWebhookReceipts({
-  onProcessedWebhooksChange,
-  privateKey,
-  processedWebhooks,
-  run,
-  signingSecret,
-}: {
-  onProcessedWebhooksChange: Dispatch<SetStateAction<ProcessedWebhookMap>>;
-  privateKey: CryptoKey | null;
-  processedWebhooks: ProcessedWebhookMap;
-  run: DemoRunView | null;
-  signingSecret: string | null;
-}) {
-  const processedReceiptIdsRef = useRef(new Set<string>());
-  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
-  const replayReceiptIds = useMemo(
-    () => getDemoWebhookReplayReceiptIds(webhookHistory),
-    [webhookHistory]
-  );
-
-  useEffect(() => {
-    processedReceiptIdsRef.current = new Set(Object.keys(processedWebhooks));
-  }, [processedWebhooks]);
-
-  useEffect(() => {
-    if (!(privateKey && signingSecret)) {
-      return;
-    }
-
-    const unprocessedWebhooks = webhookHistory.filter((webhook) => {
-      return !processedReceiptIdsRef.current.has(getDemoWebhookReceiptId(webhook));
-    });
-
-    if (unprocessedWebhooks.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    for (const webhook of unprocessedWebhooks) {
-      processedReceiptIdsRef.current.add(getDemoWebhookReceiptId(webhook));
-    }
-
-    onProcessedWebhooksChange((current) => {
-      const nextState = { ...current };
-
-      for (const webhook of unprocessedWebhooks) {
-        nextState[getDemoWebhookReceiptId(webhook)] = {
-          decryptedPayload: null,
-          error: null,
-          status: "verified",
-        };
-      }
-
-      return nextState;
-    });
-
-    Promise.all(
-      unprocessedWebhooks.map(async (webhook) => {
-        return {
-          receiptId: getDemoWebhookReceiptId(webhook),
-          state: await processWebhookReceipt({
-            isReplay: replayReceiptIds.has(getDemoWebhookReceiptId(webhook)),
-            privateKey,
-            secret: signingSecret,
-            webhook,
-          }),
-        };
-      })
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-
-      onProcessedWebhooksChange((current) => {
-        const nextState = { ...current };
-
-        for (const result of results) {
-          nextState[result.receiptId] = result.state;
-        }
-
-        return nextState;
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    onProcessedWebhooksChange,
-    privateKey,
-    signingSecret,
-    replayReceiptIds,
-    webhookHistory,
-  ]);
 }
 
 function DemoErrorAlert({

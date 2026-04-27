@@ -1,4 +1,5 @@
 import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { buildPassportMachineReadableZone } from "@/marketing/demo-mrz";
 
 export { buildPassportMachineReadableZone } from "@/marketing/demo-mrz";
 

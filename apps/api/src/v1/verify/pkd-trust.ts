@@ -7,295 +7,61 @@ import {
   SignedData,
   setEngine,
 } from "pkijs";
+import {
+  SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL,
+  SELECT_TRUST_STORE_CRLS_SQL,
+  SELECT_TRUST_STORE_CSCAS_SQL,
+  SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
+  SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
+  SELECT_TRUST_STORE_METADATA_SQL,
+} from "./pkd-trust-queries";
+import {
+  AUTHORITY_KEY_IDENTIFIER_OID,
+  ICAO_MASTER_LIST_OID,
+  INLINE_PKD_TRUST_BUNDLE_ENV_KEY,
+  PKD_TRUST_BUNDLE_CACHE_TTL_MS,
+  PKD_TRUST_BUNDLE_VERSION,
+  PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX,
+  PKD_TRUST_R2_KEY,
+  type PkdCertificateRecord,
+  type PkdCrlRecord,
+  type PkdCscaRecord,
+  type PkdTrustBundle,
+  type PkdTrustBundleCache,
+  type PkdTrustBundleCertificate,
+  type PkdTrustBundleCrl,
+  type PkdTrustBundleDscRecordByIssuerSerialLoader,
+  type PkdTrustBundleDscRecordsBySkiLoader,
+  type PkdTrustBundleDscSegment,
+  type PkdTrustBundleDscSegmentIndex,
+  type PkdTrustBundleDscSegmentJson,
+  type PkdTrustBundleDscSegmentLoader,
+  type PkdTrustBundleJson,
+  type PkdTrustBundleLoader,
+  type PkdTrustBundleSource,
+  type PkdTrustD1Database,
+  type PkdTrustR2Bucket,
+  SUBJECT_KEY_IDENTIFIER_OID,
+  TRUST_STORE_METADATA_ID,
+  type TrustStoreCrlRevocationRow,
+  type TrustStoreCrlRow,
+  type TrustStoreCscaRow,
+  type TrustStoreMetadataRow,
+} from "./pkd-trust-types";
 
-const ICAO_MASTER_LIST_OID = "2.23.136.1.1.2";
-const PKD_TRUST_BUNDLE_CACHE_TTL_MS = 5 * 60 * 1000;
-const PKD_TRUST_BUNDLE_VERSION = 2;
-const PKD_TRUST_R2_KEY = "verify/pkd-trust/latest.json";
-const PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX = "verify/pkd-trust/dsc-country";
-const SUBJECT_KEY_IDENTIFIER_OID = "2.5.29.14";
-const AUTHORITY_KEY_IDENTIFIER_OID = "2.5.29.35";
-
-type PkdTrustR2ObjectBody = {
-  arrayBuffer(): Promise<ArrayBuffer>;
-  httpEtag: string;
-};
-
-type PkdTrustR2Bucket = {
-  get(key: string): Promise<PkdTrustR2ObjectBody | null>;
-};
-
-type PkdTrustD1PreparedStatement = {
-  all<T = Record<string, unknown>>(): Promise<{
-    results?: T[];
-  }>;
-  bind(...values: unknown[]): PkdTrustD1PreparedStatement;
-  first<T = Record<string, unknown>>(): Promise<T | null>;
-};
-
-type PkdTrustD1Database = {
-  prepare(query: string): PkdTrustD1PreparedStatement;
-};
-
-type PkdTrustBundleLoader = () => Promise<PkdTrustBundle | null>;
-type PkdTrustBundleDscSegmentLoader = (
-  segmentKey: string
-) => Promise<PkdTrustBundleDscSegment | null>;
-type PkdTrustBundleDscRecordByIssuerSerialLoader = (
-  issuerKey: string,
-  serialNumberHex: string
-) => Promise<PkdCertificateRecord | null>;
-type PkdTrustBundleDscRecordsBySkiLoader = (
-  skiHex: string
-) => Promise<PkdCertificateRecord[]>;
-
-export type PkdTrustBundleSource = {
-  countryCode: string | null;
-  dn: string;
-};
-
-export type PkdTrustBundleDscSegmentIndex = {
-  issuerSerial: Record<string, string[]>;
-  skiHex: Record<string, string[]>;
-};
-
-export type PkdCertificateRecord = {
-  akiHex: string | null;
-  derBase64: string;
-  issuerKey: string;
-  issuerName: string;
-  notAfter: string;
-  notBefore: string;
-  serialNumberHex: string;
-  skiHex: string | null;
-  sourceCountryCode: string | null;
-  sourceDn: string;
-  subjectKey: string;
-  subjectName: string;
-};
-
-export type PkdCscaRecord = PkdCertificateRecord & {
-  masterListSources: PkdTrustBundleSource[];
-};
-
-export type PkdCrlRecord = {
-  akiHex: string | null;
-  derBase64: string;
-  issuerKey: string;
-  issuerName: string;
-  nextUpdate: string | null;
-  revokedSerialNumbersHex: string[];
-  sourceCountryCode: string | null;
-  sourceDn: string;
-  thisUpdate: string;
-};
-
-export type PkdTrustBundleJson = {
-  counts: {
-    cscas: number;
-    crls: number;
-    dscs: number;
-    ignoredBcsc: number;
-    ignoredBcscNc: number;
-  };
-  cscas: PkdCscaRecord[];
-  crls: PkdCrlRecord[];
-  dscs: PkdCertificateRecord[];
-  dscSegmentIndex?: PkdTrustBundleDscSegmentIndex | null;
-  generatedAt: string;
-  sources: {
-    masterListsLdif: {
-      path: string;
-      version: string | null;
-    };
-    objectLdif: {
-      path: string;
-      version: string | null;
-    };
-  };
-  version: typeof PKD_TRUST_BUNDLE_VERSION;
-};
-
-export type PkdTrustBundleDscSegmentJson = {
-  dscs: PkdCertificateRecord[];
-  segmentKey: string;
-  version: typeof PKD_TRUST_BUNDLE_VERSION;
-};
-
-export type PkdTrustBundleCertificate = {
-  cert: Certificate;
-  record: PkdCertificateRecord | PkdCscaRecord;
-};
-
-export type PkdTrustBundleCrl = {
-  crl: CertificateRevocationList;
-  record: PkdCrlRecord;
-};
-
-export type PkdTrustBundle = {
-  cscas: PkdTrustBundleCertificate[];
-  cscasBySubjectKey: Map<string, PkdTrustBundleCertificate[]>;
-  cscasBySkiHex: Map<string, PkdTrustBundleCertificate[]>;
-  crls: PkdTrustBundleCrl[];
-  crlsByAkiHex: Map<string, PkdTrustBundleCrl[]>;
-  crlsByIssuerKey: Map<string, PkdTrustBundleCrl[]>;
-  dscRecordsByIssuerSerial: Map<string, PkdCertificateRecord>;
-  dscRecordsBySkiHex: Map<string, PkdCertificateRecord[]>;
-  dscSegmentKeysByIssuerSerial: Map<string, string[]>;
-  dscSegmentKeysBySkiHex: Map<string, string[]>;
-  dscSegments: Map<string, PkdTrustBundleDscSegment>;
-  dscRecordLoaderByIssuerSerial: PkdTrustBundleDscRecordByIssuerSerialLoader | null;
-  dscRecordsLoaderBySkiHex: PkdTrustBundleDscRecordsBySkiLoader | null;
-  dscSegmentLoader: PkdTrustBundleDscSegmentLoader | null;
-  dscsBySkiHex: Map<string, PkdTrustBundleCertificate[]>;
-  dscsByIssuerSerial: Map<string, PkdTrustBundleCertificate>;
-  raw: PkdTrustBundleJson;
-};
-
-export type PkdTrustBundleDscSegment = {
-  dscRecordsByIssuerSerial: Map<string, PkdCertificateRecord>;
-  dscRecordsBySkiHex: Map<string, PkdCertificateRecord[]>;
-  dscsByIssuerSerial: Map<string, PkdTrustBundleCertificate>;
-  dscsBySkiHex: Map<string, PkdTrustBundleCertificate[]>;
-  raw: PkdTrustBundleDscSegmentJson;
-};
-
-type TrustStoreMetadataRow = {
-  cscaCount: number;
-  crlCount: number;
-  dscCount: number;
-  generatedAt: string;
-  ignoredBcsc: number;
-  ignoredBcscNc: number;
-  masterListsLdifPath: string;
-  masterListsLdifVersion: string | null;
-  objectLdifPath: string;
-  objectLdifVersion: string | null;
-  version: number;
-};
-
-type TrustStoreCscaRow = Omit<PkdCscaRecord, "masterListSources"> & {
-  masterListSourcesJson: string;
-};
-
-type TrustStoreCrlRow = {
-  akiHex: string | null;
-  derBase64: string;
-  id: number;
-  issuerKey: string;
-  issuerName: string;
-  nextUpdate: string | null;
-  sourceCountryCode: string | null;
-  sourceDn: string;
-  thisUpdate: string;
-};
-
-type TrustStoreCrlRevocationRow = {
-  crlId: number;
-  revokedSerialNumberHex: string;
-};
-
-type PkdTrustBundleCache = {
-  bundle: PkdTrustBundle | null;
-  etag: string | null;
-  expiresAt: number;
-};
-
-const INLINE_PKD_TRUST_BUNDLE_ENV_KEY = "VERIFY_PKD_TRUST_BUNDLE_JSON";
-const TRUST_STORE_METADATA_ID = 1;
-
-const SELECT_TRUST_STORE_METADATA_SQL = `
-  SELECT
-    generated_at AS generatedAt,
-    version,
-    object_ldif_path AS objectLdifPath,
-    object_ldif_version AS objectLdifVersion,
-    master_lists_ldif_path AS masterListsLdifPath,
-    master_lists_ldif_version AS masterListsLdifVersion,
-    csca_count AS cscaCount,
-    dsc_count AS dscCount,
-    crl_count AS crlCount,
-    ignored_bcsc AS ignoredBcsc,
-    ignored_bcsc_nc AS ignoredBcscNc
-  FROM trust_store_metadata
-  WHERE id = ?
-`;
-
-const SELECT_TRUST_STORE_CSCAS_SQL = `
-  SELECT
-    aki_hex AS akiHex,
-    der_base64 AS derBase64,
-    issuer_key AS issuerKey,
-    issuer_name AS issuerName,
-    master_list_sources_json AS masterListSourcesJson,
-    not_after AS notAfter,
-    not_before AS notBefore,
-    serial_number_hex AS serialNumberHex,
-    ski_hex AS skiHex,
-    source_country_code AS sourceCountryCode,
-    source_dn AS sourceDn,
-    subject_key AS subjectKey,
-    subject_name AS subjectName
-  FROM trust_store_cscas
-`;
-
-const SELECT_TRUST_STORE_CRLS_SQL = `
-  SELECT
-    id,
-    aki_hex AS akiHex,
-    der_base64 AS derBase64,
-    issuer_key AS issuerKey,
-    issuer_name AS issuerName,
-    next_update AS nextUpdate,
-    source_country_code AS sourceCountryCode,
-    source_dn AS sourceDn,
-    this_update AS thisUpdate
-  FROM trust_store_crls
-`;
-
-const SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL = `
-  SELECT
-    crl_id AS crlId,
-    revoked_serial_number_hex AS revokedSerialNumberHex
-  FROM trust_store_crl_revocations
-`;
-
-const SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL = `
-  SELECT
-    aki_hex AS akiHex,
-    der_base64 AS derBase64,
-    issuer_key AS issuerKey,
-    issuer_name AS issuerName,
-    not_after AS notAfter,
-    not_before AS notBefore,
-    serial_number_hex AS serialNumberHex,
-    ski_hex AS skiHex,
-    source_country_code AS sourceCountryCode,
-    source_dn AS sourceDn,
-    subject_key AS subjectKey,
-    subject_name AS subjectName
-  FROM trust_store_dscs
-  WHERE issuer_key = ? AND serial_number_hex = ?
-  LIMIT 1
-`;
-
-const SELECT_TRUST_STORE_DSCS_BY_SKI_SQL = `
-  SELECT
-    aki_hex AS akiHex,
-    der_base64 AS derBase64,
-    issuer_key AS issuerKey,
-    issuer_name AS issuerName,
-    not_after AS notAfter,
-    not_before AS notBefore,
-    serial_number_hex AS serialNumberHex,
-    ski_hex AS skiHex,
-    source_country_code AS sourceCountryCode,
-    source_dn AS sourceDn,
-    subject_key AS subjectKey,
-    subject_name AS subjectName
-  FROM trust_store_dscs
-  WHERE ski_hex = ?
-`;
+export type {
+  PkdCertificateRecord,
+  PkdCrlRecord,
+  PkdCscaRecord,
+  PkdTrustBundle,
+  PkdTrustBundleCertificate,
+  PkdTrustBundleCrl,
+  PkdTrustBundleDscSegment,
+  PkdTrustBundleDscSegmentIndex,
+  PkdTrustBundleDscSegmentJson,
+  PkdTrustBundleJson,
+  PkdTrustBundleSource,
+} from "./pkd-trust-types";
 
 let pkijsConfigured = false;
 let trustBundleLoader: PkdTrustBundleLoader | null = null;

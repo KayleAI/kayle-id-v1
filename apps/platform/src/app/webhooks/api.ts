@@ -1,105 +1,30 @@
 import { parseErrorResponse } from "@/utils/parse-error-response";
+import type {
+  ApiEnvelope,
+  PaginatedApiEnvelope,
+  Pagination,
+  WebhookDelivery,
+  WebhookEncryptionKey,
+  WebhookEndpoint,
+  WebhookEndpointCreateResult,
+  WebhookEvent,
+} from "./types";
 
-export type ApiError = {
-  code: string;
-  message: string;
-  hint?: string;
-  docs?: string;
-};
+export type {
+  ApiError,
+  DeliveryStatus,
+  Pagination,
+  WebhookDelivery,
+  WebhookDeleteResult,
+  WebhookEncryptionKey,
+  WebhookEndpoint,
+  WebhookEndpointCreateResult,
+  WebhookEvent,
+  WebhookEventDelivery,
+  WebhookSigningSecretResult,
+} from "./types";
 
-export type DeliveryStatus = "pending" | "delivering" | "succeeded" | "failed";
-
-export type Pagination = {
-  limit: number;
-  has_more: boolean;
-  next_cursor: string | null;
-};
-
-type ApiEnvelope<T> = {
-  data: T | null;
-  error: ApiError | null;
-};
-
-type PaginatedApiEnvelope<T> = {
-  data: T[];
-  error: ApiError | null;
-  pagination: Pagination;
-};
-
-export type WebhookEndpoint = {
-  id: string;
-  organization_id: string;
-  name: string | null;
-  url: string;
-  enabled: boolean;
-  subscribed_event_types: string[];
-  created_at: string;
-  updated_at: string;
-  disabled_at: string | null;
-};
-
-export type WebhookEndpointCreateResult = {
-  endpoint: WebhookEndpoint;
-  signing_secret: string;
-};
-
-export type WebhookDeleteResult = {
-  message: string;
-  status: "success";
-};
-
-export type WebhookSigningSecretResult = {
-  endpoint_id: string;
-  signing_secret: string;
-};
-
-export type WebhookEncryptionKey = {
-  id: string;
-  webhook_endpoint_id: string;
-  key_id: string;
-  algorithm: string;
-  key_type: string;
-  jwk: JsonWebKey;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  disabled_at: string | null;
-};
-
-export type WebhookEventDelivery = {
-  id: string;
-  webhook_endpoint_id: string;
-  status: DeliveryStatus;
-  last_status_code: number | null;
-  attempt_count: number;
-  last_attempt_at: string | null;
-};
-
-export type WebhookEvent = {
-  id: string;
-  type: string;
-  trigger_type: "verification_session" | "verification_attempt";
-  trigger_id: string;
-  created_at: string;
-  deliveries: WebhookEventDelivery[];
-};
-
-export type WebhookDelivery = {
-  id: string;
-  event_id: string;
-  webhook_endpoint_id: string;
-  webhook_encryption_key_id: string | null;
-  status: DeliveryStatus;
-  attempt_count: number;
-  next_attempt_at: string | null;
-  last_status_code: number | null;
-  last_attempt_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-const PEM_PUBLIC_KEY_HEADER = "-----BEGIN PUBLIC KEY-----";
-const PEM_PUBLIC_KEY_FOOTER = "-----END PUBLIC KEY-----";
+export { parseJwkInput, parsePublicKeyInput } from "./jwk";
 
 type QueryValue = boolean | number | string | null | undefined;
 
@@ -205,114 +130,6 @@ async function requestWebhookPage<T>({
     data: payload.data,
     pagination: payload.pagination,
   };
-}
-
-export function parseJwkInput(input: string): JsonWebKey {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    throw new Error("Public JWK is required.");
-  }
-
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    throw new Error("Public JWK must be valid JSON.");
-  }
-
-  if (!(parsed && typeof parsed === "object" && !Array.isArray(parsed))) {
-    throw new Error("Public JWK must be a JSON object.");
-  }
-
-  if (!("kty" in parsed)) {
-    throw new Error("Public JWK must include a `kty` field.");
-  }
-
-  return parsed as JsonWebKey;
-}
-
-function decodeBase64ToArrayBuffer(input: string): ArrayBuffer {
-  const decoded = atob(input);
-  const bytes = new Uint8Array(decoded.length);
-
-  for (const [index, character] of [...decoded].entries()) {
-    bytes[index] = character.charCodeAt(0);
-  }
-
-  return bytes.buffer.slice(0);
-}
-
-function isPemPublicKey(input: string): boolean {
-  return (
-    input.includes(PEM_PUBLIC_KEY_HEADER) &&
-    input.includes(PEM_PUBLIC_KEY_FOOTER)
-  );
-}
-
-async function parsePemPublicKeyInput(input: string): Promise<JsonWebKey> {
-  const normalized = input
-    .replace(PEM_PUBLIC_KEY_HEADER, "")
-    .replace(PEM_PUBLIC_KEY_FOOTER, "")
-    .replace(/\s+/gu, "");
-
-  if (!normalized) {
-    throw new Error("Public PEM must contain key material.");
-  }
-
-  let cryptoKey: CryptoKey;
-
-  try {
-    cryptoKey = await crypto.subtle.importKey(
-      "spki",
-      decodeBase64ToArrayBuffer(normalized),
-      {
-        name: "RSA-OAEP",
-        hash: "SHA-256",
-      },
-      true,
-      ["encrypt"]
-    );
-  } catch {
-    throw new Error(
-      "Public PEM must be a valid RSA public key in BEGIN PUBLIC KEY format."
-    );
-  }
-
-  const exported = await crypto.subtle.exportKey("jwk", cryptoKey);
-
-  return {
-    ...exported,
-    alg: exported.alg ?? "RSA-OAEP-256",
-    ext: exported.ext ?? true,
-    key_ops:
-      exported.key_ops && exported.key_ops.length > 0
-        ? exported.key_ops
-        : ["encrypt"],
-  };
-}
-
-export function parsePublicKeyInput(input: string): Promise<JsonWebKey> {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    return Promise.reject(new Error("Public key is required."));
-  }
-
-  if (trimmed.startsWith("{")) {
-    return Promise.resolve().then(() => parseJwkInput(trimmed));
-  }
-
-  if (isPemPublicKey(trimmed)) {
-    return parsePemPublicKeyInput(trimmed);
-  }
-
-  return Promise.reject(
-    new Error(
-      "Paste a public JWK JSON object or a PEM public key in BEGIN PUBLIC KEY format."
-    )
-  );
 }
 
 export function listWebhookEndpoints({

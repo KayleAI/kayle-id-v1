@@ -31,14 +31,12 @@ export const VERIFY_HANDOFF_COPY = {
       messageTitle: "Use your phone to continue",
       defaultMessageDescription:
         "Scan the QR code with the phone you want to use.",
-      iosMessageDescription:
-        "Open the app on this device to continue.",
+      iosMessageDescription: "Open the app on this device to continue.",
     },
 
     retryableFailure: {
       headerTitle: "Try again on your phone",
-      headerDescription:
-        "This check must stay on the device that started it.",
+      headerDescription: "This check must stay on the device that started it.",
       messageTitle: "Try again",
       messageDescription:
         "It didn’t complete successfully. Retry on the same device, or cancel it there.",
@@ -46,8 +44,7 @@ export const VERIFY_HANDOFF_COPY = {
 
     sameDeviceOnly: {
       headerTitle: "Continue on your phone",
-      headerDescription:
-        "This check is locked to the device that started it.",
+      headerDescription: "This check is locked to the device that started it.",
       messageTitle: "Waiting for your device",
       messageDescription:
         "Open Kayle ID on that device to continue. A new QR code isn’t available.",
@@ -86,8 +83,7 @@ export const VERIFY_HANDOFF_COPY = {
 
       finishedHeaderDescription: "This check is complete.",
       outcomeMessageTitle: "Result",
-      redirectHeaderDescription:
-        "Continue now or wait to be redirected.",
+      redirectHeaderDescription: "Continue now or wait to be redirected.",
       successMessageTitle: "Finished on your phone",
       youCanCloseDescription: "You can close this page.",
     },

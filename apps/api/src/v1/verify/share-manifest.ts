@@ -1,332 +1,332 @@
 import type {
-  VerifyShareReady,
-  VerifyShareRequest,
+	VerifyShareReady,
+	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
 import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
 import {
-  isAgeOverClaim,
-  parseAgeOverThreshold,
+	isAgeOverClaim,
+	parseAgeOverThreshold,
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
-  ageFromDateOfBirth,
-  parseTd3MrzClaims,
-  type Dg1Claims,
+	ageFromDateOfBirth,
+	type Dg1Claims,
+	parseTd3MrzClaims,
 } from "./dg1-claims";
 import { extractDg2FaceImage } from "./dg2-face-image";
 
 type ShareSelectionValidationCode =
-  | "INVALID_SESSION_ID"
-  | "SHARE_SELECTION_REQUIRED"
-  | "SHARE_SELECTION_INVALID_FIELD"
-  | "SHARE_SELECTION_MISSING_REQUIRED";
+	| "INVALID_SESSION_ID"
+	| "SHARE_SELECTION_REQUIRED"
+	| "SHARE_SELECTION_INVALID_FIELD"
+	| "SHARE_SELECTION_MISSING_REQUIRED";
 
 type ShareClaimImage = {
-  dataBase64: string;
-  format: "jpeg" | "jpeg2000";
-  height: number;
-  width: number;
+	dataBase64: string;
+	format: "jpeg" | "jpeg2000";
+	height: number;
+	width: number;
 };
 
 export type VerifyShareClaimValue = boolean | string | ShareClaimImage | null;
 
 export type VerifyShareManifest = {
-  contractVersion: number;
-  claims: Record<string, VerifyShareClaimValue>;
-  selectedFieldKeys: string[];
-  sessionId: string;
+	contractVersion: number;
+	claims: Record<string, VerifyShareClaimValue>;
+	selectedFieldKeys: string[];
+	sessionId: string;
 };
 
 const defaultNormalizedShareFields = (() => {
-  const normalized = normalizeShareFields(undefined);
+	const normalized = normalizeShareFields(undefined);
 
-  if (!normalized.ok) {
-    throw new Error("Failed to initialize default share fields.");
-  }
+	if (!normalized.ok) {
+		throw new Error("Failed to initialize default share fields.");
+	}
 
-  return normalized.shareFields;
+	return normalized.shareFields;
 })();
 
 function resolveErrorMessage(code: ShareSelectionValidationCode): string {
-  return ERROR_MESSAGES[code].description;
+	return ERROR_MESSAGES[code].description;
 }
 
 function encodeBase64(bytes: Uint8Array): string {
-  let output = "";
-  const chunkSize = 0x80_00;
+	let output = "";
+	const chunkSize = 0x80_00;
 
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.slice(offset, offset + chunkSize);
-    output += String.fromCharCode(...chunk);
-  }
+	for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+		const chunk = bytes.slice(offset, offset + chunkSize);
+		output += String.fromCharCode(...chunk);
+	}
 
-  return btoa(output);
+	return btoa(output);
 }
 
 async function buildShareClaimValue({
-  claimKey,
-  dg1Claims,
-  dg2,
-  now,
-  organizationId,
+	claimKey,
+	dg1Claims,
+	dg2,
+	now,
+	organizationId,
 }: {
-  claimKey: string;
-  dg1Claims: Dg1Claims;
-  dg2: Uint8Array;
-  now: Date;
-  organizationId: string;
+	claimKey: string;
+	dg1Claims: Dg1Claims;
+	dg2: Uint8Array;
+	now: Date;
+	organizationId: string;
 }): Promise<VerifyShareClaimValue> {
-  switch (claimKey) {
-    case "document_type_code":
-      return dg1Claims.documentType;
-    case "issuing_country_code":
-      return dg1Claims.issuingCountry;
-    case "family_name":
-      return dg1Claims.surname;
-    case "given_names":
-      return dg1Claims.givenNames;
-    case "document_number":
-      return dg1Claims.documentNumber;
-    case "nationality_code":
-      return dg1Claims.nationality;
-    case "date_of_birth":
-      return dg1Claims.birthDateIso;
-    case "sex_marker":
-      return dg1Claims.sex;
-    case "document_expiry_date":
-      return dg1Claims.expiryDateIso;
-    case "mrz_optional_data":
-      return dg1Claims.optionalData;
-    case "document_photo": {
-      const faceImage = extractDg2FaceImage(dg2);
+	switch (claimKey) {
+		case "document_type_code":
+			return dg1Claims.documentType;
+		case "issuing_country_code":
+			return dg1Claims.issuingCountry;
+		case "family_name":
+			return dg1Claims.surname;
+		case "given_names":
+			return dg1Claims.givenNames;
+		case "document_number":
+			return dg1Claims.documentNumber;
+		case "nationality_code":
+			return dg1Claims.nationality;
+		case "date_of_birth":
+			return dg1Claims.birthDateIso;
+		case "sex_marker":
+			return dg1Claims.sex;
+		case "document_expiry_date":
+			return dg1Claims.expiryDateIso;
+		case "mrz_optional_data":
+			return dg1Claims.optionalData;
+		case "document_photo": {
+			const faceImage = extractDg2FaceImage(dg2);
 
-      return {
-        dataBase64: encodeBase64(faceImage.imageData),
-        format: faceImage.imageFormat,
-        height: faceImage.imageHeight,
-        width: faceImage.imageWidth,
-      };
-    }
-    case "kayle_document_id":
-      return await createKayleDocumentId({
-        organizationId,
-        countryCode: dg1Claims.issuingCountry,
-        documentNumber: dg1Claims.documentNumber,
-        documentType: dg1Claims.documentType,
-      });
-    case "kayle_human_id":
-      return null;
-    default: {
-      if (!isAgeOverClaim(claimKey)) {
-        throw new Error(`unsupported_share_claim:${claimKey}`);
-      }
+			return {
+				dataBase64: encodeBase64(faceImage.imageData),
+				format: faceImage.imageFormat,
+				height: faceImage.imageHeight,
+				width: faceImage.imageWidth,
+			};
+		}
+		case "kayle_document_id":
+			return await createKayleDocumentId({
+				organizationId,
+				countryCode: dg1Claims.issuingCountry,
+				documentNumber: dg1Claims.documentNumber,
+				documentType: dg1Claims.documentType,
+			});
+		case "kayle_human_id":
+			return null;
+		default: {
+			if (!isAgeOverClaim(claimKey)) {
+				throw new Error(`unsupported_share_claim:${claimKey}`);
+			}
 
-      const threshold = parseAgeOverThreshold(claimKey);
+			const threshold = parseAgeOverThreshold(claimKey);
 
-      if (!threshold) {
-        throw new Error(`invalid_age_over_claim:${claimKey}`);
-      }
+			if (!threshold) {
+				throw new Error(`invalid_age_over_claim:${claimKey}`);
+			}
 
-      return ageFromDateOfBirth(dg1Claims.birthDateIso, now) >= threshold;
-    }
-  }
+			return ageFromDateOfBirth(dg1Claims.birthDateIso, now) >= threshold;
+		}
+	}
 }
 
 function normalizeSelectedFieldKeys({
-  availableFields,
-  selectedFieldKeysInput,
+	availableFields,
+	selectedFieldKeysInput,
 }: {
-  availableFields: VerifyShareRequest["fields"];
-  selectedFieldKeysInput: string[] | undefined;
+	availableFields: VerifyShareRequest["fields"];
+	selectedFieldKeysInput: string[] | undefined;
 }):
-  | {
-      ok: true;
-      selectedFieldKeys: string[];
-    }
-  | {
-      code: ShareSelectionValidationCode;
-      message: string;
-      ok: false;
-    } {
-  if (
-    !(selectedFieldKeysInput && Array.isArray(selectedFieldKeysInput)) ||
-    selectedFieldKeysInput.length === 0
-  ) {
-    return {
-      ok: false,
-      code: "SHARE_SELECTION_REQUIRED",
-      message: resolveErrorMessage("SHARE_SELECTION_REQUIRED"),
-    };
-  }
+	| {
+			ok: true;
+			selectedFieldKeys: string[];
+	  }
+	| {
+			code: ShareSelectionValidationCode;
+			message: string;
+			ok: false;
+	  } {
+	if (
+		!(selectedFieldKeysInput && Array.isArray(selectedFieldKeysInput)) ||
+		selectedFieldKeysInput.length === 0
+	) {
+		return {
+			ok: false,
+			code: "SHARE_SELECTION_REQUIRED",
+			message: resolveErrorMessage("SHARE_SELECTION_REQUIRED"),
+		};
+	}
 
-  const selectedFieldKeySet = new Set(
-    selectedFieldKeysInput
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0)
-  );
+	const selectedFieldKeySet = new Set(
+		selectedFieldKeysInput
+			.map((value) => value.trim())
+			.filter((value) => value.length > 0),
+	);
 
-  if (selectedFieldKeySet.size === 0) {
-    return {
-      ok: false,
-      code: "SHARE_SELECTION_REQUIRED",
-      message: resolveErrorMessage("SHARE_SELECTION_REQUIRED"),
-    };
-  }
+	if (selectedFieldKeySet.size === 0) {
+		return {
+			ok: false,
+			code: "SHARE_SELECTION_REQUIRED",
+			message: resolveErrorMessage("SHARE_SELECTION_REQUIRED"),
+		};
+	}
 
-  const availableFieldKeySet = new Set(
-    availableFields.map((field) => field.key)
-  );
+	const availableFieldKeySet = new Set(
+		availableFields.map((field) => field.key),
+	);
 
-  for (const key of selectedFieldKeySet) {
-    if (!availableFieldKeySet.has(key)) {
-      return {
-        ok: false,
-        code: "SHARE_SELECTION_INVALID_FIELD",
-        message: resolveErrorMessage("SHARE_SELECTION_INVALID_FIELD"),
-      };
-    }
-  }
+	for (const key of selectedFieldKeySet) {
+		if (!availableFieldKeySet.has(key)) {
+			return {
+				ok: false,
+				code: "SHARE_SELECTION_INVALID_FIELD",
+				message: resolveErrorMessage("SHARE_SELECTION_INVALID_FIELD"),
+			};
+		}
+	}
 
-  const missingRequiredField = availableFields.some(
-    (field) => field.required && !selectedFieldKeySet.has(field.key)
-  );
+	const missingRequiredField = availableFields.some(
+		(field) => field.required && !selectedFieldKeySet.has(field.key),
+	);
 
-  if (missingRequiredField) {
-    return {
-      ok: false,
-      code: "SHARE_SELECTION_MISSING_REQUIRED",
-      message: resolveErrorMessage("SHARE_SELECTION_MISSING_REQUIRED"),
-    };
-  }
+	if (missingRequiredField) {
+		return {
+			ok: false,
+			code: "SHARE_SELECTION_MISSING_REQUIRED",
+			message: resolveErrorMessage("SHARE_SELECTION_MISSING_REQUIRED"),
+		};
+	}
 
-  return {
-    ok: true,
-    selectedFieldKeys: availableFields
-      .filter((field) => selectedFieldKeySet.has(field.key))
-      .map((field) => field.key),
-  };
+	return {
+		ok: true,
+		selectedFieldKeys: availableFields
+			.filter((field) => selectedFieldKeySet.has(field.key))
+			.map((field) => field.key),
+	};
 }
 
 function resolveShareFields(shareFieldsInput: unknown): ShareFields {
-  const normalized = normalizeShareFields(shareFieldsInput);
+	const normalized = normalizeShareFields(shareFieldsInput);
 
-  if (!normalized.ok) {
-    return defaultNormalizedShareFields;
-  }
+	if (!normalized.ok) {
+		return defaultNormalizedShareFields;
+	}
 
-  return normalized.shareFields;
+	return normalized.shareFields;
 }
 
 export function createShareRequestPayload({
-  contractVersion,
-  sessionId,
-  shareFieldsInput,
+	contractVersion,
+	sessionId,
+	shareFieldsInput,
 }: {
-  contractVersion: number;
-  sessionId: string;
-  shareFieldsInput: unknown;
+	contractVersion: number;
+	sessionId: string;
+	shareFieldsInput: unknown;
 }): VerifyShareRequest {
-  const shareFields = resolveShareFields(shareFieldsInput);
+	const shareFields = resolveShareFields(shareFieldsInput);
 
-  return {
-    contractVersion,
-    sessionId,
-    fields: Object.entries(shareFields).map(([key, field]) => ({
-      key,
-      reason: field.reason,
-      required: field.required,
-    })),
-  };
+	return {
+		contractVersion,
+		sessionId,
+		fields: Object.entries(shareFields).map(([key, field]) => ({
+			key,
+			reason: field.reason,
+			required: field.required,
+		})),
+	};
 }
 
 export async function validateAndBuildShareManifest({
-  contractVersion,
-  dg1,
-  dg2,
-  now = new Date(),
-  organizationId,
-  selectedFieldKeysInput,
-  sessionId,
-  submittedSessionId,
-  shareFieldsInput,
+	contractVersion,
+	dg1,
+	dg2,
+	now = new Date(),
+	organizationId,
+	selectedFieldKeysInput,
+	sessionId,
+	submittedSessionId,
+	shareFieldsInput,
 }: {
-  contractVersion: number;
-  dg1: Uint8Array;
-  dg2: Uint8Array;
-  now?: Date;
-  organizationId: string;
-  selectedFieldKeysInput: string[] | undefined;
-  sessionId: string;
-  submittedSessionId: string | undefined;
-  shareFieldsInput: unknown;
+	contractVersion: number;
+	dg1: Uint8Array;
+	dg2: Uint8Array;
+	now?: Date;
+	organizationId: string;
+	selectedFieldKeysInput: string[] | undefined;
+	sessionId: string;
+	submittedSessionId: string | undefined;
+	shareFieldsInput: unknown;
 }): Promise<
-  | {
-      manifest: VerifyShareManifest;
-      ok: true;
-      shareReady: VerifyShareReady;
-    }
-  | {
-      code: ShareSelectionValidationCode;
-      message: string;
-      ok: false;
-    }
+	| {
+			manifest: VerifyShareManifest;
+			ok: true;
+			shareReady: VerifyShareReady;
+	  }
+	| {
+			code: ShareSelectionValidationCode;
+			message: string;
+			ok: false;
+	  }
 > {
-  if (submittedSessionId?.trim() !== sessionId) {
-    return {
-      ok: false,
-      code: "INVALID_SESSION_ID",
-      message: resolveErrorMessage("INVALID_SESSION_ID"),
-    };
-  }
+	if (submittedSessionId?.trim() !== sessionId) {
+		return {
+			ok: false,
+			code: "INVALID_SESSION_ID",
+			message: resolveErrorMessage("INVALID_SESSION_ID"),
+		};
+	}
 
-  const shareRequest = createShareRequestPayload({
-    contractVersion,
-    sessionId,
-    shareFieldsInput,
-  });
-  const selection = normalizeSelectedFieldKeys({
-    availableFields: shareRequest.fields,
-    selectedFieldKeysInput,
-  });
+	const shareRequest = createShareRequestPayload({
+		contractVersion,
+		sessionId,
+		shareFieldsInput,
+	});
+	const selection = normalizeSelectedFieldKeys({
+		availableFields: shareRequest.fields,
+		selectedFieldKeysInput,
+	});
 
-  if (!selection.ok) {
-    return selection;
-  }
+	if (!selection.ok) {
+		return selection;
+	}
 
-  const dg1Claims = parseTd3MrzClaims(dg1, now);
-  const selectedFieldKeySet = new Set(selection.selectedFieldKeys);
-  const claimEntries = await Promise.all(
-    shareRequest.fields.map(
-      async (field) =>
-        [
-          field.key,
-          selectedFieldKeySet.has(field.key)
-            ? await buildShareClaimValue({
-                claimKey: field.key,
-                dg1Claims,
-                dg2,
-                now,
-                organizationId,
-              })
-            : null,
-        ] as const
-    )
-  );
-  const claims = Object.fromEntries(claimEntries);
+	const dg1Claims = parseTd3MrzClaims(dg1, now);
+	const selectedFieldKeySet = new Set(selection.selectedFieldKeys);
+	const claimEntries = await Promise.all(
+		shareRequest.fields.map(
+			async (field) =>
+				[
+					field.key,
+					selectedFieldKeySet.has(field.key)
+						? await buildShareClaimValue({
+								claimKey: field.key,
+								dg1Claims,
+								dg2,
+								now,
+								organizationId,
+							})
+						: null,
+				] as const,
+		),
+	);
+	const claims = Object.fromEntries(claimEntries);
 
-  return {
-    ok: true,
-    shareReady: {
-      sessionId,
-      selectedFieldKeys: selection.selectedFieldKeys,
-    },
-    manifest: {
-      contractVersion,
-      claims,
-      selectedFieldKeys: selection.selectedFieldKeys,
-      sessionId,
-    },
-  };
+	return {
+		ok: true,
+		shareReady: {
+			sessionId,
+			selectedFieldKeys: selection.selectedFieldKeys,
+		},
+		manifest: {
+			contractVersion,
+			claims,
+			selectedFieldKeys: selection.selectedFieldKeys,
+			sessionId,
+		},
+	};
 }

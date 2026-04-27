@@ -10,90 +10,90 @@ let TEST_DATA: TestData | undefined;
 const API_KEY_PREFIX_PATTERN = /^kk_live_/;
 
 beforeAll(async () => {
-  TEST_DATA = await setup();
+	TEST_DATA = await setup();
 });
 
 afterAll(async () => {
-  await teardown(TEST_DATA);
-  TEST_DATA = undefined;
+	await teardown(TEST_DATA);
+	TEST_DATA = undefined;
 });
 
 describe("Handling API Keys", () => {
-  /**
-   * Test whether we can receive a list of events sent
-   */
-  test("Create API Key", async () => {
-    const { apiKey } = await createApiKey({
-      name: "Test API Key",
-      organizationId: TEST_DATA?.organizationId as string,
-    });
+	/**
+	 * Test whether we can receive a list of events sent
+	 */
+	test("Create API Key", async () => {
+		const { apiKey } = await createApiKey({
+			name: "Test API Key",
+			organizationId: TEST_DATA?.organizationId as string,
+		});
 
-    // Assert that the API key is created
-    expect(apiKey).toBeString();
+		// Assert that the API key is created
+		expect(apiKey).toBeString();
 
-    // Assert that the API key starts with the live prefix
-    expect(apiKey).toMatch(API_KEY_PREFIX_PATTERN);
+		// Assert that the API key starts with the live prefix
+		expect(apiKey).toMatch(API_KEY_PREFIX_PATTERN);
 
-    // Assert that the API key is 32 + 8 (kk_live_) = 40 characters long
-    expect(apiKey.length).toBe(40);
-  });
+		// Assert that the API key is 32 + 8 (kk_live_) = 40 characters long
+		expect(apiKey.length).toBe(40);
+	});
 
-  /**
-   * Test whether we can verify an API key
-   */
-  test("Verify API Key", async () => {
-    const { organizationId, enabled } = await verifyApiKey(
-      TEST_DATA?.apiKey as string
-    );
+	/**
+	 * Test whether we can verify an API key
+	 */
+	test("Verify API Key", async () => {
+		const { organizationId, enabled } = await verifyApiKey(
+			TEST_DATA?.apiKey as string,
+		);
 
-    // Assert that the organization ID is the same as the test organization ID
-    expect(organizationId).toBe(TEST_DATA?.organizationId as string);
+		// Assert that the organization ID is the same as the test organization ID
+		expect(organizationId).toBe(TEST_DATA?.organizationId as string);
 
-    // Assert that the API key is enabled (default setting)
-    expect(enabled).toBe(true);
-  });
+		// Assert that the API key is enabled (default setting)
+		expect(enabled).toBe(true);
+	});
 
-  /**
-   * Test whether we can delete an API key
-   */
-  test("Delete API Key", async () => {
-    // create a new API key
-    const { id, apiKey } = await createApiKey({
-      name: "Test API Key",
-      organizationId: TEST_DATA?.organizationId as string,
-    });
+	/**
+	 * Test whether we can delete an API key
+	 */
+	test("Delete API Key", async () => {
+		// create a new API key
+		const { id, apiKey } = await createApiKey({
+			name: "Test API Key",
+			organizationId: TEST_DATA?.organizationId as string,
+		});
 
-    // delete the API key
-    const { status } = await deleteApiKey(
-      id,
-      TEST_DATA?.organizationId as string
-    );
-    expect(status).toBe("success");
+		// delete the API key
+		const { status } = await deleteApiKey(
+			id,
+			TEST_DATA?.organizationId as string,
+		);
+		expect(status).toBe("success");
 
-    // Ensure that the API key is deleted
-    const { organizationId, enabled } = await verifyApiKey(apiKey);
-    expect(organizationId).toBeNull();
-    expect(enabled).toBeNull();
-  });
+		// Ensure that the API key is deleted
+		const { organizationId, enabled } = await verifyApiKey(apiKey);
+		expect(organizationId).toBeNull();
+		expect(enabled).toBeNull();
+	});
 
-  /**
-   * Test whether we can update an API key
-   */
-  test("Update API Key", async () => {
-    const { status } = await updateApiKey(
-      TEST_DATA?.apiKeyId as string,
-      TEST_DATA?.organizationId as string,
-      {
-        name: "Updated Test API Key",
-        enabled: false,
-      }
-    );
+	/**
+	 * Test whether we can update an API key
+	 */
+	test("Update API Key", async () => {
+		const { status } = await updateApiKey(
+			TEST_DATA?.apiKeyId as string,
+			TEST_DATA?.organizationId as string,
+			{
+				name: "Updated Test API Key",
+				enabled: false,
+			},
+		);
 
-    // Assert that the API key is updated
-    expect(status).toBe("success");
+		// Assert that the API key is updated
+		expect(status).toBe("success");
 
-    // Ensure the API key is disabled
-    const { enabled } = await verifyApiKey(TEST_DATA?.apiKey as string);
-    expect(enabled).toBe(false);
-  });
+		// Ensure the API key is disabled
+		const { enabled } = await verifyApiKey(TEST_DATA?.apiKey as string);
+		expect(enabled).toBe(false);
+	});
 });

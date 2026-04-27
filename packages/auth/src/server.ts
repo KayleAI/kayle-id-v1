@@ -26,11 +26,11 @@ const magicLinkExpiryInSeconds = 15 * 60;
 const magicLinkExpiryInMinutes = magicLinkExpiryInSeconds / 60;
 const magicOtpSignInPath = "/v1/auth/magic/sign-in";
 
-type MagicOtpPayload = {
+interface MagicOtpPayload {
   email: string;
   otp: string;
   type: "sign-in" | "email-verification";
-};
+}
 
 export function getActiveOrganizationId(session: unknown): string | null {
   if (!(session && typeof session === "object")) {
@@ -67,7 +67,7 @@ function logDevelopmentMagicOtp(
 }
 
 const plugins = [
-  ...(process.env.NODE_ENV !== "production" ? [openAPI()] : []),
+  ...(process.env.NODE_ENV === "production" ? [] : [openAPI()]),
   organization({
     schema: {
       invitation: {

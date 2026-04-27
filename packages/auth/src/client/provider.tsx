@@ -3,21 +3,21 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { client } from "../client";
 import type { Organization, Session, User } from "../types";
 
-type AuthContextType = {
+interface AuthContextType {
   activeOrganization: Organization | null;
+  error: Error | null;
   organizations: Organization[];
-  user: User | null;
+  refresh: () => Promise<void>;
   session: Session | null;
   status: "loading" | "authenticated" | "unauthenticated";
-  error: Error | null;
-  refresh: () => Promise<void>;
-};
+  user: User | null;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-type AuthProviderProps = {
+interface AuthProviderProps {
   children: ReactNode;
-};
+}
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [status, setStatus] = useState<

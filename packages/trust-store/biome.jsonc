@@ -1,12 +1,13 @@
 {
-  "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": "//",
-  "linter": {
-    "rules": {
-      "performance": {
-        "noNamespaceImport": "off",
-        "noBarrelFile": "off"
-      }
-    }
-  }
+	"$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
+	"extends": ["../../biome.jsonc"],
+	"root": false,
+	"linter": {
+		"rules": {
+			"performance": {
+				"noNamespaceImport": "off",
+				"noBarrelFile": "off"
+			}
+		}
+	}
 }

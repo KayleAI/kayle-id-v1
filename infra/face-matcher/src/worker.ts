@@ -26,9 +26,9 @@ export type FetchLike = (
   input: RequestInfo | URL,
   init?: RequestInit
 ) => Promise<Response>;
-export type ContainerFetcher = {
+export interface ContainerFetcher {
   fetch: FetchLike;
-};
+}
 
 type GetContainer = (env: unknown) => Promise<ContainerFetcher | null>;
 type FaceMatcherRequestLogger = SafeRequestLogger;

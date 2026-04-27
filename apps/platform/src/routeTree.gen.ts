@@ -8,627 +8,627 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as MarketingRouteImport } from './routes/_marketing'
-import { Route as LegalRouteImport } from './routes/_legal'
-import { Route as AuthRouteImport } from './routes/_auth'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
-import { Route as MarketingDemoRouteImport } from './routes/_marketing/demo'
-import { Route as LegalTermsRouteImport } from './routes/_legal/terms'
-import { Route as LegalPrivacyRouteImport } from './routes/_legal/privacy'
-import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
-import { Route as AuthSignOutRouteImport } from './routes/_auth/sign-out'
-import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
-import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
-import { Route as AuthAccountIndexRouteImport } from './routes/_auth/account/index'
-import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
-import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
-import { Route as AuthOrganizationsSelectRouteImport } from './routes/_auth/organizations/select'
-import { Route as AuthOrganizationsCreateRouteImport } from './routes/_auth/organizations/create'
-import { Route as AuthAccountSettingsRouteImport } from './routes/_auth/account/settings'
-import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
-import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
-import { Route as AuthOrganizationsActiveSettingsRouteImport } from './routes/_auth/organizations/_active/settings'
-import { Route as AuthOrganizationsActiveMembersRouteImport } from './routes/_auth/organizations/_active/members'
-import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
-import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
-import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
-import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
-import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as ApiApiAnalyticsSplatRouteImport } from "./routes/_api/api/analytics/$";
+import { Route as ApiApiAuthSplatRouteImport } from "./routes/_api/api/auth/$";
+import { Route as ApiApiDemoSplatRouteImport } from "./routes/_api/api/demo/$";
+import { Route as ApiApiWebhooksSplatRouteImport } from "./routes/_api/api/webhooks/$";
+import { Route as AppRouteImport } from "./routes/_app";
+import { Route as AppApiKeysKeyRouteImport } from "./routes/_app/api-keys/$key";
+import { Route as AppApiKeysIndexRouteImport } from "./routes/_app/api-keys/index";
+import { Route as AppDashboardRouteImport } from "./routes/_app/dashboard";
+import { Route as AppWebhooksEndpointRouteImport } from "./routes/_app/webhooks/$endpoint";
+import { Route as AppWebhooksEventsEventRouteImport } from "./routes/_app/webhooks/events/$event";
+import { Route as AppWebhooksIndexRouteImport } from "./routes/_app/webhooks/index";
+import { Route as AuthRouteImport } from "./routes/_auth";
+import { Route as AuthAccountIndexRouteImport } from "./routes/_auth/account/index";
+import { Route as AuthAccountSettingsRouteImport } from "./routes/_auth/account/settings";
+import { Route as AuthOrganizationsActiveMembersRouteImport } from "./routes/_auth/organizations/_active/members";
+import { Route as AuthOrganizationsActiveSettingsRouteImport } from "./routes/_auth/organizations/_active/settings";
+import { Route as AuthOrganizationsCreateRouteImport } from "./routes/_auth/organizations/create";
+import { Route as AuthOrganizationsSelectRouteImport } from "./routes/_auth/organizations/select";
+import { Route as AuthSignInRouteImport } from "./routes/_auth/sign-in";
+import { Route as AuthSignOutRouteImport } from "./routes/_auth/sign-out";
+import { Route as AuthVerifyRouteImport } from "./routes/_auth/verify";
+import { Route as LegalRouteImport } from "./routes/_legal";
+import { Route as LegalPrivacyRouteImport } from "./routes/_legal/privacy";
+import { Route as LegalTermsRouteImport } from "./routes/_legal/terms";
+import { Route as MarketingRouteImport } from "./routes/_marketing";
+import { Route as MarketingDemoRouteImport } from "./routes/_marketing/demo";
+import { Route as MarketingIndexRouteImport } from "./routes/_marketing/index";
 
 const MarketingRoute = MarketingRouteImport.update({
-  id: '/_marketing',
+  id: "/_marketing",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LegalRoute = LegalRouteImport.update({
-  id: '/_legal',
+  id: "/_legal",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthRoute = AuthRouteImport.update({
-  id: '/_auth',
+  id: "/_auth",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AppRoute = AppRouteImport.update({
-  id: '/_app',
+  id: "/_app",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => MarketingRoute,
-} as any)
+} as any);
 const MarketingDemoRoute = MarketingDemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
+  id: "/demo",
+  path: "/demo",
   getParentRoute: () => MarketingRoute,
-} as any)
+} as any);
 const LegalTermsRoute = LegalTermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+  id: "/terms",
+  path: "/terms",
   getParentRoute: () => LegalRoute,
-} as any)
+} as any);
 const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
+  id: "/privacy",
+  path: "/privacy",
   getParentRoute: () => LegalRoute,
-} as any)
+} as any);
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
-  id: '/verify',
-  path: '/verify',
+  id: "/verify",
+  path: "/verify",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
-  id: '/sign-out',
-  path: '/sign-out',
+  id: "/sign-out",
+  path: "/sign-out",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
+  id: "/sign-in",
+  path: "/sign-in",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+  id: "/dashboard",
+  path: "/dashboard",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AuthAccountIndexRoute = AuthAccountIndexRouteImport.update({
-  id: '/account/',
-  path: '/account/',
+  id: "/account/",
+  path: "/account/",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
-  id: '/webhooks/',
-  path: '/webhooks/',
+  id: "/webhooks/",
+  path: "/webhooks/",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppApiKeysIndexRoute = AppApiKeysIndexRouteImport.update({
-  id: '/api-keys/',
-  path: '/api-keys/',
+  id: "/api-keys/",
+  path: "/api-keys/",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AuthOrganizationsSelectRoute = AuthOrganizationsSelectRouteImport.update({
-  id: '/organizations/select',
-  path: '/organizations/select',
+  id: "/organizations/select",
+  path: "/organizations/select",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AuthOrganizationsCreateRoute = AuthOrganizationsCreateRouteImport.update({
-  id: '/organizations/create',
-  path: '/organizations/create',
+  id: "/organizations/create",
+  path: "/organizations/create",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AuthAccountSettingsRoute = AuthAccountSettingsRouteImport.update({
-  id: '/account/settings',
-  path: '/account/settings',
+  id: "/account/settings",
+  path: "/account/settings",
   getParentRoute: () => AuthRoute,
-} as any)
+} as any);
 const AppWebhooksEndpointRoute = AppWebhooksEndpointRouteImport.update({
-  id: '/webhooks/$endpoint',
-  path: '/webhooks/$endpoint',
+  id: "/webhooks/$endpoint",
+  path: "/webhooks/$endpoint",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
-  id: '/api-keys/$key',
-  path: '/api-keys/$key',
+  id: "/api-keys/$key",
+  path: "/api-keys/$key",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const AuthOrganizationsActiveSettingsRoute =
   AuthOrganizationsActiveSettingsRouteImport.update({
-    id: '/organizations/_active/settings',
-    path: '/organizations/settings',
+    id: "/organizations/_active/settings",
+    path: "/organizations/settings",
     getParentRoute: () => AuthRoute,
-  } as any)
+  } as any);
 const AuthOrganizationsActiveMembersRoute =
   AuthOrganizationsActiveMembersRouteImport.update({
-    id: '/organizations/_active/members',
-    path: '/organizations/members',
+    id: "/organizations/_active/members",
+    path: "/organizations/members",
     getParentRoute: () => AuthRoute,
-  } as any)
+  } as any);
 const AppWebhooksEventsEventRoute = AppWebhooksEventsEventRouteImport.update({
-  id: '/webhooks/events/$event',
-  path: '/webhooks/events/$event',
+  id: "/webhooks/events/$event",
+  path: "/webhooks/events/$event",
   getParentRoute: () => AppRoute,
-} as any)
+} as any);
 const ApiApiWebhooksSplatRoute = ApiApiWebhooksSplatRouteImport.update({
-  id: '/_api/api/webhooks/$',
-  path: '/api/webhooks/$',
+  id: "/_api/api/webhooks/$",
+  path: "/api/webhooks/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiApiDemoSplatRoute = ApiApiDemoSplatRouteImport.update({
-  id: '/_api/api/demo/$',
-  path: '/api/demo/$',
+  id: "/_api/api/demo/$",
+  path: "/api/demo/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiApiAuthSplatRoute = ApiApiAuthSplatRouteImport.update({
-  id: '/_api/api/auth/$',
-  path: '/api/auth/$',
+  id: "/_api/api/auth/$",
+  path: "/api/auth/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiApiAnalyticsSplatRoute = ApiApiAnalyticsSplatRouteImport.update({
-  id: '/_api/api/analytics/$',
-  path: '/api/analytics/$',
+  id: "/_api/api/analytics/$",
+  path: "/api/analytics/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof MarketingIndexRoute
-  '/dashboard': typeof AppDashboardRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-out': typeof AuthSignOutRoute
-  '/verify': typeof AuthVerifyRoute
-  '/privacy': typeof LegalPrivacyRoute
-  '/terms': typeof LegalTermsRoute
-  '/demo': typeof MarketingDemoRoute
-  '/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/account/settings': typeof AuthAccountSettingsRoute
-  '/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/organizations/select': typeof AuthOrganizationsSelectRoute
-  '/api-keys/': typeof AppApiKeysIndexRoute
-  '/webhooks/': typeof AppWebhooksIndexRoute
-  '/account/': typeof AuthAccountIndexRoute
-  '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
-  '/api/auth/$': typeof ApiApiAuthSplatRoute
-  '/api/demo/$': typeof ApiApiDemoSplatRoute
-  '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
-  '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/organizations/members': typeof AuthOrganizationsActiveMembersRoute
-  '/organizations/settings': typeof AuthOrganizationsActiveSettingsRoute
+  "/": typeof MarketingIndexRoute;
+  "/account/": typeof AuthAccountIndexRoute;
+  "/account/settings": typeof AuthAccountSettingsRoute;
+  "/api-keys/": typeof AppApiKeysIndexRoute;
+  "/api-keys/$key": typeof AppApiKeysKeyRoute;
+  "/api/analytics/$": typeof ApiApiAnalyticsSplatRoute;
+  "/api/auth/$": typeof ApiApiAuthSplatRoute;
+  "/api/demo/$": typeof ApiApiDemoSplatRoute;
+  "/api/webhooks/$": typeof ApiApiWebhooksSplatRoute;
+  "/dashboard": typeof AppDashboardRoute;
+  "/demo": typeof MarketingDemoRoute;
+  "/organizations/create": typeof AuthOrganizationsCreateRoute;
+  "/organizations/members": typeof AuthOrganizationsActiveMembersRoute;
+  "/organizations/select": typeof AuthOrganizationsSelectRoute;
+  "/organizations/settings": typeof AuthOrganizationsActiveSettingsRoute;
+  "/privacy": typeof LegalPrivacyRoute;
+  "/sign-in": typeof AuthSignInRoute;
+  "/sign-out": typeof AuthSignOutRoute;
+  "/terms": typeof LegalTermsRoute;
+  "/verify": typeof AuthVerifyRoute;
+  "/webhooks/": typeof AppWebhooksIndexRoute;
+  "/webhooks/$endpoint": typeof AppWebhooksEndpointRoute;
+  "/webhooks/events/$event": typeof AppWebhooksEventsEventRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof MarketingIndexRoute
-  '/dashboard': typeof AppDashboardRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-out': typeof AuthSignOutRoute
-  '/verify': typeof AuthVerifyRoute
-  '/privacy': typeof LegalPrivacyRoute
-  '/terms': typeof LegalTermsRoute
-  '/demo': typeof MarketingDemoRoute
-  '/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/account/settings': typeof AuthAccountSettingsRoute
-  '/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/organizations/select': typeof AuthOrganizationsSelectRoute
-  '/api-keys': typeof AppApiKeysIndexRoute
-  '/webhooks': typeof AppWebhooksIndexRoute
-  '/account': typeof AuthAccountIndexRoute
-  '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
-  '/api/auth/$': typeof ApiApiAuthSplatRoute
-  '/api/demo/$': typeof ApiApiDemoSplatRoute
-  '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
-  '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/organizations/members': typeof AuthOrganizationsActiveMembersRoute
-  '/organizations/settings': typeof AuthOrganizationsActiveSettingsRoute
+  "/": typeof MarketingIndexRoute;
+  "/account": typeof AuthAccountIndexRoute;
+  "/account/settings": typeof AuthAccountSettingsRoute;
+  "/api-keys": typeof AppApiKeysIndexRoute;
+  "/api-keys/$key": typeof AppApiKeysKeyRoute;
+  "/api/analytics/$": typeof ApiApiAnalyticsSplatRoute;
+  "/api/auth/$": typeof ApiApiAuthSplatRoute;
+  "/api/demo/$": typeof ApiApiDemoSplatRoute;
+  "/api/webhooks/$": typeof ApiApiWebhooksSplatRoute;
+  "/dashboard": typeof AppDashboardRoute;
+  "/demo": typeof MarketingDemoRoute;
+  "/organizations/create": typeof AuthOrganizationsCreateRoute;
+  "/organizations/members": typeof AuthOrganizationsActiveMembersRoute;
+  "/organizations/select": typeof AuthOrganizationsSelectRoute;
+  "/organizations/settings": typeof AuthOrganizationsActiveSettingsRoute;
+  "/privacy": typeof LegalPrivacyRoute;
+  "/sign-in": typeof AuthSignInRoute;
+  "/sign-out": typeof AuthSignOutRoute;
+  "/terms": typeof LegalTermsRoute;
+  "/verify": typeof AuthVerifyRoute;
+  "/webhooks": typeof AppWebhooksIndexRoute;
+  "/webhooks/$endpoint": typeof AppWebhooksEndpointRoute;
+  "/webhooks/events/$event": typeof AppWebhooksEventsEventRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/_app': typeof AppRouteWithChildren
-  '/_auth': typeof AuthRouteWithChildren
-  '/_legal': typeof LegalRouteWithChildren
-  '/_marketing': typeof MarketingRouteWithChildren
-  '/_app/dashboard': typeof AppDashboardRoute
-  '/_auth/sign-in': typeof AuthSignInRoute
-  '/_auth/sign-out': typeof AuthSignOutRoute
-  '/_auth/verify': typeof AuthVerifyRoute
-  '/_legal/privacy': typeof LegalPrivacyRoute
-  '/_legal/terms': typeof LegalTermsRoute
-  '/_marketing/demo': typeof MarketingDemoRoute
-  '/_marketing/': typeof MarketingIndexRoute
-  '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/_auth/account/settings': typeof AuthAccountSettingsRoute
-  '/_auth/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/_auth/organizations/select': typeof AuthOrganizationsSelectRoute
-  '/_app/api-keys/': typeof AppApiKeysIndexRoute
-  '/_app/webhooks/': typeof AppWebhooksIndexRoute
-  '/_auth/account/': typeof AuthAccountIndexRoute
-  '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
-  '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
-  '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
-  '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
-  '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/_auth/organizations/_active/members': typeof AuthOrganizationsActiveMembersRoute
-  '/_auth/organizations/_active/settings': typeof AuthOrganizationsActiveSettingsRoute
+  __root__: typeof rootRouteImport;
+  "/_api/api/analytics/$": typeof ApiApiAnalyticsSplatRoute;
+  "/_api/api/auth/$": typeof ApiApiAuthSplatRoute;
+  "/_api/api/demo/$": typeof ApiApiDemoSplatRoute;
+  "/_api/api/webhooks/$": typeof ApiApiWebhooksSplatRoute;
+  "/_app": typeof AppRouteWithChildren;
+  "/_app/api-keys/": typeof AppApiKeysIndexRoute;
+  "/_app/api-keys/$key": typeof AppApiKeysKeyRoute;
+  "/_app/dashboard": typeof AppDashboardRoute;
+  "/_app/webhooks/": typeof AppWebhooksIndexRoute;
+  "/_app/webhooks/$endpoint": typeof AppWebhooksEndpointRoute;
+  "/_app/webhooks/events/$event": typeof AppWebhooksEventsEventRoute;
+  "/_auth": typeof AuthRouteWithChildren;
+  "/_auth/account/": typeof AuthAccountIndexRoute;
+  "/_auth/account/settings": typeof AuthAccountSettingsRoute;
+  "/_auth/organizations/_active/members": typeof AuthOrganizationsActiveMembersRoute;
+  "/_auth/organizations/_active/settings": typeof AuthOrganizationsActiveSettingsRoute;
+  "/_auth/organizations/create": typeof AuthOrganizationsCreateRoute;
+  "/_auth/organizations/select": typeof AuthOrganizationsSelectRoute;
+  "/_auth/sign-in": typeof AuthSignInRoute;
+  "/_auth/sign-out": typeof AuthSignOutRoute;
+  "/_auth/verify": typeof AuthVerifyRoute;
+  "/_legal": typeof LegalRouteWithChildren;
+  "/_legal/privacy": typeof LegalPrivacyRoute;
+  "/_legal/terms": typeof LegalTermsRoute;
+  "/_marketing": typeof MarketingRouteWithChildren;
+  "/_marketing/": typeof MarketingIndexRoute;
+  "/_marketing/demo": typeof MarketingDemoRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesById: FileRoutesById;
+  fileRoutesByTo: FileRoutesByTo;
   fullPaths:
-    | '/'
-    | '/dashboard'
-    | '/sign-in'
-    | '/sign-out'
-    | '/verify'
-    | '/privacy'
-    | '/terms'
-    | '/demo'
-    | '/api-keys/$key'
-    | '/webhooks/$endpoint'
-    | '/account/settings'
-    | '/organizations/create'
-    | '/organizations/select'
-    | '/api-keys/'
-    | '/webhooks/'
-    | '/account/'
-    | '/api/analytics/$'
-    | '/api/auth/$'
-    | '/api/demo/$'
-    | '/api/webhooks/$'
-    | '/webhooks/events/$event'
-    | '/organizations/members'
-    | '/organizations/settings'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/dashboard'
-    | '/sign-in'
-    | '/sign-out'
-    | '/verify'
-    | '/privacy'
-    | '/terms'
-    | '/demo'
-    | '/api-keys/$key'
-    | '/webhooks/$endpoint'
-    | '/account/settings'
-    | '/organizations/create'
-    | '/organizations/select'
-    | '/api-keys'
-    | '/webhooks'
-    | '/account'
-    | '/api/analytics/$'
-    | '/api/auth/$'
-    | '/api/demo/$'
-    | '/api/webhooks/$'
-    | '/webhooks/events/$event'
-    | '/organizations/members'
-    | '/organizations/settings'
+    | "/"
+    | "/dashboard"
+    | "/sign-in"
+    | "/sign-out"
+    | "/verify"
+    | "/privacy"
+    | "/terms"
+    | "/demo"
+    | "/api-keys/$key"
+    | "/webhooks/$endpoint"
+    | "/account/settings"
+    | "/organizations/create"
+    | "/organizations/select"
+    | "/api-keys/"
+    | "/webhooks/"
+    | "/account/"
+    | "/api/analytics/$"
+    | "/api/auth/$"
+    | "/api/demo/$"
+    | "/api/webhooks/$"
+    | "/webhooks/events/$event"
+    | "/organizations/members"
+    | "/organizations/settings";
   id:
-    | '__root__'
-    | '/_app'
-    | '/_auth'
-    | '/_legal'
-    | '/_marketing'
-    | '/_app/dashboard'
-    | '/_auth/sign-in'
-    | '/_auth/sign-out'
-    | '/_auth/verify'
-    | '/_legal/privacy'
-    | '/_legal/terms'
-    | '/_marketing/demo'
-    | '/_marketing/'
-    | '/_app/api-keys/$key'
-    | '/_app/webhooks/$endpoint'
-    | '/_auth/account/settings'
-    | '/_auth/organizations/create'
-    | '/_auth/organizations/select'
-    | '/_app/api-keys/'
-    | '/_app/webhooks/'
-    | '/_auth/account/'
-    | '/_api/api/analytics/$'
-    | '/_api/api/auth/$'
-    | '/_api/api/demo/$'
-    | '/_api/api/webhooks/$'
-    | '/_app/webhooks/events/$event'
-    | '/_auth/organizations/_active/members'
-    | '/_auth/organizations/_active/settings'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/_app"
+    | "/_auth"
+    | "/_legal"
+    | "/_marketing"
+    | "/_app/dashboard"
+    | "/_auth/sign-in"
+    | "/_auth/sign-out"
+    | "/_auth/verify"
+    | "/_legal/privacy"
+    | "/_legal/terms"
+    | "/_marketing/demo"
+    | "/_marketing/"
+    | "/_app/api-keys/$key"
+    | "/_app/webhooks/$endpoint"
+    | "/_auth/account/settings"
+    | "/_auth/organizations/create"
+    | "/_auth/organizations/select"
+    | "/_app/api-keys/"
+    | "/_app/webhooks/"
+    | "/_auth/account/"
+    | "/_api/api/analytics/$"
+    | "/_api/api/auth/$"
+    | "/_api/api/demo/$"
+    | "/_api/api/webhooks/$"
+    | "/_app/webhooks/events/$event"
+    | "/_auth/organizations/_active/members"
+    | "/_auth/organizations/_active/settings";
+  to:
+    | "/"
+    | "/dashboard"
+    | "/sign-in"
+    | "/sign-out"
+    | "/verify"
+    | "/privacy"
+    | "/terms"
+    | "/demo"
+    | "/api-keys/$key"
+    | "/webhooks/$endpoint"
+    | "/account/settings"
+    | "/organizations/create"
+    | "/organizations/select"
+    | "/api-keys"
+    | "/webhooks"
+    | "/account"
+    | "/api/analytics/$"
+    | "/api/auth/$"
+    | "/api/demo/$"
+    | "/api/webhooks/$"
+    | "/webhooks/events/$event"
+    | "/organizations/members"
+    | "/organizations/settings";
 }
 export interface RootRouteChildren {
-  AppRoute: typeof AppRouteWithChildren
-  AuthRoute: typeof AuthRouteWithChildren
-  LegalRoute: typeof LegalRouteWithChildren
-  MarketingRoute: typeof MarketingRouteWithChildren
-  ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
-  ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
-  ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
-  ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute
+  ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute;
+  ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute;
+  ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute;
+  ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute;
+  AppRoute: typeof AppRouteWithChildren;
+  AuthRoute: typeof AuthRouteWithChildren;
+  LegalRoute: typeof LegalRouteWithChildren;
+  MarketingRoute: typeof MarketingRouteWithChildren;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/_marketing': {
-      id: '/_marketing'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof MarketingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_legal': {
-      id: '/_legal'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof LegalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_auth': {
-      id: '/_auth'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_marketing/': {
-      id: '/_marketing/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof MarketingIndexRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_marketing/demo': {
-      id: '/_marketing/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof MarketingDemoRouteImport
-      parentRoute: typeof MarketingRoute
-    }
-    '/_legal/terms': {
-      id: '/_legal/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof LegalTermsRouteImport
-      parentRoute: typeof LegalRoute
-    }
-    '/_legal/privacy': {
-      id: '/_legal/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof LegalPrivacyRouteImport
-      parentRoute: typeof LegalRoute
-    }
-    '/_auth/verify': {
-      id: '/_auth/verify'
-      path: '/verify'
-      fullPath: '/verify'
-      preLoaderRoute: typeof AuthVerifyRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-out': {
-      id: '/_auth/sign-out'
-      path: '/sign-out'
-      fullPath: '/sign-out'
-      preLoaderRoute: typeof AuthSignOutRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-in': {
-      id: '/_auth/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof AuthSignInRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_auth/account/': {
-      id: '/_auth/account/'
-      path: '/account'
-      fullPath: '/account/'
-      preLoaderRoute: typeof AuthAccountIndexRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_app/webhooks/': {
-      id: '/_app/webhooks/'
-      path: '/webhooks'
-      fullPath: '/webhooks/'
-      preLoaderRoute: typeof AppWebhooksIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/api-keys/': {
-      id: '/_app/api-keys/'
-      path: '/api-keys'
-      fullPath: '/api-keys/'
-      preLoaderRoute: typeof AppApiKeysIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_auth/organizations/select': {
-      id: '/_auth/organizations/select'
-      path: '/organizations/select'
-      fullPath: '/organizations/select'
-      preLoaderRoute: typeof AuthOrganizationsSelectRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/organizations/create': {
-      id: '/_auth/organizations/create'
-      path: '/organizations/create'
-      fullPath: '/organizations/create'
-      preLoaderRoute: typeof AuthOrganizationsCreateRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/account/settings': {
-      id: '/_auth/account/settings'
-      path: '/account/settings'
-      fullPath: '/account/settings'
-      preLoaderRoute: typeof AuthAccountSettingsRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_app/webhooks/$endpoint': {
-      id: '/_app/webhooks/$endpoint'
-      path: '/webhooks/$endpoint'
-      fullPath: '/webhooks/$endpoint'
-      preLoaderRoute: typeof AppWebhooksEndpointRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/api-keys/$key': {
-      id: '/_app/api-keys/$key'
-      path: '/api-keys/$key'
-      fullPath: '/api-keys/$key'
-      preLoaderRoute: typeof AppApiKeysKeyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_auth/organizations/_active/settings': {
-      id: '/_auth/organizations/_active/settings'
-      path: '/organizations/settings'
-      fullPath: '/organizations/settings'
-      preLoaderRoute: typeof AuthOrganizationsActiveSettingsRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/organizations/_active/members': {
-      id: '/_auth/organizations/_active/members'
-      path: '/organizations/members'
-      fullPath: '/organizations/members'
-      preLoaderRoute: typeof AuthOrganizationsActiveMembersRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_app/webhooks/events/$event': {
-      id: '/_app/webhooks/events/$event'
-      path: '/webhooks/events/$event'
-      fullPath: '/webhooks/events/$event'
-      preLoaderRoute: typeof AppWebhooksEventsEventRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_api/api/webhooks/$': {
-      id: '/_api/api/webhooks/$'
-      path: '/api/webhooks/$'
-      fullPath: '/api/webhooks/$'
-      preLoaderRoute: typeof ApiApiWebhooksSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_api/api/demo/$': {
-      id: '/_api/api/demo/$'
-      path: '/api/demo/$'
-      fullPath: '/api/demo/$'
-      preLoaderRoute: typeof ApiApiDemoSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_api/api/auth/$': {
-      id: '/_api/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiApiAuthSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_api/api/analytics/$': {
-      id: '/_api/api/analytics/$'
-      path: '/api/analytics/$'
-      fullPath: '/api/analytics/$'
-      preLoaderRoute: typeof ApiApiAnalyticsSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    "/_api/api/analytics/$": {
+      id: "/_api/api/analytics/$";
+      path: "/api/analytics/$";
+      fullPath: "/api/analytics/$";
+      preLoaderRoute: typeof ApiApiAnalyticsSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_api/api/auth/$": {
+      id: "/_api/api/auth/$";
+      path: "/api/auth/$";
+      fullPath: "/api/auth/$";
+      preLoaderRoute: typeof ApiApiAuthSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_api/api/demo/$": {
+      id: "/_api/api/demo/$";
+      path: "/api/demo/$";
+      fullPath: "/api/demo/$";
+      preLoaderRoute: typeof ApiApiDemoSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_api/api/webhooks/$": {
+      id: "/_api/api/webhooks/$";
+      path: "/api/webhooks/$";
+      fullPath: "/api/webhooks/$";
+      preLoaderRoute: typeof ApiApiWebhooksSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_app": {
+      id: "/_app";
+      path: "";
+      fullPath: "/";
+      preLoaderRoute: typeof AppRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_app/api-keys/": {
+      id: "/_app/api-keys/";
+      path: "/api-keys";
+      fullPath: "/api-keys/";
+      preLoaderRoute: typeof AppApiKeysIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/api-keys/$key": {
+      id: "/_app/api-keys/$key";
+      path: "/api-keys/$key";
+      fullPath: "/api-keys/$key";
+      preLoaderRoute: typeof AppApiKeysKeyRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/dashboard": {
+      id: "/_app/dashboard";
+      path: "/dashboard";
+      fullPath: "/dashboard";
+      preLoaderRoute: typeof AppDashboardRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/webhooks/": {
+      id: "/_app/webhooks/";
+      path: "/webhooks";
+      fullPath: "/webhooks/";
+      preLoaderRoute: typeof AppWebhooksIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/webhooks/$endpoint": {
+      id: "/_app/webhooks/$endpoint";
+      path: "/webhooks/$endpoint";
+      fullPath: "/webhooks/$endpoint";
+      preLoaderRoute: typeof AppWebhooksEndpointRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/webhooks/events/$event": {
+      id: "/_app/webhooks/events/$event";
+      path: "/webhooks/events/$event";
+      fullPath: "/webhooks/events/$event";
+      preLoaderRoute: typeof AppWebhooksEventsEventRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_auth": {
+      id: "/_auth";
+      path: "";
+      fullPath: "/";
+      preLoaderRoute: typeof AuthRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_auth/account/": {
+      id: "/_auth/account/";
+      path: "/account";
+      fullPath: "/account/";
+      preLoaderRoute: typeof AuthAccountIndexRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/account/settings": {
+      id: "/_auth/account/settings";
+      path: "/account/settings";
+      fullPath: "/account/settings";
+      preLoaderRoute: typeof AuthAccountSettingsRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/organizations/_active/members": {
+      id: "/_auth/organizations/_active/members";
+      path: "/organizations/members";
+      fullPath: "/organizations/members";
+      preLoaderRoute: typeof AuthOrganizationsActiveMembersRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/organizations/_active/settings": {
+      id: "/_auth/organizations/_active/settings";
+      path: "/organizations/settings";
+      fullPath: "/organizations/settings";
+      preLoaderRoute: typeof AuthOrganizationsActiveSettingsRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/organizations/create": {
+      id: "/_auth/organizations/create";
+      path: "/organizations/create";
+      fullPath: "/organizations/create";
+      preLoaderRoute: typeof AuthOrganizationsCreateRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/organizations/select": {
+      id: "/_auth/organizations/select";
+      path: "/organizations/select";
+      fullPath: "/organizations/select";
+      preLoaderRoute: typeof AuthOrganizationsSelectRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/sign-in": {
+      id: "/_auth/sign-in";
+      path: "/sign-in";
+      fullPath: "/sign-in";
+      preLoaderRoute: typeof AuthSignInRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/sign-out": {
+      id: "/_auth/sign-out";
+      path: "/sign-out";
+      fullPath: "/sign-out";
+      preLoaderRoute: typeof AuthSignOutRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/verify": {
+      id: "/_auth/verify";
+      path: "/verify";
+      fullPath: "/verify";
+      preLoaderRoute: typeof AuthVerifyRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_legal": {
+      id: "/_legal";
+      path: "";
+      fullPath: "/";
+      preLoaderRoute: typeof LegalRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_legal/privacy": {
+      id: "/_legal/privacy";
+      path: "/privacy";
+      fullPath: "/privacy";
+      preLoaderRoute: typeof LegalPrivacyRouteImport;
+      parentRoute: typeof LegalRoute;
+    };
+    "/_legal/terms": {
+      id: "/_legal/terms";
+      path: "/terms";
+      fullPath: "/terms";
+      preLoaderRoute: typeof LegalTermsRouteImport;
+      parentRoute: typeof LegalRoute;
+    };
+    "/_marketing": {
+      id: "/_marketing";
+      path: "";
+      fullPath: "/";
+      preLoaderRoute: typeof MarketingRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_marketing/": {
+      id: "/_marketing/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof MarketingIndexRouteImport;
+      parentRoute: typeof MarketingRoute;
+    };
+    "/_marketing/demo": {
+      id: "/_marketing/demo";
+      path: "/demo";
+      fullPath: "/demo";
+      preLoaderRoute: typeof MarketingDemoRouteImport;
+      parentRoute: typeof MarketingRoute;
+    };
   }
 }
 
 interface AppRouteChildren {
-  AppDashboardRoute: typeof AppDashboardRoute
-  AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
-  AppWebhooksEndpointRoute: typeof AppWebhooksEndpointRoute
-  AppApiKeysIndexRoute: typeof AppApiKeysIndexRoute
-  AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute
-  AppWebhooksEventsEventRoute: typeof AppWebhooksEventsEventRoute
+  AppApiKeysIndexRoute: typeof AppApiKeysIndexRoute;
+  AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute;
+  AppDashboardRoute: typeof AppDashboardRoute;
+  AppWebhooksEndpointRoute: typeof AppWebhooksEndpointRoute;
+  AppWebhooksEventsEventRoute: typeof AppWebhooksEventsEventRoute;
+  AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute;
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppDashboardRoute: AppDashboardRoute,
-  AppApiKeysKeyRoute: AppApiKeysKeyRoute,
-  AppWebhooksEndpointRoute: AppWebhooksEndpointRoute,
-  AppApiKeysIndexRoute: AppApiKeysIndexRoute,
-  AppWebhooksIndexRoute: AppWebhooksIndexRoute,
-  AppWebhooksEventsEventRoute: AppWebhooksEventsEventRoute,
-}
+  AppDashboardRoute,
+  AppApiKeysKeyRoute,
+  AppWebhooksEndpointRoute,
+  AppApiKeysIndexRoute,
+  AppWebhooksIndexRoute,
+  AppWebhooksEventsEventRoute,
+};
 
-const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren);
 
 interface AuthRouteChildren {
-  AuthSignInRoute: typeof AuthSignInRoute
-  AuthSignOutRoute: typeof AuthSignOutRoute
-  AuthVerifyRoute: typeof AuthVerifyRoute
-  AuthAccountSettingsRoute: typeof AuthAccountSettingsRoute
-  AuthOrganizationsCreateRoute: typeof AuthOrganizationsCreateRoute
-  AuthOrganizationsSelectRoute: typeof AuthOrganizationsSelectRoute
-  AuthAccountIndexRoute: typeof AuthAccountIndexRoute
-  AuthOrganizationsActiveMembersRoute: typeof AuthOrganizationsActiveMembersRoute
-  AuthOrganizationsActiveSettingsRoute: typeof AuthOrganizationsActiveSettingsRoute
+  AuthAccountIndexRoute: typeof AuthAccountIndexRoute;
+  AuthAccountSettingsRoute: typeof AuthAccountSettingsRoute;
+  AuthOrganizationsActiveMembersRoute: typeof AuthOrganizationsActiveMembersRoute;
+  AuthOrganizationsActiveSettingsRoute: typeof AuthOrganizationsActiveSettingsRoute;
+  AuthOrganizationsCreateRoute: typeof AuthOrganizationsCreateRoute;
+  AuthOrganizationsSelectRoute: typeof AuthOrganizationsSelectRoute;
+  AuthSignInRoute: typeof AuthSignInRoute;
+  AuthSignOutRoute: typeof AuthSignOutRoute;
+  AuthVerifyRoute: typeof AuthVerifyRoute;
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthSignInRoute: AuthSignInRoute,
-  AuthSignOutRoute: AuthSignOutRoute,
-  AuthVerifyRoute: AuthVerifyRoute,
-  AuthAccountSettingsRoute: AuthAccountSettingsRoute,
-  AuthOrganizationsCreateRoute: AuthOrganizationsCreateRoute,
-  AuthOrganizationsSelectRoute: AuthOrganizationsSelectRoute,
-  AuthAccountIndexRoute: AuthAccountIndexRoute,
-  AuthOrganizationsActiveMembersRoute: AuthOrganizationsActiveMembersRoute,
-  AuthOrganizationsActiveSettingsRoute: AuthOrganizationsActiveSettingsRoute,
-}
+  AuthSignInRoute,
+  AuthSignOutRoute,
+  AuthVerifyRoute,
+  AuthAccountSettingsRoute,
+  AuthOrganizationsCreateRoute,
+  AuthOrganizationsSelectRoute,
+  AuthAccountIndexRoute,
+  AuthOrganizationsActiveMembersRoute,
+  AuthOrganizationsActiveSettingsRoute,
+};
 
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren);
 
 interface LegalRouteChildren {
-  LegalPrivacyRoute: typeof LegalPrivacyRoute
-  LegalTermsRoute: typeof LegalTermsRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute;
+  LegalTermsRoute: typeof LegalTermsRoute;
 }
 
 const LegalRouteChildren: LegalRouteChildren = {
-  LegalPrivacyRoute: LegalPrivacyRoute,
-  LegalTermsRoute: LegalTermsRoute,
-}
+  LegalPrivacyRoute,
+  LegalTermsRoute,
+};
 
-const LegalRouteWithChildren = LegalRoute._addFileChildren(LegalRouteChildren)
+const LegalRouteWithChildren = LegalRoute._addFileChildren(LegalRouteChildren);
 
 interface MarketingRouteChildren {
-  MarketingDemoRoute: typeof MarketingDemoRoute
-  MarketingIndexRoute: typeof MarketingIndexRoute
+  MarketingDemoRoute: typeof MarketingDemoRoute;
+  MarketingIndexRoute: typeof MarketingIndexRoute;
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
-  MarketingDemoRoute: MarketingDemoRoute,
-  MarketingIndexRoute: MarketingIndexRoute,
-}
+  MarketingDemoRoute,
+  MarketingIndexRoute,
+};
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
-  MarketingRouteChildren,
-)
+  MarketingRouteChildren
+);
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
-  ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
-  ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
-  ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,
-  ApiApiWebhooksSplatRoute: ApiApiWebhooksSplatRoute,
-}
+  ApiApiAnalyticsSplatRoute,
+  ApiApiAuthSplatRoute,
+  ApiApiDemoSplatRoute,
+  ApiApiWebhooksSplatRoute,
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    router: Awaited<ReturnType<typeof getRouter>>;
+    ssr: true;
   }
 }

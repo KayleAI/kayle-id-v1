@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth/organizations/_active/members")({
-  component: MembersLayout,
+	component: MembersLayout,
 });
 
 function MembersLayout() {
-  return <div>Members</div>;
+	return <div>Members</div>;
 }

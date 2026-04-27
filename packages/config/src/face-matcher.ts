@@ -16,11 +16,11 @@ export type FaceMatcherResponsePayload = z.infer<
   typeof faceMatcherResponseSchema
 >;
 
-export type FaceMatcherMultipartPayload = {
+export interface FaceMatcherMultipartPayload {
   dg2Image: Uint8Array;
   selfies: Uint8Array[];
   threshold?: number;
-};
+}
 
 type MultipartEntry = Blob | string;
 

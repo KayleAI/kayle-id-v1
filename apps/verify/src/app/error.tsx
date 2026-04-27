@@ -3,38 +3,38 @@ import InfoCard from "@kayle-id/ui/info-card";
 import { useSession } from "./session-provider";
 
 export function SessionError() {
-  const { error } = useSession();
+	const { error } = useSession();
 
-  if (!error) {
-    return null;
-  }
+	if (!error) {
+		return null;
+	}
 
-  return <ErrorCard error={error} />;
+	return <ErrorCard error={error} />;
 }
 
 export function ErrorCard({
-  error,
+	error,
 }: {
-  error: {
-    code: string;
-    message: string;
-  };
+	error: {
+		code: string;
+		message: string;
+	};
 }) {
-  const errorMessage =
-    ERROR_MESSAGES[error.code as keyof typeof ERROR_MESSAGES] ??
-    ERROR_MESSAGES.UNKNOWN;
+	const errorMessage =
+		ERROR_MESSAGES[error.code as keyof typeof ERROR_MESSAGES] ??
+		ERROR_MESSAGES.UNKNOWN;
 
-  return (
-    <InfoCard
-      colour="red"
-      header={{
-        title: "Session Error",
-        description: "An error occurred while loading the session.",
-      }}
-      message={{
-        title: errorMessage.title,
-        description: errorMessage.description,
-      }}
-    />
-  );
+	return (
+		<InfoCard
+			colour="red"
+			header={{
+				title: "Session Error",
+				description: "An error occurred while loading the session.",
+			}}
+			message={{
+				title: errorMessage.title,
+				description: errorMessage.description,
+			}}
+		/>
+	);
 }

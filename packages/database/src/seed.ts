@@ -2,26 +2,28 @@ import { file } from "bun";
 import { pool } from "./raw";
 
 async function main() {
-  const seedFile = file(new URL("../../../database/kayle-id/seed.sql", import.meta.url));
-  const sql = await seedFile.text();
+	const seedFile = file(
+		new URL("../../../database/kayle-id/seed.sql", import.meta.url),
+	);
+	const sql = await seedFile.text();
 
-  if (!sql.trim()) {
-    console.log("`seed.sql` is empty, nothing to seed.");
-    return;
-  }
+	if (!sql.trim()) {
+		console.log("`seed.sql` is empty, nothing to seed.");
+		return;
+	}
 
-  const client = await pool.connect();
+	const client = await pool.connect();
 
-  try {
-    await client.query(sql);
-    console.log("Database seeded successfully.");
-  } finally {
-    client.release();
-    await pool.end();
-  }
+	try {
+		await client.query(sql);
+		console.log("Database seeded successfully.");
+	} finally {
+		client.release();
+		await pool.end();
+	}
 }
 
 main().catch((error) => {
-  console.error("Failed to seed database:", error);
-  process.exit(1);
+	console.error("Failed to seed database:", error);
+	process.exit(1);
 });

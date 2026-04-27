@@ -11,48 +11,48 @@ import { and, eq } from "drizzle-orm";
  * @returns The status of the update
  */
 export async function updateApiKey(
-  id: string,
-  organizationId: string,
-  {
-    name,
-    enabled,
-    permissions,
-    metadata,
-  }: {
-    name?: string;
-    enabled?: boolean;
-    permissions?: string[];
-    metadata?: Record<string, string | number | boolean>;
-  }
+	id: string,
+	organizationId: string,
+	{
+		name,
+		enabled,
+		permissions,
+		metadata,
+	}: {
+		name?: string;
+		enabled?: boolean;
+		permissions?: string[];
+		metadata?: Record<string, string | number | boolean>;
+	},
 ): Promise<{ status: "success" | "error"; message?: string }> {
-  const [updated] = await db
-    .update(api_keys)
-    .set({
-      name,
-      enabled,
-      permissions,
-      metadata,
-    })
-    .where(
-      and(
-        eq(api_keys.id, id),
-        eq(api_keys.organizationId, organizationId),
-        eq(api_keys.environment, "live")
-      )
-    )
-    .returning({
-      updatedId: api_keys.id,
-    });
+	const [updated] = await db
+		.update(api_keys)
+		.set({
+			name,
+			enabled,
+			permissions,
+			metadata,
+		})
+		.where(
+			and(
+				eq(api_keys.id, id),
+				eq(api_keys.organizationId, organizationId),
+				eq(api_keys.environment, "live"),
+			),
+		)
+		.returning({
+			updatedId: api_keys.id,
+		});
 
-  if (!updated?.updatedId) {
-    return {
-      status: "error",
-      message: "API key not found",
-    };
-  }
+	if (!updated?.updatedId) {
+		return {
+			status: "error",
+			message: "API key not found",
+		};
+	}
 
-  return {
-    status: "success",
-    message: "API key updated successfully",
-  };
+	return {
+		status: "success",
+		message: "API key updated successfully",
+	};
 }

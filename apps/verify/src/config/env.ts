@@ -2,64 +2,64 @@ import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 type ImportMetaWithEnv = ImportMeta & {
-  env?: Record<string, string | undefined>;
+	env?: Record<string, string | undefined>;
 };
 
 function getImportMetaEnv(): Record<string, string | undefined> {
-  if (typeof import.meta === "undefined") {
-    return {};
-  }
+	if (typeof import.meta === "undefined") {
+		return {};
+	}
 
-  const maybeEnv = (import.meta as ImportMetaWithEnv).env;
-  return maybeEnv ?? {};
+	const maybeEnv = (import.meta as ImportMetaWithEnv).env;
+	return maybeEnv ?? {};
 }
 
 /**
  * This is the root environment variable object that is used to access all the environment variables.
  */
 export const env = createEnv({
-  clientPrefix: "PUBLIC_",
-  client: {
-    /**
-     * Depends on environment, defaults to `127.0.0.1:8787` in development.
-     */
-    PUBLIC_API_HOST: z.string().min(1).default("127.0.0.1:8787"),
+	clientPrefix: "PUBLIC_",
+	client: {
+		/**
+		 * Depends on environment, defaults to `127.0.0.1:8787` in development.
+		 */
+		PUBLIC_API_HOST: z.string().min(1).default("127.0.0.1:8787"),
 
-    /**
-     * Depends on environment, defaults to `ws` in development and `wss` in production.
-     */
-    PUBLIC_API_PROTOCOL: z.enum(["ws", "wss"]).optional(),
-  },
+		/**
+		 * Depends on environment, defaults to `ws` in development and `wss` in production.
+		 */
+		PUBLIC_API_PROTOCOL: z.enum(["ws", "wss"]).optional(),
+	},
 
-  runtimeEnv: {
-    ...(typeof process !== "undefined" ? process?.env : {}),
-    ...getImportMetaEnv(),
-  },
+	runtimeEnv: {
+		...(typeof process !== "undefined" ? process?.env : {}),
+		...getImportMetaEnv(),
+	},
 
-  emptyStringAsUndefined: true,
+	emptyStringAsUndefined: true,
 });
 
 function getApiHost(): string {
-  if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
-    return `${window.location.hostname}:8787`;
-  }
+	if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+		return `${window.location.hostname}:8787`;
+	}
 
-  return env.PUBLIC_API_HOST;
+	return env.PUBLIC_API_HOST;
 }
 
 function getApiWebSocketProtocol(): "ws" | "wss" {
-  return (
-    env.PUBLIC_API_PROTOCOL ??
-    (process.env.NODE_ENV === "development" ? "ws" : "wss")
-  );
+	return (
+		env.PUBLIC_API_PROTOCOL ??
+		(process.env.NODE_ENV === "development" ? "ws" : "wss")
+	);
 }
 
 export function getApiWsBaseUrl(): string {
-  return `${getApiWebSocketProtocol()}://${getApiHost()}`;
+	return `${getApiWebSocketProtocol()}://${getApiHost()}`;
 }
 
 export function getApiHttpBaseUrl(): string {
-  const wsProtocol = getApiWebSocketProtocol();
-  const httpProtocol = wsProtocol === "wss" ? "https" : "http";
-  return `${httpProtocol}://${getApiHost()}`;
+	const wsProtocol = getApiWebSocketProtocol();
+	const httpProtocol = wsProtocol === "wss" ? "https" : "http";
+	return `${httpProtocol}://${getApiHost()}`;
 }

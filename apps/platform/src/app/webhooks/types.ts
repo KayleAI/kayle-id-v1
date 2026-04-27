@@ -1,97 +1,97 @@
-export type ApiError = {
-  code: string;
-  message: string;
-  hint?: string;
-  docs?: string;
-};
+export interface ApiError {
+	code: string;
+	docs?: string;
+	hint?: string;
+	message: string;
+}
 
 export type DeliveryStatus = "pending" | "delivering" | "succeeded" | "failed";
 
-export type Pagination = {
-  limit: number;
-  has_more: boolean;
-  next_cursor: string | null;
-};
+export interface Pagination {
+	has_more: boolean;
+	limit: number;
+	next_cursor: string | null;
+}
 
-export type ApiEnvelope<T> = {
-  data: T | null;
-  error: ApiError | null;
-};
+export interface ApiEnvelope<T> {
+	data: T | null;
+	error: ApiError | null;
+}
 
-export type PaginatedApiEnvelope<T> = {
-  data: T[];
-  error: ApiError | null;
-  pagination: Pagination;
-};
+export interface PaginatedApiEnvelope<T> {
+	data: T[];
+	error: ApiError | null;
+	pagination: Pagination;
+}
 
-export type WebhookEndpoint = {
-  id: string;
-  organization_id: string;
-  name: string | null;
-  url: string;
-  enabled: boolean;
-  subscribed_event_types: string[];
-  created_at: string;
-  updated_at: string;
-  disabled_at: string | null;
-};
+export interface WebhookEndpoint {
+	created_at: string;
+	disabled_at: string | null;
+	enabled: boolean;
+	id: string;
+	name: string | null;
+	organization_id: string;
+	subscribed_event_types: string[];
+	updated_at: string;
+	url: string;
+}
 
-export type WebhookEndpointCreateResult = {
-  endpoint: WebhookEndpoint;
-  signing_secret: string;
-};
+export interface WebhookEndpointCreateResult {
+	endpoint: WebhookEndpoint;
+	signing_secret: string;
+}
 
-export type WebhookDeleteResult = {
-  message: string;
-  status: "success";
-};
+export interface WebhookDeleteResult {
+	message: string;
+	status: "success";
+}
 
-export type WebhookSigningSecretResult = {
-  endpoint_id: string;
-  signing_secret: string;
-};
+export interface WebhookSigningSecretResult {
+	endpoint_id: string;
+	signing_secret: string;
+}
 
-export type WebhookEncryptionKey = {
-  id: string;
-  webhook_endpoint_id: string;
-  key_id: string;
-  algorithm: string;
-  key_type: string;
-  jwk: JsonWebKey;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  disabled_at: string | null;
-};
+export interface WebhookEncryptionKey {
+	algorithm: string;
+	created_at: string;
+	disabled_at: string | null;
+	id: string;
+	is_active: boolean;
+	jwk: JsonWebKey;
+	key_id: string;
+	key_type: string;
+	updated_at: string;
+	webhook_endpoint_id: string;
+}
 
-export type WebhookEventDelivery = {
-  id: string;
-  webhook_endpoint_id: string;
-  status: DeliveryStatus;
-  last_status_code: number | null;
-  attempt_count: number;
-  last_attempt_at: string | null;
-};
+export interface WebhookEventDelivery {
+	attempt_count: number;
+	id: string;
+	last_attempt_at: string | null;
+	last_status_code: number | null;
+	status: DeliveryStatus;
+	webhook_endpoint_id: string;
+}
 
-export type WebhookEvent = {
-  id: string;
-  type: string;
-  trigger_type: "verification_session" | "verification_attempt";
-  trigger_id: string;
-  created_at: string;
-  deliveries: WebhookEventDelivery[];
-};
+export interface WebhookEvent {
+	created_at: string;
+	deliveries: WebhookEventDelivery[];
+	id: string;
+	trigger_id: string;
+	trigger_type: "verification_session" | "verification_attempt";
+	type: string;
+}
 
-export type WebhookDelivery = {
-  id: string;
-  event_id: string;
-  webhook_endpoint_id: string;
-  webhook_encryption_key_id: string | null;
-  status: DeliveryStatus;
-  attempt_count: number;
-  next_attempt_at: string | null;
-  last_status_code: number | null;
-  last_attempt_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export interface WebhookDelivery {
+	attempt_count: number;
+	created_at: string;
+	event_id: string;
+	id: string;
+	last_attempt_at: string | null;
+	last_status_code: number | null;
+	next_attempt_at: string | null;
+	status: DeliveryStatus;
+	updated_at: string;
+	webhook_encryption_key_id: string | null;
+	webhook_endpoint_id: string;
+}

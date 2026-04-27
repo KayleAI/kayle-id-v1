@@ -4,19 +4,19 @@ import { SignIn } from "@/auth/sign-in";
 import { Loading } from "@/components/loading";
 
 export const Route = createFileRoute("/_auth/sign-in")({
-  component: SignInLayout,
+	component: SignInLayout,
 });
 
 function SignInLayout() {
-  const { status } = useAuth();
+	const { status } = useAuth();
 
-  if (status === "loading") {
-    return <Loading />;
-  }
+	if (status === "loading") {
+		return <Loading />;
+	}
 
-  if (status === "authenticated") {
-    return <Navigate to="/dashboard" />;
-  }
+	if (status === "authenticated") {
+		return <Navigate to="/dashboard" />;
+	}
 
-  return <SignIn />;
+	return <SignIn />;
 }

@@ -8,11 +8,11 @@ import { rotateSigningSecretEndpoint } from "./rotate-signing-secret";
 import { updateEndpoint } from "./update";
 
 const webhookEndpoints = new OpenAPIHono<{
-  Bindings: CloudflareBindings;
-  Variables: {
-    organizationId: string;
-    type: "api" | "session";
-  };
+	Bindings: CloudflareBindings;
+	Variables: {
+		organizationId: string;
+		type: "api" | "session";
+	};
 }>();
 
 webhookEndpoints.route("/", listAndCreateEndpoints);

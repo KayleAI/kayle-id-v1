@@ -57,8 +57,8 @@ export const env = createEnv({
   },
 
   runtimeEnv: {
-    ...(typeof process !== "undefined" ? process?.env : {}),
-    ...(typeof import.meta !== "undefined" ? import.meta.env : {}),
+    ...(typeof process === "undefined" ? {} : process?.env),
+    ...(typeof import.meta === "undefined" ? {} : import.meta.env),
     ...(cloudflareEnv as Record<string, string>),
   },
 

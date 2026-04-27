@@ -19,11 +19,11 @@ import {
 
 export type MagicLinkEmailType = "sign-in" | "email-verification";
 
-export type MagicLinkEmailProps = {
+export interface MagicLinkEmailProps {
   expiresInMinutes: number;
   otp: string;
   url: string;
-};
+}
 
 const plainLinkStyle = {
   color: "#a3a3a3",

@@ -14,9 +14,9 @@ const sessions = new OpenAPIHono<SessionsAppEnv>();
 
 sessions.openapi(listSessions, listSessionsHandler);
 sessions.openapi(
-  createSession,
-  createSessionHandler,
-  createSessionValidationHook
+	createSession,
+	createSessionHandler,
+	createSessionValidationHook,
 );
 sessions.openapi(getSession, getSessionHandler);
 sessions.openapi(cancelSession, cancelSessionHandler);

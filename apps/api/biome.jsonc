@@ -1,0 +1,8 @@
+{
+	"$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
+	"extends": ["../../biome.jsonc"],
+	"root": false,
+	"files": {
+		"includes": ["!src/vite-env.d.ts", "!cloudflare-env.d.ts"]
+	}
+}

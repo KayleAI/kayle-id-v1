@@ -1,66 +1,65 @@
 import { Set as Asn1Set, fromBER, OctetString, Sequence } from "asn1js";
 import {
-  AuthorityKeyIdentifier,
-  Certificate,
-  CertificateRevocationList,
-  ContentInfo,
-  SignedData,
-  setEngine,
+	AuthorityKeyIdentifier,
+	Certificate,
+	CertificateRevocationList,
+	ContentInfo,
+	SignedData,
+	setEngine,
 } from "pkijs";
 import {
-  SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL,
-  SELECT_TRUST_STORE_CRLS_SQL,
-  SELECT_TRUST_STORE_CSCAS_SQL,
-  SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
-  SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
-  SELECT_TRUST_STORE_METADATA_SQL,
+	SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL,
+	SELECT_TRUST_STORE_CRLS_SQL,
+	SELECT_TRUST_STORE_CSCAS_SQL,
+	SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
+	SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
+	SELECT_TRUST_STORE_METADATA_SQL,
 } from "./pkd-trust-queries";
 import {
-  AUTHORITY_KEY_IDENTIFIER_OID,
-  ICAO_MASTER_LIST_OID,
-  INLINE_PKD_TRUST_BUNDLE_ENV_KEY,
-  PKD_TRUST_BUNDLE_CACHE_TTL_MS,
-  PKD_TRUST_BUNDLE_VERSION,
-  PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX,
-  PKD_TRUST_R2_KEY,
-  type PkdCertificateRecord,
-  type PkdCrlRecord,
-  type PkdCscaRecord,
-  type PkdTrustBundle,
-  type PkdTrustBundleCache,
-  type PkdTrustBundleCertificate,
-  type PkdTrustBundleCrl,
-  type PkdTrustBundleDscRecordByIssuerSerialLoader,
-  type PkdTrustBundleDscRecordsBySkiLoader,
-  type PkdTrustBundleDscSegment,
-  type PkdTrustBundleDscSegmentIndex,
-  type PkdTrustBundleDscSegmentJson,
-  type PkdTrustBundleDscSegmentLoader,
-  type PkdTrustBundleJson,
-  type PkdTrustBundleLoader,
-  type PkdTrustBundleSource,
-  type PkdTrustD1Database,
-  type PkdTrustR2Bucket,
-  SUBJECT_KEY_IDENTIFIER_OID,
-  TRUST_STORE_METADATA_ID,
-  type TrustStoreCrlRevocationRow,
-  type TrustStoreCrlRow,
-  type TrustStoreCscaRow,
-  type TrustStoreMetadataRow,
+	AUTHORITY_KEY_IDENTIFIER_OID,
+	ICAO_MASTER_LIST_OID,
+	INLINE_PKD_TRUST_BUNDLE_ENV_KEY,
+	PKD_TRUST_BUNDLE_CACHE_TTL_MS,
+	PKD_TRUST_BUNDLE_VERSION,
+	PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX,
+	PKD_TRUST_R2_KEY,
+	type PkdCertificateRecord,
+	type PkdCrlRecord,
+	type PkdCscaRecord,
+	type PkdTrustBundle,
+	type PkdTrustBundleCache,
+	type PkdTrustBundleCertificate,
+	type PkdTrustBundleCrl,
+	type PkdTrustBundleDscRecordByIssuerSerialLoader,
+	type PkdTrustBundleDscRecordsBySkiLoader,
+	type PkdTrustBundleDscSegment,
+	type PkdTrustBundleDscSegmentJson,
+	type PkdTrustBundleDscSegmentLoader,
+	type PkdTrustBundleJson,
+	type PkdTrustBundleLoader,
+	type PkdTrustBundleSource,
+	type PkdTrustD1Database,
+	type PkdTrustR2Bucket,
+	SUBJECT_KEY_IDENTIFIER_OID,
+	TRUST_STORE_METADATA_ID,
+	type TrustStoreCrlRevocationRow,
+	type TrustStoreCrlRow,
+	type TrustStoreCscaRow,
+	type TrustStoreMetadataRow,
 } from "./pkd-trust-types";
 
 export type {
-  PkdCertificateRecord,
-  PkdCrlRecord,
-  PkdCscaRecord,
-  PkdTrustBundle,
-  PkdTrustBundleCertificate,
-  PkdTrustBundleCrl,
-  PkdTrustBundleDscSegment,
-  PkdTrustBundleDscSegmentIndex,
-  PkdTrustBundleDscSegmentJson,
-  PkdTrustBundleJson,
-  PkdTrustBundleSource,
+	PkdCertificateRecord,
+	PkdCrlRecord,
+	PkdCscaRecord,
+	PkdTrustBundle,
+	PkdTrustBundleCertificate,
+	PkdTrustBundleCrl,
+	PkdTrustBundleDscSegment,
+	PkdTrustBundleDscSegmentIndex,
+	PkdTrustBundleDscSegmentJson,
+	PkdTrustBundleJson,
+	PkdTrustBundleSource,
 } from "./pkd-trust-types";
 
 let pkijsConfigured = false;
@@ -69,1164 +68,1171 @@ let configuredTrustStoreDatabase: PkdTrustD1Database | null = null;
 let configuredR2Bucket: PkdTrustR2Bucket | null = null;
 let configuredInlineTrustBundleJson: string | null = null;
 let trustBundleCache: PkdTrustBundleCache = {
-  bundle: null,
-  etag: null,
-  expiresAt: 0,
+	bundle: null,
+	etag: null,
+	expiresAt: 0,
 };
 
 function exactBytes(bytes: Uint8Array): Uint8Array {
-  return new Uint8Array(bytes);
+	return new Uint8Array(bytes);
 }
 
 function bufferBytes(bytes: Uint8Array): ArrayBuffer {
-  return bytes.slice().buffer;
+	return bytes.slice().buffer;
 }
 
 export function hexBytes(bytes: Uint8Array): string {
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join(
-    ""
-  );
+	return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join(
+		"",
+	);
 }
 
 function asn1Buffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.slice().buffer;
+	return bytes.slice().buffer;
 }
 
 function resolveStringEnvValue(env: unknown, key: string): string | null {
-  if (!(env && typeof env === "object")) {
-    return null;
-  }
+	if (!(env && typeof env === "object")) {
+		return null;
+	}
 
-  const candidate = Reflect.get(env, key);
-  return typeof candidate === "string" && candidate.length > 0
-    ? candidate
-    : null;
+	const candidate = Reflect.get(env, key);
+	return typeof candidate === "string" && candidate.length > 0
+		? candidate
+		: null;
 }
 
 function decodeBase64(value: string): Uint8Array {
-  if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(value, "base64"));
-  }
+	if (typeof Buffer !== "undefined") {
+		return new Uint8Array(Buffer.from(value, "base64"));
+	}
 
-  const binary = atob(value);
-  const decoded = new Uint8Array(binary.length);
+	const binary = atob(value);
+	const decoded = new Uint8Array(binary.length);
 
-  for (let index = 0; index < binary.length; index += 1) {
-    decoded[index] = binary.charCodeAt(index);
-  }
+	for (let index = 0; index < binary.length; index += 1) {
+		decoded[index] = binary.charCodeAt(index);
+	}
 
-  return decoded;
+	return decoded;
 }
 
 function encodeBase64(bytes: Uint8Array): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(bytes).toString("base64");
-  }
+	if (typeof Buffer !== "undefined") {
+		return Buffer.from(bytes).toString("base64");
+	}
 
-  let binary = "";
+	let binary = "";
 
-  for (const value of bytes) {
-    binary += String.fromCharCode(value);
-  }
+	for (const value of bytes) {
+		binary += String.fromCharCode(value);
+	}
 
-  return btoa(binary);
+	return btoa(binary);
 }
 
 function shortOid(oid: string): string {
-  switch (oid) {
-    case "2.5.4.3":
-      return "CN";
-    case "2.5.4.6":
-      return "C";
-    case "2.5.4.7":
-      return "L";
-    case "2.5.4.8":
-      return "ST";
-    case "2.5.4.10":
-      return "O";
-    case "2.5.4.11":
-      return "OU";
-    case "2.5.4.5":
-      return "SERIALNUMBER";
-    case "1.2.840.113549.1.9.1":
-      return "EMAILADDRESS";
-    default:
-      return oid;
-  }
+	switch (oid) {
+		case "2.5.4.3":
+			return "CN";
+		case "2.5.4.6":
+			return "C";
+		case "2.5.4.7":
+			return "L";
+		case "2.5.4.8":
+			return "ST";
+		case "2.5.4.10":
+			return "O";
+		case "2.5.4.11":
+			return "OU";
+		case "2.5.4.5":
+			return "SERIALNUMBER";
+		case "1.2.840.113549.1.9.1":
+			return "EMAILADDRESS";
+		default:
+			return oid;
+	}
 }
 
 function attributeValueText(value: unknown): string {
-  const candidate = value as {
-    toJSON?: () => unknown;
-    valueBlock?: {
-      value?: string;
-      valueDec?: number;
-    };
-  };
+	const candidate = value as {
+		toJSON?: () => unknown;
+		valueBlock?: {
+			value?: string;
+			valueDec?: number;
+		};
+	};
 
-  if (typeof candidate.valueBlock?.value === "string") {
-    return candidate.valueBlock.value;
-  }
+	if (typeof candidate.valueBlock?.value === "string") {
+		return candidate.valueBlock.value;
+	}
 
-  if (typeof candidate.valueBlock?.valueDec === "number") {
-    return String(candidate.valueBlock.valueDec);
-  }
+	if (typeof candidate.valueBlock?.valueDec === "number") {
+		return String(candidate.valueBlock.valueDec);
+	}
 
-  return JSON.stringify(candidate.toJSON?.() ?? {});
+	return JSON.stringify(candidate.toJSON?.() ?? {});
 }
 
 function formatRelativeDistinguishedName(
-  name: Certificate["subject"] | CertificateRevocationList["issuer"]
+	name: Certificate["subject"] | CertificateRevocationList["issuer"],
 ): string {
-  return name.typesAndValues
-    .map(
-      (entry) => `${shortOid(entry.type)}=${attributeValueText(entry.value)}`
-    )
-    .join(", ");
+	return name.typesAndValues
+		.map(
+			(entry) => `${shortOid(entry.type)}=${attributeValueText(entry.value)}`,
+		)
+		.join(", ");
 }
 
 export function relativeDistinguishedNameKey(
-  name: Certificate["subject"] | CertificateRevocationList["issuer"]
+	name: Certificate["subject"] | CertificateRevocationList["issuer"],
 ): string {
-  return hexBytes(new Uint8Array(name.toSchema().toBER(false)));
+	return hexBytes(new Uint8Array(name.toSchema().toBER(false)));
 }
 
 function parseOctetString(value: ArrayBuffer): Uint8Array | null {
-  const parsed = fromBER(value);
+	const parsed = fromBER(value);
 
-  if (parsed.offset === -1 || !(parsed.result instanceof OctetString)) {
-    return null;
-  }
+	if (parsed.offset === -1 || !(parsed.result instanceof OctetString)) {
+		return null;
+	}
 
-  return octetStringBytes(parsed.result);
+	return octetStringBytes(parsed.result);
 }
 
 function octetStringBytes(value: OctetString): Uint8Array {
-  if (!value.idBlock.isConstructed) {
-    return exactBytes(value.valueBlock.valueHexView);
-  }
+	if (!value.idBlock.isConstructed) {
+		return exactBytes(value.valueBlock.valueHexView);
+	}
 
-  const parts = value.valueBlock.value.map((child) => {
-    if (!(child instanceof OctetString)) {
-      throw new Error("invalid_octet_string_child");
-    }
+	const parts = value.valueBlock.value.map((child) => {
+		if (!(child instanceof OctetString)) {
+			throw new Error("invalid_octet_string_child");
+		}
 
-    return octetStringBytes(child);
-  });
-  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
+		return octetStringBytes(child);
+	});
+	const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+	const combined = new Uint8Array(totalLength);
+	let offset = 0;
 
-  for (const part of parts) {
-    combined.set(part, offset);
-    offset += part.length;
-  }
+	for (const part of parts) {
+		combined.set(part, offset);
+		offset += part.length;
+	}
 
-  return combined;
+	return combined;
 }
 
 function parseAuthorityKeyIdentifier(
-  value: ArrayBuffer
+	value: ArrayBuffer,
 ): AuthorityKeyIdentifier | null {
-  const parsed = fromBER(value);
+	const parsed = fromBER(value);
 
-  if (parsed.offset === -1) {
-    return null;
-  }
+	if (parsed.offset === -1) {
+		return null;
+	}
 
-  try {
-    return new AuthorityKeyIdentifier({
-      schema: parsed.result,
-    });
-  } catch {
-    return null;
-  }
+	try {
+		return new AuthorityKeyIdentifier({
+			schema: parsed.result,
+		});
+	} catch {
+		return null;
+	}
 }
 
 async function computeSubjectKeyIdentifier(cert: Certificate): Promise<string> {
-  return hexBytes(new Uint8Array(await cert.getKeyHash("SHA-1")));
+	return hexBytes(new Uint8Array(await cert.getKeyHash("SHA-1")));
 }
 
 export function subjectKeyIdentifierHex(
-  cert: Certificate
+	cert: Certificate,
 ): Promise<string | null> {
-  const subjectKeyIdentifier = cert.extensions?.find(
-    (extension) => extension.extnID === SUBJECT_KEY_IDENTIFIER_OID
-  );
-  const parsedValue = subjectKeyIdentifier
-    ? parseOctetString(subjectKeyIdentifier.extnValue.valueBlock.valueHex)
-    : null;
+	const subjectKeyIdentifier = cert.extensions?.find(
+		(extension) => extension.extnID === SUBJECT_KEY_IDENTIFIER_OID,
+	);
+	const parsedValue = subjectKeyIdentifier
+		? parseOctetString(subjectKeyIdentifier.extnValue.valueBlock.valueHex)
+		: null;
 
-  if (parsedValue) {
-    return Promise.resolve(hexBytes(parsedValue));
-  }
+	if (parsedValue) {
+		return Promise.resolve(hexBytes(parsedValue));
+	}
 
-  return Promise.resolve(null);
+	return Promise.resolve(null);
 }
 
 export async function subjectKeyIdentifierHexOrKeyHash(
-  cert: Certificate
+	cert: Certificate,
 ): Promise<string> {
-  return (
-    (await subjectKeyIdentifierHex(cert)) ?? computeSubjectKeyIdentifier(cert)
-  );
+	return (
+		(await subjectKeyIdentifierHex(cert)) ?? computeSubjectKeyIdentifier(cert)
+	);
 }
 
 export function authorityKeyIdentifierHex(input: {
-  extensions?:
-    | Certificate["extensions"]
-    | CertificateRevocationList["crlExtensions"];
+	extensions?:
+		| Certificate["extensions"]
+		| CertificateRevocationList["crlExtensions"];
 }): string | null {
-  const extensions = Array.isArray(input.extensions)
-    ? input.extensions
-    : input.extensions?.extensions;
-  const authorityKeyIdentifier = extensions?.find(
-    (extension) => extension.extnID === AUTHORITY_KEY_IDENTIFIER_OID
-  );
-  const parsed = authorityKeyIdentifier
-    ? parseAuthorityKeyIdentifier(
-        authorityKeyIdentifier.extnValue.valueBlock.valueHex
-      )
-    : null;
-  const keyIdentifier = parsed?.keyIdentifier;
+	const extensions = Array.isArray(input.extensions)
+		? input.extensions
+		: input.extensions?.extensions;
+	const authorityKeyIdentifier = extensions?.find(
+		(extension) => extension.extnID === AUTHORITY_KEY_IDENTIFIER_OID,
+	);
+	const parsed = authorityKeyIdentifier
+		? parseAuthorityKeyIdentifier(
+				authorityKeyIdentifier.extnValue.valueBlock.valueHex,
+			)
+		: null;
+	const keyIdentifier = parsed?.keyIdentifier;
 
-  return keyIdentifier ? hexBytes(keyIdentifier.valueBlock.valueHexView) : null;
+	return keyIdentifier ? hexBytes(keyIdentifier.valueBlock.valueHexView) : null;
 }
 
 export function parseDerCertificate(bytes: Uint8Array): Certificate {
-  ensurePkijsEngine();
-  const decoded = fromBER(asn1Buffer(bytes));
+	ensurePkijsEngine();
+	const decoded = fromBER(asn1Buffer(bytes));
 
-  if (decoded.offset === -1) {
-    throw new Error("certificate_parse_failed");
-  }
+	if (decoded.offset === -1) {
+		throw new Error("certificate_parse_failed");
+	}
 
-  return new Certificate({
-    schema: decoded.result,
-  });
+	return new Certificate({
+		schema: decoded.result,
+	});
 }
 
 export function parseDerCertificateRevocationList(
-  bytes: Uint8Array
+	bytes: Uint8Array,
 ): CertificateRevocationList {
-  ensurePkijsEngine();
-  const decoded = fromBER(asn1Buffer(bytes));
+	ensurePkijsEngine();
+	const decoded = fromBER(asn1Buffer(bytes));
 
-  if (decoded.offset === -1) {
-    throw new Error("crl_parse_failed");
-  }
+	if (decoded.offset === -1) {
+		throw new Error("crl_parse_failed");
+	}
 
-  return new CertificateRevocationList({
-    schema: decoded.result,
-  });
+	return new CertificateRevocationList({
+		schema: decoded.result,
+	});
 }
 
 function dscIssuerSerialKey(
-  issuerKey: string,
-  serialNumberHex: string
+	issuerKey: string,
+	serialNumberHex: string,
 ): string {
-  return `${issuerKey}:${serialNumberHex.toLowerCase()}`;
+	return `${issuerKey}:${serialNumberHex.toLowerCase()}`;
 }
 
 function addIndexedValue<T>(
-  index: Map<string, T[]>,
-  key: string | null,
-  value: T
+	index: Map<string, T[]>,
+	key: string | null,
+	value: T,
 ): void {
-  if (!key) {
-    return;
-  }
+	if (!key) {
+		return;
+	}
 
-  const existing = index.get(key);
+	const existing = index.get(key);
 
-  if (existing) {
-    existing.push(value);
-    return;
-  }
+	if (existing) {
+		existing.push(value);
+		return;
+	}
 
-  index.set(key, [value]);
+	index.set(key, [value]);
 }
 
 function getR2Bucket(env: unknown): PkdTrustR2Bucket | null {
-  if (!env || typeof env !== "object") {
-    return null;
-  }
+	if (!env || typeof env !== "object") {
+		return null;
+	}
 
-  const candidate = Reflect.get(env, "STORAGE");
+	const candidate = Reflect.get(env, "STORAGE");
 
-  return candidate &&
-    typeof candidate === "object" &&
-    typeof Reflect.get(candidate, "get") === "function"
-    ? (candidate as PkdTrustR2Bucket)
-    : null;
+	return candidate &&
+		typeof candidate === "object" &&
+		typeof Reflect.get(candidate, "get") === "function"
+		? (candidate as PkdTrustR2Bucket)
+		: null;
 }
 
 function getTrustStoreDatabase(env: unknown): PkdTrustD1Database | null {
-  if (!env || typeof env !== "object") {
-    return null;
-  }
+	if (!env || typeof env !== "object") {
+		return null;
+	}
 
-  const candidate = Reflect.get(env, "TRUST_STORE");
+	const candidate = Reflect.get(env, "TRUST_STORE");
 
-  return candidate &&
-    typeof candidate === "object" &&
-    typeof Reflect.get(candidate, "prepare") === "function"
-    ? (candidate as PkdTrustD1Database)
-    : null;
+	return candidate &&
+		typeof candidate === "object" &&
+		typeof Reflect.get(candidate, "prepare") === "function"
+		? (candidate as PkdTrustD1Database)
+		: null;
 }
 
 function parseTextJson(bytes: Uint8Array): unknown {
-  return JSON.parse(new TextDecoder().decode(bytes));
+	return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 function objectMapToStringArrayIndex(
-  value: Record<string, string[]> | null | undefined
+	value: Record<string, string[]> | null | undefined,
 ): Map<string, string[]> {
-  const index = new Map<string, string[]>();
+	const index = new Map<string, string[]>();
 
-  if (!value) {
-    return index;
-  }
+	if (!value) {
+		return index;
+	}
 
-  for (const [key, entries] of Object.entries(value)) {
-    if (!(key && Array.isArray(entries))) {
-      continue;
-    }
+	for (const [key, entries] of Object.entries(value)) {
+		if (!(key && Array.isArray(entries))) {
+			continue;
+		}
 
-    index.set(
-      key.toLowerCase(),
-      Array.from(new Set(entries.filter((entry) => typeof entry === "string")))
-    );
-  }
+		index.set(
+			key.toLowerCase(),
+			Array.from(new Set(entries.filter((entry) => typeof entry === "string"))),
+		);
+	}
 
-  return index;
+	return index;
 }
 
 function pkdTrustBundleCacheExpired(): boolean {
-  return trustBundleCache.expiresAt <= Date.now();
+	return trustBundleCache.expiresAt <= Date.now();
 }
 
 async function loadTrustBundleFromR2Bucket(
-  bucket: PkdTrustR2Bucket
+	bucket: PkdTrustR2Bucket,
 ): Promise<PkdTrustBundle | null> {
-  if (trustBundleCache.bundle && !pkdTrustBundleCacheExpired()) {
-    return trustBundleCache.bundle;
-  }
+	if (trustBundleCache.bundle && !pkdTrustBundleCacheExpired()) {
+		return trustBundleCache.bundle;
+	}
 
-  const object = await bucket.get(PKD_TRUST_R2_KEY);
+	const object = await bucket.get(PKD_TRUST_R2_KEY);
 
-  if (!object) {
-    clearPkdTrustBundleCache();
-    return null;
-  }
+	if (!object) {
+		clearPkdTrustBundleCache();
+		return null;
+	}
 
-  if (
-    trustBundleCache.bundle &&
-    trustBundleCache.etag &&
-    object.httpEtag === trustBundleCache.etag
-  ) {
-    trustBundleCache.expiresAt = Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS;
-    return trustBundleCache.bundle;
-  }
+	if (
+		trustBundleCache.bundle &&
+		trustBundleCache.etag &&
+		object.httpEtag === trustBundleCache.etag
+	) {
+		trustBundleCache.expiresAt = Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS;
+		return trustBundleCache.bundle;
+	}
 
-  const bytes = new Uint8Array(await object.arrayBuffer());
-  const parsed = parseTextJson(bytes);
-  const hydrated = hydratePkdTrustBundle(parsed, {
-    dscSegmentLoader: (segmentKey) =>
-      loadTrustBundleDscSegmentFromR2Bucket(bucket, segmentKey),
-  });
+	const bytes = new Uint8Array(await object.arrayBuffer());
+	const parsed = parseTextJson(bytes);
+	const hydrated = hydratePkdTrustBundle(parsed, {
+		dscSegmentLoader: (segmentKey) =>
+			loadTrustBundleDscSegmentFromR2Bucket(bucket, segmentKey),
+	});
 
-  trustBundleCache = {
-    bundle: hydrated,
-    etag: object.httpEtag,
-    expiresAt: Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS,
-  };
+	trustBundleCache = {
+		bundle: hydrated,
+		etag: object.httpEtag,
+		expiresAt: Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS,
+	};
 
-  return hydrated;
+	return hydrated;
 }
 
 async function loadTrustBundleDscSegmentFromR2Bucket(
-  bucket: PkdTrustR2Bucket,
-  segmentKey: string
+	bucket: PkdTrustR2Bucket,
+	segmentKey: string,
 ): Promise<PkdTrustBundleDscSegment | null> {
-  const object = await bucket.get(pkdTrustBundleDscSegmentKey(segmentKey));
+	const object = await bucket.get(pkdTrustBundleDscSegmentKey(segmentKey));
 
-  if (!object) {
-    return null;
-  }
+	if (!object) {
+		return null;
+	}
 
-  const bytes = new Uint8Array(await object.arrayBuffer());
-  return hydratePkdTrustBundleDscSegment(parseTextJson(bytes));
+	const bytes = new Uint8Array(await object.arrayBuffer());
+	return hydratePkdTrustBundleDscSegment(parseTextJson(bytes));
 }
 
 async function queryFirstRow<T>(
-  database: PkdTrustD1Database,
-  query: string,
-  ...values: unknown[]
+	database: PkdTrustD1Database,
+	query: string,
+	...values: unknown[]
 ): Promise<T | null> {
-  return database.prepare(query).bind(...values).first<T>();
+	return database
+		.prepare(query)
+		.bind(...values)
+		.first<T>();
 }
 
 async function queryRows<T>(
-  database: PkdTrustD1Database,
-  query: string,
-  ...values: unknown[]
+	database: PkdTrustD1Database,
+	query: string,
+	...values: unknown[]
 ): Promise<T[]> {
-  const result = await database.prepare(query).bind(...values).all<T>();
-  return result.results ?? [];
+	const result = await database
+		.prepare(query)
+		.bind(...values)
+		.all<T>();
+	return result.results ?? [];
 }
 
 function parseMasterListSourcesJson(value: string): PkdTrustBundleSource[] {
-  const parsed = JSON.parse(value) as unknown;
+	const parsed = JSON.parse(value) as unknown;
 
-  return Array.isArray(parsed)
-    ? parsed.filter(
-        (entry): entry is PkdTrustBundleSource =>
-          Boolean(
-            entry &&
-              typeof entry === "object" &&
-              typeof Reflect.get(entry, "dn") === "string" &&
-              (Reflect.get(entry, "countryCode") === null ||
-                typeof Reflect.get(entry, "countryCode") === "string")
-          )
-      )
-    : [];
+	return Array.isArray(parsed)
+		? parsed.filter((entry): entry is PkdTrustBundleSource =>
+				Boolean(
+					entry &&
+						typeof entry === "object" &&
+						typeof Reflect.get(entry, "dn") === "string" &&
+						(Reflect.get(entry, "countryCode") === null ||
+							typeof Reflect.get(entry, "countryCode") === "string"),
+				),
+			)
+		: [];
 }
 
 function mapTrustStoreCscaRow(row: TrustStoreCscaRow): PkdCscaRecord {
-  return {
-    akiHex: row.akiHex,
-    derBase64: row.derBase64,
-    issuerKey: row.issuerKey,
-    issuerName: row.issuerName,
-    masterListSources: parseMasterListSourcesJson(row.masterListSourcesJson),
-    notAfter: row.notAfter,
-    notBefore: row.notBefore,
-    serialNumberHex: row.serialNumberHex,
-    skiHex: row.skiHex,
-    sourceCountryCode: row.sourceCountryCode,
-    sourceDn: row.sourceDn,
-    subjectKey: row.subjectKey,
-    subjectName: row.subjectName,
-  };
+	return {
+		akiHex: row.akiHex,
+		derBase64: row.derBase64,
+		issuerKey: row.issuerKey,
+		issuerName: row.issuerName,
+		masterListSources: parseMasterListSourcesJson(row.masterListSourcesJson),
+		notAfter: row.notAfter,
+		notBefore: row.notBefore,
+		serialNumberHex: row.serialNumberHex,
+		skiHex: row.skiHex,
+		sourceCountryCode: row.sourceCountryCode,
+		sourceDn: row.sourceDn,
+		subjectKey: row.subjectKey,
+		subjectName: row.subjectName,
+	};
 }
 
 function mapTrustStoreDscRow(row: PkdCertificateRecord): PkdCertificateRecord {
-  return {
-    akiHex: row.akiHex,
-    derBase64: row.derBase64,
-    issuerKey: row.issuerKey,
-    issuerName: row.issuerName,
-    notAfter: row.notAfter,
-    notBefore: row.notBefore,
-    serialNumberHex: row.serialNumberHex,
-    skiHex: row.skiHex,
-    sourceCountryCode: row.sourceCountryCode,
-    sourceDn: row.sourceDn,
-    subjectKey: row.subjectKey,
-    subjectName: row.subjectName,
-  };
+	return {
+		akiHex: row.akiHex,
+		derBase64: row.derBase64,
+		issuerKey: row.issuerKey,
+		issuerName: row.issuerName,
+		notAfter: row.notAfter,
+		notBefore: row.notBefore,
+		serialNumberHex: row.serialNumberHex,
+		skiHex: row.skiHex,
+		sourceCountryCode: row.sourceCountryCode,
+		sourceDn: row.sourceDn,
+		subjectKey: row.subjectKey,
+		subjectName: row.subjectName,
+	};
 }
 
 async function loadTrustBundleFromD1Database(
-  database: PkdTrustD1Database
+	database: PkdTrustD1Database,
 ): Promise<PkdTrustBundle | null> {
-  if (trustBundleCache.bundle && !pkdTrustBundleCacheExpired()) {
-    return trustBundleCache.bundle;
-  }
+	if (trustBundleCache.bundle && !pkdTrustBundleCacheExpired()) {
+		return trustBundleCache.bundle;
+	}
 
-  const metadata = await queryFirstRow<TrustStoreMetadataRow>(
-    database,
-    SELECT_TRUST_STORE_METADATA_SQL,
-    TRUST_STORE_METADATA_ID
-  );
+	const metadata = await queryFirstRow<TrustStoreMetadataRow>(
+		database,
+		SELECT_TRUST_STORE_METADATA_SQL,
+		TRUST_STORE_METADATA_ID,
+	);
 
-  if (!metadata) {
-    clearPkdTrustBundleCache();
-    return null;
-  }
+	if (!metadata) {
+		clearPkdTrustBundleCache();
+		return null;
+	}
 
-  const [cscaRows, crlRows, crlRevocationRows] = await Promise.all([
-    queryRows<TrustStoreCscaRow>(database, SELECT_TRUST_STORE_CSCAS_SQL),
-    queryRows<TrustStoreCrlRow>(database, SELECT_TRUST_STORE_CRLS_SQL),
-    queryRows<TrustStoreCrlRevocationRow>(
-      database,
-      SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL
-    ),
-  ]);
-  const revokedSerialsByCrlId = new Map<string, string[]>();
+	const [cscaRows, crlRows, crlRevocationRows] = await Promise.all([
+		queryRows<TrustStoreCscaRow>(database, SELECT_TRUST_STORE_CSCAS_SQL),
+		queryRows<TrustStoreCrlRow>(database, SELECT_TRUST_STORE_CRLS_SQL),
+		queryRows<TrustStoreCrlRevocationRow>(
+			database,
+			SELECT_TRUST_STORE_CRL_REVOCATIONS_SQL,
+		),
+	]);
+	const revokedSerialsByCrlId = new Map<string, string[]>();
 
-  for (const row of crlRevocationRows) {
-    addIndexedValue(
-      revokedSerialsByCrlId,
-      String(row.crlId),
-      row.revokedSerialNumberHex
-    );
-  }
+	for (const row of crlRevocationRows) {
+		addIndexedValue(
+			revokedSerialsByCrlId,
+			String(row.crlId),
+			row.revokedSerialNumberHex,
+		);
+	}
 
-  const raw: PkdTrustBundleJson = {
-    counts: {
-      cscas: metadata.cscaCount,
-      crls: metadata.crlCount,
-      dscs: metadata.dscCount,
-      ignoredBcsc: metadata.ignoredBcsc,
-      ignoredBcscNc: metadata.ignoredBcscNc,
-    },
-    cscas: cscaRows.map(mapTrustStoreCscaRow),
-    crls: crlRows.map((row) => ({
-      akiHex: row.akiHex,
-      derBase64: row.derBase64,
-      issuerKey: row.issuerKey,
-      issuerName: row.issuerName,
-      nextUpdate: row.nextUpdate,
-      revokedSerialNumbersHex:
-        revokedSerialsByCrlId.get(String(row.id))?.map((value) => value) ?? [],
-      sourceCountryCode: row.sourceCountryCode,
-      sourceDn: row.sourceDn,
-      thisUpdate: row.thisUpdate,
-    })),
-    dscs: [],
-    generatedAt: metadata.generatedAt,
-    sources: {
-      masterListsLdif: {
-        path: metadata.masterListsLdifPath,
-        version: metadata.masterListsLdifVersion,
-      },
-      objectLdif: {
-        path: metadata.objectLdifPath,
-        version: metadata.objectLdifVersion,
-      },
-    },
-    version: metadata.version as typeof PKD_TRUST_BUNDLE_VERSION,
-  };
-  const hydrated = hydratePkdTrustBundle(raw, {
-    dscRecordLoaderByIssuerSerial: async (issuerKey, serialNumberHex) => {
-      const row = await queryFirstRow<PkdCertificateRecord>(
-        database,
-        SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
-        issuerKey,
-        serialNumberHex.toLowerCase()
-      );
+	const raw: PkdTrustBundleJson = {
+		counts: {
+			cscas: metadata.cscaCount,
+			crls: metadata.crlCount,
+			dscs: metadata.dscCount,
+			ignoredBcsc: metadata.ignoredBcsc,
+			ignoredBcscNc: metadata.ignoredBcscNc,
+		},
+		cscas: cscaRows.map(mapTrustStoreCscaRow),
+		crls: crlRows.map((row) => ({
+			akiHex: row.akiHex,
+			derBase64: row.derBase64,
+			issuerKey: row.issuerKey,
+			issuerName: row.issuerName,
+			nextUpdate: row.nextUpdate,
+			revokedSerialNumbersHex:
+				revokedSerialsByCrlId.get(String(row.id))?.map((value) => value) ?? [],
+			sourceCountryCode: row.sourceCountryCode,
+			sourceDn: row.sourceDn,
+			thisUpdate: row.thisUpdate,
+		})),
+		dscs: [],
+		generatedAt: metadata.generatedAt,
+		sources: {
+			masterListsLdif: {
+				path: metadata.masterListsLdifPath,
+				version: metadata.masterListsLdifVersion,
+			},
+			objectLdif: {
+				path: metadata.objectLdifPath,
+				version: metadata.objectLdifVersion,
+			},
+		},
+		version: metadata.version as typeof PKD_TRUST_BUNDLE_VERSION,
+	};
+	const hydrated = hydratePkdTrustBundle(raw, {
+		dscRecordLoaderByIssuerSerial: async (issuerKey, serialNumberHex) => {
+			const row = await queryFirstRow<PkdCertificateRecord>(
+				database,
+				SELECT_TRUST_STORE_DSC_BY_ISSUER_SERIAL_SQL,
+				issuerKey,
+				serialNumberHex.toLowerCase(),
+			);
 
-      return row ? mapTrustStoreDscRow(row) : null;
-    },
-    dscRecordsLoaderBySkiHex: async (skiHex) =>
-      (
-        await queryRows<PkdCertificateRecord>(
-          database,
-          SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
-          skiHex.toLowerCase()
-        )
-      ).map(mapTrustStoreDscRow),
-  });
+			return row ? mapTrustStoreDscRow(row) : null;
+		},
+		dscRecordsLoaderBySkiHex: async (skiHex) =>
+			(
+				await queryRows<PkdCertificateRecord>(
+					database,
+					SELECT_TRUST_STORE_DSCS_BY_SKI_SQL,
+					skiHex.toLowerCase(),
+				)
+			).map(mapTrustStoreDscRow),
+	});
 
-  trustBundleCache = {
-    bundle: hydrated,
-    etag: null,
-    expiresAt: Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS,
-  };
+	trustBundleCache = {
+		bundle: hydrated,
+		etag: null,
+		expiresAt: Date.now() + PKD_TRUST_BUNDLE_CACHE_TTL_MS,
+	};
 
-  return hydrated;
+	return hydrated;
 }
 
 export function ensurePkijsEngine(): void {
-  if (pkijsConfigured) {
-    return;
-  }
+	if (pkijsConfigured) {
+		return;
+	}
 
-  setEngine("kayle-id-worker", crypto, crypto.subtle);
-  pkijsConfigured = true;
+	setEngine("kayle-id-worker", crypto, crypto.subtle);
+	pkijsConfigured = true;
 }
 
 export function clearPkdTrustBundleCache(): void {
-  trustBundleCache = {
-    bundle: null,
-    etag: null,
-    expiresAt: 0,
-  };
+	trustBundleCache = {
+		bundle: null,
+		etag: null,
+		expiresAt: 0,
+	};
 }
 
 export function configurePkdTrustBundleLoader(
-  loader: PkdTrustBundleLoader | null
+	loader: PkdTrustBundleLoader | null,
 ): void {
-  configuredTrustStoreDatabase = null;
-  configuredR2Bucket = null;
-  configuredInlineTrustBundleJson = null;
-  trustBundleLoader = loader;
-  clearPkdTrustBundleCache();
+	configuredTrustStoreDatabase = null;
+	configuredR2Bucket = null;
+	configuredInlineTrustBundleJson = null;
+	trustBundleLoader = loader;
+	clearPkdTrustBundleCache();
 }
 
 export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
-  const inlineTrustBundleJson = resolveStringEnvValue(
-    env,
-    INLINE_PKD_TRUST_BUNDLE_ENV_KEY
-  );
+	const inlineTrustBundleJson = resolveStringEnvValue(
+		env,
+		INLINE_PKD_TRUST_BUNDLE_ENV_KEY,
+	);
 
-  if (inlineTrustBundleJson) {
-    if (
-      configuredInlineTrustBundleJson === inlineTrustBundleJson &&
-      trustBundleLoader
-    ) {
-      return;
-    }
+	if (inlineTrustBundleJson) {
+		if (
+			configuredInlineTrustBundleJson === inlineTrustBundleJson &&
+			trustBundleLoader
+		) {
+			return;
+		}
 
-    configuredR2Bucket = null;
-    configuredTrustStoreDatabase = null;
-    configuredInlineTrustBundleJson = inlineTrustBundleJson;
-    trustBundleLoader = async () =>
-      hydratePkdTrustBundle(JSON.parse(inlineTrustBundleJson));
-    clearPkdTrustBundleCache();
-    return;
-  }
+		configuredR2Bucket = null;
+		configuredTrustStoreDatabase = null;
+		configuredInlineTrustBundleJson = inlineTrustBundleJson;
+		trustBundleLoader = async () =>
+			hydratePkdTrustBundle(JSON.parse(inlineTrustBundleJson));
+		clearPkdTrustBundleCache();
+		return;
+	}
 
-  const trustStoreDatabase = getTrustStoreDatabase(env);
+	const trustStoreDatabase = getTrustStoreDatabase(env);
 
-  if (trustStoreDatabase) {
-    if (
-      configuredTrustStoreDatabase === trustStoreDatabase &&
-      trustBundleLoader
-    ) {
-      return;
-    }
+	if (trustStoreDatabase) {
+		if (
+			configuredTrustStoreDatabase === trustStoreDatabase &&
+			trustBundleLoader
+		) {
+			return;
+		}
 
-    configuredTrustStoreDatabase = trustStoreDatabase;
-    configuredR2Bucket = null;
-    configuredInlineTrustBundleJson = null;
-    trustBundleLoader = () => loadTrustBundleFromD1Database(trustStoreDatabase);
-    clearPkdTrustBundleCache();
-    return;
-  }
+		configuredTrustStoreDatabase = trustStoreDatabase;
+		configuredR2Bucket = null;
+		configuredInlineTrustBundleJson = null;
+		trustBundleLoader = () => loadTrustBundleFromD1Database(trustStoreDatabase);
+		clearPkdTrustBundleCache();
+		return;
+	}
 
-  const bucket = getR2Bucket(env);
+	const bucket = getR2Bucket(env);
 
-  if (!bucket) {
-    if (
-      !(
-        configuredTrustStoreDatabase ||
-        configuredR2Bucket ||
-        configuredInlineTrustBundleJson ||
-        trustBundleLoader
-      )
-    ) {
-      return;
-    }
+	if (!bucket) {
+		if (
+			!(
+				configuredTrustStoreDatabase ||
+				configuredR2Bucket ||
+				configuredInlineTrustBundleJson ||
+				trustBundleLoader
+			)
+		) {
+			return;
+		}
 
-    configurePkdTrustBundleLoader(null);
-    return;
-  }
+		configurePkdTrustBundleLoader(null);
+		return;
+	}
 
-  if (configuredR2Bucket === bucket && trustBundleLoader) {
-    return;
-  }
+	if (configuredR2Bucket === bucket && trustBundleLoader) {
+		return;
+	}
 
-  configuredTrustStoreDatabase = null;
-  configuredR2Bucket = bucket;
-  configuredInlineTrustBundleJson = null;
-  trustBundleLoader = () => loadTrustBundleFromR2Bucket(bucket);
-  clearPkdTrustBundleCache();
+	configuredTrustStoreDatabase = null;
+	configuredR2Bucket = bucket;
+	configuredInlineTrustBundleJson = null;
+	trustBundleLoader = () => loadTrustBundleFromR2Bucket(bucket);
+	clearPkdTrustBundleCache();
 }
 
 export function loadPkdTrustBundle(): Promise<PkdTrustBundle | null> {
-  return trustBundleLoader ? trustBundleLoader() : Promise.resolve(null);
+	return trustBundleLoader ? trustBundleLoader() : Promise.resolve(null);
 }
 
 export async function createPkdCertificateRecord({
-  cert,
-  derBytes,
-  masterListSources,
-  sourceCountryCode,
-  sourceDn,
+	cert,
+	derBytes,
+	masterListSources,
+	sourceCountryCode,
+	sourceDn,
 }: {
-  cert: Certificate;
-  derBytes: Uint8Array;
-  masterListSources?: PkdTrustBundleSource[];
-  sourceCountryCode: string | null;
-  sourceDn: string;
+	cert: Certificate;
+	derBytes: Uint8Array;
+	masterListSources?: PkdTrustBundleSource[];
+	sourceCountryCode: string | null;
+	sourceDn: string;
 }): Promise<PkdCertificateRecord | PkdCscaRecord> {
-  const baseRecord = {
-    akiHex: authorityKeyIdentifierHex(cert),
-    derBase64: encodeBase64(derBytes),
-    issuerKey: relativeDistinguishedNameKey(cert.issuer),
-    issuerName: formatRelativeDistinguishedName(cert.issuer),
-    notAfter: cert.notAfter.value.toISOString(),
-    notBefore: cert.notBefore.value.toISOString(),
-    serialNumberHex: hexBytes(
-      new Uint8Array(cert.serialNumber.valueBlock.valueHex)
-    ),
-    skiHex: await subjectKeyIdentifierHex(cert),
-    sourceCountryCode,
-    sourceDn,
-    subjectKey: relativeDistinguishedNameKey(cert.subject),
-    subjectName: formatRelativeDistinguishedName(cert.subject),
-  } satisfies PkdCertificateRecord;
+	const baseRecord = {
+		akiHex: authorityKeyIdentifierHex(cert),
+		derBase64: encodeBase64(derBytes),
+		issuerKey: relativeDistinguishedNameKey(cert.issuer),
+		issuerName: formatRelativeDistinguishedName(cert.issuer),
+		notAfter: cert.notAfter.value.toISOString(),
+		notBefore: cert.notBefore.value.toISOString(),
+		serialNumberHex: hexBytes(
+			new Uint8Array(cert.serialNumber.valueBlock.valueHex),
+		),
+		skiHex: await subjectKeyIdentifierHex(cert),
+		sourceCountryCode,
+		sourceDn,
+		subjectKey: relativeDistinguishedNameKey(cert.subject),
+		subjectName: formatRelativeDistinguishedName(cert.subject),
+	} satisfies PkdCertificateRecord;
 
-  return masterListSources
-    ? {
-        ...baseRecord,
-        masterListSources,
-      }
-    : baseRecord;
+	return masterListSources
+		? {
+				...baseRecord,
+				masterListSources,
+			}
+		: baseRecord;
 }
 
 export function createPkdCrlRecord({
-  crl,
-  derBytes,
-  sourceCountryCode,
-  sourceDn,
+	crl,
+	derBytes,
+	sourceCountryCode,
+	sourceDn,
 }: {
-  crl: CertificateRevocationList;
-  derBytes: Uint8Array;
-  sourceCountryCode: string | null;
-  sourceDn: string;
+	crl: CertificateRevocationList;
+	derBytes: Uint8Array;
+	sourceCountryCode: string | null;
+	sourceDn: string;
 }): PkdCrlRecord {
-  return {
-    akiHex: authorityKeyIdentifierHex({
-      extensions: crl.crlExtensions,
-    }),
-    derBase64: encodeBase64(derBytes),
-    issuerKey: relativeDistinguishedNameKey(crl.issuer),
-    issuerName: formatRelativeDistinguishedName(crl.issuer),
-    nextUpdate: crl.nextUpdate?.value.toISOString() ?? null,
-    revokedSerialNumbersHex:
-      crl.revokedCertificates?.map((entry) =>
-        hexBytes(new Uint8Array(entry.userCertificate.valueBlock.valueHex))
-      ) ?? [],
-    sourceCountryCode,
-    sourceDn,
-    thisUpdate: crl.thisUpdate.value.toISOString(),
-  };
+	return {
+		akiHex: authorityKeyIdentifierHex({
+			extensions: crl.crlExtensions,
+		}),
+		derBase64: encodeBase64(derBytes),
+		issuerKey: relativeDistinguishedNameKey(crl.issuer),
+		issuerName: formatRelativeDistinguishedName(crl.issuer),
+		nextUpdate: crl.nextUpdate?.value.toISOString() ?? null,
+		revokedSerialNumbersHex:
+			crl.revokedCertificates?.map((entry) =>
+				hexBytes(new Uint8Array(entry.userCertificate.valueBlock.valueHex)),
+			) ?? [],
+		sourceCountryCode,
+		sourceDn,
+		thisUpdate: crl.thisUpdate.value.toISOString(),
+	};
 }
 
 export function parsePkdTrustBundleJson(value: unknown): PkdTrustBundleJson {
-  if (!value || typeof value !== "object") {
-    throw new Error("pkd_trust_bundle_invalid");
-  }
+	if (!value || typeof value !== "object") {
+		throw new Error("pkd_trust_bundle_invalid");
+	}
 
-  const bundle = value as PkdTrustBundleJson;
+	const bundle = value as PkdTrustBundleJson;
 
-  if (bundle.version !== PKD_TRUST_BUNDLE_VERSION) {
-    throw new Error("pkd_trust_bundle_version_invalid");
-  }
+	if (bundle.version !== PKD_TRUST_BUNDLE_VERSION) {
+		throw new Error("pkd_trust_bundle_version_invalid");
+	}
 
-  if (
-    !(
-      Array.isArray(bundle.cscas) &&
-      Array.isArray(bundle.crls) &&
-      Array.isArray(bundle.dscs)
-    )
-  ) {
-    throw new Error("pkd_trust_bundle_invalid");
-  }
+	if (
+		!(
+			Array.isArray(bundle.cscas) &&
+			Array.isArray(bundle.crls) &&
+			Array.isArray(bundle.dscs)
+		)
+	) {
+		throw new Error("pkd_trust_bundle_invalid");
+	}
 
-  return bundle;
+	return bundle;
 }
 
 export function parsePkdTrustBundleDscSegmentJson(
-  value: unknown
+	value: unknown,
 ): PkdTrustBundleDscSegmentJson {
-  if (!value || typeof value !== "object") {
-    throw new Error("pkd_trust_bundle_dsc_segment_invalid");
-  }
+	if (!value || typeof value !== "object") {
+		throw new Error("pkd_trust_bundle_dsc_segment_invalid");
+	}
 
-  const segment = value as PkdTrustBundleDscSegmentJson;
+	const segment = value as PkdTrustBundleDscSegmentJson;
 
-  if (
-    segment.version !== PKD_TRUST_BUNDLE_VERSION ||
-    !Array.isArray(segment.dscs) ||
-    typeof segment.segmentKey !== "string" ||
-    segment.segmentKey.length === 0
-  ) {
-    throw new Error("pkd_trust_bundle_dsc_segment_invalid");
-  }
+	if (
+		segment.version !== PKD_TRUST_BUNDLE_VERSION ||
+		!Array.isArray(segment.dscs) ||
+		typeof segment.segmentKey !== "string" ||
+		segment.segmentKey.length === 0
+	) {
+		throw new Error("pkd_trust_bundle_dsc_segment_invalid");
+	}
 
-  return segment;
+	return segment;
 }
 
 export function hydratePkdTrustBundleDscSegment(
-  value: unknown
+	value: unknown,
 ): PkdTrustBundleDscSegment {
-  const raw = parsePkdTrustBundleDscSegmentJson(value);
-  const dscRecordsByIssuerSerial = new Map<string, PkdCertificateRecord>();
-  const dscRecordsBySkiHex = new Map<string, PkdCertificateRecord[]>();
+	const raw = parsePkdTrustBundleDscSegmentJson(value);
+	const dscRecordsByIssuerSerial = new Map<string, PkdCertificateRecord>();
+	const dscRecordsBySkiHex = new Map<string, PkdCertificateRecord[]>();
 
-  for (const record of raw.dscs) {
-    dscRecordsByIssuerSerial.set(
-      dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
-      record
-    );
-    addIndexedValue(dscRecordsBySkiHex, record.skiHex, record);
-  }
+	for (const record of raw.dscs) {
+		dscRecordsByIssuerSerial.set(
+			dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+			record,
+		);
+		addIndexedValue(dscRecordsBySkiHex, record.skiHex, record);
+	}
 
-  return {
-    dscRecordsByIssuerSerial,
-    dscRecordsBySkiHex,
-    dscsByIssuerSerial: new Map<string, PkdTrustBundleCertificate>(),
-    dscsBySkiHex: new Map<string, PkdTrustBundleCertificate[]>(),
-    raw,
-  };
+	return {
+		dscRecordsByIssuerSerial,
+		dscRecordsBySkiHex,
+		dscsByIssuerSerial: new Map<string, PkdTrustBundleCertificate>(),
+		dscsBySkiHex: new Map<string, PkdTrustBundleCertificate[]>(),
+		raw,
+	};
 }
 
 export function hydratePkdTrustBundle(
-  value: unknown,
-  options?: {
-    dscRecordLoaderByIssuerSerial?:
-      | PkdTrustBundleDscRecordByIssuerSerialLoader
-      | null;
-    dscRecordsLoaderBySkiHex?: PkdTrustBundleDscRecordsBySkiLoader | null;
-    dscSegmentLoader?: PkdTrustBundleDscSegmentLoader | null;
-  }
+	value: unknown,
+	options?: {
+		dscRecordLoaderByIssuerSerial?: PkdTrustBundleDscRecordByIssuerSerialLoader | null;
+		dscRecordsLoaderBySkiHex?: PkdTrustBundleDscRecordsBySkiLoader | null;
+		dscSegmentLoader?: PkdTrustBundleDscSegmentLoader | null;
+	},
 ): PkdTrustBundle {
-  const raw = parsePkdTrustBundleJson(value);
-  const cscas: PkdTrustBundleCertificate[] = [];
-  const crls: PkdTrustBundleCrl[] = [];
-  const cscasBySubjectKey = new Map<string, PkdTrustBundleCertificate[]>();
-  const cscasBySkiHex = new Map<string, PkdTrustBundleCertificate[]>();
-  const crlsByAkiHex = new Map<string, PkdTrustBundleCrl[]>();
-  const crlsByIssuerKey = new Map<string, PkdTrustBundleCrl[]>();
-  const dscRecordsByIssuerSerial = new Map<string, PkdCertificateRecord>();
-  const dscRecordsBySkiHex = new Map<string, PkdCertificateRecord[]>();
-  const dscSegmentKeysByIssuerSerial = objectMapToStringArrayIndex(
-    raw.dscSegmentIndex?.issuerSerial
-  );
-  const dscSegmentKeysBySkiHex = objectMapToStringArrayIndex(
-    raw.dscSegmentIndex?.skiHex
-  );
+	const raw = parsePkdTrustBundleJson(value);
+	const cscas: PkdTrustBundleCertificate[] = [];
+	const crls: PkdTrustBundleCrl[] = [];
+	const cscasBySubjectKey = new Map<string, PkdTrustBundleCertificate[]>();
+	const cscasBySkiHex = new Map<string, PkdTrustBundleCertificate[]>();
+	const crlsByAkiHex = new Map<string, PkdTrustBundleCrl[]>();
+	const crlsByIssuerKey = new Map<string, PkdTrustBundleCrl[]>();
+	const dscRecordsByIssuerSerial = new Map<string, PkdCertificateRecord>();
+	const dscRecordsBySkiHex = new Map<string, PkdCertificateRecord[]>();
+	const dscSegmentKeysByIssuerSerial = objectMapToStringArrayIndex(
+		raw.dscSegmentIndex?.issuerSerial,
+	);
+	const dscSegmentKeysBySkiHex = objectMapToStringArrayIndex(
+		raw.dscSegmentIndex?.skiHex,
+	);
 
-  for (const record of raw.cscas) {
-    const cert = parseDerCertificate(decodeBase64(record.derBase64));
-    const entry = { cert, record };
-    cscas.push(entry);
-    addIndexedValue(cscasBySubjectKey, record.subjectKey, entry);
-    addIndexedValue(cscasBySkiHex, record.skiHex, entry);
-  }
+	for (const record of raw.cscas) {
+		const cert = parseDerCertificate(decodeBase64(record.derBase64));
+		const entry = { cert, record };
+		cscas.push(entry);
+		addIndexedValue(cscasBySubjectKey, record.subjectKey, entry);
+		addIndexedValue(cscasBySkiHex, record.skiHex, entry);
+	}
 
-  for (const record of raw.crls) {
-    const crl = parseDerCertificateRevocationList(
-      decodeBase64(record.derBase64)
-    );
-    const entry = { crl, record };
-    crls.push(entry);
-    addIndexedValue(crlsByIssuerKey, record.issuerKey, entry);
-    addIndexedValue(crlsByAkiHex, record.akiHex, entry);
-  }
+	for (const record of raw.crls) {
+		const crl = parseDerCertificateRevocationList(
+			decodeBase64(record.derBase64),
+		);
+		const entry = { crl, record };
+		crls.push(entry);
+		addIndexedValue(crlsByIssuerKey, record.issuerKey, entry);
+		addIndexedValue(crlsByAkiHex, record.akiHex, entry);
+	}
 
-  for (const record of raw.dscs) {
-    dscRecordsByIssuerSerial.set(
-      dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
-      record
-    );
-    addIndexedValue(dscRecordsBySkiHex, record.skiHex, record);
-  }
+	for (const record of raw.dscs) {
+		dscRecordsByIssuerSerial.set(
+			dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+			record,
+		);
+		addIndexedValue(dscRecordsBySkiHex, record.skiHex, record);
+	}
 
-  return {
-    cscas,
-    cscasBySubjectKey,
-    cscasBySkiHex,
-    crls,
-    crlsByAkiHex,
-    crlsByIssuerKey,
-    dscRecordsByIssuerSerial,
-    dscRecordsBySkiHex,
-    dscSegmentKeysByIssuerSerial,
-    dscSegmentKeysBySkiHex,
-    dscSegments: new Map<string, PkdTrustBundleDscSegment>(),
-    dscRecordLoaderByIssuerSerial:
-      options?.dscRecordLoaderByIssuerSerial ?? null,
-    dscRecordsLoaderBySkiHex: options?.dscRecordsLoaderBySkiHex ?? null,
-    dscSegmentLoader: options?.dscSegmentLoader ?? null,
-    dscsByIssuerSerial: new Map<string, PkdTrustBundleCertificate>(),
-    dscsBySkiHex: new Map<string, PkdTrustBundleCertificate[]>(),
-    raw,
-  };
+	return {
+		cscas,
+		cscasBySubjectKey,
+		cscasBySkiHex,
+		crls,
+		crlsByAkiHex,
+		crlsByIssuerKey,
+		dscRecordsByIssuerSerial,
+		dscRecordsBySkiHex,
+		dscSegmentKeysByIssuerSerial,
+		dscSegmentKeysBySkiHex,
+		dscSegments: new Map<string, PkdTrustBundleDscSegment>(),
+		dscRecordLoaderByIssuerSerial:
+			options?.dscRecordLoaderByIssuerSerial ?? null,
+		dscRecordsLoaderBySkiHex: options?.dscRecordsLoaderBySkiHex ?? null,
+		dscSegmentLoader: options?.dscSegmentLoader ?? null,
+		dscsByIssuerSerial: new Map<string, PkdTrustBundleCertificate>(),
+		dscsBySkiHex: new Map<string, PkdTrustBundleCertificate[]>(),
+		raw,
+	};
 }
 
 async function loadPkdTrustBundleDscSegment(
-  bundle: PkdTrustBundle,
-  segmentKey: string
+	bundle: PkdTrustBundle,
+	segmentKey: string,
 ): Promise<PkdTrustBundleDscSegment | null> {
-  const normalizedSegmentKey = segmentKey.toUpperCase();
-  const cached = bundle.dscSegments.get(normalizedSegmentKey);
+	const normalizedSegmentKey = segmentKey.toUpperCase();
+	const cached = bundle.dscSegments.get(normalizedSegmentKey);
 
-  if (cached) {
-    return cached;
-  }
+	if (cached) {
+		return cached;
+	}
 
-  if (!bundle.dscSegmentLoader) {
-    return null;
-  }
+	if (!bundle.dscSegmentLoader) {
+		return null;
+	}
 
-  const loaded = await bundle.dscSegmentLoader(normalizedSegmentKey);
+	const loaded = await bundle.dscSegmentLoader(normalizedSegmentKey);
 
-  if (!loaded) {
-    return null;
-  }
+	if (!loaded) {
+		return null;
+	}
 
-  bundle.dscSegments.set(normalizedSegmentKey, loaded);
-  return loaded;
+	bundle.dscSegments.set(normalizedSegmentKey, loaded);
+	return loaded;
 }
 
 function resolveInlinePkdDscCertificate(
-  bundle: PkdTrustBundle,
-  issuerKey: string,
-  serialNumberHex: string
+	bundle: PkdTrustBundle,
+	issuerKey: string,
+	serialNumberHex: string,
 ): PkdTrustBundleCertificate | null {
-  const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
-  const cached = bundle.dscsByIssuerSerial.get(key);
+	const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
+	const cached = bundle.dscsByIssuerSerial.get(key);
 
-  if (cached) {
-    return cached;
-  }
+	if (cached) {
+		return cached;
+	}
 
-  const record = bundle.dscRecordsByIssuerSerial.get(key);
+	const record = bundle.dscRecordsByIssuerSerial.get(key);
 
-  if (!record) {
-    return null;
-  }
+	if (!record) {
+		return null;
+	}
 
-  const entry = {
-    cert: parseDerCertificate(decodeBase64(record.derBase64)),
-    record,
-  };
-  bundle.dscsByIssuerSerial.set(key, entry);
-  return entry;
+	const entry = {
+		cert: parseDerCertificate(decodeBase64(record.derBase64)),
+		record,
+	};
+	bundle.dscsByIssuerSerial.set(key, entry);
+	return entry;
 }
 
 function resolveInlinePkdDscCertificatesBySki(
-  bundle: PkdTrustBundle,
-  skiHex: string
+	bundle: PkdTrustBundle,
+	skiHex: string,
 ): PkdTrustBundleCertificate[] {
-  const normalizedSkiHex = skiHex.toLowerCase();
-  const cached = bundle.dscsBySkiHex.get(normalizedSkiHex);
+	const normalizedSkiHex = skiHex.toLowerCase();
+	const cached = bundle.dscsBySkiHex.get(normalizedSkiHex);
 
-  if (cached) {
-    return [...cached];
-  }
+	if (cached) {
+		return [...cached];
+	}
 
-  const records = bundle.dscRecordsBySkiHex.get(normalizedSkiHex) ?? [];
-  const entries = records.map((record) => ({
-    cert: parseDerCertificate(decodeBase64(record.derBase64)),
-    record,
-  }));
+	const records = bundle.dscRecordsBySkiHex.get(normalizedSkiHex) ?? [];
+	const entries = records.map((record) => ({
+		cert: parseDerCertificate(decodeBase64(record.derBase64)),
+		record,
+	}));
 
-  bundle.dscsBySkiHex.set(normalizedSkiHex, entries);
-  return [...entries];
+	bundle.dscsBySkiHex.set(normalizedSkiHex, entries);
+	return [...entries];
 }
 
 function resolveSegmentPkdDscCertificate(
-  segment: PkdTrustBundleDscSegment,
-  issuerKey: string,
-  serialNumberHex: string
+	segment: PkdTrustBundleDscSegment,
+	issuerKey: string,
+	serialNumberHex: string,
 ): PkdTrustBundleCertificate | null {
-  const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
-  const cached = segment.dscsByIssuerSerial.get(key);
+	const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
+	const cached = segment.dscsByIssuerSerial.get(key);
 
-  if (cached) {
-    return cached;
-  }
+	if (cached) {
+		return cached;
+	}
 
-  const record = segment.dscRecordsByIssuerSerial.get(key);
+	const record = segment.dscRecordsByIssuerSerial.get(key);
 
-  if (!record) {
-    return null;
-  }
+	if (!record) {
+		return null;
+	}
 
-  const entry = {
-    cert: parseDerCertificate(decodeBase64(record.derBase64)),
-    record,
-  };
-  segment.dscsByIssuerSerial.set(key, entry);
-  return entry;
+	const entry = {
+		cert: parseDerCertificate(decodeBase64(record.derBase64)),
+		record,
+	};
+	segment.dscsByIssuerSerial.set(key, entry);
+	return entry;
 }
 
 function resolveSegmentPkdDscCertificatesBySki(
-  segment: PkdTrustBundleDscSegment,
-  skiHex: string
+	segment: PkdTrustBundleDscSegment,
+	skiHex: string,
 ): PkdTrustBundleCertificate[] {
-  const normalizedSkiHex = skiHex.toLowerCase();
-  const cached = segment.dscsBySkiHex.get(normalizedSkiHex);
+	const normalizedSkiHex = skiHex.toLowerCase();
+	const cached = segment.dscsBySkiHex.get(normalizedSkiHex);
 
-  if (cached) {
-    return [...cached];
-  }
+	if (cached) {
+		return [...cached];
+	}
 
-  const records = segment.dscRecordsBySkiHex.get(normalizedSkiHex) ?? [];
-  const entries = records.map((record) => ({
-    cert: parseDerCertificate(decodeBase64(record.derBase64)),
-    record,
-  }));
+	const records = segment.dscRecordsBySkiHex.get(normalizedSkiHex) ?? [];
+	const entries = records.map((record) => ({
+		cert: parseDerCertificate(decodeBase64(record.derBase64)),
+		record,
+	}));
 
-  segment.dscsBySkiHex.set(normalizedSkiHex, entries);
-  return [...entries];
+	segment.dscsBySkiHex.set(normalizedSkiHex, entries);
+	return [...entries];
 }
 
 export async function resolvePkdDscCertificate(
-  bundle: PkdTrustBundle,
-  issuerKey: string,
-  serialNumberHex: string
+	bundle: PkdTrustBundle,
+	issuerKey: string,
+	serialNumberHex: string,
 ): Promise<PkdTrustBundleCertificate | null> {
-  const inlineEntry = resolveInlinePkdDscCertificate(
-    bundle,
-    issuerKey,
-    serialNumberHex
-  );
+	const inlineEntry = resolveInlinePkdDscCertificate(
+		bundle,
+		issuerKey,
+		serialNumberHex,
+	);
 
-  if (inlineEntry) {
-    return inlineEntry;
-  }
+	if (inlineEntry) {
+		return inlineEntry;
+	}
 
-  const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
-  const segmentKeys = bundle.dscSegmentKeysByIssuerSerial.get(key) ?? [];
+	const key = dscIssuerSerialKey(issuerKey, serialNumberHex);
+	const segmentKeys = bundle.dscSegmentKeysByIssuerSerial.get(key) ?? [];
 
-  for (const segmentKey of segmentKeys) {
-    const segment = await loadPkdTrustBundleDscSegment(bundle, segmentKey);
+	for (const segmentKey of segmentKeys) {
+		const segment = await loadPkdTrustBundleDscSegment(bundle, segmentKey);
 
-    if (!segment) {
-      continue;
-    }
+		if (!segment) {
+			continue;
+		}
 
-    const entry = resolveSegmentPkdDscCertificate(
-      segment,
-      issuerKey,
-      serialNumberHex
-    );
+		const entry = resolveSegmentPkdDscCertificate(
+			segment,
+			issuerKey,
+			serialNumberHex,
+		);
 
-    if (entry) {
-      return entry;
-    }
-  }
+		if (entry) {
+			return entry;
+		}
+	}
 
-  if (bundle.dscRecordLoaderByIssuerSerial) {
-    const record = await bundle.dscRecordLoaderByIssuerSerial(
-      issuerKey,
-      serialNumberHex
-    );
+	if (bundle.dscRecordLoaderByIssuerSerial) {
+		const record = await bundle.dscRecordLoaderByIssuerSerial(
+			issuerKey,
+			serialNumberHex,
+		);
 
-    if (record) {
-      bundle.dscRecordsByIssuerSerial.set(
-        dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
-        record
-      );
-      addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
+		if (record) {
+			bundle.dscRecordsByIssuerSerial.set(
+				dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+				record,
+			);
+			addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
 
-      return resolveInlinePkdDscCertificate(
-        bundle,
-        record.issuerKey,
-        record.serialNumberHex
-      );
-    }
-  }
+			return resolveInlinePkdDscCertificate(
+				bundle,
+				record.issuerKey,
+				record.serialNumberHex,
+			);
+		}
+	}
 
-  return null;
+	return null;
 }
 
 export async function resolvePkdDscCertificatesBySki(
-  bundle: PkdTrustBundle,
-  skiHex: string
+	bundle: PkdTrustBundle,
+	skiHex: string,
 ): Promise<PkdTrustBundleCertificate[]> {
-  const deduped = new Map<string, PkdTrustBundleCertificate>();
+	const deduped = new Map<string, PkdTrustBundleCertificate>();
 
-  for (const entry of resolveInlinePkdDscCertificatesBySki(bundle, skiHex)) {
-    deduped.set(entry.record.derBase64, entry);
-  }
+	for (const entry of resolveInlinePkdDscCertificatesBySki(bundle, skiHex)) {
+		deduped.set(entry.record.derBase64, entry);
+	}
 
-  const segmentKeys = bundle.dscSegmentKeysBySkiHex.get(skiHex.toLowerCase()) ?? [];
+	const segmentKeys =
+		bundle.dscSegmentKeysBySkiHex.get(skiHex.toLowerCase()) ?? [];
 
-  for (const segmentKey of segmentKeys) {
-    const segment = await loadPkdTrustBundleDscSegment(bundle, segmentKey);
+	for (const segmentKey of segmentKeys) {
+		const segment = await loadPkdTrustBundleDscSegment(bundle, segmentKey);
 
-    if (!segment) {
-      continue;
-    }
+		if (!segment) {
+			continue;
+		}
 
-    for (const entry of resolveSegmentPkdDscCertificatesBySki(segment, skiHex)) {
-      deduped.set(entry.record.derBase64, entry);
-    }
-  }
+		for (const entry of resolveSegmentPkdDscCertificatesBySki(
+			segment,
+			skiHex,
+		)) {
+			deduped.set(entry.record.derBase64, entry);
+		}
+	}
 
-  if (bundle.dscRecordsLoaderBySkiHex) {
-    for (const record of await bundle.dscRecordsLoaderBySkiHex(skiHex)) {
-      bundle.dscRecordsByIssuerSerial.set(
-        dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
-        record
-      );
-      addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
-    }
+	if (bundle.dscRecordsLoaderBySkiHex) {
+		for (const record of await bundle.dscRecordsLoaderBySkiHex(skiHex)) {
+			bundle.dscRecordsByIssuerSerial.set(
+				dscIssuerSerialKey(record.issuerKey, record.serialNumberHex),
+				record,
+			);
+			addIndexedValue(bundle.dscRecordsBySkiHex, record.skiHex, record);
+		}
 
-    for (const entry of resolveInlinePkdDscCertificatesBySki(bundle, skiHex)) {
-      deduped.set(entry.record.derBase64, entry);
-    }
-  }
+		for (const entry of resolveInlinePkdDscCertificatesBySki(bundle, skiHex)) {
+			deduped.set(entry.record.derBase64, entry);
+		}
+	}
 
-  return [...deduped.values()];
+	return [...deduped.values()];
 }
 
 export function extractCscaCertificatesFromMasterList(
-  bytes: Uint8Array
+	bytes: Uint8Array,
 ): Certificate[] {
-  ensurePkijsEngine();
-  const decoded = fromBER(bufferBytes(bytes));
+	ensurePkijsEngine();
+	const decoded = fromBER(bufferBytes(bytes));
 
-  if (decoded.offset === -1) {
-    throw new Error("master_list_parse_failed");
-  }
+	if (decoded.offset === -1) {
+		throw new Error("master_list_parse_failed");
+	}
 
-  const contentInfo = new ContentInfo({
-    schema: decoded.result,
-  });
+	const contentInfo = new ContentInfo({
+		schema: decoded.result,
+	});
 
-  if (contentInfo.contentType !== "1.2.840.113549.1.7.2") {
-    throw new Error("master_list_content_type_invalid");
-  }
+	if (contentInfo.contentType !== "1.2.840.113549.1.7.2") {
+		throw new Error("master_list_content_type_invalid");
+	}
 
-  const signedData = new SignedData({
-    schema: contentInfo.content,
-  });
+	const signedData = new SignedData({
+		schema: contentInfo.content,
+	});
 
-  if (signedData.encapContentInfo.eContentType !== ICAO_MASTER_LIST_OID) {
-    throw new Error("master_list_econtent_type_invalid");
-  }
+	if (signedData.encapContentInfo.eContentType !== ICAO_MASTER_LIST_OID) {
+		throw new Error("master_list_econtent_type_invalid");
+	}
 
-  const eContent = signedData.encapContentInfo.eContent;
+	const eContent = signedData.encapContentInfo.eContent;
 
-  if (!eContent) {
-    throw new Error("master_list_content_missing");
-  }
+	if (!eContent) {
+		throw new Error("master_list_content_missing");
+	}
 
-  const masterListBytes = octetStringBytes(eContent);
-  const masterListAsn1 = fromBER(asn1Buffer(masterListBytes));
+	const masterListBytes = octetStringBytes(eContent);
+	const masterListAsn1 = fromBER(asn1Buffer(masterListBytes));
 
-  if (
-    masterListAsn1.offset === -1 ||
-    !(masterListAsn1.result instanceof Sequence)
-  ) {
-    throw new Error("master_list_content_invalid");
-  }
+	if (
+		masterListAsn1.offset === -1 ||
+		!(masterListAsn1.result instanceof Sequence)
+	) {
+		throw new Error("master_list_content_invalid");
+	}
 
-  const [, certificateSet] = masterListAsn1.result.valueBlock.value;
+	const [, certificateSet] = masterListAsn1.result.valueBlock.value;
 
-  if (!(certificateSet instanceof Asn1Set)) {
-    throw new Error("master_list_certificates_missing");
-  }
+	if (!(certificateSet instanceof Asn1Set)) {
+		throw new Error("master_list_certificates_missing");
+	}
 
-  return certificateSet.valueBlock.value.map((entry) => {
-    try {
-      return new Certificate({
-        schema: entry,
-      });
-    } catch {
-      throw new Error("master_list_certificate_invalid");
-    }
-  });
+	return certificateSet.valueBlock.value.map((entry) => {
+		try {
+			return new Certificate({
+				schema: entry,
+			});
+		} catch {
+			throw new Error("master_list_certificate_invalid");
+		}
+	});
 }
 
 export function pkdTrustBundleKey(): string {
-  return PKD_TRUST_R2_KEY;
+	return PKD_TRUST_R2_KEY;
 }
 
 export function pkdTrustBundleDscSegmentKey(segmentKey: string): string {
-  return `${PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX}/${segmentKey.toUpperCase()}.json`;
+	return `${PKD_TRUST_R2_DSC_SEGMENT_KEY_PREFIX}/${segmentKey.toUpperCase()}.json`;
 }
 
 export function pkdTrustBundleVersion(): typeof PKD_TRUST_BUNDLE_VERSION {
-  return PKD_TRUST_BUNDLE_VERSION;
+	return PKD_TRUST_BUNDLE_VERSION;
 }

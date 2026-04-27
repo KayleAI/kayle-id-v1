@@ -13,24 +13,24 @@ import { and, eq } from "drizzle-orm";
  * @returns True if the user has the necessary permissions, false otherwise
  */
 export async function checkPermission(
-  userId: string,
-  organizationId: string,
-  _permissions?: string[]
+	userId: string,
+	organizationId: string,
+	_permissions?: string[],
 ): Promise<boolean> {
-  const [member] = await db
-    .select()
-    .from(auth_organization_members)
-    .where(
-      and(
-        eq(auth_organization_members.userId, userId),
-        eq(auth_organization_members.organizationId, organizationId)
-      )
-    )
-    .limit(1);
+	const [member] = await db
+		.select()
+		.from(auth_organization_members)
+		.where(
+			and(
+				eq(auth_organization_members.userId, userId),
+				eq(auth_organization_members.organizationId, organizationId),
+			),
+		)
+		.limit(1);
 
-  if (!member) {
-    return false;
-  }
+	if (!member) {
+		return false;
+	}
 
-  return true;
+	return true;
 }

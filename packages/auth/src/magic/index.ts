@@ -6,9 +6,14 @@ import type { User } from "better-auth/types";
 import { APIError } from "better-call";
 import { z } from "zod";
 
-type MagicOptions = {
+interface MagicOptions {
+  disableSignUp?: boolean;
   expiresIn?: number;
   otpLength?: number;
+  rateLimit?: {
+    window: number;
+    max: number;
+  };
   sendMagicOtpAuth: (
     data: {
       /**
@@ -30,14 +35,9 @@ type MagicOptions = {
     },
     request?: Request
   ) => Promise<void> | void;
-  disableSignUp?: boolean;
-  rateLimit?: {
-    window: number;
-    max: number;
-  };
-};
+}
 
-type MagicAdapterContext = {
+interface MagicAdapterContext {
   context: {
     internalAdapter: {
       findUserByEmail: (email: string) => Promise<unknown>;
@@ -52,12 +52,10 @@ type MagicAdapterContext = {
           emailVerified: boolean;
         }
       ) => Promise<unknown>;
-      deleteVerificationByIdentifier: (
-        identifier: string
-      ) => Promise<unknown>;
+      deleteVerificationByIdentifier: (identifier: string) => Promise<unknown>;
     };
   };
-};
+}
 
 function isUserShape(value: unknown): value is User {
   if (typeof value !== "object" || value === null) {

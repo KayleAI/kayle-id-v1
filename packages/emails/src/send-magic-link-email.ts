@@ -4,7 +4,7 @@ import { MagicLinkEmail, type MagicLinkEmailType } from "../emails/magic-link";
 
 export type ResendEmailClient = Pick<Resend, "emails">;
 
-export type SendMagicLinkEmailInput = {
+export interface SendMagicLinkEmailInput {
   apiKey?: string;
   expiresInMinutes?: number;
   from: string;
@@ -13,7 +13,7 @@ export type SendMagicLinkEmailInput = {
   to: string;
   type: MagicLinkEmailType;
   url: string;
-};
+}
 
 function getResendClient({
   apiKey,

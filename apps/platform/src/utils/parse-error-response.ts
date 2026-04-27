@@ -5,15 +5,15 @@
  * @returns The error message.
  */
 export async function parseErrorResponse(
-  response: Response,
-  defaultError: string
+	response: Response,
+	defaultError: string,
 ): Promise<string> {
-  const text = await response.text();
+	const text = await response.text();
 
-  try {
-    const json = JSON.parse(text) as { error?: { message?: string } };
-    return json?.error?.message ?? defaultError;
-  } catch {
-    return text ?? defaultError;
-  }
+	try {
+		const json = JSON.parse(text) as { error?: { message?: string } };
+		return json?.error?.message ?? defaultError;
+	} catch {
+		return text ?? defaultError;
+	}
 }

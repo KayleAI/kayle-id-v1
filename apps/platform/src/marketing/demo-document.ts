@@ -6,471 +6,469 @@ export { buildPassportMachineReadableZone } from "@/marketing/demo-mrz";
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_CLAIM_KEYS = new Set(["date_of_birth", "document_expiry_date"]);
 const UPPERCASE_CLAIM_KEYS = new Set([
-  "document_type_code",
-  "issuing_country_code",
-  "nationality_code",
-  "sex_marker",
+	"document_type_code",
+	"issuing_country_code",
+	"nationality_code",
+	"sex_marker",
 ]);
 
 export type DemoDocumentKind = "id-card" | "passport";
 
-export type DemoDocumentPhoto = {
-  dataUri: string;
-  format: "jpeg" | "jpeg2000";
-  height: number;
-  width: number;
-};
+export interface DemoDocumentPhoto {
+	dataUri: string;
+	format: "jpeg" | "jpeg2000";
+	height: number;
+	width: number;
+}
 
-export type DemoDecryptedWebhook = {
-  claims: Record<string, unknown>;
-  contractVersion: number | null;
-  selectedFieldKeys: string[];
-  type: string | null;
-  verificationSessionId: string | null;
-};
+export interface DemoDecryptedWebhook {
+	claims: Record<string, unknown>;
+	contractVersion: number | null;
+	selectedFieldKeys: string[];
+	type: string | null;
+	verificationSessionId: string | null;
+}
 
-export type DemoWebhookEventPreview = {
-  contractVersion: number | null;
-  description: string;
-  eventType: string | null;
-  failureCode: string | null;
-  failureDescription: string | null;
-  failureTitle: string | null;
-  title: string;
-  verificationAttemptId: string | null;
-  verificationSessionId: string | null;
-};
+export interface DemoWebhookEventPreview {
+	contractVersion: number | null;
+	description: string;
+	eventType: string | null;
+	failureCode: string | null;
+	failureDescription: string | null;
+	failureTitle: string | null;
+	title: string;
+	verificationAttemptId: string | null;
+	verificationSessionId: string | null;
+}
 
-export type DemoDocumentPreview = {
-  claims: Record<string, unknown>;
-  contractVersion: number | null;
-  dateOfBirth: string | null;
-  documentExpiryDate: string | null;
-  documentKind: DemoDocumentKind;
-  documentNumber: string | null;
-  documentPhoto: DemoDocumentPhoto | null;
-  documentTypeCode: string | null;
-  eventType: string | null;
-  familyName: string | null;
-  givenNames: string | null;
-  issuingCountryCode: string | null;
-  kayleDocumentId: string | null;
-  kayleHumanId: string | null;
-  machineReadableZone: readonly [string, string] | null;
-  mrzOptionalData: string | null;
-  nationalityCode: string | null;
-  selectedFieldKeys: string[];
-  sexMarker: string | null;
-  title: string;
-  verificationSessionId: string | null;
-};
+export interface DemoDocumentPreview {
+	claims: Record<string, unknown>;
+	contractVersion: number | null;
+	dateOfBirth: string | null;
+	documentExpiryDate: string | null;
+	documentKind: DemoDocumentKind;
+	documentNumber: string | null;
+	documentPhoto: DemoDocumentPhoto | null;
+	documentTypeCode: string | null;
+	eventType: string | null;
+	familyName: string | null;
+	givenNames: string | null;
+	issuingCountryCode: string | null;
+	kayleDocumentId: string | null;
+	kayleHumanId: string | null;
+	machineReadableZone: readonly [string, string] | null;
+	mrzOptionalData: string | null;
+	nationalityCode: string | null;
+	selectedFieldKeys: string[];
+	sexMarker: string | null;
+	title: string;
+	verificationSessionId: string | null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function toNonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
+	if (typeof value !== "string") {
+		return null;
+	}
 
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
 }
 
 function toFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function normalizeCode(value: string | null): string | null {
-  return value ? value.toUpperCase() : null;
+	return value ? value.toUpperCase() : null;
 }
 
 function normalizeText(value: string | null): string | null {
-  return value ? value.replace(/\s+/g, " ").trim() : null;
+	return value ? value.replace(/\s+/g, " ").trim() : null;
 }
 
 function toStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+	if (!Array.isArray(value)) {
+		return [];
+	}
 
-  const normalizedValues: string[] = [];
+	const normalizedValues: string[] = [];
 
-  for (const item of value) {
-    const normalizedItem = toNonEmptyString(item);
-    if (normalizedItem) {
-      normalizedValues.push(normalizedItem);
-    }
-  }
+	for (const item of value) {
+		const normalizedItem = toNonEmptyString(item);
+		if (normalizedItem) {
+			normalizedValues.push(normalizedItem);
+		}
+	}
 
-  return normalizedValues;
+	return normalizedValues;
 }
 
 function parseDemoWebhookPayload(payload: string | null): {
-  data: Record<string, unknown>;
-  metadata: Record<string, unknown> | null;
-  type: string | null;
+	data: Record<string, unknown>;
+	metadata: Record<string, unknown> | null;
+	type: string | null;
 } | null {
-  if (!payload) {
-    return null;
-  }
+	if (!payload) {
+		return null;
+	}
 
-  try {
-    const parsed = JSON.parse(payload) as unknown;
-    if (!isRecord(parsed)) {
-      return null;
-    }
+	try {
+		const parsed = JSON.parse(payload) as unknown;
+		if (!isRecord(parsed)) {
+			return null;
+		}
 
-    const data = isRecord(parsed.data) ? parsed.data : null;
-    const metadata = isRecord(parsed.metadata) ? parsed.metadata : null;
+		const data = isRecord(parsed.data) ? parsed.data : null;
+		const metadata = isRecord(parsed.metadata) ? parsed.metadata : null;
 
-    if (!data) {
-      return null;
-    }
+		if (!data) {
+			return null;
+		}
 
-    return {
-      data,
-      metadata,
-      type: toNonEmptyString(parsed.type),
-    };
-  } catch {
-    return null;
-  }
+		return {
+			data,
+			metadata,
+			type: toNonEmptyString(parsed.type),
+		};
+	} catch {
+		return null;
+	}
 }
 
 export function parseDemoDecryptedWebhook(
-  payload: string | null
+	payload: string | null,
 ): DemoDecryptedWebhook | null {
-  const parsed = parseDemoWebhookPayload(payload);
-  if (!(parsed && isRecord(parsed.data.claims))) {
-    return null;
-  }
+	const parsed = parseDemoWebhookPayload(payload);
+	if (!(parsed && isRecord(parsed.data.claims))) {
+		return null;
+	}
 
-  return {
-    claims: parsed.data.claims,
-    contractVersion:
-      typeof parsed.metadata?.contract_version === "number"
-        ? parsed.metadata.contract_version
-        : null,
-    selectedFieldKeys: toStringArray(parsed.data.selected_field_keys),
-    type: parsed.type,
-    verificationSessionId: toNonEmptyString(
-      parsed.metadata?.verification_session_id
-    ),
-  };
+	return {
+		claims: parsed.data.claims,
+		contractVersion:
+			typeof parsed.metadata?.contract_version === "number"
+				? parsed.metadata.contract_version
+				: null,
+		selectedFieldKeys: toStringArray(parsed.data.selected_field_keys),
+		type: parsed.type,
+		verificationSessionId: toNonEmptyString(
+			parsed.metadata?.verification_session_id,
+		),
+	};
 }
 
 function formatWebhookEventLabel(eventType: string | null): string {
-  switch (eventType) {
-    case "verification.attempt.failed":
-      return "Attempt Failed";
-    case "verification.attempt.succeeded":
-      return "Attempt Succeeded";
-    case "verification.session.cancelled":
-      return "Session Cancelled";
-    case "verification.session.expired":
-      return "Session Expired";
-    default:
-      return "Webhook Event";
-  }
+	switch (eventType) {
+		case "verification.attempt.failed":
+			return "Attempt Failed";
+		case "verification.attempt.succeeded":
+			return "Attempt Succeeded";
+		case "verification.session.cancelled":
+			return "Session Cancelled";
+		case "verification.session.expired":
+			return "Session Expired";
+		default:
+			return "Webhook Event";
+	}
 }
 
 function formatFailureCodeLabel(failureCode: string | null): string | null {
-  if (!failureCode) {
-    return null;
-  }
+	if (!failureCode) {
+		return null;
+	}
 
-  return failureCode
-    .split("_")
-    .map((segment) =>
-      segment.length > 0
-        ? `${segment[0]?.toUpperCase() ?? ""}${segment.slice(1)}`
-        : segment
-    )
-    .join(" ");
+	return failureCode
+		.split("_")
+		.map((segment) =>
+			segment.length > 0
+				? `${segment[0]?.toUpperCase() ?? ""}${segment.slice(1)}`
+				: segment,
+		)
+		.join(" ");
 }
 
 const demoAttemptFailureMessages = {
-  passport_authenticity_failed: ERROR_MESSAGES.passport_authenticity_failed,
-  selfie_face_mismatch: ERROR_MESSAGES.selfie_face_mismatch,
+	passport_authenticity_failed: ERROR_MESSAGES.passport_authenticity_failed,
+	selfie_face_mismatch: ERROR_MESSAGES.selfie_face_mismatch,
 } as const;
 
 function getDemoAttemptFailureMessage(
-  failureCode: string | null
+	failureCode: string | null,
 ): { description: string; title: string } | null {
-  if (!failureCode) {
-    return null;
-  }
+	if (!failureCode) {
+		return null;
+	}
 
-  if (
-    Object.prototype.hasOwnProperty.call(demoAttemptFailureMessages, failureCode)
-  ) {
-    return demoAttemptFailureMessages[
-      failureCode as keyof typeof demoAttemptFailureMessages
-    ];
-  }
+	if (Object.hasOwn(demoAttemptFailureMessages, failureCode)) {
+		return demoAttemptFailureMessages[
+			failureCode as keyof typeof demoAttemptFailureMessages
+		];
+	}
 
-  return null;
+	return null;
 }
 
 function buildWebhookEventDescription({
-  eventType,
-  failureCode,
+	eventType,
+	failureCode,
 }: {
-  eventType: string | null;
-  failureCode: string | null;
+	eventType: string | null;
+	failureCode: string | null;
 }): string {
-  const failureCodeLabel = formatFailureCodeLabel(failureCode);
-  const failureMessage = getDemoAttemptFailureMessage(failureCode);
+	const failureCodeLabel = formatFailureCodeLabel(failureCode);
+	const failureMessage = getDemoAttemptFailureMessage(failureCode);
 
-  switch (eventType) {
-    case "verification.attempt.failed":
-      return (
-        failureMessage?.description ??
-        (failureCodeLabel
-        ? `A verification attempt failed with ${failureCodeLabel}.`
-        : "A verification attempt failed.")
-      );
-    case "verification.attempt.succeeded":
-      return "The verified document payload was received successfully.";
-    case "verification.session.cancelled":
-      return "The verification session was cancelled before completion.";
-    case "verification.session.expired":
-      return "The verification session expired before completion.";
-    default:
-      return "The latest webhook payload was received successfully.";
-  }
+	switch (eventType) {
+		case "verification.attempt.failed":
+			return (
+				failureMessage?.description ??
+				(failureCodeLabel
+					? `A verification attempt failed with ${failureCodeLabel}.`
+					: "A verification attempt failed.")
+			);
+		case "verification.attempt.succeeded":
+			return "The verified document payload was received successfully.";
+		case "verification.session.cancelled":
+			return "The verification session was cancelled before completion.";
+		case "verification.session.expired":
+			return "The verification session expired before completion.";
+		default:
+			return "The latest webhook payload was received successfully.";
+	}
 }
 
 export function buildDemoWebhookEventPreview(
-  payload: string | null
+	payload: string | null,
 ): DemoWebhookEventPreview | null {
-  const parsed = parseDemoWebhookPayload(payload);
+	const parsed = parseDemoWebhookPayload(payload);
 
-  if (!parsed) {
-    return null;
-  }
+	if (!parsed) {
+		return null;
+	}
 
-  const failureCode = toNonEmptyString(parsed.data.failure_code);
-  const failureMessage = getDemoAttemptFailureMessage(failureCode);
+	const failureCode = toNonEmptyString(parsed.data.failure_code);
+	const failureMessage = getDemoAttemptFailureMessage(failureCode);
 
-  return {
-    contractVersion:
-      typeof parsed.metadata?.contract_version === "number"
-        ? parsed.metadata.contract_version
-        : null,
-    description: buildWebhookEventDescription({
-      eventType: parsed.type,
-      failureCode,
-    }),
-    eventType: parsed.type,
-    failureCode,
-    failureDescription: failureMessage?.description ?? null,
-    failureTitle: failureMessage?.title ?? null,
-    title: formatWebhookEventLabel(parsed.type),
-    verificationAttemptId: toNonEmptyString(
-      parsed.metadata?.verification_attempt_id
-    ),
-    verificationSessionId: toNonEmptyString(
-      parsed.metadata?.verification_session_id
-    ),
-  };
+	return {
+		contractVersion:
+			typeof parsed.metadata?.contract_version === "number"
+				? parsed.metadata.contract_version
+				: null,
+		description: buildWebhookEventDescription({
+			eventType: parsed.type,
+			failureCode,
+		}),
+		eventType: parsed.type,
+		failureCode,
+		failureDescription: failureMessage?.description ?? null,
+		failureTitle: failureMessage?.title ?? null,
+		title: formatWebhookEventLabel(parsed.type),
+		verificationAttemptId: toNonEmptyString(
+			parsed.metadata?.verification_attempt_id,
+		),
+		verificationSessionId: toNonEmptyString(
+			parsed.metadata?.verification_session_id,
+		),
+	};
 }
 
 export function inferDemoDocumentKind(
-  documentTypeCode: string | null | undefined
+	documentTypeCode: string | null | undefined,
 ): DemoDocumentKind {
-  const normalizedCode = normalizeCode(documentTypeCode?.trim() ?? null);
+	const normalizedCode = normalizeCode(documentTypeCode?.trim() ?? null);
 
-  if (!normalizedCode || normalizedCode.startsWith("P")) {
-    return "passport";
-  }
+	if (!normalizedCode || normalizedCode.startsWith("P")) {
+		return "passport";
+	}
 
-  if (
-    normalizedCode.startsWith("I") ||
-    normalizedCode.startsWith("A") ||
-    normalizedCode.startsWith("C")
-  ) {
-    return "id-card";
-  }
+	if (
+		normalizedCode.startsWith("I") ||
+		normalizedCode.startsWith("A") ||
+		normalizedCode.startsWith("C")
+	) {
+		return "id-card";
+	}
 
-  return "passport";
+	return "passport";
 }
 
 export function formatDemoDocumentDate(
-  value: string | null | undefined
+	value: string | null | undefined,
 ): string | null {
-  if (!(value && ISO_DATE_REGEX.test(value))) {
-    return value ?? null;
-  }
+	if (!(value && ISO_DATE_REGEX.test(value))) {
+		return value ?? null;
+	}
 
-  const [yearText, monthText, dayText] = value.split("-");
-  const year = Number.parseInt(yearText, 10);
-  const month = Number.parseInt(monthText, 10);
-  const day = Number.parseInt(dayText, 10);
-  const date = new Date(Date.UTC(year, month - 1, day));
+	const [yearText, monthText, dayText] = value.split("-");
+	const year = Number.parseInt(yearText, 10);
+	const month = Number.parseInt(monthText, 10);
+	const day = Number.parseInt(dayText, 10);
+	const date = new Date(Date.UTC(year, month - 1, day));
 
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return value;
-  }
+	if (
+		date.getUTCFullYear() !== year ||
+		date.getUTCMonth() !== month - 1 ||
+		date.getUTCDate() !== day
+	) {
+		return value;
+	}
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    timeZone: "UTC",
-    year: "numeric",
-  })
-    .format(date)
-    .toUpperCase();
+	return new Intl.DateTimeFormat("en-GB", {
+		day: "2-digit",
+		month: "short",
+		timeZone: "UTC",
+		year: "numeric",
+	})
+		.format(date)
+		.toUpperCase();
 }
 
 export function buildDemoDocumentPhoto(
-  value: unknown
+	value: unknown,
 ): DemoDocumentPhoto | null {
-  if (!isRecord(value)) {
-    return null;
-  }
+	if (!isRecord(value)) {
+		return null;
+	}
 
-  const dataBase64 = toNonEmptyString(value.dataBase64);
-  const format = value.format;
-  const height = toFiniteNumber(value.height);
-  const width = toFiniteNumber(value.width);
+	const dataBase64 = toNonEmptyString(value.dataBase64);
+	const format = value.format;
+	const height = toFiniteNumber(value.height);
+	const width = toFiniteNumber(value.width);
 
-  if (
-    !(
-      dataBase64 &&
-      (format === "jpeg" || format === "jpeg2000") &&
-      height &&
-      width
-    )
-  ) {
-    return null;
-  }
+	if (
+		!(
+			dataBase64 &&
+			(format === "jpeg" || format === "jpeg2000") &&
+			height &&
+			width
+		)
+	) {
+		return null;
+	}
 
-  const mimeType = format === "jpeg" ? "image/jpeg" : "image/jp2";
+	const mimeType = format === "jpeg" ? "image/jpeg" : "image/jp2";
 
-  return {
-    dataUri: `data:${mimeType};base64,${dataBase64}`,
-    format,
-    height,
-    width,
-  };
+	return {
+		dataUri: `data:${mimeType};base64,${dataBase64}`,
+		format,
+		height,
+		width,
+	};
 }
 
 function formatStringClaimValue(claimKey: string, value: string): string {
-  if (DATE_CLAIM_KEYS.has(claimKey)) {
-    return formatDemoDocumentDate(value) ?? value;
-  }
+	if (DATE_CLAIM_KEYS.has(claimKey)) {
+		return formatDemoDocumentDate(value) ?? value;
+	}
 
-  if (UPPERCASE_CLAIM_KEYS.has(claimKey)) {
-    return value.toUpperCase();
-  }
+	if (UPPERCASE_CLAIM_KEYS.has(claimKey)) {
+		return value.toUpperCase();
+	}
 
-  return value;
+	return value;
 }
 
 export function formatDemoClaimValue(claimKey: string, value: unknown): string {
-  if (value === null || value === undefined) {
-    return "Not shared";
-  }
+	if (value === null || value === undefined) {
+		return "Not shared";
+	}
 
-  if (claimKey === "document_photo") {
-    const photo = buildDemoDocumentPhoto(value);
-    if (!photo) {
-      return "Chip portrait attached";
-    }
+	if (claimKey === "document_photo") {
+		const photo = buildDemoDocumentPhoto(value);
+		if (!photo) {
+			return "Chip portrait attached";
+		}
 
-    return `Chip portrait · ${photo.format.toUpperCase()} · ${photo.width}×${photo.height}`;
-  }
+		return `Chip portrait · ${photo.format.toUpperCase()} · ${photo.width}×${photo.height}`;
+	}
 
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
-  }
+	if (typeof value === "boolean") {
+		return value ? "Yes" : "No";
+	}
 
-  if (typeof value === "string") {
-    return formatStringClaimValue(claimKey, value);
-  }
+	if (typeof value === "string") {
+		return formatStringClaimValue(claimKey, value);
+	}
 
-  return JSON.stringify(value);
+	return JSON.stringify(value);
 }
 
 export function buildDemoDocumentPreview(
-  payload: string | null
+	payload: string | null,
 ): DemoDocumentPreview | null {
-  const parsed = parseDemoDecryptedWebhook(payload);
-  if (!(parsed && Object.keys(parsed.claims).length > 0)) {
-    return null;
-  }
+	const parsed = parseDemoDecryptedWebhook(payload);
+	if (!(parsed && Object.keys(parsed.claims).length > 0)) {
+		return null;
+	}
 
-  const documentTypeCode = normalizeCode(
-    toNonEmptyString(parsed.claims.document_type_code)
-  );
-  const documentKind = inferDemoDocumentKind(documentTypeCode);
-  const dateOfBirth = normalizeText(
-    toNonEmptyString(parsed.claims.date_of_birth)
-  );
-  const documentExpiryDate = normalizeText(
-    toNonEmptyString(parsed.claims.document_expiry_date)
-  );
-  const documentNumber = normalizeText(
-    toNonEmptyString(parsed.claims.document_number)
-  );
-  const documentPhoto = buildDemoDocumentPhoto(parsed.claims.document_photo);
-  const familyName = normalizeText(toNonEmptyString(parsed.claims.family_name));
-  const givenNames = normalizeText(toNonEmptyString(parsed.claims.given_names));
-  const issuingCountryCode = normalizeCode(
-    toNonEmptyString(parsed.claims.issuing_country_code)
-  );
-  const mrzOptionalData = normalizeText(
-    toNonEmptyString(parsed.claims.mrz_optional_data)
-  );
-  const nationalityCode = normalizeCode(
-    toNonEmptyString(parsed.claims.nationality_code)
-  );
-  const sexMarker = normalizeCode(toNonEmptyString(parsed.claims.sex_marker));
+	const documentTypeCode = normalizeCode(
+		toNonEmptyString(parsed.claims.document_type_code),
+	);
+	const documentKind = inferDemoDocumentKind(documentTypeCode);
+	const dateOfBirth = normalizeText(
+		toNonEmptyString(parsed.claims.date_of_birth),
+	);
+	const documentExpiryDate = normalizeText(
+		toNonEmptyString(parsed.claims.document_expiry_date),
+	);
+	const documentNumber = normalizeText(
+		toNonEmptyString(parsed.claims.document_number),
+	);
+	const documentPhoto = buildDemoDocumentPhoto(parsed.claims.document_photo);
+	const familyName = normalizeText(toNonEmptyString(parsed.claims.family_name));
+	const givenNames = normalizeText(toNonEmptyString(parsed.claims.given_names));
+	const issuingCountryCode = normalizeCode(
+		toNonEmptyString(parsed.claims.issuing_country_code),
+	);
+	const mrzOptionalData = normalizeText(
+		toNonEmptyString(parsed.claims.mrz_optional_data),
+	);
+	const nationalityCode = normalizeCode(
+		toNonEmptyString(parsed.claims.nationality_code),
+	);
+	const sexMarker = normalizeCode(toNonEmptyString(parsed.claims.sex_marker));
 
-  return {
-    claims: parsed.claims,
-    contractVersion: parsed.contractVersion,
-    dateOfBirth,
-    documentExpiryDate,
-    documentKind,
-    documentNumber,
-    documentPhoto,
-    documentTypeCode,
-    eventType: parsed.type,
-    familyName,
-    givenNames,
-    issuingCountryCode,
-    kayleDocumentId: normalizeText(
-      toNonEmptyString(parsed.claims.kayle_document_id)
-    ),
-    kayleHumanId: normalizeText(toNonEmptyString(parsed.claims.kayle_human_id)),
-    machineReadableZone:
-      documentKind === "passport"
-        ? buildPassportMachineReadableZone({
-            dateOfBirth,
-            documentExpiryDate,
-            documentNumber,
-            documentTypeCode,
-            familyName,
-            givenNames,
-            issuingCountryCode,
-            mrzOptionalData,
-            nationalityCode,
-            sexMarker,
-          })
-        : null,
-    mrzOptionalData,
-    nationalityCode,
-    selectedFieldKeys: parsed.selectedFieldKeys,
-    sexMarker,
-    title: documentKind === "id-card" ? "Identity Card" : "Passport",
-    verificationSessionId: parsed.verificationSessionId,
-  };
+	return {
+		claims: parsed.claims,
+		contractVersion: parsed.contractVersion,
+		dateOfBirth,
+		documentExpiryDate,
+		documentKind,
+		documentNumber,
+		documentPhoto,
+		documentTypeCode,
+		eventType: parsed.type,
+		familyName,
+		givenNames,
+		issuingCountryCode,
+		kayleDocumentId: normalizeText(
+			toNonEmptyString(parsed.claims.kayle_document_id),
+		),
+		kayleHumanId: normalizeText(toNonEmptyString(parsed.claims.kayle_human_id)),
+		machineReadableZone:
+			documentKind === "passport"
+				? buildPassportMachineReadableZone({
+						dateOfBirth,
+						documentExpiryDate,
+						documentNumber,
+						documentTypeCode,
+						familyName,
+						givenNames,
+						issuingCountryCode,
+						mrzOptionalData,
+						nationalityCode,
+						sexMarker,
+					})
+				: null,
+		mrzOptionalData,
+		nationalityCode,
+		selectedFieldKeys: parsed.selectedFieldKeys,
+		sexMarker,
+		title: documentKind === "id-card" ? "Identity Card" : "Passport",
+		verificationSessionId: parsed.verificationSessionId,
+	};
 }

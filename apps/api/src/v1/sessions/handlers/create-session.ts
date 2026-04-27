@@ -11,71 +11,71 @@ import type { SessionsAppEnv } from "@/v1/sessions/types";
 const contractVersion = 1;
 
 export const createSessionHandler: RouteHandler<
-  typeof createSession,
-  SessionsAppEnv
+	typeof createSession,
+	SessionsAppEnv
 > = async (c) => {
-  const organizationId = c.get("organizationId");
-  const log = getRequestLogger(c);
-  const query = c.req.valid("query") ?? {};
-  const body = c.req.valid("json");
+	const organizationId = c.get("organizationId");
+	const log = getRequestLogger(c);
+	const query = c.req.valid("query") ?? {};
+	const body = c.req.valid("json");
 
-  const environment = c.get("environment");
-  const redirectUrl = body?.redirect_url ?? null;
+	const environment = c.get("environment");
+	const redirectUrl = body?.redirect_url ?? null;
 
-  const normalized = normalizeShareFields(body?.share_fields);
-  if (!normalized.ok) {
-    logEvent(log, {
-      details: {
-        organization_id: organizationId,
-        error_code: normalized.error.code,
-        status: normalized.error.status,
-      },
-      event: "sessions.create.validation_failed",
-      level: "warn",
-    });
+	const normalized = normalizeShareFields(body?.share_fields);
+	if (!normalized.ok) {
+		logEvent(log, {
+			details: {
+				organization_id: organizationId,
+				error_code: normalized.error.code,
+				status: normalized.error.status,
+			},
+			event: "sessions.create.validation_failed",
+			level: "warn",
+		});
 
-    return c.json(
-      {
-        data: null,
-        error: {
-          code: normalized.error.code,
-          message: normalized.error.message,
-          hint: normalized.error.hint,
-          docs: normalized.error.docs,
-        },
-      },
-      normalized.error.status
-    );
-  }
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: normalized.error.code,
+					message: normalized.error.message,
+					hint: normalized.error.hint,
+					docs: normalized.error.docs,
+				},
+			},
+			normalized.error.status,
+		);
+	}
 
-  const id = generateId({ type: "vs", environment });
-  const created = await createVerificationSession({
-    id,
-    organizationId,
-    environment,
-    redirectUrl,
-    shareFields: normalized.shareFields,
-    contractVersion,
-  });
+	const id = generateId({ type: "vs", environment });
+	const created = await createVerificationSession({
+		id,
+		organizationId,
+		environment,
+		redirectUrl,
+		shareFields: normalized.shareFields,
+		contractVersion,
+	});
 
-  log.set({
-    event: "sessions.create.created",
-    organization_id: organizationId,
-    session_id: created.id,
-    session_environment: created.environment,
-    share_field_count: Object.keys(normalized.shareFields).length,
-  });
+	log.set({
+		event: "sessions.create.created",
+		organization_id: organizationId,
+		session_id: created.id,
+		session_environment: created.environment,
+		share_field_count: Object.keys(normalized.shareFields).length,
+	});
 
-  const data = mapSessionRowToResponse({
-    row: created,
-    attempts: query.include_attempts ? [] : undefined,
-  });
+	const data = mapSessionRowToResponse({
+		row: created,
+		attempts: query.include_attempts ? [] : undefined,
+	});
 
-  return c.json(
-    {
-      data,
-      error: null,
-    },
-    200
-  );
+	return c.json(
+		{
+			data,
+			error: null,
+		},
+		200,
+	);
 };

@@ -9,11 +9,20 @@ import OctagonAlert from "./icons/octagon-warning.tsx";
 
 type ButtonAction = {
   label: string;
-} & ({ href: string; onClick?: never } | { href?: never; onClick: () => void }) &
+} & (
+  | { href: string; onClick?: never }
+  | { href?: never; onClick: () => void }
+) &
   ({ disabled?: never } | { disabled: boolean });
 
-type InfoCardProps = {
+interface InfoCardProps {
+  buttons?: {
+    primary?: ButtonAction;
+    secondary?: ButtonAction;
+  };
+  children?: ReactNode;
   colour: "red" | "blue" | "emerald";
+  footer?: boolean;
   header: {
     title: string;
     description: string;
@@ -23,13 +32,7 @@ type InfoCardProps = {
     description: string;
     list?: string[];
   };
-  buttons?: {
-    primary?: ButtonAction;
-    secondary?: ButtonAction;
-  };
-  footer?: boolean;
-  children?: ReactNode;
-};
+}
 
 const ICONS = {
   red: <OctagonAlert className="size-5 text-red-400" />,
@@ -109,10 +112,7 @@ export default function InfoCard({
                 {message.title}
               </h3>
               <div
-                className={cn(
-                  "text-sm",
-                  COLOUR_CLASSES[colour].description
-                )}
+                className={cn("text-sm", COLOUR_CLASSES[colour].description)}
               >
                 <p>{message.description}</p>
                 {message.list && (
@@ -173,14 +173,14 @@ export default function InfoCard({
   );
 }
 
-type ButtonProps = {
+interface ButtonProps {
   button?: {
     label: string;
     href?: string;
     onClick?: () => void;
     disabled?: boolean;
   };
-};
+}
 
 function PrimaryButton({ button }: ButtonProps) {
   if (!button) {

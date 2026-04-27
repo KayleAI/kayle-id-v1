@@ -8,36 +8,36 @@ const IPAD_MATCH = /iPad/;
  * - Browsers are unsupported clients for completing the verification flow
  */
 export function useDevice(): {
-  supported: boolean;
-  os: "ios" | "android" | "unknown";
+	supported: boolean;
+	os: "ios" | "android" | "unknown";
 } {
-  if (typeof window === "undefined") {
-    return { supported: false, os: "unknown" };
-  }
+	if (typeof window === "undefined") {
+		return { supported: false, os: "unknown" };
+	}
 
-  const nav = window.navigator;
-  const ua = nav.userAgent;
+	const nav = window.navigator;
+	const ua = nav.userAgent;
 
-  const isIPhone = IOS_PHONE_MATCH.test(ua);
+	const isIPhone = IOS_PHONE_MATCH.test(ua);
 
-  if (isIPhone) {
-    return { supported: false, os: "ios" };
-  }
+	if (isIPhone) {
+		return { supported: false, os: "ios" };
+	}
 
-  // Explicitly reject iPads (desktop or mobile UA)
-  const isIPad =
-    IPAD_MATCH.test(ua) ||
-    (nav?.platform === "MacIntel" && nav?.maxTouchPoints > 1);
+	// Explicitly reject iPads (desktop or mobile UA)
+	const isIPad =
+		IPAD_MATCH.test(ua) ||
+		(nav?.platform === "MacIntel" && nav?.maxTouchPoints > 1);
 
-  if (isIPad) {
-    return { supported: false, os: "unknown" };
-  }
+	if (isIPad) {
+		return { supported: false, os: "unknown" };
+	}
 
-  // Android phones
-  const androidMatch = ua?.match(ANDROID_VERSION_MATCH);
-  if (androidMatch) {
-    return { supported: false, os: "android" };
-  }
+	// Android phones
+	const androidMatch = ua?.match(ANDROID_VERSION_MATCH);
+	if (androidMatch) {
+		return { supported: false, os: "android" };
+	}
 
-  return { supported: false, os: "unknown" };
+	return { supported: false, os: "unknown" };
 }

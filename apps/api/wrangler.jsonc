@@ -1,72 +1,68 @@
 {
-  "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "kayle-id-api",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-03-20",
-  "preview_urls": false,
-  "workers_dev": false,
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1,
-    "logs": {
-      "invocation_logs": false
-    }
-  },
-  "triggers": {
-    "crons": [
-      "* * * * *"
-    ]
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "./public",
-    "run_worker_first": true
-  },
-  "vars": {
-    "PUBLIC_AUTH_URL": "https://kayle.id",
-    "RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
-  },
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "576f2213d15149ad8746112f488ae37c",
-      "localConnectionString": "postgres://postgres:postgres@localhost:6432/kayle-id"
-    }
-  ],
-  "services": [
-    {
-      "binding": "FACE_MATCHER",
-      "service": "kayle-id-face-matcher"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "STORAGE",
-      "bucket_name": "kayle-id-r2",
-      "remote": false
-    }
-  ],
-  "d1_databases": [
-    {
-      "binding": "TRUST_STORE",
-      "database_name": "kayle-id-trust-store",
-      "database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
-      "migrations_dir": "../../database/trust-store"
-    }
-  ],
-  "routes": [
-    {
-      "pattern": "api.kayle.id",
-      "zone_name": "kayle.id",
-      "custom_domain": true
-    },
-    {
-      "pattern": "api.kayle.id/*",
-      "zone_name": "kayle.id",
-      "custom_domain": false
-    }
-  ]
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "kayle-id-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-20",
+	"preview_urls": false,
+	"workers_dev": false,
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+		"logs": {
+			"invocation_logs": false
+		}
+	},
+	"triggers": {
+		"crons": ["* * * * *"]
+	},
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./public",
+		"run_worker_first": true
+	},
+	"vars": {
+		"PUBLIC_AUTH_URL": "https://kayle.id",
+		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "576f2213d15149ad8746112f488ae37c",
+			"localConnectionString": "postgres://postgres:postgres@localhost:6432/kayle-id"
+		}
+	],
+	"services": [
+		{
+			"binding": "FACE_MATCHER",
+			"service": "kayle-id-face-matcher"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "STORAGE",
+			"bucket_name": "kayle-id-r2",
+			"remote": false
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "TRUST_STORE",
+			"database_name": "kayle-id-trust-store",
+			"database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
+			"migrations_dir": "../../database/trust-store"
+		}
+	],
+	"routes": [
+		{
+			"pattern": "api.kayle.id",
+			"zone_name": "kayle.id",
+			"custom_domain": true
+		},
+		{
+			"pattern": "api.kayle.id/*",
+			"zone_name": "kayle.id",
+			"custom_domain": false
+		}
+	]
 }

@@ -1,199 +1,199 @@
 import type { ApiKey } from "@kayle-id/auth/types";
 import { Button } from "@kayleai/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
 } from "@kayleai/ui/dropdown-menu";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@kayleai/ui/table";
 import { cn } from "@kayleai/ui/utils/cn";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
-  BanIcon,
-  EllipsisVerticalIcon,
-  EyeIcon,
-  TrashIcon,
+	BanIcon,
+	EllipsisVerticalIcon,
+	EyeIcon,
+	TrashIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/format-date";
 
 export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const response = await fetch(`/api/auth/api-keys/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled }),
-        headers: { "Content-Type": "application/json" },
-      });
+	const updateMutation = useMutation({
+		mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+			const response = await fetch(`/api/auth/api-keys/${id}`, {
+				method: "PATCH",
+				body: JSON.stringify({ enabled }),
+				headers: { "Content-Type": "application/json" },
+			});
 
-      if (!response.ok) {
-        throw new Error("Failed to update API key");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-    },
-  });
+			if (!response.ok) {
+				throw new Error("Failed to update API key");
+			}
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+		},
+	});
 
-  const deleteMutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const response = await fetch(`/api/auth/api-keys/${id}`, {
-        method: "DELETE",
-      });
+	const deleteMutation = useMutation({
+		mutationFn: async ({ id }: { id: string }) => {
+			const response = await fetch(`/api/auth/api-keys/${id}`, {
+				method: "DELETE",
+			});
 
-      if (!response.ok) {
-        throw new Error("Failed to delete API key");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-    },
-  });
+			if (!response.ok) {
+				throw new Error("Failed to delete API key");
+			}
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+		},
+	});
 
-  return (
-    <div className="overflow-hidden rounded-md border">
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-muted">
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Requests</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {apiKeys.map((key) => (
-            <TableRow key={key.id}>
-              <TableCell className="font-medium">
-                <Link
-                  className="hover:underline"
-                  params={{ key: key.id }}
-                  to="/api-keys/$key"
-                >
-                  {key.name}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2 py-1 font-medium text-xs",
-                    key.enabled
-                      ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {key.enabled ? "Enabled" : "Disabled"}
-                </span>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {key.requestCount.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatDate(key.createdAt)}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button size="icon" variant="ghost" />}
-                  >
-                    <EllipsisVerticalIcon className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          render={
-                            <Link
-                              params={{ key: key.id }}
-                              to="/api-keys/$key"
-                            />
-                          }
-                          variant="ghost"
-                        />
-                      }
-                    >
-                      <EyeIcon className="size-4" />
-                      See details
-                    </DropdownMenuItem>
+	return (
+		<div className="overflow-hidden rounded-md border">
+			<Table>
+				<TableHeader className="sticky top-0 z-10 bg-muted">
+					<TableRow>
+						<TableHead>Name</TableHead>
+						<TableHead>Status</TableHead>
+						<TableHead>Requests</TableHead>
+						<TableHead>Created</TableHead>
+						<TableHead>
+							<span className="sr-only">Actions</span>
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{apiKeys.map((key) => (
+						<TableRow key={key.id}>
+							<TableCell className="font-medium">
+								<Link
+									className="hover:underline"
+									params={{ key: key.id }}
+									to="/api-keys/$key"
+								>
+									{key.name}
+								</Link>
+							</TableCell>
+							<TableCell>
+								<span
+									className={cn(
+										"inline-flex items-center rounded-full px-2 py-1 font-medium text-xs",
+										key.enabled
+											? "bg-green-500/10 text-green-700 dark:text-green-400"
+											: "bg-muted text-muted-foreground",
+									)}
+								>
+									{key.enabled ? "Enabled" : "Disabled"}
+								</span>
+							</TableCell>
+							<TableCell className="text-muted-foreground">
+								{key.requestCount.toLocaleString()}
+							</TableCell>
+							<TableCell className="text-muted-foreground">
+								{formatDate(key.createdAt)}
+							</TableCell>
+							<TableCell className="text-right text-muted-foreground">
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={<Button size="icon" variant="ghost" />}
+									>
+										<EllipsisVerticalIcon className="size-4" />
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													render={
+														<Link
+															params={{ key: key.id }}
+															to="/api-keys/$key"
+														/>
+													}
+													variant="ghost"
+												/>
+											}
+										>
+											<EyeIcon className="size-4" />
+											See details
+										</DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      onClick={() => {
-                        toast.promise(
-                          updateMutation.mutateAsync({
-                            id: key.id,
-                            enabled: !key.enabled,
-                          }),
-                          {
-                            loading: "Updating API key...",
-                            success: "API key updated successfully",
-                            error: "Failed to update API key",
-                          }
-                        );
-                      }}
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          variant="ghost"
-                        />
-                      }
-                    >
-                      <BanIcon className="size-4" />
-                      {key.enabled ? "Disable API Key" : "Enable API Key"}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          onClick={() => {
-                            toast.promise(
-                              deleteMutation.mutateAsync({ id: key.id }),
-                              {
-                                loading: "Deleting API key...",
-                                success: "API key deleted successfully",
-                                error: "Failed to delete API key",
-                              }
-                            );
-                          }}
-                          variant="destructive"
-                        />
-                      }
-                    >
-                      <TrashIcon className="size-4" />
-                      Revoke API Key
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-          {apiKeys.length === 0 ? (
-            <TableRow>
-              <TableCell className="text-center" colSpan={5}>
-                No API keys found
-              </TableCell>
-            </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
-    </div>
-  );
+										<DropdownMenuItem
+											onClick={() => {
+												toast.promise(
+													updateMutation.mutateAsync({
+														id: key.id,
+														enabled: !key.enabled,
+													}),
+													{
+														loading: "Updating API key...",
+														success: "API key updated successfully",
+														error: "Failed to update API key",
+													},
+												);
+											}}
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													variant="ghost"
+												/>
+											}
+										>
+											<BanIcon className="size-4" />
+											{key.enabled ? "Disable API Key" : "Enable API Key"}
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													onClick={() => {
+														toast.promise(
+															deleteMutation.mutateAsync({ id: key.id }),
+															{
+																loading: "Deleting API key...",
+																success: "API key deleted successfully",
+																error: "Failed to delete API key",
+															},
+														);
+													}}
+													variant="destructive"
+												/>
+											}
+										>
+											<TrashIcon className="size-4" />
+											Revoke API Key
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</TableCell>
+						</TableRow>
+					))}
+					{apiKeys.length === 0 ? (
+						<TableRow>
+							<TableCell className="text-center" colSpan={5}>
+								No API keys found
+							</TableCell>
+						</TableRow>
+					) : null}
+				</TableBody>
+			</Table>
+		</div>
+	);
 }
 
 export { CreateApiKey } from "./create";

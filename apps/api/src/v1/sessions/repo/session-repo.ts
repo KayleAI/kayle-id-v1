@@ -1,265 +1,265 @@
 import { db } from "@kayle-id/database/drizzle";
 import {
-  events,
-  verification_attempts,
-  verification_sessions,
+	events,
+	verification_attempts,
+	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { and, asc, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
-  createWebhookDeliveriesForVerificationSessionCancelled,
-  createWebhookDeliveriesForVerificationSessionExpired,
+	createWebhookDeliveriesForVerificationSessionCancelled,
+	createWebhookDeliveriesForVerificationSessionExpired,
 } from "@/v1/webhooks/deliveries/service";
 
 export { getVerificationSessionAnalyticsOverview } from "./session-analytics-repo";
 
 export function listVerificationSessions({
-  organizationId,
-  environment,
-  status,
-  createdFrom,
-  createdTo,
-  startingAfter,
-  limit,
+	organizationId,
+	environment,
+	status,
+	createdFrom,
+	createdTo,
+	startingAfter,
+	limit,
 }: {
-  organizationId: string;
-  environment: "live" | "test" | "either";
-  status?: "created" | "in_progress" | "completed" | "expired" | "cancelled";
-  createdFrom?: string;
-  createdTo?: string;
-  startingAfter?: string;
-  limit: number;
+	organizationId: string;
+	environment: "live" | "test" | "either";
+	status?: "created" | "in_progress" | "completed" | "expired" | "cancelled";
+	createdFrom?: string;
+	createdTo?: string;
+	startingAfter?: string;
+	limit: number;
 }) {
-  const where = and(
-    eq(verification_sessions.organizationId, organizationId),
-    ...(environment !== "either"
-      ? [eq(verification_sessions.environment, environment)]
-      : []),
-    ...(status ? [eq(verification_sessions.status, status)] : []),
-    ...(createdFrom
-      ? [gte(verification_sessions.createdAt, new Date(createdFrom))]
-      : []),
-    ...(createdTo
-      ? [lte(verification_sessions.createdAt, new Date(createdTo))]
-      : []),
-    ...(startingAfter ? [gt(verification_sessions.id, startingAfter)] : [])
-  );
+	const where = and(
+		eq(verification_sessions.organizationId, organizationId),
+		...(environment !== "either"
+			? [eq(verification_sessions.environment, environment)]
+			: []),
+		...(status ? [eq(verification_sessions.status, status)] : []),
+		...(createdFrom
+			? [gte(verification_sessions.createdAt, new Date(createdFrom))]
+			: []),
+		...(createdTo
+			? [lte(verification_sessions.createdAt, new Date(createdTo))]
+			: []),
+		...(startingAfter ? [gt(verification_sessions.id, startingAfter)] : []),
+	);
 
-  return db
-    .select()
-    .from(verification_sessions)
-    .where(where)
-    .orderBy(verification_sessions.id)
-    .limit(limit + 1);
+	return db
+		.select()
+		.from(verification_sessions)
+		.where(where)
+		.orderBy(verification_sessions.id)
+		.limit(limit + 1);
 }
 
 export async function getVerificationSessionById({
-  environment,
-  id,
-  organizationId,
+	environment,
+	id,
+	organizationId,
 }: {
-  environment: "live" | "test";
-  id: string;
-  organizationId: string;
+	environment: "live" | "test";
+	id: string;
+	organizationId: string;
 }) {
-  const [row] = await db
-    .select()
-    .from(verification_sessions)
-    .where(
-      and(
-        eq(verification_sessions.id, id),
-        eq(verification_sessions.organizationId, organizationId),
-        eq(verification_sessions.environment, environment)
-      )
-    )
-    .limit(1);
+	const [row] = await db
+		.select()
+		.from(verification_sessions)
+		.where(
+			and(
+				eq(verification_sessions.id, id),
+				eq(verification_sessions.organizationId, organizationId),
+				eq(verification_sessions.environment, environment),
+			),
+		)
+		.limit(1);
 
-  return row;
+	return row;
 }
 
 export function getAttemptsBySessionId(sessionId: string) {
-  return db
-    .select()
-    .from(verification_attempts)
-    .where(eq(verification_attempts.verificationSessionId, sessionId));
+	return db
+		.select()
+		.from(verification_attempts)
+		.where(eq(verification_attempts.verificationSessionId, sessionId));
 }
 
 export function getAttemptsBySessionIds(sessionIds: string[]) {
-  if (sessionIds.length === 0) {
-    return [];
-  }
+	if (sessionIds.length === 0) {
+		return [];
+	}
 
-  return db
-    .select()
-    .from(verification_attempts)
-    .where(inArray(verification_attempts.verificationSessionId, sessionIds));
+	return db
+		.select()
+		.from(verification_attempts)
+		.where(inArray(verification_attempts.verificationSessionId, sessionIds));
 }
 
 export function createVerificationSession({
-  id,
-  organizationId,
-  environment,
-  redirectUrl,
-  shareFields,
-  contractVersion,
+	id,
+	organizationId,
+	environment,
+	redirectUrl,
+	shareFields,
+	contractVersion,
 }: {
-  id: string;
-  organizationId: string;
-  environment: "live" | "test";
-  redirectUrl: string | null;
-  shareFields: ShareFields;
-  contractVersion: number;
+	id: string;
+	organizationId: string;
+	environment: "live" | "test";
+	redirectUrl: string | null;
+	shareFields: ShareFields;
+	contractVersion: number;
 }) {
-  return db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(verification_sessions)
-      .values({
-        id,
-        organizationId,
-        environment,
-        status: "created",
-        redirectUrl,
-        shareFields,
-        contractVersion,
-      })
-      .returning();
+	return db.transaction(async (tx) => {
+		const [created] = await tx
+			.insert(verification_sessions)
+			.values({
+				id,
+				organizationId,
+				environment,
+				status: "created",
+				redirectUrl,
+				shareFields,
+				contractVersion,
+			})
+			.returning();
 
-    return created;
-  });
+		return created;
+	});
 }
 
 export async function cancelVerificationSession({
-  row,
-  organizationId,
+	row,
+	organizationId,
 }: {
-  row: typeof verification_sessions.$inferSelect;
-  organizationId: string;
+	row: typeof verification_sessions.$inferSelect;
+	organizationId: string;
 }) {
-  const now = new Date();
+	const now = new Date();
 
-  const result = await db.transaction(async (tx) => {
-    const sessionCancelledEventId = generateId({
-      type: "evt",
-      environment: row.environment,
-    });
+	const result = await db.transaction(async (tx) => {
+		const sessionCancelledEventId = generateId({
+			type: "evt",
+			environment: row.environment,
+		});
 
-    await tx
-      .update(verification_sessions)
-      .set({
-        status: "cancelled",
-        completedAt: now,
-      })
-      .where(eq(verification_sessions.id, row.id));
+		await tx
+			.update(verification_sessions)
+			.set({
+				status: "cancelled",
+				completedAt: now,
+			})
+			.where(eq(verification_sessions.id, row.id));
 
-    await tx
-      .update(verification_attempts)
-      .set({
-        status: "failed",
-        failureCode: "session_cancelled",
-        completedAt: now,
-      })
-      .where(
-        and(
-          eq(verification_attempts.verificationSessionId, row.id),
-          eq(verification_attempts.status, "in_progress")
-        )
-      );
+		await tx
+			.update(verification_attempts)
+			.set({
+				status: "failed",
+				failureCode: "session_cancelled",
+				completedAt: now,
+			})
+			.where(
+				and(
+					eq(verification_attempts.verificationSessionId, row.id),
+					eq(verification_attempts.status, "in_progress"),
+				),
+			);
 
-    await tx.insert(events).values({
-      id: sessionCancelledEventId,
-      organizationId,
-      environment: row.environment,
-      type: "verification.session.cancelled",
-      triggerId: row.id,
-      triggerType: "verification_session",
-    });
+		await tx.insert(events).values({
+			id: sessionCancelledEventId,
+			organizationId,
+			environment: row.environment,
+			type: "verification.session.cancelled",
+			triggerId: row.id,
+			triggerType: "verification_session",
+		});
 
-    return {
-      sessionCancelledEventId,
-    };
-  });
+		return {
+			sessionCancelledEventId,
+		};
+	});
 
-  await createWebhookDeliveriesForVerificationSessionCancelled({
-    contractVersion: row.contractVersion,
-    environment: row.environment,
-    eventId: result.sessionCancelledEventId,
-    organizationId,
-    sessionId: row.id,
-  });
+	await createWebhookDeliveriesForVerificationSessionCancelled({
+		contractVersion: row.contractVersion,
+		environment: row.environment,
+		eventId: result.sessionCancelledEventId,
+		organizationId,
+		sessionId: row.id,
+	});
 }
 
 export async function expireVerificationSessionIfNeeded({
-  now = new Date(),
-  row,
+	now = new Date(),
+	row,
 }: {
-  now?: Date;
-  row: typeof verification_sessions.$inferSelect;
+	now?: Date;
+	row: typeof verification_sessions.$inferSelect;
 }) {
-  if (
-    row.status === "expired" ||
-    row.status === "completed" ||
-    row.status === "cancelled" ||
-    row.expiresAt.getTime() > now.getTime()
-  ) {
-    return row;
-  }
+	if (
+		row.status === "expired" ||
+		row.status === "completed" ||
+		row.status === "cancelled" ||
+		row.expiresAt.getTime() > now.getTime()
+	) {
+		return row;
+	}
 
-  const result = await db.transaction(async (tx) => {
-    const sessionExpiredEventId = generateId({
-      type: "evt",
-      environment: row.environment,
-    });
+	const result = await db.transaction(async (tx) => {
+		const sessionExpiredEventId = generateId({
+			type: "evt",
+			environment: row.environment,
+		});
 
-    await tx
-      .update(verification_sessions)
-      .set({
-        status: "expired",
-        completedAt: row.completedAt ?? now,
-      })
-      .where(eq(verification_sessions.id, row.id));
+		await tx
+			.update(verification_sessions)
+			.set({
+				status: "expired",
+				completedAt: row.completedAt ?? now,
+			})
+			.where(eq(verification_sessions.id, row.id));
 
-    await tx
-      .update(verification_attempts)
-      .set({
-        status: "failed",
-        failureCode: "session_expired",
-        completedAt: now,
-      })
-      .where(
-        and(
-          eq(verification_attempts.verificationSessionId, row.id),
-          eq(verification_attempts.status, "in_progress")
-        )
-      );
+		await tx
+			.update(verification_attempts)
+			.set({
+				status: "failed",
+				failureCode: "session_expired",
+				completedAt: now,
+			})
+			.where(
+				and(
+					eq(verification_attempts.verificationSessionId, row.id),
+					eq(verification_attempts.status, "in_progress"),
+				),
+			);
 
-    await tx.insert(events).values({
-      id: sessionExpiredEventId,
-      organizationId: row.organizationId,
-      environment: row.environment,
-      type: "verification.session.expired",
-      triggerId: row.id,
-      triggerType: "verification_session",
-    });
+		await tx.insert(events).values({
+			id: sessionExpiredEventId,
+			organizationId: row.organizationId,
+			environment: row.environment,
+			type: "verification.session.expired",
+			triggerId: row.id,
+			triggerType: "verification_session",
+		});
 
-    return {
-      sessionExpiredEventId,
-    };
-  });
+		return {
+			sessionExpiredEventId,
+		};
+	});
 
-  await createWebhookDeliveriesForVerificationSessionExpired({
-    contractVersion: row.contractVersion,
-    environment: row.environment,
-    eventId: result.sessionExpiredEventId,
-    organizationId: row.organizationId,
-    sessionId: row.id,
-  });
+	await createWebhookDeliveriesForVerificationSessionExpired({
+		contractVersion: row.contractVersion,
+		environment: row.environment,
+		eventId: result.sessionExpiredEventId,
+		organizationId: row.organizationId,
+		sessionId: row.id,
+	});
 
-  return {
-    ...row,
-    status: "expired" as const,
-    completedAt: row.completedAt ?? now,
-  };
+	return {
+		...row,
+		status: "expired" as const,
+		completedAt: row.completedAt ?? now,
+	};
 }
 
 const EXPIRABLE_SESSION_STATUSES = ["created", "in_progress"] as const;
@@ -267,45 +267,45 @@ const EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE = 100;
 const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
 
 export async function normalizeExpiredVerificationSessions({
-  batchSize = EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE,
-  maxBatches = EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES,
-  now = new Date(),
+	batchSize = EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE,
+	maxBatches = EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES,
+	now = new Date(),
 }: {
-  batchSize?: number;
-  maxBatches?: number;
-  now?: Date;
+	batchSize?: number;
+	maxBatches?: number;
+	now?: Date;
 } = {}): Promise<number> {
-  let processed = 0;
+	let processed = 0;
 
-  for (let batch = 0; batch < maxBatches; batch += 1) {
-    const rows = await db
-      .select()
-      .from(verification_sessions)
-      .where(
-        and(
-          inArray(verification_sessions.status, EXPIRABLE_SESSION_STATUSES),
-          lte(verification_sessions.expiresAt, now)
-        )
-      )
-      .orderBy(asc(verification_sessions.expiresAt))
-      .limit(batchSize);
+	for (let batch = 0; batch < maxBatches; batch += 1) {
+		const rows = await db
+			.select()
+			.from(verification_sessions)
+			.where(
+				and(
+					inArray(verification_sessions.status, EXPIRABLE_SESSION_STATUSES),
+					lte(verification_sessions.expiresAt, now),
+				),
+			)
+			.orderBy(asc(verification_sessions.expiresAt))
+			.limit(batchSize);
 
-    if (rows.length === 0) {
-      break;
-    }
+		if (rows.length === 0) {
+			break;
+		}
 
-    for (const row of rows) {
-      await expireVerificationSessionIfNeeded({
-        now,
-        row,
-      });
-      processed += 1;
-    }
+		for (const row of rows) {
+			await expireVerificationSessionIfNeeded({
+				now,
+				row,
+			});
+			processed += 1;
+		}
 
-    if (rows.length < batchSize) {
-      break;
-    }
-  }
+		if (rows.length < batchSize) {
+			break;
+		}
+	}
 
-  return processed;
+	return processed;
 }

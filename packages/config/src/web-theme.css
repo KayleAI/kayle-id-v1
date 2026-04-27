@@ -32,16 +32,16 @@
 
   body {
     min-height: 100dvh;
-    background-color: var(--background);
     font-feature-settings:
       "cv06" 1,
       "cv10" 1,
       "cv11" 1;
+    background-color: var(--background);
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background: oklch(0.9 0.08 154.8);
     color: var(--foreground);
+    background: oklch(0.9 0.08 154.8);
   }
 }

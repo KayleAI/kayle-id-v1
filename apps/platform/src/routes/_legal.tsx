@@ -3,17 +3,17 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 
 export const Route = createFileRoute("/_legal")({
-  component: MarketingLayout,
+	component: MarketingLayout,
 });
 
 function MarketingLayout() {
-  return (
-    <div>
-      <Header />
-      <main className="min-h-[calc(100vh)] pt-16">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
-  );
+	return (
+		<div>
+			<Header />
+			<main className="min-h-[calc(100vh)] pt-16">
+				<Outlet />
+			</main>
+			<Footer />
+		</div>
+	);
 }

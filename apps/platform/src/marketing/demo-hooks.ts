@@ -1,15 +1,15 @@
 import {
-  type Dispatch,
-  type SetStateAction,
-  useEffect,
-  useMemo,
-  useRef,
+	type Dispatch,
+	type SetStateAction,
+	useEffect,
+	useMemo,
+	useRef,
 } from "react";
 import type { DemoRunView } from "@/demo/types";
 import {
-  getDemoWebhookHistory,
-  getDemoWebhookReceiptId,
-  getDemoWebhookReplayReceiptIds,
+	getDemoWebhookHistory,
+	getDemoWebhookReceiptId,
+	getDemoWebhookReplayReceiptIds,
 } from "@/demo/webhook-history";
 import { getDemoRun, processWebhookReceipt } from "@/marketing/demo-api";
 import type { ProcessedWebhookMap } from "@/marketing/demo-attempts";
@@ -19,241 +19,238 @@ const POLL_INTERVAL_MS = 2000;
 export type DemoStepId = "step-1" | "step-2" | "step-3";
 
 export function getDemoStepSectionId(stepId: DemoStepId): string {
-  return `demo-${stepId}`;
+	return `demo-${stepId}`;
 }
 
 export function useDemoRunInitialization({
-  handleGenerateRun,
-  hasInitializedRun,
-  setHasInitializedRun,
+	handleGenerateRun,
+	hasInitializedRun,
+	setHasInitializedRun,
 }: {
-  handleGenerateRun: () => void;
-  hasInitializedRun: boolean;
-  setHasInitializedRun: (value: boolean) => void;
+	handleGenerateRun: () => void;
+	hasInitializedRun: boolean;
+	setHasInitializedRun: (value: boolean) => void;
 }) {
-  useEffect(() => {
-    if (hasInitializedRun) {
-      return;
-    }
+	useEffect(() => {
+		if (hasInitializedRun) {
+			return;
+		}
 
-    setHasInitializedRun(true);
-    handleGenerateRun();
-  }, [handleGenerateRun, hasInitializedRun, setHasInitializedRun]);
+		setHasInitializedRun(true);
+		handleGenerateRun();
+	}, [handleGenerateRun, hasInitializedRun, setHasInitializedRun]);
 }
 
 export function useDemoStepProgression({
-  canReviewOutcome,
-  hasSession,
-  onOpenStepChange,
+	canReviewOutcome,
+	hasSession,
+	onOpenStepChange,
 }: {
-  canReviewOutcome: boolean;
-  hasSession: boolean;
-  onOpenStepChange: (step: DemoStepId) => void;
+	canReviewOutcome: boolean;
+	hasSession: boolean;
+	onOpenStepChange: (step: DemoStepId) => void;
 }) {
-  const previousHasSessionRef = useRef(false);
-  const previousCanReviewOutcomeRef = useRef(false);
+	const previousHasSessionRef = useRef(false);
+	const previousCanReviewOutcomeRef = useRef(false);
 
-  useEffect(() => {
-    if (!hasSession) {
-      previousHasSessionRef.current = false;
-      previousCanReviewOutcomeRef.current = false;
-      onOpenStepChange("step-1");
-      return;
-    }
+	useEffect(() => {
+		if (!hasSession) {
+			previousHasSessionRef.current = false;
+			previousCanReviewOutcomeRef.current = false;
+			onOpenStepChange("step-1");
+			return;
+		}
 
-    if (!previousHasSessionRef.current) {
-      onOpenStepChange("step-2");
-    }
+		if (!previousHasSessionRef.current) {
+			onOpenStepChange("step-2");
+		}
 
-    if (canReviewOutcome && !previousCanReviewOutcomeRef.current) {
-      onOpenStepChange("step-3");
-    }
+		if (canReviewOutcome && !previousCanReviewOutcomeRef.current) {
+			onOpenStepChange("step-3");
+		}
 
-    previousHasSessionRef.current = hasSession;
-    previousCanReviewOutcomeRef.current = canReviewOutcome;
-  }, [canReviewOutcome, hasSession, onOpenStepChange]);
+		previousHasSessionRef.current = hasSession;
+		previousCanReviewOutcomeRef.current = canReviewOutcome;
+	}, [canReviewOutcome, hasSession, onOpenStepChange]);
 }
 
 export function useDemoStepScroll({ openStep }: { openStep: DemoStepId }) {
-  const hasMountedRef = useRef(false);
-  const hasProgressedRef = useRef(false);
+	const hasMountedRef = useRef(false);
+	const hasProgressedRef = useRef(false);
 
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
+	useEffect(() => {
+		if (!hasMountedRef.current) {
+			hasMountedRef.current = true;
+			return;
+		}
 
-    if (!hasProgressedRef.current && openStep === "step-1") {
-      return;
-    }
-    if (openStep === "step-2") {
-      hasProgressedRef.current = true;
-    }
+		if (!hasProgressedRef.current && openStep === "step-1") {
+			return;
+		}
+		if (openStep === "step-2") {
+			hasProgressedRef.current = true;
+		}
 
-    const panel = document.getElementById(getDemoStepSectionId(openStep));
-    if (!panel) {
-      return;
-    }
+		const panel = document.getElementById(getDemoStepSectionId(openStep));
+		if (!panel) {
+			return;
+		}
 
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+		const prefersReducedMotion = window.matchMedia(
+			"(prefers-reduced-motion: reduce)",
+		).matches;
 
-    const frameId = window.requestAnimationFrame(() => {
-      panel.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "start",
-      });
-    });
+		const frameId = window.requestAnimationFrame(() => {
+			panel.scrollIntoView({
+				behavior: prefersReducedMotion ? "auto" : "smooth",
+				block: "start",
+			});
+		});
 
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [openStep]);
+		return () => {
+			window.cancelAnimationFrame(frameId);
+		};
+	}, [openStep]);
 }
 
 export function useDemoRunPolling({
-  isRunSettled,
-  onRunError,
-  onRunLoaded,
-  runId,
+	isRunSettled,
+	onRunError,
+	onRunLoaded,
+	runId,
 }: {
-  isRunSettled: boolean;
-  onRunError: (message: string) => void;
-  onRunLoaded: (nextRun: DemoRunView) => void;
-  runId: string | null;
+	isRunSettled: boolean;
+	onRunError: (message: string) => void;
+	onRunLoaded: (nextRun: DemoRunView) => void;
+	runId: string | null;
 }) {
-  useEffect(() => {
-    if (!(runId && !isRunSettled)) {
-      return;
-    }
+	useEffect(() => {
+		if (!(runId && !isRunSettled)) {
+			return;
+		}
 
-    let cancelled = false;
+		let cancelled = false;
 
-    const poll = () => {
-      getDemoRun(runId)
-        .then((nextRun) => {
-          if (!cancelled) {
-            onRunLoaded(nextRun);
-          }
-        })
-        .catch((error: unknown) => {
-          if (!cancelled) {
-            onRunError(
-              error instanceof Error
-                ? error.message
-                : "Failed to refresh demo run."
-            );
-          }
-        });
-    };
+		const poll = () => {
+			getDemoRun(runId)
+				.then((nextRun) => {
+					if (!cancelled) {
+						onRunLoaded(nextRun);
+					}
+				})
+				.catch((error: unknown) => {
+					if (!cancelled) {
+						onRunError(
+							error instanceof Error
+								? error.message
+								: "Failed to refresh demo run.",
+						);
+					}
+				});
+		};
 
-    poll();
-    const interval = window.setInterval(poll, POLL_INTERVAL_MS);
+		poll();
+		const interval = window.setInterval(poll, POLL_INTERVAL_MS);
 
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [isRunSettled, onRunError, onRunLoaded, runId]);
+		return () => {
+			cancelled = true;
+			window.clearInterval(interval);
+		};
+	}, [isRunSettled, onRunError, onRunLoaded, runId]);
 }
 
 export function useProcessedWebhookReceipts({
-  onProcessedWebhooksChange,
-  privateKey,
-  processedWebhooks,
-  run,
-  signingSecret,
+	onProcessedWebhooksChange,
+	privateKey,
+	processedWebhooks,
+	run,
+	signingSecret,
 }: {
-  onProcessedWebhooksChange: Dispatch<SetStateAction<ProcessedWebhookMap>>;
-  privateKey: CryptoKey | null;
-  processedWebhooks: ProcessedWebhookMap;
-  run: DemoRunView | null;
-  signingSecret: string | null;
+	onProcessedWebhooksChange: Dispatch<SetStateAction<ProcessedWebhookMap>>;
+	privateKey: CryptoKey | null;
+	processedWebhooks: ProcessedWebhookMap;
+	run: DemoRunView | null;
+	signingSecret: string | null;
 }) {
-  const processedReceiptIdsRef = useRef(new Set<string>());
-  const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
-  const replayReceiptIds = useMemo(
-    () => getDemoWebhookReplayReceiptIds(webhookHistory),
-    [webhookHistory]
-  );
+	const processedReceiptIdsRef = useRef(new Set<string>());
+	const webhookHistory = useMemo(() => getDemoWebhookHistory(run), [run]);
+	const replayReceiptIds = useMemo(
+		() => getDemoWebhookReplayReceiptIds(webhookHistory),
+		[webhookHistory],
+	);
 
-  useEffect(() => {
-    processedReceiptIdsRef.current = new Set(Object.keys(processedWebhooks));
-  }, [processedWebhooks]);
+	useEffect(() => {
+		processedReceiptIdsRef.current = new Set(Object.keys(processedWebhooks));
+	}, [processedWebhooks]);
 
-  useEffect(() => {
-    if (!(privateKey && signingSecret)) {
-      return;
-    }
+	useEffect(() => {
+		if (!(privateKey && signingSecret)) {
+			return;
+		}
 
-    const unprocessedWebhooks = webhookHistory.filter((webhook) => {
-      return !processedReceiptIdsRef.current.has(
-        getDemoWebhookReceiptId(webhook)
-      );
-    });
+		const unprocessedWebhooks = webhookHistory.filter(
+			(webhook) =>
+				!processedReceiptIdsRef.current.has(getDemoWebhookReceiptId(webhook)),
+		);
 
-    if (unprocessedWebhooks.length === 0) {
-      return;
-    }
+		if (unprocessedWebhooks.length === 0) {
+			return;
+		}
 
-    let cancelled = false;
+		let cancelled = false;
 
-    for (const webhook of unprocessedWebhooks) {
-      processedReceiptIdsRef.current.add(getDemoWebhookReceiptId(webhook));
-    }
+		for (const webhook of unprocessedWebhooks) {
+			processedReceiptIdsRef.current.add(getDemoWebhookReceiptId(webhook));
+		}
 
-    onProcessedWebhooksChange((current) => {
-      const nextState = { ...current };
+		onProcessedWebhooksChange((current) => {
+			const nextState = { ...current };
 
-      for (const webhook of unprocessedWebhooks) {
-        nextState[getDemoWebhookReceiptId(webhook)] = {
-          decryptedPayload: null,
-          error: null,
-          status: "verified",
-        };
-      }
+			for (const webhook of unprocessedWebhooks) {
+				nextState[getDemoWebhookReceiptId(webhook)] = {
+					decryptedPayload: null,
+					error: null,
+					status: "verified",
+				};
+			}
 
-      return nextState;
-    });
+			return nextState;
+		});
 
-    Promise.all(
-      unprocessedWebhooks.map(async (webhook) => {
-        return {
-          receiptId: getDemoWebhookReceiptId(webhook),
-          state: await processWebhookReceipt({
-            isReplay: replayReceiptIds.has(getDemoWebhookReceiptId(webhook)),
-            privateKey,
-            secret: signingSecret,
-            webhook,
-          }),
-        };
-      })
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
+		Promise.all(
+			unprocessedWebhooks.map(async (webhook) => ({
+				receiptId: getDemoWebhookReceiptId(webhook),
+				state: await processWebhookReceipt({
+					isReplay: replayReceiptIds.has(getDemoWebhookReceiptId(webhook)),
+					privateKey,
+					secret: signingSecret,
+					webhook,
+				}),
+			})),
+		).then((results) => {
+			if (cancelled) {
+				return;
+			}
 
-      onProcessedWebhooksChange((current) => {
-        const nextState = { ...current };
+			onProcessedWebhooksChange((current) => {
+				const nextState = { ...current };
 
-        for (const result of results) {
-          nextState[result.receiptId] = result.state;
-        }
+				for (const result of results) {
+					nextState[result.receiptId] = result.state;
+				}
 
-        return nextState;
-      });
-    });
+				return nextState;
+			});
+		});
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    onProcessedWebhooksChange,
-    privateKey,
-    signingSecret,
-    replayReceiptIds,
-    webhookHistory,
-  ]);
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		onProcessedWebhooksChange,
+		privateKey,
+		signingSecret,
+		replayReceiptIds,
+		webhookHistory,
+	]);
 }

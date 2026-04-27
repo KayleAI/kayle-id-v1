@@ -56,7 +56,8 @@ export const ERROR_MESSAGES = {
 
   ATTEMPT_CONNECTION_ACTIVE: {
     title: "Already open",
-    description: "This session is active elsewhere. Continue there or try again later.",
+    description:
+      "This session is active elsewhere. Continue there or try again later.",
   },
 
   PHASE_OUT_OF_ORDER: {
@@ -96,7 +97,8 @@ export const ERROR_MESSAGES = {
 
   SHARE_SELECTION_INVALID_FIELD: {
     title: "Invalid selection",
-    description: "Some selected details aren’t available. Review and try again.",
+    description:
+      "Some selected details aren’t available. Review and try again.",
   },
 
   SHARE_SELECTION_MISSING_REQUIRED: {
@@ -106,7 +108,8 @@ export const ERROR_MESSAGES = {
 
   passport_authenticity_failed: {
     title: "Passport check failed",
-    description: "We couldn’t verify your passport. Try again or use a different one.",
+    description:
+      "We couldn’t verify your passport. Try again or use a different one.",
   },
 
   selfie_face_mismatch: {

@@ -111,7 +111,7 @@ vi.mock("@kayleai/ui/button", () => ({
   },
 }));
 
-vi.mock("@/components/info", () => ({
+vi.mock("@kayle-id/ui/info-card", () => ({
   default: ({
     buttons,
     children,

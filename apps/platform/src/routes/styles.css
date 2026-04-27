@@ -2,3 +2,4 @@
 @import "../../../../packages/config/src/web-theme.css";
 
 @source "../../node_modules/@kayleai/ui/dist";
+@source "../../../../packages/ui/src";

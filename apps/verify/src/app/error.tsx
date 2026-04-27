@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
-import InfoCard from "@/components/info";
+import InfoCard from "@kayle-id/ui/info-card";
 import { useSession } from "./session-provider";
 
 export function SessionError() {

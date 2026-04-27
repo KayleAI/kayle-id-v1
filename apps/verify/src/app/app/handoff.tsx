@@ -16,7 +16,7 @@ import {
   shouldCloseBrowserOnly,
   shouldShowHandoff,
 } from "@/app/app/handoff-content";
-import InfoCard from "@/components/info";
+import InfoCard from "@kayle-id/ui/info-card";
 import { HandoffState } from "@/components/handoff-state";
 import type {
   HandoffPayload,

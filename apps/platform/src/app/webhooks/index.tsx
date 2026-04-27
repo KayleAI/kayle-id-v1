@@ -68,7 +68,7 @@ import {
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppHeading } from "@/components/app-heading";
-import InfoCard from "@/components/info";
+import InfoCard from "@kayle-id/ui/info-card";
 import { Loading } from "@/components/loading";
 import { formatDate } from "@/utils/format-date";
 import { useCopyToClipboard } from "@/utils/use-copy";

@@ -2,7 +2,7 @@ import type { ApiKey } from "@kayle-id/auth/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ApiKeyComponent } from "@/app/api-keys/key";
-import InfoCard from "@/components/info";
+import InfoCard from "@kayle-id/ui/info-card";
 import { Loading } from "@/components/loading";
 
 type ApiKeysResponse = {

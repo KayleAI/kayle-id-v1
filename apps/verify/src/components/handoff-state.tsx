@@ -1,8 +1,8 @@
 import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import { Button } from "@kayleai/ui/button";
 import { QRCodeSVG } from "qrcode.react";
-import OctagonWarning from "@/icons/octagon-warning";
-import Spinner from "@/icons/spinner";
+import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
+import Spinner from "@kayle-id/ui/icons/spinner";
 
 type HandoffStateProps = {
   handoffError: string | null;

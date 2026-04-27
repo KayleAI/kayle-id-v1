@@ -2,9 +2,58 @@ import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
 import { cn } from "@kayleai/ui/utils/cn";
 import { Link } from "@tanstack/react-router";
-import OctagonCheck from "@/icons/octagon-check";
-import OctagonInfo from "@/icons/octagon-info";
-import OctagonAlert from "@/icons/octagon-warning";
+import type { ReactNode } from "react";
+import OctagonCheck from "./icons/octagon-check.tsx";
+import OctagonInfo from "./icons/octagon-info.tsx";
+import OctagonAlert from "./icons/octagon-warning.tsx";
+
+type ButtonAction = {
+  label: string;
+} & ({ href: string; onClick?: never } | { href?: never; onClick: () => void }) &
+  ({ disabled?: never } | { disabled: boolean });
+
+type InfoCardProps = {
+  colour: "red" | "blue" | "emerald";
+  header: {
+    title: string;
+    description: string;
+  };
+  message: {
+    title: string;
+    description: string;
+    list?: string[];
+  };
+  buttons?: {
+    primary?: ButtonAction;
+    secondary?: ButtonAction;
+  };
+  footer?: boolean;
+  children?: ReactNode;
+};
+
+const ICONS = {
+  red: <OctagonAlert className="size-5 text-red-400" />,
+  blue: <OctagonInfo className="size-5 text-blue-800" />,
+  emerald: <OctagonCheck className="size-5 text-emerald-800" />,
+};
+
+const COLOUR_CLASSES = {
+  red: {
+    container: "bg-red-50 border border-red-200",
+    title: "text-red-800",
+    description: "text-red-700",
+  },
+  blue: {
+    container: "bg-blue-50 border border-blue-200",
+    title: "text-blue-800",
+    description: "text-blue-700",
+  },
+  emerald: {
+    container: "bg-emerald-50 border border-emerald-200",
+    title: "text-emerald-800",
+    description: "text-emerald-700",
+  },
+};
 
 export default function InfoCard({
   colour = "red",
@@ -28,58 +77,9 @@ export default function InfoCard({
     },
   },
   footer = true,
-}: {
-  colour: "red" | "blue" | "emerald";
-  header: {
-    title: string;
-    description: string;
-  };
-  message: {
-    title: string;
-    description: string;
-    list?: string[];
-  };
-  buttons?: {
-    primary?: {
-      label: string;
-    } & (
-      | { href: string; onClick?: never }
-      | { href?: never; onClick: () => void }
-    ) &
-      ({ disabled?: never } | { disabled: boolean });
-    secondary?: {
-      label: string;
-    } & (
-      | { href: string; onClick?: never }
-      | { href?: never; onClick: () => void }
-    ) &
-      ({ disabled?: never } | { disabled: boolean });
-  };
-  footer?: boolean;
-}) {
-  const icon = {
-    red: <OctagonAlert className="size-5 text-red-400" />,
-    blue: <OctagonInfo className="size-5 text-blue-800" />,
-    emerald: <OctagonCheck className="size-5 text-emerald-800" />,
-  };
-
-  const classes = {
-    red: {
-      container: "bg-red-50 border border-red-200",
-      title: "text-red-800",
-      description: "text-red-700",
-    },
-    blue: {
-      container: "bg-blue-50 border border-blue-200",
-      title: "text-blue-800",
-      description: "text-blue-700",
-    },
-    emerald: {
-      container: "bg-emerald-50 border border-emerald-200",
-      title: "text-emerald-800",
-      description: "text-emerald-700",
-    },
-  };
+  children,
+}: InfoCardProps) {
+  const hasButtons = Boolean(buttons?.primary || buttons?.secondary);
 
   return (
     <div className="relative flex w-full flex-col items-center justify-center">
@@ -96,14 +96,24 @@ export default function InfoCard({
         </div>
 
         {/* Message */}
-        <div className={cn("rounded-lg p-4", classes[colour].container)}>
+        <div className={cn("rounded-lg p-4", COLOUR_CLASSES[colour].container)}>
           <div className="flex items-start">
-            <div className="mt-0.5 shrink-0">{icon[colour]}</div>
+            <div className="mt-0.5 shrink-0">{ICONS[colour]}</div>
             <div className="ml-3">
-              <h3 className={cn("font-medium text-sm", classes[colour].title)}>
+              <h3
+                className={cn(
+                  "font-medium text-sm",
+                  COLOUR_CLASSES[colour].title
+                )}
+              >
                 {message.title}
               </h3>
-              <div className={cn("text-sm", classes[colour].description)}>
+              <div
+                className={cn(
+                  "text-sm",
+                  COLOUR_CLASSES[colour].description
+                )}
+              >
                 <p>{message.description}</p>
                 {message.list && (
                   <ul className="mt-1 list-outside list-none space-y-1">
@@ -117,11 +127,15 @@ export default function InfoCard({
           </div>
         </div>
 
+        {children}
+
         {/* Action Buttons */}
-        <div className="flex flex-col space-y-4">
-          <PrimaryButton button={buttons?.primary} />
-          <SecondaryButton button={buttons?.secondary} />
-        </div>
+        {hasButtons ? (
+          <div className="flex flex-col space-y-4">
+            <PrimaryButton button={buttons?.primary} />
+            <SecondaryButton button={buttons?.secondary} />
+          </div>
+        ) : null}
 
         {/* Footer Links */}
         {footer ? (
@@ -159,16 +173,16 @@ export default function InfoCard({
   );
 }
 
-function PrimaryButton({
-  button,
-}: {
+type ButtonProps = {
   button?: {
     label: string;
     href?: string;
     onClick?: () => void;
     disabled?: boolean;
   };
-}) {
+};
+
+function PrimaryButton({ button }: ButtonProps) {
   if (!button) {
     return null;
   }
@@ -188,16 +202,7 @@ function PrimaryButton({
   );
 }
 
-function SecondaryButton({
-  button,
-}: {
-  button?: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    disabled?: boolean;
-  };
-}) {
+function SecondaryButton({ button }: ButtonProps) {
   if (!button) {
     return null;
   }

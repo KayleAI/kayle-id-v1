@@ -5,7 +5,7 @@ import {
 	OctetString,
 	Sequence,
 } from "asn1js";
-import { hexBytes } from "./pkd-trust";
+import { hexBytes } from "./pkd-trust-utils";
 import {
 	OID_PATTERN,
 	SHA_1_OID,

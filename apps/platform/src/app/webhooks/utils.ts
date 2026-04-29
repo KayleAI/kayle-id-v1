@@ -8,23 +8,26 @@ import {
 	type WebhookEndpoint,
 	type WebhookEvent,
 } from "./api";
+import {
+	EMPTY_ENDPOINT_DELIVERY_STATS,
+	type EndpointDeliveryStats,
+	getDeliveryActivityTimestamp,
+	getEndpointDeliveryStats,
+	getSelectedEndpointDeliveryStats,
+} from "./stats";
+import { type DeliveryTrendPoint, getEndpointDeliveryTrend } from "./trend";
 
 export type WebhooksTab = "endpoints" | "events";
 export type EndpointDetailTab = "overview" | "performance" | "deliveries";
 
-export interface EndpointDeliveryStats {
-	failed: number;
-	inFlight: number;
-	lastAttemptAt: string | null;
-	lastStatusCode: number | null;
-	total: number;
-}
-
-export interface DeliveryTrendPoint {
-	failed: number;
-	label: string;
-	total: number;
-}
+export type { DeliveryTrendPoint, EndpointDeliveryStats };
+export {
+	EMPTY_ENDPOINT_DELIVERY_STATS,
+	getDeliveryActivityTimestamp,
+	getEndpointDeliveryStats,
+	getEndpointDeliveryTrend,
+	getSelectedEndpointDeliveryStats,
+};
 
 export interface CreateEndpointInitialPublicKey {
 	jwk: JsonWebKey;
@@ -56,14 +59,6 @@ export const TAB_OPTIONS: Array<{
 		label: "Events",
 	},
 ];
-
-export const EMPTY_ENDPOINT_DELIVERY_STATS: EndpointDeliveryStats = {
-	failed: 0,
-	inFlight: 0,
-	lastAttemptAt: null,
-	lastStatusCode: null,
-	total: 0,
-};
 
 const WWW_PREFIX_REGEX = /^www\./;
 
@@ -126,70 +121,6 @@ export function getEndpointPageSubtitle(
 	return endpoint.url;
 }
 
-export function getDeliveryActivityTimestamp(
-	delivery: WebhookDelivery,
-): string {
-	return delivery.last_attempt_at ?? delivery.updated_at ?? delivery.created_at;
-}
-
-export function getEndpointDeliveryStats(
-	deliveries: WebhookDelivery[],
-): Record<string, EndpointDeliveryStats> {
-	const statsByEndpoint = new Map<string, EndpointDeliveryStats>();
-	const latestActivityByEndpoint = new Map<string, string>();
-
-	for (const delivery of deliveries) {
-		const current =
-			statsByEndpoint.get(delivery.webhook_endpoint_id) ??
-			EMPTY_ENDPOINT_DELIVERY_STATS;
-		const currentActivityTime = latestActivityByEndpoint.get(
-			delivery.webhook_endpoint_id,
-		);
-		const nextActivityTime = getDeliveryActivityTimestamp(delivery);
-		const useLatestDetails =
-			!currentActivityTime || currentActivityTime <= nextActivityTime;
-
-		statsByEndpoint.set(delivery.webhook_endpoint_id, {
-			failed: current.failed + (delivery.status === "failed" ? 1 : 0),
-			inFlight:
-				current.inFlight +
-				(delivery.status === "pending" || delivery.status === "delivering"
-					? 1
-					: 0),
-			lastAttemptAt: useLatestDetails
-				? delivery.last_attempt_at
-				: current.lastAttemptAt,
-			lastStatusCode: useLatestDetails
-				? delivery.last_status_code
-				: current.lastStatusCode,
-			total: current.total + 1,
-		});
-
-		if (useLatestDetails) {
-			latestActivityByEndpoint.set(
-				delivery.webhook_endpoint_id,
-				nextActivityTime,
-			);
-		}
-	}
-
-	return Object.fromEntries(statsByEndpoint);
-}
-
-export function getSelectedEndpointDeliveryStats(
-	deliveries: WebhookDelivery[],
-	endpoint: WebhookEndpoint | null,
-): EndpointDeliveryStats {
-	if (!endpoint) {
-		return EMPTY_ENDPOINT_DELIVERY_STATS;
-	}
-
-	return (
-		getEndpointDeliveryStats(deliveries)[endpoint.id] ??
-		EMPTY_ENDPOINT_DELIVERY_STATS
-	);
-}
-
 export function getEndpointsById(
 	endpoints: WebhookEndpoint[],
 ): Record<string, WebhookEndpoint> {
@@ -230,81 +161,6 @@ export function getRecentDeliveriesForEndpoint(
 			),
 		)
 		.slice(0, limit);
-}
-
-function formatDateKey(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-
-	return `${year}-${month}-${day}`;
-}
-
-function getDeliveryTrendAnchorDate(
-	deliveries: WebhookDelivery[],
-	endpointId: string,
-): Date {
-	const endpointDeliveries = deliveries.filter(
-		(delivery) => delivery.webhook_endpoint_id === endpointId,
-	);
-
-	if (endpointDeliveries.length === 0) {
-		return new Date();
-	}
-
-	const latestTimestamp = endpointDeliveries.reduce((latest, delivery) => {
-		const nextTimestamp = Date.parse(getDeliveryActivityTimestamp(delivery));
-		return Number.isNaN(nextTimestamp)
-			? latest
-			: Math.max(latest, nextTimestamp);
-	}, 0);
-
-	return latestTimestamp > 0 ? new Date(latestTimestamp) : new Date();
-}
-
-export function getEndpointDeliveryTrend(
-	deliveries: WebhookDelivery[],
-	endpointId: string,
-	days = 7,
-): DeliveryTrendPoint[] {
-	const anchorDate = getDeliveryTrendAnchorDate(deliveries, endpointId);
-	const points = new Map<string, DeliveryTrendPoint>();
-
-	for (let offset = days - 1; offset >= 0; offset -= 1) {
-		const date = new Date(anchorDate);
-		date.setDate(anchorDate.getDate() - offset);
-
-		const key = formatDateKey(date);
-		points.set(key, {
-			failed: 0,
-			label: date.toLocaleDateString("en-US", {
-				day: "numeric",
-				month: "numeric",
-			}),
-			total: 0,
-		});
-	}
-
-	for (const delivery of deliveries) {
-		if (delivery.webhook_endpoint_id !== endpointId) {
-			continue;
-		}
-
-		const activityDate = new Date(getDeliveryActivityTimestamp(delivery));
-		const point = points.get(formatDateKey(activityDate));
-
-		if (!point) {
-			continue;
-		}
-
-		point.total += 1;
-
-		if (delivery.status === "failed") {
-			point.failed += 1;
-		}
-	}
-
-	return Array.from(points.values());
 }
 
 export function isWebhookEndpointDirty({

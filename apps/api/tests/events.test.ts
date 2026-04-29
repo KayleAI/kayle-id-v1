@@ -6,23 +6,15 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { events as coreEvents } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
-	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { file } from "bun";
 import { eq } from "drizzle-orm";
-import { exportJWK, importSPKI } from "jose";
 import app from "@/index";
-import {
-	createWebhookDeliveriesForVerificationAttemptFailed,
-	createWebhookDeliveriesForVerificationSucceeded,
-} from "@/v1/webhooks/deliveries/service";
-import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
+import { seedWebhookEventWithDelivery } from "./helpers/webhook-fixtures";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -73,94 +65,18 @@ function seedWebhookEvent(): Promise<{
 	return seedWebhookEventWithType("verification.attempt.succeeded");
 }
 
-async function seedWebhookEventWithType(
+function seedWebhookEventWithType(
 	eventType: "verification.attempt.failed" | "verification.attempt.succeeded",
 ): Promise<{
 	deliveryId: string;
 	endpointId: string;
 	eventId: string;
 }> {
-	const publicKeyText = await file(
-		new URL("../../../tests/secrets/rsa_public.pem", import.meta.url),
-	).text();
-	const publicJwk = await exportJWK(
-		await importSPKI(publicKeyText, "RSA-OAEP-256"),
-	);
-	const signingSecretCiphertext = await encryptWebhookSigningSecret({
-		plaintext: "whsec_events_secret",
-		secret: env.AUTH_SECRET,
-	});
-	const endpointId = `whe_live_events_${crypto.randomUUID()}`;
-	const keyId = `whk_live_events_${crypto.randomUUID()}`;
-	const eventId = `evt_live_events_${crypto.randomUUID()}`;
-
-	const [endpoint] = await db
-		.insert(webhook_endpoints)
-		.values({
-			id: endpointId,
-			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "live",
-			signingSecretCiphertext,
-			subscribedEventTypes: [eventType],
-			url: "https://example.com/webhooks/events",
-		})
-		.returning();
-
-	await db.insert(webhook_encryption_keys).values({
-		id: keyId,
-		webhookEndpointId: endpoint.id,
-		keyId: "rsa-key-events",
-		algorithm: "RSA-OAEP-256",
-		keyType: "RSA",
-		jwk: publicJwk,
-	});
-
-	await db.insert(coreEvents).values({
-		id: eventId,
+	return seedWebhookEventWithDelivery({
+		context: "events",
+		eventType,
 		organizationId: TEST_DATA?.organizationId ?? "",
-		environment: "live",
-		type: eventType,
-		triggerId: `va_live_events_${crypto.randomUUID()}`,
-		triggerType: "verification_attempt",
 	});
-
-	const deliveryIds =
-		eventType === "verification.attempt.succeeded"
-			? await createWebhookDeliveriesForVerificationSucceeded({
-					attemptId: `va_live_events_${crypto.randomUUID()}`,
-					environment: "live",
-					eventId,
-					manifest: {
-						claims: {
-							family_name: "DOE",
-						},
-						contractVersion: 1,
-						selectedFieldKeys: ["family_name"],
-						sessionId: `vs_live_events_${crypto.randomUUID()}`,
-					},
-					organizationId: TEST_DATA?.organizationId ?? "",
-				})
-			: await createWebhookDeliveriesForVerificationAttemptFailed({
-					attemptId: `va_live_events_${crypto.randomUUID()}`,
-					contractVersion: 1,
-					environment: "live",
-					eventId,
-					failureCode: "selfie_face_mismatch",
-					organizationId: TEST_DATA?.organizationId ?? "",
-					sessionId: `vs_live_events_${crypto.randomUUID()}`,
-				});
-
-	const [deliveryId] = deliveryIds;
-
-	if (!deliveryId) {
-		throw new Error("expected_webhook_delivery_to_be_created");
-	}
-
-	return {
-		deliveryId,
-		endpointId: endpoint.id,
-		eventId,
-	};
 }
 
 describe("/v1/webhooks/events", () => {

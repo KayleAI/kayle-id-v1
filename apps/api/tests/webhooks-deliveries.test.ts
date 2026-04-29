@@ -6,20 +6,15 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
-	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { file } from "bun";
 import { eq } from "drizzle-orm";
-import { exportJWK, importSPKI } from "jose";
 import app from "@/index";
-import { createWebhookDeliveriesForVerificationSucceeded } from "@/v1/webhooks/deliveries/service";
-import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
+import { seedWebhookEventWithDelivery } from "./helpers/webhook-fixtures";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -47,70 +42,15 @@ afterAll(async () => {
 });
 
 async function seedDelivery(): Promise<string> {
-	const publicKeyText = await file(
-		new URL("../../../tests/secrets/rsa_public.pem", import.meta.url),
-	).text();
-	const publicJwk = await exportJWK(
-		await importSPKI(publicKeyText, "RSA-OAEP-256"),
-	);
-	const signingSecretCiphertext = await encryptWebhookSigningSecret({
-		plaintext: "whsec_delivery_route_secret",
-		secret: env.AUTH_SECRET,
-	});
-
-	const [endpoint] = await db
-		.insert(webhook_endpoints)
-		.values({
-			id: `whe_live_route_${crypto.randomUUID()}`,
-			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "live",
-			signingSecretCiphertext,
-			subscribedEventTypes: ["verification.attempt.succeeded"],
-			url: "https://example.com/webhooks/deliveries",
-		})
-		.returning();
-
-	await db.insert(webhook_encryption_keys).values({
-		id: `whk_live_route_${crypto.randomUUID()}`,
-		webhookEndpointId: endpoint.id,
-		keyId: "rsa-key-route",
-		algorithm: "RSA-OAEP-256",
-		keyType: "RSA",
-		jwk: publicJwk,
-	});
-
-	const [event] = await db
-		.insert(events)
-		.values({
-			id: `evt_live_route_${crypto.randomUUID()}`,
-			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "live",
-			type: "verification.attempt.succeeded",
-			triggerId: `va_live_route_${crypto.randomUUID()}`,
-			triggerType: "verification_attempt",
-		})
-		.returning();
-
-	const [deliveryId] = await createWebhookDeliveriesForVerificationSucceeded({
-		attemptId: `va_live_delivery_${crypto.randomUUID()}`,
-		environment: "live",
-		eventId: event.id,
-		manifest: {
-			claims: {
-				family_name: "DOE",
-			},
-			contractVersion: 1,
-			selectedFieldKeys: ["family_name"],
-			sessionId: `vs_live_delivery_${crypto.randomUUID()}`,
-		},
+	const seeded = await seedWebhookEventWithDelivery({
+		context: "delivery",
+		eventType: "verification.attempt.succeeded",
 		organizationId: TEST_DATA?.organizationId ?? "",
+		signingSecretPlaintext: "whsec_delivery_route_secret",
+		url: "https://example.com/webhooks/deliveries",
 	});
 
-	if (!deliveryId) {
-		throw new Error("expected_delivery_id");
-	}
-
-	return deliveryId;
+	return seeded.deliveryId;
 }
 
 describe("/v1/webhooks/deliveries", () => {

@@ -449,36 +449,44 @@ export function getWebhookEventReplayDisabledReason(
 	return null;
 }
 
-export function getStatusBadgeClass(
-	status: DeliveryStatus | "active" | "disabled" | "inactive",
-): string {
-	if (status === "active" || status === "succeeded") {
-		return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400";
-	}
+const BADGE_PALETTE = {
+	emerald:
+		"border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400",
+	blue: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+	amber:
+		"border-amber-500/20 bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
+	red: "border-red-500/20 bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400",
+	muted: "border-border bg-muted/50 text-muted-foreground",
+} as const;
 
-	if (status === "disabled") {
-		return "border-border bg-muted/50 text-muted-foreground";
-	}
+type BadgeStatus = DeliveryStatus | "active" | "disabled" | "inactive";
 
-	if (status === "pending" || status === "delivering") {
-		return "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400";
-	}
+const STATUS_BADGE_CLASS: Record<BadgeStatus, string> = {
+	succeeded: BADGE_PALETTE.emerald,
+	active: BADGE_PALETTE.emerald,
+	pending: BADGE_PALETTE.blue,
+	delivering: BADGE_PALETTE.blue,
+	failed: BADGE_PALETTE.red,
+	inactive: BADGE_PALETTE.red,
+	disabled: BADGE_PALETTE.muted,
+};
 
-	return "border-red-500/20 bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400";
+export function getStatusBadgeClass(status: BadgeStatus): string {
+	return STATUS_BADGE_CLASS[status];
 }
 
 export function getResponseCodeClass(statusCode: number | null): string {
 	if (statusCode === null) {
-		return "border-border bg-muted/50 text-muted-foreground";
+		return BADGE_PALETTE.muted;
 	}
 
 	if (statusCode < 300) {
-		return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400";
+		return BADGE_PALETTE.emerald;
 	}
 
 	if (statusCode < 500) {
-		return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400";
+		return BADGE_PALETTE.amber;
 	}
 
-	return "border-red-500/20 bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400";
+	return BADGE_PALETTE.red;
 }

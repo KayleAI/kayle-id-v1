@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { file } from "bun";
-import { exportJWK, importSPKI } from "jose";
 import app from "@/index";
+import { loadTestPublicJwk } from "./helpers/webhook-fixtures";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -35,22 +34,10 @@ async function createEndpoint(): Promise<string> {
 	return payload.data.endpoint.id;
 }
 
-async function loadPublicJwk(): Promise<JsonWebKey> {
-	const publicKeyText = await file(
-		new URL("../../../tests/secrets/rsa_public.pem", import.meta.url),
-	).text();
-	const jwk = await exportJWK(await importSPKI(publicKeyText, "RSA-OAEP-256"));
-
-	return {
-		...jwk,
-		kty: jwk.kty ?? "RSA",
-	};
-}
-
 describe("/v1/webhooks/keys", () => {
 	test("creates, lists, deactivates, and reactivates webhook encryption keys", async () => {
 		const endpointId = await createEndpoint();
-		const publicJwk = await loadPublicJwk();
+		const publicJwk = await loadTestPublicJwk();
 
 		const createResponse = await app.request(
 			`/v1/webhooks/endpoints/${endpointId}/keys`,

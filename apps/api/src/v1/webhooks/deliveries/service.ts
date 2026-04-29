@@ -1,3 +1,4 @@
+import { indexBy } from "@kayle-id/config/collections";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
@@ -342,9 +343,7 @@ async function createWebhookDeliveriesForEvent({
 			),
 		);
 
-	const keysByEndpointId = new Map(
-		encryptionKeys.map((key) => [key.webhookEndpointId, key]),
-	);
+	const keysByEndpointId = indexBy(encryptionKeys, "webhookEndpointId");
 	const createdDeliveryIds: string[] = [];
 
 	for (const endpoint of subscribedEndpoints) {

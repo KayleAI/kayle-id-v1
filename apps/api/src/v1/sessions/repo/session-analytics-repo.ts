@@ -1,3 +1,4 @@
+import { indexBy } from "@kayle-id/config/collections";
 import { db } from "@kayle-id/database/drizzle";
 import { sql } from "drizzle-orm";
 import {
@@ -258,7 +259,7 @@ export async function getVerificationSessionAnalyticsOverview({
 		-(SESSION_ANALYTICS_TREND_DAYS - 1),
 	);
 	const trendEndExclusive = addUtcDays(getUtcStartOfDay(now), 1);
-	const trendByDate = new Map(trend.map((point) => [point.date, point]));
+	const trendByDate = indexBy(trend, "date");
 	const analyticsCte = createSessionAnalyticsCte({
 		environment,
 		now,

@@ -53,8 +53,11 @@ export const api_keys = pgTable(
 			.notNull(),
 		enabled: boolean("enabled").default(true).notNull(),
 		requestCount: integer("request_count").default(0).notNull(),
-		permissions: jsonb("permissions").default({}).notNull(),
-		metadata: jsonb("metadata").default({}).notNull(),
+		permissions: jsonb("permissions").$type<string[]>().default([]).notNull(),
+		metadata: jsonb("metadata")
+			.$type<Record<string, boolean | number | string>>()
+			.default({})
+			.notNull(),
 	},
 	(table) => [
 		index("api_keys_org_id_idx").on(table.organizationId),

@@ -10,8 +10,8 @@ function decodeBase64Url(input: string): Uint8Array {
 	const decoded = atob(padded);
 	const bytes = new Uint8Array(decoded.length);
 
-	for (const [index, character] of Array.from(decoded).entries()) {
-		bytes[index] = character.charCodeAt(0);
+	for (let index = 0; index < decoded.length; index += 1) {
+		bytes[index] = decoded.charCodeAt(index);
 	}
 
 	return bytes;
@@ -82,6 +82,33 @@ function parseVerificationTimeMs(
 
 function signaturesMatch(left: string, right: string): boolean {
 	return left === right;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function parseProtectedHeader(value: string): { alg: string; enc: string } {
+	let parsed: unknown;
+
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		throw new Error("demo_jwe_header_invalid");
+	}
+
+	if (
+		!isRecord(parsed) ||
+		typeof parsed.alg !== "string" ||
+		typeof parsed.enc !== "string"
+	) {
+		throw new Error("demo_jwe_header_invalid");
+	}
+
+	return {
+		alg: parsed.alg,
+		enc: parsed.enc,
+	};
 }
 
 async function createHmacHex({
@@ -232,10 +259,7 @@ export async function decryptCompactJwe({
 	const protectedHeaderBytes = decodeBase64Url(protectedHeaderPart);
 	const protectedHeaderAad = TEXT_ENCODER.encode(protectedHeaderPart);
 	const protectedHeaderText = TEXT_DECODER.decode(protectedHeaderBytes);
-	const protectedHeader = JSON.parse(protectedHeaderText) as {
-		alg?: string;
-		enc?: string;
-	};
+	const protectedHeader = parseProtectedHeader(protectedHeaderText);
 
 	if (protectedHeader.alg !== "RSA-OAEP-256") {
 		throw new Error("demo_jwe_alg_unsupported");

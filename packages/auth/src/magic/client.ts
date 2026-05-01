@@ -5,6 +5,22 @@ import type {
 import type { Session, User } from "better-auth/types";
 import type { magic } from ".";
 
+export function createMagicVerifyLinkPath({
+  callbackURL,
+  token,
+}: {
+  callbackURL?: string;
+  token: string;
+}): string {
+  const params = new URLSearchParams({ token });
+
+  if (callbackURL !== undefined) {
+    params.set("callbackURL", callbackURL);
+  }
+
+  return `/magic/verify-link?${params.toString()}`;
+}
+
 export const magicClient = () =>
   ({
     id: "magic",
@@ -33,15 +49,10 @@ export const magicClient = () =>
           },
           options = {}
         ) =>
-          await $fetch(
-            `/magic/verify-link?token=${data.token}&callbackURL=${
-              data.callbackURL ?? ""
-            }`,
-            {
-              method: "GET",
-              ...options,
-            }
-          ),
+          await $fetch(createMagicVerifyLinkPath(data), {
+            method: "GET",
+            ...options,
+          }),
         verifyOTP: async (
           data: {
             email: string;

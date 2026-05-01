@@ -18,13 +18,19 @@ import type { Organization } from "./types";
 const user = {
   modelName: "auth_users",
   deleteUser: {
-    // TODO: implement delete user
+    // Account deletion needs a product data-retention policy before enabling.
+    enabled: false,
   },
 } satisfies BetterAuthOptions["user"];
 
 const magicLinkExpiryInSeconds = 15 * 60;
 const magicLinkExpiryInMinutes = magicLinkExpiryInSeconds / 60;
 const magicOtpSignInPath = "/v1/auth/magic/sign-in";
+const publicAuthBaseURL = new URL("/api/auth", env.PUBLIC_AUTH_URL).toString();
+const publicGoogleCallbackURL = new URL(
+  "/api/auth/callback/google",
+  publicAuthBaseURL
+).toString();
 
 interface MagicOtpPayload {
   email: string;
@@ -107,6 +113,7 @@ const plugins = [
 
 export const auth = betterAuth({
   secret: env.AUTH_SECRET,
+  baseURL: publicAuthBaseURL,
   database: drizzleAdapter(db, {
     provider: "pg",
     usePlural: false,
@@ -169,7 +176,7 @@ export const auth = betterAuth({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
       scope: ["profile", "email", "openid"],
-      redirectURI: `${env.PUBLIC_AUTH_URL}/api/auth/callback/google`,
+      redirectURI: publicGoogleCallbackURL,
     },
   },
   /*...(process.env.NODE_ENV === "production"

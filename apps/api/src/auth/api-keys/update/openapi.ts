@@ -1,5 +1,10 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
+import {
+	ApiKeyIdParam,
+	ApiKeyMutationResponse,
+	ApiKeyUpdateRequest,
+} from "../openapi-schemas";
 
 export const internalUpdateApiKey = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -7,18 +12,11 @@ export const internalUpdateApiKey = createRoute({
 	method: "patch",
 	path: "/{id}",
 	request: {
-		params: z.object({
-			id: z.string().min(1),
-		}),
+		params: ApiKeyIdParam,
 		body: {
 			content: {
 				"application/json": {
-					schema: z.object({
-						name: z.string().min(1).optional(),
-						enabled: z.boolean().optional(),
-						permissions: z.array(z.string()).optional(),
-						metadata: z.record(z.string(), z.any()).optional(),
-					}),
+					schema: ApiKeyUpdateRequest,
 				},
 			},
 			required: true,
@@ -30,13 +28,7 @@ export const internalUpdateApiKey = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: z.object({
-						data: z.object({
-							status: z.literal("success"),
-							message: z.string(),
-						}),
-						error: z.null(),
-					}),
+					schema: ApiKeyMutationResponse,
 				},
 			},
 			description: "API key updated successfully.",

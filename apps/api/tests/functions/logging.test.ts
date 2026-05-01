@@ -53,7 +53,7 @@ test("createSafeRequestLogger strips query strings and does not include extra re
 		"https://api.kayle.id/v1/verify/session/vs_test_123?token=secret-value",
 	);
 
-	Reflect.set(request as unknown as object, "cf", {
+	Reflect.set(request, "cf", {
 		asn: 13_335,
 		colo: "LHR",
 		country: "GB",

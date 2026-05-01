@@ -1,51 +1,9 @@
-import type { ApiKey } from "@kayle-id/auth/types";
 import InfoCard from "@kayle-id/ui/info-card";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
 import { ApiKeyComponent } from "@/app/api-keys/key";
 import { Loading } from "@/components/loading";
-
-interface ApiKeysResponse {
-	data: ApiKey[];
-	error: {
-		code: string;
-		message: string;
-		hint?: string;
-		docs?: string;
-	} | null;
-	pagination: {
-		limit: number;
-		has_more: boolean;
-		next_cursor: string | null;
-	};
-}
-
-async function fetchApiKeys(): Promise<ApiKeysResponse> {
-	const response = await fetch("/api/auth/api-keys", {
-		credentials: "include",
-		headers: {
-			"Content-Type": "application/json",
-		},
-	});
-
-	if (!response.ok) {
-		const errorData = (await response.json().catch(() => ({
-			error: {
-				code: "HTTP_ERROR",
-				message: `HTTP ${response.status}: ${response.statusText}`,
-			},
-			data: null,
-			pagination: {
-				limit: 10,
-				has_more: false,
-				next_cursor: null,
-			},
-		}))) as ApiKeysResponse;
-		return errorData;
-	}
-
-	return response.json() as Promise<ApiKeysResponse>;
-}
 
 export const Route = createFileRoute("/_app/api-keys/$key")({
 	component: ApiKeyLayout,
@@ -54,8 +12,8 @@ export const Route = createFileRoute("/_app/api-keys/$key")({
 function ApiKeyLayout() {
 	const { key } = Route.useParams();
 	const { data, isLoading, error, isError } = useQuery({
-		queryKey: ["api-keys"],
-		queryFn: fetchApiKeys,
+		queryKey: API_KEYS_QUERY_KEY,
+		queryFn: listApiKeys,
 	});
 
 	if (isLoading) {
@@ -66,7 +24,7 @@ function ApiKeyLayout() {
 		);
 	}
 
-	if (isError || data?.error) {
+	if (isError) {
 		return (
 			<InfoCard
 				buttons={{
@@ -81,9 +39,8 @@ function ApiKeyLayout() {
 					description: "Failed to load API key",
 				}}
 				message={{
-					title: error?.name || data?.error?.code || "Failed to load API key",
-					description:
-						error?.message || data?.error?.message || "Failed to load API key",
+					title: error?.name || "Failed to load API key",
+					description: error?.message || "Failed to load API key",
 				}}
 			/>
 		);

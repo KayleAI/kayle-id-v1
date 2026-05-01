@@ -3,6 +3,11 @@ import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq, gt } from "drizzle-orm";
 import { checkPermission } from "@/functions/auth/check-permission";
+import {
+	createApiKeyErrorPagePayload,
+	createApiKeyForbiddenError,
+	createApiKeyInternalServerError,
+} from "../responses";
 import { internalListApiKeys } from "./openapi";
 
 const listApiKeys = new OpenAPIHono<{
@@ -21,20 +26,10 @@ listApiKeys.openapi(internalListApiKeys, async (c) => {
 
 	if (!hasPermission) {
 		return c.json(
-			{
-				data: null,
-				error: {
-					code: "FORBIDDEN",
-					message: "You are not authorized to list API keys",
-					hint: "Please contact an administrator to request access.",
-					docs: "https://kayle.id/docs/api/errors#forbidden",
-				} as const,
-				pagination: {
-					limit,
-					has_more: false,
-					next_cursor: null,
-				},
-			},
+			createApiKeyErrorPagePayload({
+				error: createApiKeyForbiddenError("list"),
+				limit,
+			}),
 			403,
 		);
 	}
@@ -91,20 +86,10 @@ listApiKeys.openapi(internalListApiKeys, async (c) => {
 		);
 	} catch {
 		return c.json(
-			{
-				data: null,
-				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "An unexpected error occurred",
-					hint: "Please try again later.",
-					docs: "https://kayle.id/docs/api/errors#internal_server_error",
-				} as const,
-				pagination: {
-					limit,
-					has_more: false,
-					next_cursor: null,
-				},
-			},
+			createApiKeyErrorPagePayload({
+				error: createApiKeyInternalServerError("Please try again later."),
+				limit,
+			}),
 			500,
 		);
 	}

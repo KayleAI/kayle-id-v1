@@ -26,39 +26,23 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/format-date";
+import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 	const queryClient = useQueryClient();
 
 	const updateMutation = useMutation({
-		mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-			const response = await fetch(`/api/auth/api-keys/${id}`, {
-				method: "PATCH",
-				body: JSON.stringify({ enabled }),
-				headers: { "Content-Type": "application/json" },
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to update API key");
-			}
-		},
+		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+			updateApiKey({ id, enabled }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
 		},
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: async ({ id }: { id: string }) => {
-			const response = await fetch(`/api/auth/api-keys/${id}`, {
-				method: "DELETE",
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to delete API key");
-			}
-		},
+		mutationFn: ({ id }: { id: string }) => deleteApiKey(id),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
 		},
 	});
 

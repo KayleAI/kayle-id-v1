@@ -5,7 +5,7 @@ const MRZ_WEIGHTS = [7, 3, 1] as const;
 function normalizeMrzText(value: string): string {
 	return value
 		.normalize("NFD")
-		.replace(/[̀-ͯ]/g, "")
+		.replace(/[\u0300-\u036f]/g, "")
 		.toUpperCase()
 		.replace(/[\s-]+/g, "<")
 		.replace(/'/g, "")
@@ -31,7 +31,8 @@ function getMrzCharacterValue(character: string): number {
 function calculateMrzCheckDigit(value: string): string {
 	let total = 0;
 
-	for (const [index, character] of [...value].entries()) {
+	for (let index = 0; index < value.length; index += 1) {
+		const character = value[index] ?? "<";
 		total += getMrzCharacterValue(character) * MRZ_WEIGHTS[index % 3];
 	}
 

@@ -33,6 +33,11 @@ export interface ContainerFetcher {
 type GetContainer = (env: unknown) => Promise<ContainerFetcher | null>;
 type FaceMatcherRequestLogger = SafeRequestLogger;
 
+interface FaceMatcherWorkerOptions {
+  emitRequestLogs?: boolean;
+  getContainer?: GetContainer;
+}
+
 initStructuredLogger({
   environment: process.env.NODE_ENV,
   service: pkg.name,
@@ -244,19 +249,25 @@ async function handleMatchRequest({
   return jsonResponse(response);
 }
 
-export function createFaceMatcherWorker(
-  { getContainer }: { getContainer: GetContainer } = {
-    getContainer: async () => null,
-  }
-): Required<Pick<ExportedHandler<FaceMatcherBindings>, "fetch">> {
+export function createFaceMatcherWorker({
+  emitRequestLogs = true,
+  getContainer = async () => null,
+}: FaceMatcherWorkerOptions = {}): Required<
+  Pick<ExportedHandler<FaceMatcherBindings>, "fetch">
+> {
   return {
     fetch: async (request, env) => {
       const logger = createSafeRequestLogger(request);
+      const emitRequestLog = (status: number) => {
+        if (emitRequestLogs) {
+          emitSafeRequestLog(logger, status);
+        }
+      };
       const url = new URL(request.url);
       try {
         if (request.method === "GET" && url.pathname === "/health") {
           const response = await proxyHealth(await getContainer(env), logger);
-          emitSafeRequestLog(logger, response.status);
+          emitRequestLog(response.status);
           return response;
         }
 
@@ -267,7 +278,7 @@ export function createFaceMatcherWorker(
             logger,
             request,
           });
-          emitSafeRequestLog(logger, response.status);
+          emitRequestLog(response.status);
           return response;
         }
 
@@ -289,7 +300,7 @@ export function createFaceMatcherWorker(
           },
           404
         );
-        emitSafeRequestLog(logger, response.status);
+        emitRequestLog(response.status);
         return response;
       } catch (error) {
         logSafeError(logger, {
@@ -299,7 +310,7 @@ export function createFaceMatcherWorker(
           message: "Face matcher request failed.",
           status: 500,
         });
-        emitSafeRequestLog(logger, 500);
+        emitRequestLog(500);
         throw error;
       }
     },

@@ -29,6 +29,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
 import { formatDate } from "@/utils/format-date";
+import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 	const [name, setName] = useState(apiKey.name);
@@ -47,31 +48,14 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 			name?: string;
 			enabled?: boolean;
 		}) => {
-			const response = await fetch(`/api/auth/api-keys/${apiKey.id}`, {
-				method: "PATCH",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					name: newName ?? apiKey.name,
-					enabled: newEnabled ?? apiKey.enabled,
-				}),
+			return updateApiKey({
+				id: apiKey.id,
+				name: newName ?? apiKey.name,
+				enabled: newEnabled ?? apiKey.enabled,
 			});
-
-			if (!response.ok) {
-				const errorData = (await response.json().catch(() => ({
-					error: null,
-				}))) as { error?: { message?: string } } | null;
-				throw new Error(
-					errorData?.error?.message ?? "Failed to update API key",
-				);
-			}
-
-			return response.json();
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
 			setIsEditingName(false);
 			setErrorMessage("");
 		},
@@ -83,28 +67,9 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: async () => {
-			const response = await fetch(`/api/auth/api-keys/${apiKey.id}`, {
-				method: "DELETE",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-				},
-			});
-
-			if (!response.ok) {
-				const errorData = (await response.json().catch(() => ({
-					error: null,
-				}))) as { error?: { message?: string } } | null;
-				throw new Error(
-					errorData?.error?.message ?? "Failed to delete API key",
-				);
-			}
-
-			return response.json();
-		},
+		mutationFn: () => deleteApiKey(apiKey.id),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
 			navigate({ to: "/api-keys" });
 		},
 		onError: (err) => {

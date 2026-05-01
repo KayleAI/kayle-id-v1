@@ -1,4 +1,4 @@
-import { minAgeThreshold } from "@kayle-id/config/share-claims";
+import { getClaimLabel, minAgeThreshold } from "@kayle-id/config/share-claims";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
@@ -33,6 +33,7 @@ import type {
 	DemoFieldMode,
 	DemoRunCreateResult,
 	DemoRunView,
+	DemoWebhookEnvelope,
 } from "@/demo/types";
 import {
 	getDemoWebhookHistory,
@@ -70,7 +71,6 @@ import {
 	DocumentStatePanel,
 } from "@/marketing/demo-result-views";
 
-const _POLL_INTERVAL_MS = 2000;
 const accordionPanelClass = "";
 
 interface ModeSelectorProps {
@@ -174,21 +174,16 @@ function DemoStepPanel({
 	title: string;
 	className?: string;
 }) {
-	const handleOpen = useCallback(
-		(event: unknown) => {
-			if (isLocked || isOpen) {
-				return;
-			}
-			(event as React.MouseEvent<HTMLDivElement>).preventDefault();
-			(event as React.MouseEvent<HTMLDivElement>).stopPropagation();
+	const canOpen = !(isLocked || isOpen) && Boolean(onOpen);
+	const handleOpen = useCallback(() => {
+		if (!canOpen) {
+			return;
+		}
 
-			onOpen?.();
-		},
-		[isLocked, isOpen, onOpen],
-	);
+		onOpen?.();
+	}, [canOpen, onOpen]);
 
 	return (
-		// biome-ignore lint/a11y: intentional
 		<section
 			className={cn(
 				"scroll-mt-[180px] px-4 py-4 sm:scroll-mt-[240px] sm:px-5 sm:py-5",
@@ -196,15 +191,24 @@ function DemoStepPanel({
 				className,
 			)}
 			id={getDemoStepSectionId(stepId)}
-			onClick={handleOpen}
-			onKeyDown={handleOpen}
-			onKeyUp={handleOpen}
 		>
 			<div className="flex w-full flex-col items-start space-y-10">
 				<div className="relative flex w-full flex-col items-start gap-2.5 sm:flex-row sm:gap-5">
 					<div className="min-w-0 space-y-1.5">
 						<h2 className="text-balance font-medium text-3xl tracking-tight">
-							{stepNumber}. {title}
+							{canOpen ? (
+								<button
+									className="text-left"
+									onClick={handleOpen}
+									type="button"
+								>
+									{stepNumber}. {title}
+								</button>
+							) : (
+								<>
+									{stepNumber}. {title}
+								</>
+							)}
 						</h2>
 						<p className="max-w-3xl text-balance text-base text-neutral-600 leading-relaxed">
 							{description}

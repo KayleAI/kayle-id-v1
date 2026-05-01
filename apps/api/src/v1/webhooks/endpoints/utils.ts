@@ -6,32 +6,18 @@ import type {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
+import { generateId, generateRandomString } from "@/utils/generate-id";
 
 export type Environment = "live" | "test";
 
 const SIGNING_SECRET_RANDOM_LENGTH = 32;
 
-export function generateRandomString(length: number): string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-	const randomBytes = new Uint8Array(length);
-
-	crypto.getRandomValues(randomBytes);
-
-	let result = "";
-
-	for (let i = 0; i < length; i += 1) {
-		result += alphabet[randomBytes[i] % alphabet.length];
-	}
-
-	return result;
-}
-
 export function generateEndpointId(environment: Environment): string {
-	return `whe_${environment}_${generateRandomString(32)}`;
+	return generateId({ type: "whe", environment, length: 32 });
 }
 
 export function generateKeyId(environment: Environment): string {
-	return `whk_${environment}_${generateRandomString(32)}`;
+	return generateId({ type: "whk", environment, length: 32 });
 }
 
 export function generateSigningSecret(): string {

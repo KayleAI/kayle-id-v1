@@ -1,28 +1,6 @@
-export interface ApiError {
-	code: string;
-	docs?: string;
-	hint?: string;
-	message: string;
-}
+export type { ApiError, Pagination } from "@/utils/api-client";
 
 export type DeliveryStatus = "pending" | "delivering" | "succeeded" | "failed";
-
-export interface Pagination {
-	has_more: boolean;
-	limit: number;
-	next_cursor: string | null;
-}
-
-export interface ApiEnvelope<T> {
-	data: T | null;
-	error: ApiError | null;
-}
-
-export interface PaginatedApiEnvelope<T> {
-	data: T[];
-	error: ApiError | null;
-	pagination: Pagination;
-}
 
 export interface WebhookEndpoint {
 	created_at: string;

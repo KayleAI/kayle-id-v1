@@ -1,5 +1,6 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
+import { ApiKeyCreatedResponse, ApiKeyCreateRequest } from "../openapi-schemas";
 
 export const internalCreateApiKey = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -10,11 +11,7 @@ export const internalCreateApiKey = createRoute({
 		body: {
 			content: {
 				"application/json": {
-					schema: z.object({
-						name: z.string().min(1),
-						permissions: z.array(z.string()).optional(),
-						metadata: z.record(z.string(), z.any()).optional(),
-					}),
+					schema: ApiKeyCreateRequest,
 				},
 			},
 			required: true,
@@ -26,13 +23,7 @@ export const internalCreateApiKey = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: z.object({
-						data: z.object({
-							id: z.string(),
-							key: z.string(),
-						}),
-						error: z.null(),
-					}),
+					schema: ApiKeyCreatedResponse,
 				},
 			},
 			description: "API key created successfully.",

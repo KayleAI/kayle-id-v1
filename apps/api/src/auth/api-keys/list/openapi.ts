@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponseWithPagination, Pagination } from "@/openapi/base";
+import { ApiKeyListItem } from "../openapi-schemas";
 
 export const internalListApiKeys = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -32,18 +33,7 @@ export const internalListApiKeys = createRoute({
 			content: {
 				"application/json": {
 					schema: z.object({
-						data: z.array(
-							z.object({
-								id: z.string(),
-								name: z.string(),
-								enabled: z.boolean(),
-								permissions: z.array(z.string()),
-								metadata: z.record(z.string(), z.any()),
-								createdAt: z.date(),
-								updatedAt: z.date(),
-								requestCount: z.number(),
-							}),
-						),
+						data: z.array(ApiKeyListItem),
 						error: z.null(),
 						pagination: Pagination,
 					}),

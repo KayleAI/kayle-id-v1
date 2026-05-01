@@ -1,4 +1,5 @@
 import { env as cloudflareEnv } from "cloudflare:workers";
+import { createRuntimeEnv } from "@kayle-id/config/runtime-env";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
@@ -10,10 +11,10 @@ export const env = createEnv({
 		API: z.custom<Fetcher>(),
 	},
 
-	runtimeEnv: {
-		...(typeof process !== "undefined" ? process?.env : {}),
-		...(cloudflareEnv as unknown as Record<string, string>),
-	},
+	runtimeEnv: createRuntimeEnv(
+		typeof process !== "undefined" ? process?.env : undefined,
+		cloudflareEnv,
+	),
 
 	emptyStringAsUndefined: true,
 });

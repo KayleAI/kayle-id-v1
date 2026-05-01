@@ -8,7 +8,7 @@ import {
 	getDemoOrgSlug,
 	getPublicDemoSessionStatus,
 } from "@/demo/api";
-import type { DemoRequestedShareFields } from "@/demo/types";
+import type { DemoRequestedShareFields, DemoRunView } from "@/demo/types";
 import {
 	getDemoWebhookHistory,
 	getLatestDemoWebhook,
@@ -22,7 +22,7 @@ import {
 	persistRunSession,
 	persistRunStatus,
 	toErrorResponse,
-} from "./helpers";
+} from "./-helpers";
 
 const TRAILING_SLASH_PATTERN = /\/+$/u;
 

@@ -14,6 +14,7 @@ import { Textarea } from "@kayleai/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
 import { useCopyToClipboard } from "@/utils/use-copy";
+import { API_KEYS_QUERY_KEY, createApiKey } from "./api";
 
 interface FormState {
 	apiKey: string | null;
@@ -174,29 +175,7 @@ export function CreateApiKey() {
 		dispatch({ type: "SUBMIT" });
 
 		try {
-			const response = await fetch("/api/auth/api-keys", {
-				method: "POST",
-				body: JSON.stringify({
-					name: state.name.trim(),
-				}),
-				headers: { "Content-Type": "application/json" },
-			});
-
-			if (!response.ok) {
-				const errorData = (await response.json().catch(() => null)) as {
-					error?: { message?: string };
-				} | null;
-				dispatch({
-					type: "ERROR",
-					message:
-						errorData?.error?.message ??
-						"Failed to create API key. Please try again.",
-				});
-				return;
-			}
-
-			const data: { data: { key: string } } = await response.json();
-			const key = data.data?.key;
+			const { key } = await createApiKey({ name: state.name.trim() });
 
 			if (!key) {
 				dispatch({
@@ -207,7 +186,7 @@ export function CreateApiKey() {
 			}
 
 			dispatch({ type: "SUCCESS", apiKey: key });
-			await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			await queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
 		} catch (err) {
 			dispatch({
 				type: "ERROR",

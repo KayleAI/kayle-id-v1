@@ -212,6 +212,39 @@ describe("API Key Endpoints", () => {
 		});
 	});
 
+	test("rejects nested API key metadata", async () => {
+		const testData = requireTestData();
+		const createResponse = await app.request("/v1/auth/api-keys", {
+			body: JSON.stringify({
+				name: "Invalid Metadata",
+				metadata: {
+					nested: {
+						value: true,
+					},
+				},
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+		const updateResponse = await app.request(
+			`/v1/auth/api-keys/${testData.apiKeyId}`,
+			{
+				body: JSON.stringify({
+					metadata: {
+						nested: {
+							value: true,
+						},
+					},
+				}),
+				headers: createJsonHeaders(testData.sessionCookie),
+				method: "PATCH",
+			},
+		);
+
+		expect(createResponse.status).toBe(400);
+		expect(updateResponse.status).toBe(400);
+	});
+
 	test("deletes an API key for an authenticated session", async () => {
 		const testData = requireTestData();
 		const organizationId = requireOrganizationId(testData.organizationId);
@@ -312,11 +345,19 @@ describe("API Key Endpoints", () => {
 			}),
 		]);
 
-		for (const response of requests) {
+		const expectedMessages = [
+			"You are not authorized to list API keys",
+			"You are not authorized to create API keys",
+			"You are not authorized to update API keys",
+			"You are not authorized to delete API keys",
+		];
+
+		for (const [index, response] of requests.entries()) {
 			expect(response.status).toBe(403);
 
 			const payload = (await response.json()) as ApiKeyMutationResponse;
 			expect(payload.error?.code).toBe("FORBIDDEN");
+			expect(payload.error?.message).toBe(expectedMessages[index]);
 		}
 	});
 

@@ -20,8 +20,8 @@ const setup = async (): Promise<TestData> => {
 		.insert(auth_users)
 		.values({
 			id: crypto.randomUUID(),
-			email: `${Math.random()}@test.kayle.id`,
-			name: Math.random().toString(36).substring(2, 15),
+			email: `${crypto.randomUUID()}@test.kayle.id`,
+			name: `Test User ${crypto.randomUUID()}`,
 		})
 		.returning({
 			id: auth_users.id,
@@ -39,7 +39,7 @@ const setup = async (): Promise<TestData> => {
 		.values({
 			id: crypto.randomUUID(),
 			name: "Test Organization",
-			slug: Math.random().toString(36).substring(2, 15),
+			slug: `test-${crypto.randomUUID()}`,
 			createdAt: new Date(),
 		})
 		.returning({

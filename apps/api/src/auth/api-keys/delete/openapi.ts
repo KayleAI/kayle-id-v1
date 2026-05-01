@@ -1,5 +1,6 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
+import { ApiKeyIdParam, ApiKeyMutationResponse } from "../openapi-schemas";
 
 export const internalDeleteApiKey = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -7,9 +8,7 @@ export const internalDeleteApiKey = createRoute({
 	method: "delete",
 	path: "/{id}",
 	request: {
-		params: z.object({
-			id: z.string().min(1),
-		}),
+		params: ApiKeyIdParam,
 	},
 	tags: ["API Keys"],
 	summary: "Delete an API key",
@@ -17,13 +16,7 @@ export const internalDeleteApiKey = createRoute({
 		200: {
 			content: {
 				"application/json": {
-					schema: z.object({
-						data: z.object({
-							status: z.literal("success"),
-							message: z.string(),
-						}),
-						error: z.null(),
-					}),
+					schema: ApiKeyMutationResponse,
 				},
 			},
 			description: "API key deleted successfully.",

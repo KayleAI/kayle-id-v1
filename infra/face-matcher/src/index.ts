@@ -28,13 +28,19 @@ function resolveContainerBinding(
 function createContainerFetchers(
   binding: DurableObjectNamespace<FaceMatcherContainer>
 ): ContainerFetcher[] {
-  return Array.from(
-    { length: FACE_MATCHER_CONTAINER_COUNT },
-    (_, index) =>
-      binding.get(
-        binding.idFromName(`${FACE_MATCHER_CONTAINER_NAME_PREFIX}-${index}`)
-      ) as unknown as ContainerFetcher
-  );
+  return Array.from({ length: FACE_MATCHER_CONTAINER_COUNT }, (_, index) => {
+    const container = binding.get(
+      binding.idFromName(`${FACE_MATCHER_CONTAINER_NAME_PREFIX}-${index}`)
+    );
+
+    return {
+      fetch: (input, init) => container.fetch(input, init),
+    };
+  });
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
 }
 
 async function isContainerHealthy(
@@ -47,11 +53,15 @@ async function isContainerHealthy(
       return false;
     }
 
-    const payload = (await response.json().catch(() => null)) as {
-      data?: { ready?: boolean };
-    } | null;
+    const payload: unknown = await response.json().catch(() => null);
 
-    return payload?.data?.ready === true;
+    if (!isObjectRecord(payload)) {
+      return false;
+    }
+
+    const data = payload.data;
+
+    return isObjectRecord(data) && data.ready === true;
   } catch {
     return false;
   }

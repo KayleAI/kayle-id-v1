@@ -1,58 +1,30 @@
 import { formatPublicDemoPayload } from "@/demo/claim-fields";
 import { decryptCompactJwe, verifyWebhookSignature } from "@/demo/crypto";
 import type {
+	DemoRequestedShareFields,
 	DemoRunCreateResult,
 	DemoRunSessionResult,
 	DemoRunView,
 	DemoWebhookEnvelope,
 } from "@/demo/types";
 import type { ProcessedWebhookState } from "@/marketing/demo-attempts";
+import { requestApiResource } from "@/utils/api-client";
 
-export interface ApiResponse<T> {
-	data: T | null;
-	error: {
-		code?: string | null;
-		hint?: string | null;
-		message?: string | null;
-	} | null;
-}
-
-async function readJsonResponse<T>(
-	response: Response,
-): Promise<ApiResponse<T>> {
-	try {
-		return (await response.json()) as ApiResponse<T>;
-	} catch {
-		return {
-			data: null,
-			error: {
-				message: "Unexpected response from the demo backend.",
-			},
-		};
-	}
-}
+const DEMO_RUNS_PATH = "/api/demo/runs";
 
 export async function createDemoRun({
 	publicJwk,
 }: {
 	publicJwk: JsonWebKey;
 }): Promise<DemoRunCreateResult> {
-	const response = await fetch("/api/demo/runs", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
+	return requestApiResource<DemoRunCreateResult>({
+		basePath: DEMO_RUNS_PATH,
+		body: {
 			public_jwk: publicJwk,
-		}),
+		},
+		method: "POST",
+		unexpectedMessage: "Failed to create demo run.",
 	});
-
-	const payload = await readJsonResponse<DemoRunCreateResult>(response);
-	if (!(response.ok && payload.data)) {
-		throw new Error(payload.error?.message ?? "Failed to create demo run.");
-	}
-
-	return payload.data;
 }
 
 export async function createDemoVerificationSession({
@@ -60,41 +32,27 @@ export async function createDemoVerificationSession({
 	shareFields,
 }: {
 	runId: string;
-	shareFields:
-		| Record<string, { reason: string; required: boolean }>
-		| undefined;
+	shareFields: DemoRequestedShareFields | undefined;
 }): Promise<DemoRunSessionResult> {
-	const response = await fetch(`/api/demo/runs/${runId}/session`, {
+	return requestApiResource<DemoRunSessionResult>({
+		basePath: DEMO_RUNS_PATH,
+		body: shareFields
+			? {
+					share_fields: shareFields,
+				}
+			: {},
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(
-			shareFields
-				? {
-						share_fields: shareFields,
-					}
-				: {},
-		),
+		path: `/${runId}/session`,
+		unexpectedMessage: "Failed to create demo session.",
 	});
-
-	const payload = await readJsonResponse<DemoRunSessionResult>(response);
-	if (!(response.ok && payload.data)) {
-		throw new Error(payload.error?.message ?? "Failed to create demo session.");
-	}
-
-	return payload.data;
 }
 
 export async function getDemoRun(runId: string): Promise<DemoRunView> {
-	const response = await fetch(`/api/demo/runs/${runId}`);
-	const payload = await readJsonResponse<DemoRunView>(response);
-
-	if (!(response.ok && payload.data)) {
-		throw new Error(payload.error?.message ?? "Failed to load demo run.");
-	}
-
-	return payload.data;
+	return requestApiResource<DemoRunView>({
+		basePath: DEMO_RUNS_PATH,
+		path: `/${runId}`,
+		unexpectedMessage: "Failed to load demo run.",
+	});
 }
 
 export async function processWebhookReceipt({

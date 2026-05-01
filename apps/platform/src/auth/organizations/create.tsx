@@ -4,9 +4,10 @@ import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
 import { Logo } from "@kayleai/ui/logo";
 import { useNavigate } from "@tanstack/react-router";
+import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Loading } from "@/components/loading";
-import { parseErrorResponse } from "@/utils/parse-error-response";
+import { requestApiResource } from "@/utils/api-client";
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const DEFAULT_ERROR = "Failed to create organization";
@@ -120,20 +121,15 @@ export function CreateOrganization() {
 				: undefined;
 
 		try {
-			const response = await fetch("/api/auth/orgs", {
+			const result = await requestApiResource<{ id: string }>({
+				basePath: "/api/auth/orgs",
+				body: { name, slug, logo },
 				method: "POST",
-				body: JSON.stringify({ name, slug, logo }),
-				headers: { "Content-Type": "application/json" },
+				unexpectedMessage: DEFAULT_ERROR,
 			});
 
-			if (!response.ok) {
-				throw new Error(await parseErrorResponse(response, DEFAULT_ERROR));
-			}
-
-			const result: { data: { id: string } } = await response.json();
-
 			await client.organization.setActive({
-				organizationId: result.data.id,
+				organizationId: result.id,
 				organizationSlug: slug,
 			});
 			await refresh();
@@ -212,20 +208,10 @@ export function CreateOrganization() {
 										width={64}
 									/>
 								) : (
-									<svg
+									<PlusIcon
+										aria-hidden="true"
 										className="h-6 w-6 text-muted-foreground"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<title>Upload logo</title>
-										<path
-											d="M12 4v16m8-8H4"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-										/>
-									</svg>
+									/>
 								)}
 							</button>
 							{logoPreview && (
@@ -236,40 +222,37 @@ export function CreateOrganization() {
 									onClick={handleRemoveLogo}
 									type="button"
 								>
-									<svg
+									<XIcon
 										aria-hidden="true"
 										className="h-3 w-3 text-muted-foreground"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<title>Remove logo</title>
-										<path
-											d="M6 18L18 6M6 6l12 12"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-										/>
-									</svg>
+									/>
 								</button>
 							)}
 						</div>
 
 						{/* Organization Info */}
 						<div className="min-w-0 flex-1">
-							{/* biome-ignore lint/a11y: intentional */}
-							<h3
-								className="truncate font-medium text-foreground text-lg"
-								onClick={handleNameClick}
-							>
-								{name || "My Organization"}
+							<h3 className="truncate font-medium text-foreground text-lg">
+								<button
+									aria-label="Edit organization name"
+									className="block max-w-full truncate p-0 text-left"
+									disabled={isLoading}
+									onClick={handleNameClick}
+									type="button"
+								>
+									{name || "My Organization"}
+								</button>
 							</h3>
-							{/* biome-ignore lint/a11y: intentional */}
-							<p
-								className="text-muted-foreground text-sm"
-								onClick={handleSlugClick}
-							>
-								{slug || "my-organization"}
+							<p className="text-muted-foreground text-sm">
+								<button
+									aria-label="Edit organization slug"
+									className="block max-w-full truncate p-0 text-left"
+									disabled={isLoading}
+									onClick={handleSlugClick}
+									type="button"
+								>
+									{slug || "my-organization"}
+								</button>
 							</p>
 						</div>
 					</div>

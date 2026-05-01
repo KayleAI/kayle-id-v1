@@ -57,6 +57,14 @@ interface MagicAdapterContext {
   };
 }
 
+const invalidMagicLinkMessage =
+  "Your link is invalid or has expired. Please try again.";
+
+const magicLinkTokenValueSchema = z.object({
+  email: z.string().email(),
+  type: z.enum(["sign-in", "email-verification"]),
+});
+
 function isUserShape(value: unknown): value is User {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -88,6 +96,52 @@ function toUser(value: unknown): User | null {
   }
 
   return null;
+}
+
+export function parseMagicLinkTokenValue(
+  value: string
+): z.infer<typeof magicLinkTokenValueSchema> {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new APIError("BAD_REQUEST", {
+      message: invalidMagicLinkMessage,
+    });
+  }
+
+  const result = magicLinkTokenValueSchema.safeParse(parsed);
+
+  if (!result.success) {
+    throw new APIError("BAD_REQUEST", {
+      message: invalidMagicLinkMessage,
+    });
+  }
+
+  return result.data;
+}
+
+export function shouldRateLimitMagicPath(path: string): boolean {
+  return (
+    path.startsWith("/magic/sign-in") || path.startsWith("/magic/verify-link")
+  );
+}
+
+export function createMagicVerifyLinkUrl({
+  baseURL,
+  callbackURL = "/",
+  token,
+}: {
+  baseURL: string;
+  callbackURL?: string;
+  token: string;
+}): string {
+  const base = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+  const url = new URL("magic/verify-link", base);
+  url.searchParams.set("token", token);
+  url.searchParams.set("callbackURL", callbackURL);
+  return url.toString();
 }
 
 export const magic = (options: MagicOptions): BetterAuthPlugin => {
@@ -142,9 +196,11 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
             expiresAt: new Date(Date.now() + opts.expiresIn * 1000),
           });
 
-          const url = `${ctx.context.baseURL}/magic/verify-link?token=${token}&callbackURL=${
-            callbackURL ?? "/"
-          }`;
+          const url = createMagicVerifyLinkUrl({
+            baseURL: ctx.context.baseURL,
+            callbackURL,
+            token,
+          });
 
           try {
             await opts.sendMagicOtpAuth({ email, url, otp, type }, ctx.request);
@@ -177,22 +233,17 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
 
           if (!tokenValue || tokenValue.expiresAt < new Date()) {
             throw new APIError("BAD_REQUEST", {
-              message: "Your link is invalid or has expired. Please try again.",
+              message: invalidMagicLinkMessage,
             });
           }
 
-          const { email, type } = JSON.parse(tokenValue.value);
+          const { email, type } = parseMagicLinkTokenValue(tokenValue.value);
 
           await ctx.context.internalAdapter.deleteVerificationByIdentifier(
             `link-${token}`
           );
 
-          const user = await handleUserCreationOrUpdate(
-            ctx,
-            opts,
-            email,
-            type as "sign-in" | "email-verification"
-          );
+          const user = await handleUserCreationOrUpdate(ctx, opts, email, type);
 
           const session = await ctx.context.internalAdapter.createSession(
             user.id
@@ -253,10 +304,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
     rateLimit: [
       {
         pathMatcher(path) {
-          return (
-            path.startsWith("/magic/sign-in") ??
-            path.startsWith("/magic/verify-link")
-          );
+          return shouldRateLimitMagicPath(path);
         },
         window: opts.rateLimit?.window ?? 60,
         max: opts.rateLimit?.max ?? 5,

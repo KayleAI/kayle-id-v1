@@ -17,6 +17,7 @@ import {
 	createWebhookDeliveriesForVerificationSucceeded,
 } from "@/v1/webhooks/deliveries/service";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
+import { createMockFetch } from "../helpers/mock-fetch";
 import { setup, type TestData, teardown } from "../setup";
 
 let TEST_DATA: TestData | undefined;
@@ -422,7 +423,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 	let capturedEventType = "";
 	let capturedBody = "";
 
-	globalThis.fetch = mock(
+	globalThis.fetch = createMockFetch(
 		async (_input: RequestInfo | URL, init?: RequestInit) => {
 			const request = new Request("https://example.com/webhooks/send", init);
 			capturedSignature = request.headers.get("X-Kayle-Signature");
@@ -434,7 +435,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 				status: 202,
 			});
 		},
-	) as unknown as typeof fetch;
+	);
 
 	const result = await attemptWebhookDelivery({
 		authSecret: env.AUTH_SECRET,

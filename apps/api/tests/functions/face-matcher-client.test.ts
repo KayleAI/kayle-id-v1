@@ -4,6 +4,7 @@ import {
 	FACE_MATCHER_DG2_FIELD,
 } from "@kayle-id/config/face-matcher";
 import { matchFaces } from "@/v1/verify/face-matcher-client";
+import { createMockFetch } from "../helpers/mock-fetch";
 
 const originalFetch = globalThis.fetch;
 
@@ -154,7 +155,7 @@ test("matchFaces does not require a matcher secret when the binding is available
 });
 
 test("matchFaces fails closed when the matcher returns invalid JSON", async () => {
-	globalThis.fetch = mock(
+	globalThis.fetch = createMockFetch(
 		async () =>
 			new Response("not-json", {
 				headers: {
@@ -162,7 +163,7 @@ test("matchFaces fails closed when the matcher returns invalid JSON", async () =
 				},
 				status: 200,
 			}),
-	) as unknown as typeof fetch;
+	);
 
 	const result = await matchFaces({
 		dg2Image: new Uint8Array([0x01]),

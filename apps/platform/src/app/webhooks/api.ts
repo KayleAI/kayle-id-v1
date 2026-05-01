@@ -1,13 +1,17 @@
-import { parseErrorResponse } from "@/utils/parse-error-response";
+import {
+	type Pagination,
+	requestApiResource,
+	requestApiResourcePage,
+} from "@/utils/api-client";
 import type {
-	ApiEnvelope,
-	PaginatedApiEnvelope,
-	Pagination,
+	DeliveryStatus,
+	WebhookDeleteResult,
 	WebhookDelivery,
 	WebhookEncryptionKey,
 	WebhookEndpoint,
 	WebhookEndpointCreateResult,
 	WebhookEvent,
+	WebhookSigningSecretResult,
 } from "./types";
 
 export { parseJwkInput, parsePublicKeyInput } from "./jwk";
@@ -25,111 +29,8 @@ export type {
 	WebhookSigningSecretResult,
 } from "./types";
 
-type QueryValue = boolean | number | string | null | undefined;
-
-interface RequestOptions {
-	body?: unknown;
-	method?: "DELETE" | "GET" | "PATCH" | "POST";
-	path: string;
-	query?: Record<string, QueryValue>;
-}
-
-function buildQueryString(query?: Record<string, QueryValue>): string {
-	if (!query) {
-		return "";
-	}
-
-	const searchParams = new URLSearchParams();
-
-	for (const [key, value] of Object.entries(query)) {
-		if (
-			value === undefined ||
-			value === null ||
-			value === "" ||
-			value === "all"
-		) {
-			continue;
-		}
-
-		searchParams.set(key, String(value));
-	}
-
-	const serialized = searchParams.toString();
-	return serialized ? `?${serialized}` : "";
-}
-
-async function requestWebhook<T>({
-	body,
-	method = "GET",
-	path,
-	query,
-}: RequestOptions): Promise<T> {
-	const response = await fetch(
-		`/api/webhooks${path}${buildQueryString(query)}`,
-		{
-			method,
-			credentials: "include",
-			headers:
-				body === undefined ? undefined : { "Content-Type": "application/json" },
-			body: body === undefined ? undefined : JSON.stringify(body),
-		},
-	);
-
-	if (!response.ok) {
-		throw new Error(
-			await parseErrorResponse(
-				response,
-				`Request failed with ${response.status}.`,
-			),
-		);
-	}
-
-	const payload = (await response.json()) as ApiEnvelope<T>;
-
-	if (payload.error || payload.data === null) {
-		throw new Error(payload.error?.message ?? "Unexpected webhook response.");
-	}
-
-	return payload.data;
-}
-
-async function requestWebhookPage<T>({
-	body,
-	method = "GET",
-	path,
-	query,
-}: RequestOptions): Promise<{ data: T[]; pagination: Pagination }> {
-	const response = await fetch(
-		`/api/webhooks${path}${buildQueryString(query)}`,
-		{
-			method,
-			credentials: "include",
-			headers:
-				body === undefined ? undefined : { "Content-Type": "application/json" },
-			body: body === undefined ? undefined : JSON.stringify(body),
-		},
-	);
-
-	if (!response.ok) {
-		throw new Error(
-			await parseErrorResponse(
-				response,
-				`Request failed with ${response.status}.`,
-			),
-		);
-	}
-
-	const payload = (await response.json()) as PaginatedApiEnvelope<T>;
-
-	if (payload.error) {
-		throw new Error(payload.error.message);
-	}
-
-	return {
-		data: payload.data,
-		pagination: payload.pagination,
-	};
-}
+const WEBHOOKS_PATH = "/api/webhooks";
+const UNEXPECTED_WEBHOOK_RESPONSE = "Unexpected webhook response.";
 
 export function listWebhookEndpoints({
 	enabled,
@@ -140,13 +41,15 @@ export function listWebhookEndpoints({
 	limit?: number;
 	startingAfter?: string | null;
 } = {}): Promise<{ data: WebhookEndpoint[]; pagination: Pagination }> {
-	return requestWebhookPage<WebhookEndpoint>({
+	return requestApiResourcePage<WebhookEndpoint>({
+		basePath: WEBHOOKS_PATH,
 		path: "/endpoints",
 		query: {
 			enabled,
 			limit,
 			starting_after: startingAfter,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -161,7 +64,8 @@ export function createWebhookEndpoint({
 	subscribedEventTypes: string[];
 	url: string;
 }): Promise<WebhookEndpointCreateResult> {
-	return requestWebhook<WebhookEndpointCreateResult>({
+	return requestApiResource<WebhookEndpointCreateResult>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: "/endpoints",
 		body: {
@@ -170,6 +74,7 @@ export function createWebhookEndpoint({
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -186,7 +91,8 @@ export function updateWebhookEndpoint({
 	subscribedEventTypes: string[];
 	url: string;
 }): Promise<WebhookEndpoint> {
-	return requestWebhook<WebhookEndpoint>({
+	return requestApiResource<WebhookEndpoint>({
+		basePath: WEBHOOKS_PATH,
 		method: "PATCH",
 		path: `/endpoints/${endpointId}`,
 		body: {
@@ -195,33 +101,40 @@ export function updateWebhookEndpoint({
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function deleteWebhookEndpoint(
 	endpointId: string,
 ): Promise<WebhookDeleteResult> {
-	return requestWebhook<WebhookDeleteResult>({
+	return requestApiResource<WebhookDeleteResult>({
+		basePath: WEBHOOKS_PATH,
 		method: "DELETE",
 		path: `/endpoints/${endpointId}`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function revealWebhookSigningSecret(
 	endpointId: string,
 ): Promise<WebhookSigningSecretResult> {
-	return requestWebhook<WebhookSigningSecretResult>({
+	return requestApiResource<WebhookSigningSecretResult>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/endpoints/${endpointId}/signing-secret/reveal`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function rotateWebhookSigningSecret(
 	endpointId: string,
 ): Promise<WebhookSigningSecretResult> {
-	return requestWebhook<WebhookSigningSecretResult>({
+	return requestApiResource<WebhookSigningSecretResult>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/endpoints/${endpointId}/signing-secret/rotate`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -236,13 +149,15 @@ export function listWebhookKeys({
 	limit?: number;
 	startingAfter?: string | null;
 }): Promise<{ data: WebhookEncryptionKey[]; pagination: Pagination }> {
-	return requestWebhookPage<WebhookEncryptionKey>({
+	return requestApiResourcePage<WebhookEncryptionKey>({
+		basePath: WEBHOOKS_PATH,
 		path: `/endpoints/${endpointId}/keys`,
 		query: {
 			is_active: isActive,
 			limit,
 			starting_after: startingAfter,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -255,7 +170,8 @@ export function createWebhookKey({
 	jwk: JsonWebKey;
 	keyId: string;
 }): Promise<WebhookEncryptionKey> {
-	return requestWebhook<WebhookEncryptionKey>({
+	return requestApiResource<WebhookEncryptionKey>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/endpoints/${endpointId}/keys`,
 		body: {
@@ -264,24 +180,29 @@ export function createWebhookKey({
 			algorithm: "RSA-OAEP-256",
 			key_type: "RSA",
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function deactivateWebhookKey(
 	keyId: string,
 ): Promise<WebhookEncryptionKey> {
-	return requestWebhook<WebhookEncryptionKey>({
+	return requestApiResource<WebhookEncryptionKey>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/keys/${keyId}/deactivate`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function reactivateWebhookKey(
 	keyId: string,
 ): Promise<WebhookEncryptionKey> {
-	return requestWebhook<WebhookEncryptionKey>({
+	return requestApiResource<WebhookEncryptionKey>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/keys/${keyId}/reactivate`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -292,19 +213,23 @@ export function listWebhookEvents({
 	limit?: number;
 	startingAfter?: string | null;
 } = {}): Promise<{ data: WebhookEvent[]; pagination: Pagination }> {
-	return requestWebhookPage<WebhookEvent>({
+	return requestApiResourcePage<WebhookEvent>({
+		basePath: WEBHOOKS_PATH,
 		path: "/events",
 		query: {
 			limit,
 			starting_after: startingAfter,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function replayWebhookEvent(eventId: string): Promise<WebhookEvent> {
-	return requestWebhook<WebhookEvent>({
+	return requestApiResource<WebhookEvent>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/events/${eventId}/replay`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
@@ -319,7 +244,8 @@ export function listWebhookDeliveries({
 	startingAfter?: string | null;
 	status?: DeliveryStatus;
 } = {}): Promise<{ data: WebhookDelivery[]; pagination: Pagination }> {
-	return requestWebhookPage<WebhookDelivery>({
+	return requestApiResourcePage<WebhookDelivery>({
+		basePath: WEBHOOKS_PATH,
 		path: "/deliveries",
 		query: {
 			endpoint_id: endpointId,
@@ -327,14 +253,17 @@ export function listWebhookDeliveries({
 			starting_after: startingAfter,
 			status,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }
 
 export function retryWebhookDelivery(
 	deliveryId: string,
 ): Promise<WebhookDelivery> {
-	return requestWebhook<WebhookDelivery>({
+	return requestApiResource<WebhookDelivery>({
+		basePath: WEBHOOKS_PATH,
 		method: "POST",
 		path: `/deliveries/${deliveryId}/retry`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }

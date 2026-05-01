@@ -38,6 +38,29 @@ let TEST_DATA: SessionAuthTestData | undefined;
 const createdOrganizationIds: string[] = [];
 const originalCreateOrganization = auth.api.createOrganization;
 const originalStorage = env.STORAGE;
+
+type CreateOrganizationMockInput = {
+	body: {
+		logo?: string;
+		name: string;
+		slug: string;
+		userId: string;
+	};
+};
+type CreateOrganizationMockResult = { id: string };
+
+function createOrganizationMock(
+	implementation: (
+		input: CreateOrganizationMockInput,
+	) => CreateOrganizationMockResult | Promise<CreateOrganizationMockResult>,
+): typeof auth.api.createOrganization {
+	const endpoint: unknown = Object.assign(mock(implementation), {
+		options: originalCreateOrganization.options,
+		path: originalCreateOrganization.path,
+	});
+
+	return endpoint as typeof auth.api.createOrganization;
+}
 type StorageBinding = NonNullable<typeof env.STORAGE>;
 const LOCAL_LOGO_URL_PATTERN = /^http:\/\/127\.0\.0\.1:8787\/r2\/logos\//u;
 const LOGO_SLUG_PATTERN = /^logo-/u;
@@ -181,18 +204,13 @@ describe("Organization Endpoints", () => {
 		let capturedStorageKey: string | undefined;
 		let capturedStorageSize = 0;
 
-		auth.api.createOrganization = mock(({ body }) => {
-			capturedCreateOrganizationBody = body as {
-				logo?: string;
-				name: string;
-				slug: string;
-				userId: string;
-			};
+		auth.api.createOrganization = createOrganizationMock(({ body }) => {
+			capturedCreateOrganizationBody = body;
 
 			return {
 				id: mockedOrganizationId,
 			};
-		}) as unknown as typeof auth.api.createOrganization;
+		});
 		(
 			env as typeof env & {
 				STORAGE: StorageBinding;
@@ -208,8 +226,8 @@ describe("Organization Endpoints", () => {
 				return Promise.resolve({
 					key,
 				} as R2Object);
-			}) as unknown as StorageBinding["put"],
-		} as unknown as StorageBinding;
+			}) as StorageBinding["put"],
+		} as StorageBinding;
 
 		const response = await app.request("/v1/auth/orgs", {
 			body: JSON.stringify({
@@ -248,9 +266,9 @@ describe("Organization Endpoints", () => {
 	test("returns a structured internal error when organization creation fails", async () => {
 		const testData = requireTestData();
 
-		auth.api.createOrganization = mock(() => {
+		auth.api.createOrganization = createOrganizationMock(async () => {
 			throw new Error("organization_create_failed");
-		}) as unknown as typeof auth.api.createOrganization;
+		});
 
 		const response = await app.request("/v1/auth/orgs", {
 			body: JSON.stringify({
@@ -272,6 +290,37 @@ describe("Organization Endpoints", () => {
 				docs: "https://kayle.id/docs/api/errors#internal_server_error",
 				hint: "Please try again in a few moments.",
 				message: "organization_create_failed",
+			},
+		});
+	});
+
+	test("returns a structured internal error when logo data is invalid", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: "%%%invalid-base64%%%",
+				},
+				name: "Invalid Logo Organization",
+				slug: `invalid-logo-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(500);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload).toEqual({
+			data: null,
+			error: {
+				code: "INTERNAL_SERVER_ERROR",
+				docs: "https://kayle.id/docs/api/errors#internal_server_error",
+				hint: "Please try again in a few moments.",
+				message: "Organization logo data must be base64 encoded.",
 			},
 		});
 	});

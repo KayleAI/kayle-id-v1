@@ -1,19 +1,33 @@
-/**
- * Parse an error response from the API.
- * @param response - The response to parse.
- * @param defaultError - The default error message to return if the response is not JSON or the error object is missing the message property.
- * @returns The error message.
- */
+function getErrorMessage(payload: unknown): string | null {
+	if (!(payload && typeof payload === "object")) {
+		return null;
+	}
+
+	const error = Reflect.get(payload, "error");
+	if (!(error && typeof error === "object")) {
+		return null;
+	}
+
+	const message = Reflect.get(error, "message");
+	return typeof message === "string" && message.trim().length > 0
+		? message
+		: null;
+}
+
 export async function parseErrorResponse(
 	response: Response,
 	defaultError: string,
 ): Promise<string> {
 	const text = await response.text();
+	const fallbackText = text.trim();
+
+	if (!fallbackText) {
+		return defaultError;
+	}
 
 	try {
-		const json = JSON.parse(text) as { error?: { message?: string } };
-		return json?.error?.message ?? defaultError;
+		return getErrorMessage(JSON.parse(text)) ?? defaultError;
 	} catch {
-		return text ?? defaultError;
+		return fallbackText;
 	}
 }

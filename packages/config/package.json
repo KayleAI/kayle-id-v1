@@ -3,6 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "test": "bun test ./src"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260317.1",
     "@t3-oss/env-core": "0.13.8",

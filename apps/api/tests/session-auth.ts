@@ -101,7 +101,7 @@ export async function setupSessionAuth({
 			createdAt: new Date(),
 			id: organizationId,
 			name: "Test Organization",
-			slug: Math.random().toString(36).substring(2, 15),
+			slug: `test-${crypto.randomUUID()}`,
 		});
 
 		await db.insert(auth_organization_members).values({

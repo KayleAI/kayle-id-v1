@@ -1,6 +1,18 @@
 const PEM_PUBLIC_KEY_HEADER = "-----BEGIN PUBLIC KEY-----";
 const PEM_PUBLIC_KEY_FOOTER = "-----END PUBLIC KEY-----";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isJwkObject(value: unknown): value is JsonWebKey {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return typeof value.kty === "string" && value.kty.trim().length > 0;
+}
+
 export function parseJwkInput(input: string): JsonWebKey {
 	const trimmed = input.trim();
 
@@ -16,23 +28,23 @@ export function parseJwkInput(input: string): JsonWebKey {
 		throw new Error("Public JWK must be valid JSON.");
 	}
 
-	if (!(parsed && typeof parsed === "object" && !Array.isArray(parsed))) {
+	if (!isRecord(parsed)) {
 		throw new Error("Public JWK must be a JSON object.");
 	}
 
-	if (!("kty" in parsed)) {
-		throw new Error("Public JWK must include a `kty` field.");
+	if (!isJwkObject(parsed)) {
+		throw new Error("Public JWK must include a non-empty string `kty` field.");
 	}
 
-	return parsed as JsonWebKey;
+	return parsed;
 }
 
 function decodeBase64ToArrayBuffer(input: string): ArrayBuffer {
 	const decoded = atob(input);
 	const bytes = new Uint8Array(decoded.length);
 
-	for (const [index, character] of [...decoded].entries()) {
-		bytes[index] = character.charCodeAt(0);
+	for (let index = 0; index < decoded.length; index += 1) {
+		bytes[index] = decoded.charCodeAt(index);
 	}
 
 	return bytes.buffer.slice(0);

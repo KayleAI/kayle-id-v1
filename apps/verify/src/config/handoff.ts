@@ -42,6 +42,15 @@ type VerifyRequestError = Error & {
 	code: string;
 };
 
+const UNKNOWN_ERROR_CODE = "UNKNOWN";
+const HANDOFF_ERROR_MESSAGE = "Failed to fetch handoff credentials.";
+const SESSION_STATUS_ERROR_MESSAGE =
+	"Failed to fetch verification session status.";
+const SESSION_DETAILS_ERROR_MESSAGE =
+	"Failed to fetch verification session details.";
+const CANCEL_SESSION_ERROR_MESSAGE =
+	"Failed to cancel the verification session.";
+
 function createVerifyRequestError(
 	code: string,
 	message: string,
@@ -51,6 +60,61 @@ function createVerifyRequestError(
 	return error;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseVerifyApiError(value: unknown): VerifyApiError | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const { code, message } = value;
+
+	return typeof code === "string"
+		? {
+				code,
+				message: typeof message === "string" ? message : code,
+			}
+		: null;
+}
+
+async function readVerifyApiResponse<T>(
+	response: Response,
+	defaultMessage: string,
+): Promise<VerifyApiResponse<T>> {
+	let payload: unknown;
+
+	try {
+		payload = await response.json();
+	} catch {
+		return {
+			data: null,
+			error: {
+				code: UNKNOWN_ERROR_CODE,
+				message: defaultMessage,
+			},
+		};
+	}
+
+	if (!isRecord(payload)) {
+		return {
+			data: null,
+			error: {
+				code: UNKNOWN_ERROR_CODE,
+				message: defaultMessage,
+			},
+		};
+	}
+
+	const error = parseVerifyApiError(payload.error);
+
+	return {
+		data: payload.data === undefined ? null : (payload.data as T | null),
+		error,
+	};
+}
+
 export async function requestHandoffPayload(
 	sessionId: string,
 ): Promise<HandoffPayload> {
@@ -58,12 +122,15 @@ export async function requestHandoffPayload(
 		method: "POST",
 	});
 
-	const payload = (await response.json()) as VerifyApiResponse<HandoffPayload>;
+	const payload = await readVerifyApiResponse<HandoffPayload>(
+		response,
+		HANDOFF_ERROR_MESSAGE,
+	);
 
 	if (!(response.ok && payload.data) || payload.error) {
 		throw createVerifyRequestError(
-			payload.error?.code ?? "UNKNOWN",
-			payload.error?.message ?? "Failed to fetch handoff credentials.",
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? HANDOFF_ERROR_MESSAGE,
 		);
 	}
 
@@ -77,13 +144,15 @@ export async function requestVerifySessionStatus(
 		method: "GET",
 	});
 
-	const payload =
-		(await response.json()) as VerifyApiResponse<VerifySessionStatusPayload>;
+	const payload = await readVerifyApiResponse<VerifySessionStatusPayload>(
+		response,
+		SESSION_STATUS_ERROR_MESSAGE,
+	);
 
 	if (!(response.ok && payload.data) || payload.error) {
 		throw createVerifyRequestError(
-			payload.error?.code ?? "UNKNOWN",
-			payload.error?.message ?? "Failed to fetch verification session status.",
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? SESSION_STATUS_ERROR_MESSAGE,
 		);
 	}
 
@@ -97,13 +166,15 @@ export async function requestVerifySessionDetails(
 		method: "GET",
 	});
 
-	const payload =
-		(await response.json()) as VerifyApiResponse<VerifySessionDetailsPayload>;
+	const payload = await readVerifyApiResponse<VerifySessionDetailsPayload>(
+		response,
+		SESSION_DETAILS_ERROR_MESSAGE,
+	);
 
 	if (!(response.ok && payload.data) || payload.error) {
 		throw createVerifyRequestError(
-			payload.error?.code ?? "UNKNOWN",
-			payload.error?.message ?? "Failed to fetch verification session details.",
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? SESSION_DETAILS_ERROR_MESSAGE,
 		);
 	}
 
@@ -121,10 +192,13 @@ export async function requestCancelVerifySession(
 		return;
 	}
 
-	const payload = (await response.json()) as VerifyApiResponse<null>;
+	const payload = await readVerifyApiResponse<null>(
+		response,
+		CANCEL_SESSION_ERROR_MESSAGE,
+	);
 
 	throw createVerifyRequestError(
-		payload.error?.code ?? "UNKNOWN",
-		payload.error?.message ?? "Failed to cancel the verification session.",
+		payload.error?.code ?? UNKNOWN_ERROR_CODE,
+		payload.error?.message ?? CANCEL_SESSION_ERROR_MESSAGE,
 	);
 }

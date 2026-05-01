@@ -128,7 +128,7 @@ describe("/v1/sessions share contract persistence", () => {
 		const created = (await createResponse.json()) as { data: { id: string } };
 
 		const otherOrgId = crypto.randomUUID();
-		const slug = `isolation-${Math.random().toString(36).slice(2, 12)}`;
+		const slug = `isolation-${crypto.randomUUID()}`;
 
 		await db.insert(auth_organizations).values({
 			id: otherOrgId,

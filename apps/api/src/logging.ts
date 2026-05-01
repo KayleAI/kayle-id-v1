@@ -23,6 +23,10 @@ type ApiLoggingContext = Context<{
 	Variables: ApiLoggingVariables;
 }>;
 
+interface RequestLoggingMiddlewareOptions {
+	emitRequestLogs?: boolean;
+}
+
 initStructuredLogger({
 	environment: config.environment,
 	service: "kayle-id-api",
@@ -61,7 +65,9 @@ export function markRequestLogForManualEmit(c: Context): void {
 	getLoggingContext(c).set(REQUEST_LOG_MANUAL_EMIT_KEY, true);
 }
 
-export function requestLoggingMiddleware(): MiddlewareHandler {
+export function requestLoggingMiddleware({
+	emitRequestLogs = process.env.NODE_ENV !== "test",
+}: RequestLoggingMiddlewareOptions = {}): MiddlewareHandler {
 	return async (c, next) => {
 		const loggingContext = getLoggingContext(c);
 		const existingLogger = loggingContext.get(REQUEST_LOG_KEY);
@@ -84,7 +90,9 @@ export function requestLoggingMiddleware(): MiddlewareHandler {
 				return;
 			}
 
-			emitRequestLog(c, c.res.status);
+			if (emitRequestLogs) {
+				emitRequestLog(c, c.res.status);
+			}
 		} catch (error) {
 			const status = getSafeErrorStatus(error) ?? 500;
 
@@ -95,7 +103,9 @@ export function requestLoggingMiddleware(): MiddlewareHandler {
 				message: "The request failed before a response was returned.",
 				status,
 			});
-			emitRequestLog(c, status);
+			if (emitRequestLogs) {
+				emitRequestLog(c, status);
+			}
 			throw error;
 		}
 	};

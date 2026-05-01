@@ -2,21 +2,7 @@ import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { createHMAC } from "@/functions/hmac";
-
-function generateRandomString(length: number): string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-	const randomBytes = new Uint8Array(length);
-
-	crypto.getRandomValues(randomBytes);
-
-	let result = "";
-
-	for (let i = 0; i < length; i += 1) {
-		result += alphabet[randomBytes[i] % alphabet.length];
-	}
-
-	return result;
-}
+import { generateId } from "@/utils/generate-id";
 
 /**
  * Create an API key and return the key hash.
@@ -36,7 +22,7 @@ export async function createApiKey({
 	metadata?: Record<string, string | number | boolean>;
 }): Promise<{ id: string; apiKey: string }> {
 	const environment = "live";
-	const apiKey = `kk_${environment}_${generateRandomString(32)}`;
+	const apiKey = generateId({ type: "kk", environment, length: 32 });
 
 	const keyHash = await createHMAC(apiKey, {
 		algorithm: "SHA256",

@@ -1,6 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { checkPermission } from "@/functions/auth/check-permission";
 import { updateApiKey } from "@/functions/auth/update-api-key";
+import {
+	createApiKeyErrorPayload,
+	createApiKeyForbiddenError,
+	createApiKeyInternalServerError,
+} from "../responses";
 import { internalUpdateApiKey } from "./openapi";
 
 const updateApiKeyRoute = new OpenAPIHono<{
@@ -23,15 +28,7 @@ updateApiKeyRoute.openapi(internalUpdateApiKey, async (c) => {
 
 		if (!hasPermission) {
 			return c.json(
-				{
-					data: null,
-					error: {
-						code: "FORBIDDEN",
-						message: "You are not authorized to update API keys",
-						hint: "Please contact an administrator to request access.",
-						docs: "https://kayle.id/docs/api/errors#forbidden",
-					} as const,
-				},
+				createApiKeyErrorPayload(createApiKeyForbiddenError("update")),
 				403,
 			);
 		}
@@ -45,15 +42,12 @@ updateApiKeyRoute.openapi(internalUpdateApiKey, async (c) => {
 
 		if (status === "error") {
 			return c.json(
-				{
-					data: null,
-					error: {
-						code: "API_KEY_NOT_FOUND",
-						message: message ?? "API key not found",
-						hint: "Confirm the API key ID belongs to this organization.",
-						docs: "https://kayle.id/docs/api/errors#api_key_not_found",
-					} as const,
-				},
+				createApiKeyErrorPayload({
+					code: "API_KEY_NOT_FOUND",
+					message: message ?? "API key not found",
+					hint: "Confirm the API key ID belongs to this organization.",
+					docs: "https://kayle.id/docs/api/errors#api_key_not_found",
+				}),
 				400,
 			);
 		}
@@ -70,15 +64,7 @@ updateApiKeyRoute.openapi(internalUpdateApiKey, async (c) => {
 		);
 	} catch {
 		return c.json(
-			{
-				data: null,
-				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "An unexpected error occurred",
-					hint: "Please try again in a few moments.",
-					docs: "https://kayle.id/docs/api/errors#internal_server_error",
-				} as const,
-			},
+			createApiKeyErrorPayload(createApiKeyInternalServerError()),
 			500,
 		);
 	}

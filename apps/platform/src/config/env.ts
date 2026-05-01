@@ -1,4 +1,8 @@
 import { env as cloudflareEnv } from "cloudflare:workers";
+import {
+	createRuntimeEnv,
+	getImportMetaEnv,
+} from "@kayle-id/config/runtime-env";
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
 import { z } from "zod";
@@ -27,11 +31,11 @@ export const env = createEnv({
 		DEMO_RUNS: z.custom<DurableObjectNamespace>().optional(),
 	},
 
-	runtimeEnv: {
-		...(typeof process === "undefined" ? {} : process?.env),
-		...(typeof import.meta === "undefined" ? {} : import.meta.env),
-		...(cloudflareEnv as unknown as Record<string, unknown>),
-	},
+	runtimeEnv: createRuntimeEnv(
+		typeof process === "undefined" ? undefined : process?.env,
+		getImportMetaEnv(import.meta),
+		cloudflareEnv,
+	),
 
 	emptyStringAsUndefined: true,
 });

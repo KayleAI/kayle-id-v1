@@ -23,6 +23,7 @@ interface ApiEnvelope<T> {
 }
 
 const LOCAL_DEMO_WEBHOOK_ORIGIN = "http://127.0.0.1:3001";
+const UNEXPECTED_UPSTREAM_RESPONSE = "Unexpected upstream response.";
 
 export class DemoApiError extends Error {
 	readonly code: string | null;
@@ -75,17 +76,87 @@ export function getDemoOrgSlug(bindings: DemoBindings): string {
 	return bindings.KAYLE_DEMO_ORG_SLUG?.trim() || "kayle";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function getStringValue(
+	payload: Record<string, unknown>,
+	key: string,
+): string | undefined {
+	const value = payload[key];
+	return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function parseErrorPayload(value: unknown): ApiErrorPayload | null {
+	if (value === null || value === undefined) {
+		return null;
+	}
+
+	if (!isRecord(value)) {
+		return {
+			message: UNEXPECTED_UPSTREAM_RESPONSE,
+		};
+	}
+
+	const error = {
+		code: getStringValue(value, "code"),
+		hint: getStringValue(value, "hint"),
+		message: getStringValue(value, "message"),
+	};
+
+	return error.code || error.hint || error.message ? error : null;
+}
+
 async function parseEnvelope<T>(response: Response): Promise<ApiEnvelope<T>> {
 	try {
-		return (await response.json()) as ApiEnvelope<T>;
+		const payload = await response.json();
+
+		if (!isRecord(payload) || !("data" in payload)) {
+			return {
+				data: null,
+				error: {
+					message: UNEXPECTED_UPSTREAM_RESPONSE,
+				},
+			};
+		}
+
+		return {
+			data:
+				payload.data === null || payload.data === undefined
+					? null
+					: (payload.data as T),
+			error: parseErrorPayload(payload.error),
+		};
 	} catch {
 		return {
 			data: null,
 			error: {
-				message: response.statusText || "Unexpected upstream response.",
+				message: response.statusText || UNEXPECTED_UPSTREAM_RESPONSE,
 			},
 		};
 	}
+}
+
+function unwrapEnvelope<T>({
+	envelope,
+	fallbackMessage,
+	response,
+}: {
+	envelope: ApiEnvelope<T>;
+	fallbackMessage: string;
+	response: Response;
+}): T {
+	if (response.ok && envelope.data !== null && envelope.data !== undefined) {
+		return envelope.data;
+	}
+
+	throw new DemoApiError({
+		code: envelope.error?.code,
+		hint: envelope.error?.hint,
+		message: envelope.error?.message ?? fallbackMessage,
+		status: response.status,
+	});
 }
 
 async function requestApi<T>({
@@ -121,18 +192,11 @@ async function requestApi<T>({
 	});
 
 	const envelope = await parseEnvelope<T>(response);
-	if (!(response.ok && envelope.data)) {
-		throw new DemoApiError({
-			code: envelope.error?.code,
-			hint: envelope.error?.hint,
-			message:
-				envelope.error?.message ??
-				`Upstream request failed with ${response.status}.`,
-			status: response.status,
-		});
-	}
-
-	return envelope.data;
+	return unwrapEnvelope({
+		envelope,
+		fallbackMessage: `Upstream request failed with ${response.status}.`,
+		response,
+	});
 }
 
 export function buildDemoWebhookUrl({
@@ -272,16 +336,9 @@ export async function getPublicDemoSessionStatus({
 	}
 
 	const envelope = await parseEnvelope<DemoSessionStatus>(response);
-	if (!(response.ok && envelope.data)) {
-		throw new DemoApiError({
-			code: envelope.error?.code,
-			hint: envelope.error?.hint,
-			message:
-				envelope.error?.message ??
-				`Session status request failed with ${response.status}.`,
-			status: response.status,
-		});
-	}
-
-	return envelope.data;
+	return unwrapEnvelope({
+		envelope,
+		fallbackMessage: `Session status request failed with ${response.status}.`,
+		response,
+	});
 }

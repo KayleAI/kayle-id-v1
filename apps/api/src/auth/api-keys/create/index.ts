@@ -1,6 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { checkPermission } from "@/functions/auth/check-permission";
 import { createApiKey } from "@/functions/auth/create-api-key";
+import {
+	createApiKeyErrorPayload,
+	createApiKeyForbiddenError,
+	createApiKeyInternalServerError,
+} from "../responses";
 import { internalCreateApiKey } from "./openapi";
 
 const createApiKeyRoute = new OpenAPIHono<{
@@ -22,15 +27,7 @@ createApiKeyRoute.openapi(internalCreateApiKey, async (c) => {
 
 		if (!hasPermission) {
 			return c.json(
-				{
-					data: null,
-					error: {
-						code: "FORBIDDEN",
-						message: "You are not authorized to create API keys",
-						hint: "Please contact an administrator to request access.",
-						docs: "https://kayle.id/docs/api/errors#forbidden",
-					} as const,
-				},
+				createApiKeyErrorPayload(createApiKeyForbiddenError("create")),
 				403,
 			);
 		}
@@ -54,15 +51,7 @@ createApiKeyRoute.openapi(internalCreateApiKey, async (c) => {
 		);
 	} catch {
 		return c.json(
-			{
-				data: null,
-				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "An unexpected error occurred",
-					hint: "Please try again in a few moments.",
-					docs: "https://kayle.id/docs/api/errors#internal_server_error",
-				} as const,
-			},
+			createApiKeyErrorPayload(createApiKeyInternalServerError()),
 			500,
 		);
 	}

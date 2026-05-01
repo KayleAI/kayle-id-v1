@@ -54,7 +54,13 @@ describe("parseJwkInput", () => {
 
 	test("rejects missing kty", () => {
 		expect(() => parseJwkInput(JSON.stringify({ n: "abc123" }))).toThrow(
-			"Public JWK must include a `kty` field.",
+			"Public JWK must include a non-empty string `kty` field.",
+		);
+	});
+
+	test("rejects non-string kty", () => {
+		expect(() => parseJwkInput(JSON.stringify({ kty: 123 }))).toThrow(
+			"Public JWK must include a non-empty string `kty` field.",
 		);
 	});
 });

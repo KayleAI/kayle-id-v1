@@ -39,6 +39,13 @@ async function createSignatureHeader({
 	return `t=${timestamp},v1=${hex}`;
 }
 
+function encodeBase64Url(value: string): string {
+	return btoa(value)
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replace(/=+$/u, "");
+}
+
 test("verifyWebhookSignature accepts a valid platform demo signature", async () => {
 	const payload = "encrypted-payload";
 	const secret = "whsec_demo_test_secret";
@@ -162,4 +169,21 @@ test("decryptCompactJwe decrypts the Phase 11 webhook payload locally", async ()
 	});
 
 	expect(decrypted).toBe(plaintext);
+});
+
+test("decryptCompactJwe rejects malformed protected headers", async () => {
+	const { privateKey } = await generateDemoKeyPair();
+	const protectedHeader = encodeBase64Url(
+		JSON.stringify({
+			alg: 123,
+			enc: "A256GCM",
+		}),
+	);
+
+	await expect(
+		decryptCompactJwe({
+			jwe: `${protectedHeader}.encrypted-key.iv.ciphertext.tag`,
+			privateKey,
+		}),
+	).rejects.toThrow("demo_jwe_header_invalid");
 });

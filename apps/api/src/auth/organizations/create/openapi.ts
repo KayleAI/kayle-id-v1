@@ -15,8 +15,8 @@ export const internalCreateOrganization = createRoute({
 						slug: z.string().min(1),
 						logo: z
 							.object({
-								data: z.string(), // base64 string
-								contentType: z.string(), // MIME type
+								data: z.string().min(1),
+								contentType: z.string().min(1),
 							})
 							.optional(),
 					}),

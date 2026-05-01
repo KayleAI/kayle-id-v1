@@ -1,18 +1,9 @@
+import {
+	createRuntimeEnv,
+	getImportMetaEnv,
+} from "@kayle-id/config/runtime-env";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
-
-type ImportMetaWithEnv = ImportMeta & {
-	env?: Record<string, string | undefined>;
-};
-
-function getImportMetaEnv(): Record<string, string | undefined> {
-	if (typeof import.meta === "undefined") {
-		return {};
-	}
-
-	const maybeEnv = (import.meta as ImportMetaWithEnv).env;
-	return maybeEnv ?? {};
-}
 
 /**
  * This is the root environment variable object that is used to access all the environment variables.
@@ -31,10 +22,10 @@ export const env = createEnv({
 		PUBLIC_API_PROTOCOL: z.enum(["ws", "wss"]).optional(),
 	},
 
-	runtimeEnv: {
-		...(typeof process !== "undefined" ? process?.env : {}),
-		...getImportMetaEnv(),
-	},
+	runtimeEnv: createRuntimeEnv(
+		typeof process !== "undefined" ? process?.env : undefined,
+		getImportMetaEnv(import.meta),
+	),
 
 	emptyStringAsUndefined: true,
 });

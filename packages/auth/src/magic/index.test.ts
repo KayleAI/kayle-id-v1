@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  constantTimeStringEqual,
   createMagicVerifyLinkUrl,
   parseMagicLinkTokenValue,
   shouldRateLimitMagicPath,
@@ -39,14 +40,32 @@ describe("parseMagicLinkTokenValue", () => {
 });
 
 describe("shouldRateLimitMagicPath", () => {
-  test("matches sign-in and verify-link endpoints", () => {
+  test("matches every magic-link entry point so OTP brute-force is bounded", () => {
     expect(shouldRateLimitMagicPath("/magic/sign-in")).toBe(true);
     expect(shouldRateLimitMagicPath("/magic/verify-link")).toBe(true);
+    expect(shouldRateLimitMagicPath("/magic/verify-otp")).toBe(true);
   });
 
   test("ignores unrelated auth endpoints", () => {
-    expect(shouldRateLimitMagicPath("/magic/verify-otp")).toBe(false);
     expect(shouldRateLimitMagicPath("/session")).toBe(false);
+  });
+});
+
+describe("constantTimeStringEqual", () => {
+  test("matches identical strings", () => {
+    expect(constantTimeStringEqual("123456", "123456")).toBe(true);
+  });
+
+  test("rejects mismatched strings of equal length", () => {
+    expect(constantTimeStringEqual("123456", "654321")).toBe(false);
+  });
+
+  test("rejects strings of different length", () => {
+    // Length mismatch is allowed to short-circuit because the OTP length is
+    // configured publicly via `magic({ otpLength })`, not secret. The
+    // constant-time guarantee only covers per-byte content comparison once
+    // the lengths agree.
+    expect(constantTimeStringEqual("123", "1234")).toBe(false);
   });
 });
 

@@ -6,10 +6,13 @@ export const CLIENT_IP_SOURCE_HEADERS = [
   "x-forwarded-for",
 ] as const;
 
-export const TRUSTED_CLIENT_IP_HEADERS = [
-  FORWARDED_CLIENT_IP_HEADER,
-  ...CLIENT_IP_SOURCE_HEADERS,
-] as const;
+// The only client-IP header the internal API is allowed to trust. The proxy
+// workers resolve CLIENT_IP_SOURCE_HEADERS into this single canonical header
+// and strip the source headers from the outgoing request, so that a client-
+// supplied x-real-ip or x-forwarded-for never reaches better-auth's
+// ipAddressHeaders fallback (where it would be honoured for rate-limit / audit
+// keying).
+export const TRUSTED_CLIENT_IP_HEADERS = [FORWARDED_CLIENT_IP_HEADER] as const;
 
 function normalizeHeaderValue(value: string | null): string | undefined {
   const trimmed = value?.trim();

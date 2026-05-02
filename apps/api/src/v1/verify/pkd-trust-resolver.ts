@@ -68,7 +68,7 @@ function resolveInlinePkdDscCertificatesBySki(
 	const normalizedSkiHex = skiHex.toLowerCase();
 	const cached = bundle.dscsBySkiHex.get(normalizedSkiHex);
 
-	if (cached) {
+	if (cached && cached.length > 0) {
 		return [...cached];
 	}
 
@@ -78,7 +78,12 @@ function resolveInlinePkdDscCertificatesBySki(
 		record,
 	}));
 
-	bundle.dscsBySkiHex.set(normalizedSkiHex, entries);
+	// Don't memoize an empty result — `resolvePkdDscCertificatesBySki` re-runs
+	// this lookup after the lazy SKI loader populates `dscRecordsBySkiHex`,
+	// and a cached empty array would shadow the freshly-loaded records.
+	if (entries.length > 0) {
+		bundle.dscsBySkiHex.set(normalizedSkiHex, entries);
+	}
 	return [...entries];
 }
 
@@ -115,7 +120,7 @@ function resolveSegmentPkdDscCertificatesBySki(
 	const normalizedSkiHex = skiHex.toLowerCase();
 	const cached = segment.dscsBySkiHex.get(normalizedSkiHex);
 
-	if (cached) {
+	if (cached && cached.length > 0) {
 		return [...cached];
 	}
 
@@ -125,7 +130,9 @@ function resolveSegmentPkdDscCertificatesBySki(
 		record,
 	}));
 
-	segment.dscsBySkiHex.set(normalizedSkiHex, entries);
+	if (entries.length > 0) {
+		segment.dscsBySkiHex.set(normalizedSkiHex, entries);
+	}
 	return [...entries];
 }
 

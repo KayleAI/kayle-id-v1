@@ -44,10 +44,11 @@ describe("getForwardedClientIp", () => {
 });
 
 describe("client IP header constants", () => {
-  test("keeps trusted auth headers aligned with proxy source headers", () => {
-    expect(TRUSTED_CLIENT_IP_HEADERS).toEqual([
-      FORWARDED_CLIENT_IP_HEADER,
-      ...CLIENT_IP_SOURCE_HEADERS,
-    ]);
+  test("internal API only trusts the proxy-derived header, not raw upstream sources", () => {
+    expect(TRUSTED_CLIENT_IP_HEADERS).toEqual([FORWARDED_CLIENT_IP_HEADER]);
+
+    for (const sourceHeader of CLIENT_IP_SOURCE_HEADERS) {
+      expect(TRUSTED_CLIENT_IP_HEADERS).not.toContain(sourceHeader);
+    }
   });
 });

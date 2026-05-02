@@ -1,3 +1,4 @@
+import { TRUSTED_CLIENT_IP_HEADERS } from "@kayle-id/config/client-ip";
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
@@ -147,12 +148,7 @@ export const auth = betterAuth({
       path: "/",
     },
     ipAddress: {
-      ipAddressHeaders: [
-        "x-forwarded-client-ip",
-        "cf-connecting-ip",
-        "x-real-ip",
-        "x-forwarded-for",
-      ],
+      ipAddressHeaders: [...TRUSTED_CLIENT_IP_HEADERS],
     },
   },
   telemetry: {

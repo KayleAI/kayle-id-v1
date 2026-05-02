@@ -1,4 +1,8 @@
 import { createHmac } from "node:crypto";
+import {
+	FORWARDED_CLIENT_IP_HEADER,
+	getForwardedClientIp,
+} from "@kayle-id/config/client-ip";
 
 type ProxyRequest = Request & { cf?: unknown };
 
@@ -6,14 +10,6 @@ export function getPublicHost(): string {
 	return process.env.NODE_ENV === "production"
 		? "https://kayle.id"
 		: "https://localhost:3000";
-}
-
-function getForwardedClientIp(request: Request): string | undefined {
-	return (
-		request.headers.get("cf-connecting-ip") ||
-		request.headers.get("x-real-ip") ||
-		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-	);
 }
 
 export function buildInternalApiProxyUrl(
@@ -47,10 +43,10 @@ export function buildProxyHeaders(
 		headers.set("x-cf-signature", cfSignature);
 	}
 
-	const clientIp = getForwardedClientIp(request);
+	const clientIp = getForwardedClientIp(request.headers);
 
 	if (clientIp) {
-		headers.set("x-forwarded-client-ip", clientIp);
+		headers.set(FORWARDED_CLIENT_IP_HEADER, clientIp);
 	}
 
 	return headers;

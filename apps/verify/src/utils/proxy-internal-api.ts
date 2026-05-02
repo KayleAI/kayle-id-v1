@@ -1,15 +1,12 @@
+import {
+	FORWARDED_CLIENT_IP_HEADER,
+	getForwardedClientIp,
+} from "@kayle-id/config/client-ip";
+
 function getPublicHost(): string {
 	return process.env.NODE_ENV === "production"
 		? "https://verify.kayle.id"
 		: "https://localhost:2999";
-}
-
-function getForwardedClientIp(request: Request): string | undefined {
-	return (
-		request.headers.get("cf-connecting-ip") ||
-		request.headers.get("x-real-ip") ||
-		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-	);
 }
 
 export function buildApiProxyUrl(
@@ -22,10 +19,10 @@ export function buildApiProxyUrl(
 
 export function buildProxyHeaders(request: Request): Headers {
 	const headers = new Headers(request.headers);
-	const clientIp = getForwardedClientIp(request);
+	const clientIp = getForwardedClientIp(request.headers);
 
 	if (clientIp) {
-		headers.set("x-forwarded-client-ip", clientIp);
+		headers.set(FORWARDED_CLIENT_IP_HEADER, clientIp);
 	}
 
 	return headers;

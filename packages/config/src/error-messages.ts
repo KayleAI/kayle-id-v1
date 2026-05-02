@@ -54,9 +54,26 @@ export const ERROR_MESSAGES = {
     description: "Use the device you started with or start again.",
   },
 
+  CANCEL_TOKEN_INVALID: {
+    title: "Cannot cancel session",
+    description:
+      "This session can’t be cancelled from this link. Open the original verify link or contact support.",
+  },
+
+  CANCEL_TOKEN_USED: {
+    title: "Already cancelled",
+    description: "This session has already been cancelled.",
+  },
+
+  INVALID_REQUEST: {
+    title: "Invalid request",
+    description: "The request payload was missing or malformed.",
+  },
+
   ATTEMPT_CONNECTION_ACTIVE: {
     title: "Already open",
-    description: "This session is active elsewhere. Continue there or try again later.",
+    description:
+      "This session is active elsewhere. Continue there or try again later.",
   },
 
   PHASE_OUT_OF_ORDER: {
@@ -96,7 +113,8 @@ export const ERROR_MESSAGES = {
 
   SHARE_SELECTION_INVALID_FIELD: {
     title: "Invalid selection",
-    description: "Some selected details aren’t available. Review and try again.",
+    description:
+      "Some selected details aren’t available. Review and try again.",
   },
 
   SHARE_SELECTION_MISSING_REQUIRED: {
@@ -106,7 +124,8 @@ export const ERROR_MESSAGES = {
 
   passport_authenticity_failed: {
     title: "Passport check failed",
-    description: "We couldn’t verify your passport. Try again or use a different one.",
+    description:
+      "We couldn’t verify your passport. Try again or use a different one.",
   },
 
   selfie_face_mismatch: {

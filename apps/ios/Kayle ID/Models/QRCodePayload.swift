@@ -30,6 +30,7 @@ struct QRCodePayload: Codable {
   let attemptId: String
   let mobileWriteToken: String
   let expiresAt: Date
+  let cancelToken: String?
 
   enum CodingKeys: String, CodingKey {
     case v
@@ -37,6 +38,7 @@ struct QRCodePayload: Codable {
     case attemptId = "attempt_id"
     case mobileWriteToken = "mobile_write_token"
     case expiresAt = "expires_at"
+    case cancelToken = "cancel_token"
   }
 
   init(
@@ -44,13 +46,15 @@ struct QRCodePayload: Codable {
     sessionId: String,
     attemptId: String,
     mobileWriteToken: String,
-    expiresAt: Date
+    expiresAt: Date,
+    cancelToken: String? = nil
   ) {
     self.v = v
     self.sessionId = sessionId
     self.attemptId = attemptId
     self.mobileWriteToken = mobileWriteToken
     self.expiresAt = expiresAt
+    self.cancelToken = cancelToken
   }
 
   init(from decoder: Decoder) throws {
@@ -59,6 +63,7 @@ struct QRCodePayload: Codable {
     sessionId = try container.decode(String.self, forKey: .sessionId)
     attemptId = try container.decode(String.self, forKey: .attemptId)
     mobileWriteToken = try container.decode(String.self, forKey: .mobileWriteToken)
+    cancelToken = try container.decodeIfPresent(String.self, forKey: .cancelToken)
     let expiresAtValue = try container.decode(String.self, forKey: .expiresAt)
 
     guard let parsedExpiresAt = parseQRCodePayloadDate(expiresAtValue) else {

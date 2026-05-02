@@ -26,12 +26,17 @@ export type FetchLike = (
   input: RequestInfo | URL,
   init?: RequestInit
 ) => Promise<Response>;
-export type ContainerFetcher = {
+export interface ContainerFetcher {
   fetch: FetchLike;
-};
+}
 
 type GetContainer = (env: unknown) => Promise<ContainerFetcher | null>;
 type FaceMatcherRequestLogger = SafeRequestLogger;
+
+interface FaceMatcherWorkerOptions {
+  emitRequestLogs?: boolean;
+  getContainer?: GetContainer;
+}
 
 initStructuredLogger({
   environment: process.env.NODE_ENV,
@@ -48,18 +53,25 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-function isInternalRequestAuthorized(
+type InternalAuthOutcome =
+  | { ok: true }
+  | { ok: false; reason: "secret_missing" | "credentials_invalid" };
+
+function authorizeInternalRequest(
   request: Request,
   matcherSecret?: string
-): boolean {
+): InternalAuthOutcome {
   if (!(typeof matcherSecret === "string" && matcherSecret.length > 0)) {
-    return true;
+    return { ok: false, reason: "secret_missing" };
   }
 
-  return (
+  const headerMatch =
     request.headers.get(FACE_MATCHER_AUTH_HEADER) === matcherSecret ||
-    request.headers.get("authorization") === `Bearer ${matcherSecret}`
-  );
+    request.headers.get("authorization") === `Bearer ${matcherSecret}`;
+
+  return headerMatch
+    ? { ok: true }
+    : { ok: false, reason: "credentials_invalid" };
 }
 
 function resolveStringEnvValue(env: unknown, key: string): string | null {
@@ -173,8 +185,34 @@ async function handleMatchRequest({
 }): Promise<Response> {
   const matcherSecret =
     resolveStringEnvValue(env, "FACE_MATCHER_SECRET") ?? undefined;
+  const authOutcome = authorizeInternalRequest(request, matcherSecret);
 
-  if (!isInternalRequestAuthorized(request, matcherSecret)) {
+  if (!authOutcome.ok) {
+    if (authOutcome.reason === "secret_missing") {
+      // Fail closed when the worker is missing the shared secret. Treat this
+      // as misconfiguration (503) rather than UNAUTHORIZED (401) so the API
+      // side can distinguish "deploy is broken" from "caller sent the wrong
+      // header" and alert on it.
+      logEvent(logger, {
+        details: {
+          error_code: "face_matcher_secret_missing",
+          status: 503,
+        },
+        event: "face_matcher.misconfigured",
+        level: "warn",
+      });
+
+      return jsonResponse(
+        {
+          error: {
+            code: "MATCHER_MISCONFIGURED",
+            message: "Face matcher is missing its shared secret.",
+          },
+        },
+        503
+      );
+    }
+
     logEvent(logger, {
       details: {
         error_code: "face_matcher_unauthorized",
@@ -244,19 +282,25 @@ async function handleMatchRequest({
   return jsonResponse(response);
 }
 
-export function createFaceMatcherWorker(
-  { getContainer }: { getContainer: GetContainer } = {
-    getContainer: async () => null,
-  }
-): Required<Pick<ExportedHandler<FaceMatcherBindings>, "fetch">> {
+export function createFaceMatcherWorker({
+  emitRequestLogs = true,
+  getContainer = async () => null,
+}: FaceMatcherWorkerOptions = {}): Required<
+  Pick<ExportedHandler<FaceMatcherBindings>, "fetch">
+> {
   return {
     fetch: async (request, env) => {
       const logger = createSafeRequestLogger(request);
+      const emitRequestLog = (status: number) => {
+        if (emitRequestLogs) {
+          emitSafeRequestLog(logger, status);
+        }
+      };
       const url = new URL(request.url);
       try {
         if (request.method === "GET" && url.pathname === "/health") {
           const response = await proxyHealth(await getContainer(env), logger);
-          emitSafeRequestLog(logger, response.status);
+          emitRequestLog(response.status);
           return response;
         }
 
@@ -267,7 +311,7 @@ export function createFaceMatcherWorker(
             logger,
             request,
           });
-          emitSafeRequestLog(logger, response.status);
+          emitRequestLog(response.status);
           return response;
         }
 
@@ -289,7 +333,7 @@ export function createFaceMatcherWorker(
           },
           404
         );
-        emitSafeRequestLog(logger, response.status);
+        emitRequestLog(response.status);
         return response;
       } catch (error) {
         logSafeError(logger, {
@@ -299,7 +343,7 @@ export function createFaceMatcherWorker(
           message: "Face matcher request failed.",
           status: 500,
         });
-        emitSafeRequestLog(logger, 500);
+        emitRequestLog(500);
         throw error;
       }
     },

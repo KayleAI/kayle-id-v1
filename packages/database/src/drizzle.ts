@@ -8,8 +8,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
  * @see https://orm.drizzle.team/docs
  */
 const db = drizzle({
-  client: pool,
-  schema,
+	client: pool,
+	schema,
 });
 
 export { db };

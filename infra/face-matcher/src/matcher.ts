@@ -9,7 +9,7 @@ import type {
   FaceScoreResult,
 } from "../../../apps/api/src/v1/verify/validation-types";
 
-type ContainerMatchRequestPayload = {
+interface ContainerMatchRequestPayload {
   dg2Image: {
     height: number;
     rgbaBase64: string;
@@ -17,15 +17,15 @@ type ContainerMatchRequestPayload = {
   };
   selfiesBase64: string[];
   threshold?: number;
-};
+}
 
 type FetchLike = (
   input: RequestInfo | URL,
   init?: RequestInit
 ) => Promise<Response>;
-type ContainerFetcher = {
+interface ContainerFetcher {
   fetch: FetchLike;
-};
+}
 
 function createUnavailableFaceScore(reason: string): FaceScoreResult {
   return {

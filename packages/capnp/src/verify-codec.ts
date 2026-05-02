@@ -6,40 +6,40 @@ import {
   VerdictOutcome as CapnpVerdictOutcome,
 } from "../generated/ts/verify.js";
 
-export type VerifyClientHello = {
-  attemptId?: string;
-  mobileWriteToken?: string;
-  deviceId?: string;
+export interface VerifyClientHello {
   appVersion?: string;
-};
+  attemptId?: string;
+  deviceId?: string;
+  mobileWriteToken?: string;
+}
 
-export type VerifyPhaseUpdate = {
-  phase?: string;
+export interface VerifyPhaseUpdate {
   error?: string;
-};
+  phase?: string;
+}
 
-export type VerifyDataPayload = {
-  kind?: number;
-  raw?: Uint8Array;
-  index?: number;
-  total?: number;
+export interface VerifyDataPayload {
   chunkIndex?: number;
   chunkTotal?: number;
-};
+  index?: number;
+  kind?: number;
+  raw?: Uint8Array;
+  total?: number;
+}
 
-export type VerifyShareSelection = {
-  sessionId?: string;
+export interface VerifyShareSelection {
   selectedFieldKeys?: string[];
-};
+  sessionId?: string;
+}
 
-export type VerifyClientMessage = {
+export interface VerifyClientMessage {
+  data?: VerifyDataPayload;
   hello?: VerifyClientHello;
   phase?: VerifyPhaseUpdate;
-  data?: VerifyDataPayload;
   shareSelection?: VerifyShareSelection;
-};
+}
 
-export type VerifyServerMessage = {
+export interface VerifyServerMessage {
   ack?: {
     message: string;
   };
@@ -47,12 +47,9 @@ export type VerifyServerMessage = {
     code: string;
     message: string;
   };
-  verdict?: {
-    outcome: "accepted" | "rejected";
-    reasonCode: string;
-    reasonMessage: string;
-    retryAllowed: boolean;
-    remainingAttempts: number;
+  shareReady?: {
+    sessionId: string;
+    selectedFieldKeys: string[];
   };
   shareRequest?: {
     contractVersion: number;
@@ -63,11 +60,14 @@ export type VerifyServerMessage = {
       required: boolean;
     }>;
   };
-  shareReady?: {
-    sessionId: string;
-    selectedFieldKeys: string[];
+  verdict?: {
+    outcome: "accepted" | "rejected";
+    reasonCode: string;
+    reasonMessage: string;
+    retryAllowed: boolean;
+    remainingAttempts: number;
   };
-};
+}
 
 export type VerifyServerVerdict = NonNullable<VerifyServerMessage["verdict"]>;
 export type VerifyShareRequest = NonNullable<

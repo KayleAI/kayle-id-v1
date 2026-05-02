@@ -3,15 +3,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSingleEffect } from "react-haiku";
 
 export const Route = createFileRoute("/_auth/sign-out")({
-  component: SignOutPage,
+	component: SignOutPage,
 });
 
 function SignOutPage() {
-  useSingleEffect(() => {
-    client.signOut().then(() => {
-      window.location.href = "/";
-    });
-  });
+	useSingleEffect(() => {
+		client.signOut().then(() => {
+			window.location.href = "/";
+		});
+	});
 
-  return <p>Signing you out...</p>;
+	return <p>Signing you out...</p>;
 }

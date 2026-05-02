@@ -1,130 +1,207 @@
 export type HandoffPayload = {
-  v: number;
-  session_id: string;
-  attempt_id: string;
-  mobile_write_token: string;
-  expires_at: string;
+	v: number;
+	session_id: string;
+	attempt_id: string;
+	mobile_write_token: string;
+	expires_at: string;
 };
 
 export type VerifySessionStatusPayload = {
-  completed_at: string | null;
-  is_terminal: boolean;
-  latest_attempt: {
-    completed_at: string | null;
-    failure_code: string | null;
-    handoff_claimed: boolean;
-    id: string;
-    retry_allowed: boolean;
-    status: "cancelled" | "failed" | "in_progress" | "succeeded";
-  } | null;
-  redirect_url: string | null;
-  session_id: string;
-  same_device_only: boolean;
-  status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+	completed_at: string | null;
+	is_terminal: boolean;
+	latest_attempt: {
+		completed_at: string | null;
+		failure_code: string | null;
+		handoff_claimed: boolean;
+		id: string;
+		retry_allowed: boolean;
+		status: "cancelled" | "failed" | "in_progress" | "succeeded";
+	} | null;
+	redirect_url: string | null;
+	session_id: string;
+	same_device_only: boolean;
+	status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 };
 
 export type VerifySessionDetailsPayload = {
-  organization_name: string;
-  session_id: string;
+	organization_name: string;
+	session_id: string;
 };
 
 type VerifyApiError = {
-  code: string;
-  message: string;
+	code: string;
+	message: string;
 };
 
 type VerifyApiResponse<T> = {
-  data: T | null;
-  error: VerifyApiError | null;
+	data: T | null;
+	error: VerifyApiError | null;
 };
 
 type VerifyRequestError = Error & {
-  code: string;
+	code: string;
 };
 
+const UNKNOWN_ERROR_CODE = "UNKNOWN";
+const HANDOFF_ERROR_MESSAGE = "Failed to fetch handoff credentials.";
+const SESSION_STATUS_ERROR_MESSAGE =
+	"Failed to fetch verification session status.";
+const SESSION_DETAILS_ERROR_MESSAGE =
+	"Failed to fetch verification session details.";
+const CANCEL_SESSION_ERROR_MESSAGE =
+	"Failed to cancel the verification session.";
+
 function createVerifyRequestError(
-  code: string,
-  message: string
+	code: string,
+	message: string,
 ): VerifyRequestError {
-  const error = new Error(message) as VerifyRequestError;
-  error.code = code;
-  return error;
+	const error = new Error(message) as VerifyRequestError;
+	error.code = code;
+	return error;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseVerifyApiError(value: unknown): VerifyApiError | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const { code, message } = value;
+
+	return typeof code === "string"
+		? {
+				code,
+				message: typeof message === "string" ? message : code,
+			}
+		: null;
+}
+
+async function readVerifyApiResponse<T>(
+	response: Response,
+	defaultMessage: string,
+): Promise<VerifyApiResponse<T>> {
+	let payload: unknown;
+
+	try {
+		payload = await response.json();
+	} catch {
+		return {
+			data: null,
+			error: {
+				code: UNKNOWN_ERROR_CODE,
+				message: defaultMessage,
+			},
+		};
+	}
+
+	if (!isRecord(payload)) {
+		return {
+			data: null,
+			error: {
+				code: UNKNOWN_ERROR_CODE,
+				message: defaultMessage,
+			},
+		};
+	}
+
+	const error = parseVerifyApiError(payload.error);
+
+	return {
+		data: payload.data === undefined ? null : (payload.data as T | null),
+		error,
+	};
 }
 
 export async function requestHandoffPayload(
-  sessionId: string
+	sessionId: string,
 ): Promise<HandoffPayload> {
-  const response = await fetch(`/v1/verify/session/${sessionId}/handoff`, {
-    method: "POST",
-  });
+	const response = await fetch(`/v1/verify/session/${sessionId}/handoff`, {
+		method: "POST",
+	});
 
-  const payload = (await response.json()) as VerifyApiResponse<HandoffPayload>;
+	const payload = await readVerifyApiResponse<HandoffPayload>(
+		response,
+		HANDOFF_ERROR_MESSAGE,
+	);
 
-  if (!(response.ok && payload.data) || payload.error) {
-    throw createVerifyRequestError(
-      payload.error?.code ?? "UNKNOWN",
-      payload.error?.message ?? "Failed to fetch handoff credentials."
-    );
-  }
+	if (!(response.ok && payload.data) || payload.error) {
+		throw createVerifyRequestError(
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? HANDOFF_ERROR_MESSAGE,
+		);
+	}
 
-  return payload.data;
+	return payload.data;
 }
 
 export async function requestVerifySessionStatus(
-  sessionId: string
+	sessionId: string,
 ): Promise<VerifySessionStatusPayload> {
-  const response = await fetch(`/v1/verify/session/${sessionId}/status`, {
-    method: "GET",
-  });
+	const response = await fetch(`/v1/verify/session/${sessionId}/status`, {
+		method: "GET",
+	});
 
-  const payload =
-    (await response.json()) as VerifyApiResponse<VerifySessionStatusPayload>;
+	const payload = await readVerifyApiResponse<VerifySessionStatusPayload>(
+		response,
+		SESSION_STATUS_ERROR_MESSAGE,
+	);
 
-  if (!(response.ok && payload.data) || payload.error) {
-    throw createVerifyRequestError(
-      payload.error?.code ?? "UNKNOWN",
-      payload.error?.message ?? "Failed to fetch verification session status."
-    );
-  }
+	if (!(response.ok && payload.data) || payload.error) {
+		throw createVerifyRequestError(
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? SESSION_STATUS_ERROR_MESSAGE,
+		);
+	}
 
-  return payload.data;
+	return payload.data;
 }
 
 export async function requestVerifySessionDetails(
-  sessionId: string
+	sessionId: string,
 ): Promise<VerifySessionDetailsPayload> {
-  const response = await fetch(`/v1/verify/session/${sessionId}/details`, {
-    method: "GET",
-  });
+	const response = await fetch(`/v1/verify/session/${sessionId}/details`, {
+		method: "GET",
+	});
 
-  const payload =
-    (await response.json()) as VerifyApiResponse<VerifySessionDetailsPayload>;
+	const payload = await readVerifyApiResponse<VerifySessionDetailsPayload>(
+		response,
+		SESSION_DETAILS_ERROR_MESSAGE,
+	);
 
-  if (!(response.ok && payload.data) || payload.error) {
-    throw createVerifyRequestError(
-      payload.error?.code ?? "UNKNOWN",
-      payload.error?.message ?? "Failed to fetch verification session details."
-    );
-  }
+	if (!(response.ok && payload.data) || payload.error) {
+		throw createVerifyRequestError(
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? SESSION_DETAILS_ERROR_MESSAGE,
+		);
+	}
 
-  return payload.data;
+	return payload.data;
 }
 
 export async function requestCancelVerifySession(
-  sessionId: string
+	sessionId: string,
+	cancelToken: string,
 ): Promise<void> {
-  const response = await fetch(`/v1/verify/session/${sessionId}/cancel`, {
-    method: "POST",
-  });
+	const response = await fetch(`/v1/verify/session/${sessionId}/cancel`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ cancel_token: cancelToken }),
+	});
 
-  if (response.status === 204) {
-    return;
-  }
+	if (response.status === 204) {
+		return;
+	}
 
-  const payload = (await response.json()) as VerifyApiResponse<null>;
+	const payload = await readVerifyApiResponse<null>(
+		response,
+		CANCEL_SESSION_ERROR_MESSAGE,
+	);
 
-  throw createVerifyRequestError(
-    payload.error?.code ?? "UNKNOWN",
-    payload.error?.message ?? "Failed to cancel the verification session."
-  );
+	throw createVerifyRequestError(
+		payload.error?.code ?? UNKNOWN_ERROR_CODE,
+		payload.error?.message ?? CANCEL_SESSION_ERROR_MESSAGE,
+	);
 }

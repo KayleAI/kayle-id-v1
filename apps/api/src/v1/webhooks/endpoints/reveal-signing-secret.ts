@@ -7,92 +7,92 @@ import { revealWebhookEndpointSigningSecret } from "@/openapi/v1/webhooks/endpoi
 import { decryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
 
 const revealSigningSecretEndpoint = new OpenAPIHono<{
-  Bindings: CloudflareBindings;
-  Variables: {
-    organizationId: string;
-    type: "api" | "session";
-  };
+	Bindings: CloudflareBindings;
+	Variables: {
+		organizationId: string;
+		type: "api" | "session";
+	};
 }>();
 
 revealSigningSecretEndpoint.openapi(
-  revealWebhookEndpointSigningSecret,
-  async (c) => {
-    const organizationId = c.get("organizationId");
-    const params = c.req.valid("param");
+	revealWebhookEndpointSigningSecret,
+	async (c) => {
+		const organizationId = c.get("organizationId");
+		const params = c.req.valid("param");
 
-    const [endpoint] = await db
-      .select()
-      .from(webhook_endpoints)
-      .where(
-        and(
-          eq(webhook_endpoints.id, params.endpoint_id),
-          eq(webhook_endpoints.organizationId, organizationId),
-          eq(webhook_endpoints.environment, "live")
-        )
-      )
-      .limit(1);
+		const [endpoint] = await db
+			.select()
+			.from(webhook_endpoints)
+			.where(
+				and(
+					eq(webhook_endpoints.id, params.endpoint_id),
+					eq(webhook_endpoints.organizationId, organizationId),
+					eq(webhook_endpoints.environment, "live"),
+				),
+			)
+			.limit(1);
 
-    if (!endpoint) {
-      return c.json(
-        {
-          data: null,
-          error: {
-            code: "NOT_FOUND",
-            message: "Webhook endpoint not found.",
-            hint: "The webhook endpoint with the given ID was not found.",
-            docs: "https://kayle.id/docs/api/webhooks/endpoints#reveal-signing-secret",
-          } as const,
-        },
-        404
-      );
-    }
+		if (!endpoint) {
+			return c.json(
+				{
+					data: null,
+					error: {
+						code: "NOT_FOUND",
+						message: "Webhook endpoint not found.",
+						hint: "The webhook endpoint with the given ID was not found.",
+						docs: "https://kayle.id/docs/api/webhooks/endpoints#reveal-signing-secret",
+					} as const,
+				},
+				404,
+			);
+		}
 
-    if (!endpoint.signingSecretCiphertext) {
-      return c.json(
-        {
-          data: null,
-          error: {
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Internal server error.",
-            hint: "The server encountered an error.",
-            docs: "https://kayle.id/docs/api/errors",
-          } as const,
-        },
-        500
-      );
-    }
+		if (!endpoint.signingSecretCiphertext) {
+			return c.json(
+				{
+					data: null,
+					error: {
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Internal server error.",
+						hint: "The server encountered an error.",
+						docs: "https://kayle.id/docs/api/errors",
+					} as const,
+				},
+				500,
+			);
+		}
 
-    try {
-      const signingSecret = await decryptWebhookSigningSecret({
-        ciphertext: endpoint.signingSecretCiphertext,
-        secret: c.env?.AUTH_SECRET ?? env.AUTH_SECRET,
-      });
+		try {
+			const signingSecret = await decryptWebhookSigningSecret({
+				ciphertext: endpoint.signingSecretCiphertext,
+				secret: c.env?.AUTH_SECRET ?? env.AUTH_SECRET,
+			});
 
-      return c.json(
-        {
-          data: {
-            endpoint_id: endpoint.id,
-            signing_secret: signingSecret,
-          },
-          error: null,
-        },
-        200
-      );
-    } catch {
-      return c.json(
-        {
-          data: null,
-          error: {
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Internal server error.",
-            hint: "The server encountered an error.",
-            docs: "https://kayle.id/docs/api/errors",
-          } as const,
-        },
-        500
-      );
-    }
-  }
+			return c.json(
+				{
+					data: {
+						endpoint_id: endpoint.id,
+						signing_secret: signingSecret,
+					},
+					error: null,
+				},
+				200,
+			);
+		} catch {
+			return c.json(
+				{
+					data: null,
+					error: {
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Internal server error.",
+						hint: "The server encountered an error.",
+						docs: "https://kayle.id/docs/api/errors",
+					} as const,
+				},
+				500,
+			);
+		}
+	},
 );
 
 export { revealSigningSecretEndpoint };

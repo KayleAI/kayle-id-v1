@@ -9,15 +9,37 @@ import {
 } from "../../../apps/api/tests/helpers/verify-artifacts";
 import { createFaceMatcherWorker } from "./worker";
 
+type TestFaceMatcherBindings = Partial<FaceMatcherBindings> & {
+  FACE_MATCHER_SECRET?: string;
+};
+
 function createExecutionContext(): ExecutionContext {
   return {
+    exports: {} as ExecutionContext["exports"],
     passThroughOnException() {
       return;
     },
+    props: undefined,
     waitUntil() {
       return;
     },
-  } as unknown as ExecutionContext;
+  };
+}
+
+function createWorkerRequest(
+  input: string,
+  init?: RequestInit
+): Request<unknown, IncomingRequestCfProperties<unknown>> {
+  return new Request(input, init) as Request<
+    unknown,
+    IncomingRequestCfProperties<unknown>
+  >;
+}
+
+function createBindings(
+  bindings: TestFaceMatcherBindings = {}
+): FaceMatcherBindings {
+  return bindings as FaceMatcherBindings;
 }
 
 test("face matcher worker returns a passing score for valid inputs", async () => {
@@ -31,6 +53,7 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
   let capturedPayload: unknown = null;
 
   const worker = createFaceMatcherWorker({
+    emitRequestLogs: false,
     getContainer: async () => ({
       fetch: async (input, init) => {
         const request = new Request(input, init);
@@ -55,7 +78,7 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
   });
 
   const response = await worker.fetch(
-    new Request("http://face-matcher/match", {
+    createWorkerRequest("http://face-matcher/match", {
       body: createFaceMatcherRequestFormData({
         dg2Image: dg2,
         selfies: [portrait],
@@ -65,10 +88,10 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
         [FACE_MATCHER_AUTH_HEADER]: "test-secret",
       },
       method: "POST",
-    }) as unknown as Request<unknown, IncomingRequestCfProperties<unknown>>,
-    {
+    }),
+    createBindings({
       FACE_MATCHER_SECRET: "test-secret",
-    } as unknown as FaceMatcherBindings,
+    }),
     createExecutionContext()
   );
 
@@ -103,25 +126,58 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
 });
 
 test("face matcher worker rejects malformed requests", async () => {
-  const worker = createFaceMatcherWorker();
+  const worker = createFaceMatcherWorker({ emitRequestLogs: false });
   const formData = new FormData();
   formData.append("threshold", "bad");
 
   const response = await worker.fetch(
-    new Request("http://face-matcher/match", {
+    createWorkerRequest("http://face-matcher/match", {
       body: formData,
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "test-secret",
+      },
       method: "POST",
-    }) as unknown as Request<unknown, IncomingRequestCfProperties<unknown>>,
-    {} as unknown as FaceMatcherBindings,
+    }),
+    createBindings({
+      FACE_MATCHER_SECRET: "test-secret",
+    }),
     createExecutionContext()
   );
 
   expect(response.status).toBe(400);
 });
 
+test("face matcher worker fails closed (503) when the shared secret is missing", async () => {
+  const portrait = await loadVerifyFixtureBytes("icon.jpg");
+  const worker = createFaceMatcherWorker({ emitRequestLogs: false });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://face-matcher/match", {
+      body: createFaceMatcherRequestFormData({
+        dg2Image: createDg2Artifact({
+          imageData: portrait,
+          imageFormat: "jpeg",
+        }),
+        selfies: [portrait],
+      }),
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "anything",
+      },
+      method: "POST",
+    }),
+    createBindings(),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(503);
+  const payload = (await response.json()) as { error?: { code?: string } };
+  expect(payload.error?.code).toBe("MATCHER_MISCONFIGURED");
+});
+
 test("face matcher worker rejects unauthorized requests", async () => {
   const portrait = await loadVerifyFixtureBytes("icon.jpg");
   const worker = createFaceMatcherWorker({
+    emitRequestLogs: false,
     getContainer: async () => ({
       fetch: async () =>
         new Response(
@@ -141,7 +197,7 @@ test("face matcher worker rejects unauthorized requests", async () => {
   });
 
   const response = await worker.fetch(
-    new Request("http://face-matcher/match", {
+    createWorkerRequest("http://face-matcher/match", {
       body: createFaceMatcherRequestFormData({
         dg2Image: createDg2Artifact({
           imageData: portrait,
@@ -153,10 +209,10 @@ test("face matcher worker rejects unauthorized requests", async () => {
         [FACE_MATCHER_AUTH_HEADER]: "wrong-secret",
       },
       method: "POST",
-    }) as unknown as Request<unknown, IncomingRequestCfProperties<unknown>>,
-    {
+    }),
+    createBindings({
       FACE_MATCHER_SECRET: "test-secret",
-    } as unknown as FaceMatcherBindings,
+    }),
     createExecutionContext()
   );
 

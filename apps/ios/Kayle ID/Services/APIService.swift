@@ -73,7 +73,7 @@ enum APIService {
   }
 
   @MainActor
-  static func cancelVerification(sessionId: String) async throws {
+  static func cancelVerification(sessionId: String, cancelToken: String) async throws {
     guard let url = URL(string: "\(baseURL(from: sessionId))/v1/verify/session/\(sessionId)/cancel")
     else {
       throw APIError.invalidResponse
@@ -82,6 +82,9 @@ enum APIService {
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONSerialization.data(
+      withJSONObject: ["cancel_token": cancelToken]
+    )
 
     let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -139,6 +142,13 @@ enum APIService {
       !host.isEmpty,
       scheme == "http" || scheme == "https"
     else {
+      return nil
+    }
+
+    // ATS now only permits HTTP to localhost / 127.0.0.1, so reject any other
+    // host that was configured with http:// up front rather than letting the
+    // request fail later inside URLSession with an opaque ATS error.
+    if scheme == "http" && host != "localhost" && host != "127.0.0.1" {
       return nil
     }
 

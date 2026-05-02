@@ -1,7 +1,7 @@
 import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import InfoCard from "@kayle-id/ui/info-card";
 import { Layout } from "@kayleai/ui/layout";
 import type { NotFoundRouteProps } from "@tanstack/react-router";
-import InfoCard from "./info";
 
 /**
  * The not found component.
@@ -15,55 +15,55 @@ import InfoCard from "./info";
  * @returns A not found component.
  */
 type InvalidSessionData = {
-  data?: {
-    type?: string;
-  };
+	data?: {
+		type?: string;
+	};
 };
 
 function isInvalidSessionData(data: unknown): data is InvalidSessionData {
-  return typeof data === "object" && data !== null && "data" in data;
+	return typeof data === "object" && data !== null && "data" in data;
 }
 
 export function NotFound({ data }: NotFoundRouteProps) {
-  const invalidData = isInvalidSessionData(data) ? data : undefined;
+	const invalidData = isInvalidSessionData(data) ? data : undefined;
 
-  if (invalidData?.data?.type === "invalid_session_id") {
-    const errorMessage = ERROR_MESSAGES.INVALID_SESSION_ID;
-    return (
-      <InfoCard
-        buttons={{
-          primary: {
-            label: "Go back to the previous page",
-            onClick: () => window.history.back(),
-          },
-        }}
-        colour="red"
-        header={{
-          title: errorMessage.title,
-          description: errorMessage.description,
-        }}
-        message={{
-          title: errorMessage.title,
-          description: errorMessage.description,
-        }}
-      />
-    );
-  }
+	if (invalidData?.data?.type === "invalid_session_id") {
+		const errorMessage = ERROR_MESSAGES.INVALID_SESSION_ID;
+		return (
+			<InfoCard
+				buttons={{
+					primary: {
+						label: "Go back to the previous page",
+						onClick: () => window.history.back(),
+					},
+				}}
+				colour="red"
+				header={{
+					title: errorMessage.title,
+					description: errorMessage.description,
+				}}
+				message={{
+					title: errorMessage.title,
+					description: errorMessage.description,
+				}}
+			/>
+		);
+	}
 
-  // Generic not found page
-  return (
-    <Layout>
-      <InfoCard
-        colour="red"
-        header={{
-          title: "Page Not Found",
-          description: "The page you are looking for does not exist.",
-        }}
-        message={{
-          title: "We couldn't find the page you were looking for",
-          description: "Please check the URL you followed and try again.",
-        }}
-      />
-    </Layout>
-  );
+	// Generic not found page
+	return (
+		<Layout>
+			<InfoCard
+				colour="red"
+				header={{
+					title: "Page Not Found",
+					description: "The page you are looking for does not exist.",
+				}}
+				message={{
+					title: "We couldn't find the page you were looking for",
+					description: "Please check the URL you followed and try again.",
+				}}
+			/>
+		</Layout>
+	);
 }

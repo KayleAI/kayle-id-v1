@@ -6,9 +6,14 @@ import type { User } from "better-auth/types";
 import { APIError } from "better-call";
 import { z } from "zod";
 
-type MagicOptions = {
+interface MagicOptions {
+  disableSignUp?: boolean;
   expiresIn?: number;
   otpLength?: number;
+  rateLimit?: {
+    window: number;
+    max: number;
+  };
   sendMagicOtpAuth: (
     data: {
       /**
@@ -30,14 +35,9 @@ type MagicOptions = {
     },
     request?: Request
   ) => Promise<void> | void;
-  disableSignUp?: boolean;
-  rateLimit?: {
-    window: number;
-    max: number;
-  };
-};
+}
 
-type MagicAdapterContext = {
+interface MagicAdapterContext {
   context: {
     internalAdapter: {
       findUserByEmail: (email: string) => Promise<unknown>;
@@ -52,12 +52,50 @@ type MagicAdapterContext = {
           emailVerified: boolean;
         }
       ) => Promise<unknown>;
-      deleteVerificationByIdentifier: (
-        identifier: string
-      ) => Promise<unknown>;
+      deleteVerificationByIdentifier: (identifier: string) => Promise<unknown>;
     };
   };
-};
+}
+
+const invalidMagicLinkMessage =
+  "Your link is invalid or has expired. Please try again.";
+
+const SCHEME_PATH_PATTERN = /^\/[a-z][a-z0-9+.-]*:/i;
+
+/**
+ * Returns true when `input` is safe to redirect to from a magic-link callback —
+ * i.e. it is a same-site relative path. Absolute URLs, protocol-relative paths
+ * (`//evil.example`), backslash-prefixed paths (`/\evil.example`), and
+ * scheme-prefixed paths (`/javascript:foo`) are rejected to close the
+ * post-login open-redirect surface.
+ */
+export function isSafeMagicCallback(input: string): boolean {
+  if (!input.startsWith("/")) {
+    return false;
+  }
+
+  if (input.startsWith("//") || input.startsWith("/\\")) {
+    return false;
+  }
+
+  if (SCHEME_PATH_PATTERN.test(input)) {
+    return false;
+  }
+
+  return true;
+}
+
+const callbackURLSchema = z
+  .string()
+  .refine(isSafeMagicCallback, {
+    message: "callbackURL must be a same-site path starting with '/'.",
+  })
+  .optional();
+
+const magicLinkTokenValueSchema = z.object({
+  email: z.string().email(),
+  type: z.enum(["sign-in", "email-verification"]),
+});
 
 function isUserShape(value: unknown): value is User {
   if (typeof value !== "object" || value === null) {
@@ -92,6 +130,79 @@ function toUser(value: unknown): User | null {
   return null;
 }
 
+export function parseMagicLinkTokenValue(
+  value: string
+): z.infer<typeof magicLinkTokenValueSchema> {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new APIError("BAD_REQUEST", {
+      message: invalidMagicLinkMessage,
+    });
+  }
+
+  const result = magicLinkTokenValueSchema.safeParse(parsed);
+
+  if (!result.success) {
+    throw new APIError("BAD_REQUEST", {
+      message: invalidMagicLinkMessage,
+    });
+  }
+
+  return result.data;
+}
+
+export function shouldRateLimitMagicPath(path: string): boolean {
+  return (
+    path.startsWith("/magic/sign-in") ||
+    path.startsWith("/magic/verify-link") ||
+    path.startsWith("/magic/verify-otp")
+  );
+}
+
+// Compares two strings without short-circuiting on the first mismatching
+// byte, so an attacker cannot learn which OTP digits matched by measuring
+// per-attempt response time.
+//
+// The length-mismatch path returns immediately because the OTP length is a
+// public configuration value (`magic({ otpLength })`), not a secret. If the
+// caller's OTP is the wrong length we already know it is invalid and there is
+// nothing useful to leak.
+//
+// The bitwise XOR/OR pair is the standard constant-time accumulator and is
+// intentional despite the project-wide ban on bitwise operators.
+export function constantTimeStringEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index++) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: constant-time XOR/OR accumulator
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+
+  return mismatch === 0;
+}
+
+export function createMagicVerifyLinkUrl({
+  baseURL,
+  callbackURL = "/",
+  token,
+}: {
+  baseURL: string;
+  callbackURL?: string;
+  token: string;
+}): string {
+  const base = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+  const url = new URL("magic/verify-link", base);
+  url.searchParams.set("token", token);
+  url.searchParams.set("callbackURL", callbackURL);
+  return url.toString();
+}
+
 export const magic = (options: MagicOptions): BetterAuthPlugin => {
   const opts = {
     expiresIn: 300,
@@ -111,7 +222,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           body: z.object({
             email: z.string().email(),
             type: z.enum(["sign-in", "email-verification"]),
-            callbackURL: z.string().optional(),
+            callbackURL: callbackURLSchema,
           }),
         },
         async (ctx) => {
@@ -144,9 +255,11 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
             expiresAt: new Date(Date.now() + opts.expiresIn * 1000),
           });
 
-          const url = `${ctx.context.baseURL}/magic/verify-link?token=${token}&callbackURL=${
-            callbackURL ?? "/"
-          }`;
+          const url = createMagicVerifyLinkUrl({
+            baseURL: ctx.context.baseURL,
+            callbackURL,
+            token,
+          });
 
           try {
             await opts.sendMagicOtpAuth({ email, url, otp, type }, ctx.request);
@@ -166,7 +279,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           method: "GET",
           query: z.object({
             token: z.string(),
-            callbackURL: z.string().optional(),
+            callbackURL: callbackURLSchema,
           }),
           requireHeaders: true,
         },
@@ -179,22 +292,17 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
 
           if (!tokenValue || tokenValue.expiresAt < new Date()) {
             throw new APIError("BAD_REQUEST", {
-              message: "Your link is invalid or has expired. Please try again.",
+              message: invalidMagicLinkMessage,
             });
           }
 
-          const { email, type } = JSON.parse(tokenValue.value);
+          const { email, type } = parseMagicLinkTokenValue(tokenValue.value);
 
           await ctx.context.internalAdapter.deleteVerificationByIdentifier(
             `link-${token}`
           );
 
-          const user = await handleUserCreationOrUpdate(
-            ctx,
-            opts,
-            email,
-            type as "sign-in" | "email-verification"
-          );
+          const user = await handleUserCreationOrUpdate(ctx, opts, email, type);
 
           const session = await ctx.context.internalAdapter.createSession(
             user.id
@@ -226,11 +334,21 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
               `otp-${email}`
             );
 
-          if (
-            !otpValue ||
-            otpValue.expiresAt < new Date() ||
-            otpValue.value !== otp
-          ) {
+          const otpExpired = !otpValue || otpValue.expiresAt < new Date();
+          const otpMatches =
+            !!otpValue && constantTimeStringEqual(otpValue.value, otp);
+
+          if (otpExpired || !otpMatches) {
+            // Burn the OTP on any failed attempt so a brute-force attacker
+            // cannot keep guessing against the same code within the
+            // expiry window — they have to trigger a new sign-in (which is
+            // rate-limited) to obtain a fresh OTP.
+            if (otpValue) {
+              await ctx.context.internalAdapter.deleteVerificationByIdentifier(
+                `otp-${email}`
+              );
+            }
+
             throw new APIError("BAD_REQUEST", {
               message: "Your OTP is invalid or has expired. Please try again.",
             });
@@ -255,10 +373,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
     rateLimit: [
       {
         pathMatcher(path) {
-          return (
-            path.startsWith("/magic/sign-in") ??
-            path.startsWith("/magic/verify-link")
-          );
+          return shouldRateLimitMagicPath(path);
         },
         window: opts.rateLimit?.window ?? 60,
         max: opts.rateLimit?.max ?? 5,

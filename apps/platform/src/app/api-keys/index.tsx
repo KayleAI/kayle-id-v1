@@ -1,449 +1,183 @@
 import type { ApiKey } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@kayleai/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
 } from "@kayleai/ui/dropdown-menu";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@kayleai/ui/table";
-import { Textarea } from "@kayleai/ui/textarea";
 import { cn } from "@kayleai/ui/utils/cn";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
-  BanIcon,
-  EllipsisVerticalIcon,
-  EyeIcon,
-  TrashIcon,
+	BanIcon,
+	EllipsisVerticalIcon,
+	EyeIcon,
+	TrashIcon,
 } from "lucide-react";
-import { useReducer, useState } from "react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/format-date";
-import { useCopyToClipboard } from "@/utils/use-copy";
+import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const response = await fetch(`/api/auth/api-keys/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled }),
-        headers: { "Content-Type": "application/json" },
-      });
+	const updateMutation = useMutation({
+		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+			updateApiKey({ id, enabled }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
+		},
+	});
 
-      if (!response.ok) {
-        throw new Error("Failed to update API key");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-    },
-  });
+	const deleteMutation = useMutation({
+		mutationFn: ({ id }: { id: string }) => deleteApiKey(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
+		},
+	});
 
-  const deleteMutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const response = await fetch(`/api/auth/api-keys/${id}`, {
-        method: "DELETE",
-      });
+	return (
+		<div className="overflow-hidden rounded-md border">
+			<Table>
+				<TableHeader className="sticky top-0 z-10 bg-muted">
+					<TableRow>
+						<TableHead>Name</TableHead>
+						<TableHead>Status</TableHead>
+						<TableHead>Requests</TableHead>
+						<TableHead>Created</TableHead>
+						<TableHead>
+							<span className="sr-only">Actions</span>
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{apiKeys.map((key) => (
+						<TableRow key={key.id}>
+							<TableCell className="font-medium">
+								<Link
+									className="hover:underline"
+									params={{ key: key.id }}
+									to="/api-keys/$key"
+								>
+									{key.name}
+								</Link>
+							</TableCell>
+							<TableCell>
+								<span
+									className={cn(
+										"inline-flex items-center rounded-full px-2 py-1 font-medium text-xs",
+										key.enabled
+											? "bg-green-500/10 text-green-700 dark:text-green-400"
+											: "bg-muted text-muted-foreground",
+									)}
+								>
+									{key.enabled ? "Enabled" : "Disabled"}
+								</span>
+							</TableCell>
+							<TableCell className="text-muted-foreground">
+								{key.requestCount.toLocaleString()}
+							</TableCell>
+							<TableCell className="text-muted-foreground">
+								{formatDate(key.createdAt)}
+							</TableCell>
+							<TableCell className="text-right text-muted-foreground">
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={<Button size="icon" variant="ghost" />}
+									>
+										<EllipsisVerticalIcon className="size-4" />
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													render={
+														<Link
+															params={{ key: key.id }}
+															to="/api-keys/$key"
+														/>
+													}
+													variant="ghost"
+												/>
+											}
+										>
+											<EyeIcon className="size-4" />
+											See details
+										</DropdownMenuItem>
 
-      if (!response.ok) {
-        throw new Error("Failed to delete API key");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-    },
-  });
-
-  return (
-    <div className="overflow-hidden rounded-md border">
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-muted">
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Requests</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {apiKeys.map((key) => (
-            <TableRow key={key.id}>
-              <TableCell className="font-medium">
-                <Link
-                  className="hover:underline"
-                  params={{ key: key.id }}
-                  to="/api-keys/$key"
-                >
-                  {key.name}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2 py-1 font-medium text-xs",
-                    key.enabled
-                      ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {key.enabled ? "Enabled" : "Disabled"}
-                </span>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {key.requestCount.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatDate(key.createdAt)}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button size="icon" variant="ghost" />}
-                  >
-                    <EllipsisVerticalIcon className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          render={
-                            <Link
-                              params={{ key: key.id }}
-                              to="/api-keys/$key"
-                            />
-                          }
-                          variant="ghost"
-                        />
-                      }
-                    >
-                      <EyeIcon className="size-4" />
-                      See details
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                      onClick={() => {
-                        toast.promise(
-                          updateMutation.mutateAsync({
-                            id: key.id,
-                            enabled: !key.enabled,
-                          }),
-                          {
-                            loading: "Updating API key...",
-                            success: "API key updated successfully",
-                            error: "Failed to update API key",
-                          }
-                        );
-                      }}
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          variant="ghost"
-                        />
-                      }
-                    >
-                      <BanIcon className="size-4" />
-                      {key.enabled ? "Disable API Key" : "Enable API Key"}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      render={
-                        <Button
-                          className="flex w-full items-center justify-start"
-                          onClick={() => {
-                            toast.promise(
-                              deleteMutation.mutateAsync({ id: key.id }),
-                              {
-                                loading: "Deleting API key...",
-                                success: "API key deleted successfully",
-                                error: "Failed to delete API key",
-                              }
-                            );
-                          }}
-                          variant="destructive"
-                        />
-                      }
-                    >
-                      <TrashIcon className="size-4" />
-                      Revoke API Key
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-          {apiKeys.length === 0 ? (
-            <TableRow>
-              <TableCell className="text-center" colSpan={5}>
-                No API keys found
-              </TableCell>
-            </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
-    </div>
-  );
+										<DropdownMenuItem
+											onClick={() => {
+												toast.promise(
+													updateMutation.mutateAsync({
+														id: key.id,
+														enabled: !key.enabled,
+													}),
+													{
+														loading: "Updating API key...",
+														success: "API key updated successfully",
+														error: "Failed to update API key",
+													},
+												);
+											}}
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													variant="ghost"
+												/>
+											}
+										>
+											<BanIcon className="size-4" />
+											{key.enabled ? "Disable API Key" : "Enable API Key"}
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											render={
+												<Button
+													className="flex w-full items-center justify-start"
+													onClick={() => {
+														toast.promise(
+															deleteMutation.mutateAsync({ id: key.id }),
+															{
+																loading: "Deleting API key...",
+																success: "API key deleted successfully",
+																error: "Failed to delete API key",
+															},
+														);
+													}}
+													variant="destructive"
+												/>
+											}
+										>
+											<TrashIcon className="size-4" />
+											Revoke API Key
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</TableCell>
+						</TableRow>
+					))}
+					{apiKeys.length === 0 ? (
+						<TableRow>
+							<TableCell className="text-center" colSpan={5}>
+								No API keys found
+							</TableCell>
+						</TableRow>
+					) : null}
+				</TableBody>
+			</Table>
+		</div>
+	);
 }
 
-type FormState = {
-  status: "idle" | "loading" | "success" | "error";
-  name: string;
-  errorMessage: string;
-  apiKey: string | null;
-};
-
-type FormAction =
-  | { type: "SET_NAME"; name: string }
-  | { type: "SUBMIT" }
-  | { type: "SUCCESS"; apiKey: string }
-  | { type: "ERROR"; message: string }
-  | { type: "RESET" }
-  | { type: "CLEAR_ERROR" };
-
-const initialFormState: FormState = {
-  status: "idle",
-  name: "",
-  errorMessage: "",
-  apiKey: null,
-};
-
-function formReducer(state: FormState, action: FormAction): FormState {
-  switch (action.type) {
-    case "SET_NAME":
-      return {
-        ...state,
-        name: action.name,
-        status: state.status === "error" ? "idle" : state.status,
-        errorMessage: state.status === "error" ? "" : state.errorMessage,
-      };
-    case "SUBMIT":
-      return { ...state, status: "loading", errorMessage: "" };
-    case "SUCCESS":
-      return { ...state, status: "success", apiKey: action.apiKey };
-    case "ERROR":
-      return { ...state, status: "error", errorMessage: action.message };
-    case "RESET":
-      return initialFormState;
-    case "CLEAR_ERROR":
-      return { ...state, status: "idle", errorMessage: "" };
-    default:
-      return state;
-  }
-}
-
-function ApiKeySuccessView({
-  apiKey,
-  onClose,
-}: {
-  apiKey: string;
-  onClose: () => void;
-}) {
-  const { copied, copy } = useCopyToClipboard();
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>API Key Created</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-2">
-        <Label className="font-medium text-sm" htmlFor="api-key">
-          Your API Key
-        </Label>
-        <div className="relative">
-          <Textarea
-            className="min-h-[0px]! resize-none pr-20 font-mono text-sm"
-            id="api-key"
-            readOnly
-            value={apiKey}
-          />
-          <Button
-            className="-translate-y-1/2 absolute top-1/2 right-2"
-            onClick={() => copy(apiKey)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {copied ? "Copied!" : "Copy"}
-          </Button>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          You won't be able to view this API key again.
-        </p>
-      </div>
-      <DialogFooter>
-        <Button onClick={onClose}>I've saved my API key</Button>
-      </DialogFooter>
-    </>
-  );
-}
-
-function ApiKeyFormView({
-  state,
-  dispatch,
-  onSubmit,
-}: {
-  state: FormState;
-  dispatch: React.Dispatch<FormAction>;
-  onSubmit: () => void;
-}) {
-  const isLoading = state.status === "loading";
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Create API Key</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4">
-        {state.status === "error" && state.errorMessage && (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{state.errorMessage}</AlertDescription>
-          </Alert>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            disabled={isLoading}
-            id="name"
-            onChange={(e) =>
-              dispatch({ type: "SET_NAME", name: e.target.value })
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && state.name.trim()) {
-                onSubmit();
-              }
-            }}
-            placeholder="API Key Name"
-            value={state.name}
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button disabled={isLoading || !state.name.trim()} onClick={onSubmit}>
-          {isLoading ? "Creating..." : "Create API Key"}
-        </Button>
-      </DialogFooter>
-    </>
-  );
-}
-
-export function CreateApiKey() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [state, dispatch] = useReducer(formReducer, initialFormState);
-  const queryClient = useQueryClient();
-
-  const handleSubmit = async () => {
-    if (!state.name.trim()) {
-      dispatch({
-        type: "ERROR",
-        message: "Please enter a name for your API key",
-      });
-      return;
-    }
-
-    dispatch({ type: "SUBMIT" });
-
-    try {
-      const response = await fetch("/api/auth/api-keys", {
-        method: "POST",
-        body: JSON.stringify({
-          name: state.name.trim(),
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        dispatch({
-          type: "ERROR",
-          message:
-            errorData?.error?.message ??
-            "Failed to create API key. Please try again.",
-        });
-        return;
-      }
-
-      const data: { data: { key: string } } = await response.json();
-      const key = data.data?.key;
-
-      if (!key) {
-        dispatch({
-          type: "ERROR",
-          message: "API key was not returned. Please try again.",
-        });
-        return;
-      }
-
-      dispatch({ type: "SUCCESS", apiKey: key });
-      await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-    } catch (err) {
-      dispatch({
-        type: "ERROR",
-        message:
-          err instanceof Error
-            ? err.message
-            : "Failed to create API key. Please try again.",
-      });
-    }
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    // Reset form after dialog close animation
-    setTimeout(() => dispatch({ type: "RESET" }), 150);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    if (open) {
-      setIsOpen(true);
-    } else {
-      handleClose();
-    }
-  };
-
-  return (
-    <Dialog onOpenChange={handleOpenChange} open={isOpen}>
-      <DialogTrigger
-        render={<Button onClick={() => setIsOpen(true)}>Create API Key</Button>}
-      />
-      <DialogContent className="flex w-full max-w-lg! flex-col">
-        {state.status === "success" && state.apiKey ? (
-          <ApiKeySuccessView apiKey={state.apiKey} onClose={handleClose} />
-        ) : (
-          <ApiKeyFormView
-            dispatch={dispatch}
-            onSubmit={handleSubmit}
-            state={state}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+export { CreateApiKey } from "./create";

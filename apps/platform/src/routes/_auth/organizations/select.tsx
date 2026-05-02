@@ -4,23 +4,23 @@ import { SelectOrganizations } from "@/auth/organizations/select";
 import { Loading } from "@/components/loading";
 
 export const Route = createFileRoute("/_auth/organizations/select")({
-  component: SelectOrganizationLayout,
+	component: SelectOrganizationLayout,
 });
 
 function SelectOrganizationLayout() {
-  const { status, organizations } = useAuth();
+	const { status, organizations } = useAuth();
 
-  if (status === "loading") {
-    return <Loading />;
-  }
+	if (status === "loading") {
+		return <Loading />;
+	}
 
-  if (status === "unauthenticated") {
-    return <Navigate to="/sign-in" />;
-  }
+	if (status === "unauthenticated") {
+		return <Navigate to="/sign-in" />;
+	}
 
-  if (!organizations.length) {
-    return <Navigate to="/organizations/create" />;
-  }
+	if (!organizations.length) {
+		return <Navigate to="/organizations/create" />;
+	}
 
-  return <SelectOrganizations />;
+	return <SelectOrganizations />;
 }

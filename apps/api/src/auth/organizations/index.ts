@@ -7,25 +7,25 @@ import createOrganizationRoute from "./create";
 const organizations = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
 const organizationMiddleware = createMiddleware<{
-  Bindings: CloudflareBindings;
-  Variables: {
-    type: "api" | "session";
-    organizationId?: string | null;
-    userId?: string;
-  };
+	Bindings: CloudflareBindings;
+	Variables: {
+		type: "api" | "session";
+		organizationId?: string | null;
+		userId?: string;
+	};
 }>(async (c, next) => {
-  const response = await auth.api.getSession(c.req.raw);
+	const response = await auth.api.getSession(c.req.raw);
 
-  if (!response?.session) {
-    return unauthorized(c);
-  }
+	if (!response?.session) {
+		return unauthorized(c);
+	}
 
-  const activeOrganizationId = getActiveOrganizationId(response.session);
+	const activeOrganizationId = getActiveOrganizationId(response.session);
 
-  c.set("type", "session");
-  c.set("organizationId", activeOrganizationId);
-  c.set("userId", response.session?.userId);
-  await next();
+	c.set("type", "session");
+	c.set("organizationId", activeOrganizationId);
+	c.set("userId", response.session?.userId);
+	await next();
 });
 
 organizations.use(organizationMiddleware);

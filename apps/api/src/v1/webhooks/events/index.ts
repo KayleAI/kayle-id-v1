@@ -4,8 +4,8 @@ import { listEvents } from "./list";
 import { replayEvent } from "./replay";
 
 const webhookEvents = new OpenAPIHono<{
-  Bindings: CloudflareBindings;
-  Variables: { organizationId: string };
+	Bindings: CloudflareBindings;
+	Variables: { organizationId: string };
 }>();
 
 webhookEvents.route("/", getEventById);

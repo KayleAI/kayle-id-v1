@@ -11,28 +11,28 @@ import { createHMAC } from "@/functions/hmac";
  * @returns The organization ID and whether it is enabled
  */
 export async function verifyApiKey(
-  apiKey: string
+	apiKey: string,
 ): Promise<{ organizationId: string | null; enabled: boolean | null }> {
-  const keyHash = await createHMAC(apiKey, {
-    algorithm: "SHA256",
-    secret: env.AUTH_SECRET,
-  });
+	const keyHash = await createHMAC(apiKey, {
+		algorithm: "SHA256",
+		secret: env.AUTH_SECRET,
+	});
 
-  // search for the key hash in the database
-  const [
-    { organizationId, enabled } = { organizationId: null, enabled: null },
-  ] = await db
-    .select({
-      organizationId: api_keys.organizationId,
-      enabled: api_keys.enabled,
-    })
-    .from(api_keys)
-    .where(eq(api_keys.keyHash, keyHash))
-    .limit(1);
+	// search for the key hash in the database
+	const [
+		{ organizationId, enabled } = { organizationId: null, enabled: null },
+	] = await db
+		.select({
+			organizationId: api_keys.organizationId,
+			enabled: api_keys.enabled,
+		})
+		.from(api_keys)
+		.where(eq(api_keys.keyHash, keyHash))
+		.limit(1);
 
-  if (!organizationId) {
-    return { organizationId: null, enabled: null };
-  }
+	if (!organizationId) {
+		return { organizationId: null, enabled: null };
+	}
 
-  return { organizationId, enabled };
+	return { organizationId, enabled };
 }

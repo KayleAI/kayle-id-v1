@@ -7,70 +7,70 @@ import type { WebhookEvent } from "@/openapi/models/webhook";
 type WebhookEventResponse = (typeof WebhookEvent)["_output"];
 
 function mapWebhookEventDelivery(delivery: {
-  attempt_count: number;
-  id: string;
-  last_attempt_at: Date | null;
-  last_status_code: number | null;
-  status: "delivering" | "failed" | "pending" | "succeeded";
-  webhook_endpoint_id: string;
+	attempt_count: number;
+	id: string;
+	last_attempt_at: Date | null;
+	last_status_code: number | null;
+	status: "delivering" | "failed" | "pending" | "succeeded";
+	webhook_endpoint_id: string;
 }): WebhookEventResponse["deliveries"][number] {
-  return {
-    attempt_count: delivery.attempt_count,
-    id: delivery.id,
-    last_attempt_at: delivery.last_attempt_at?.toISOString() ?? null,
-    last_status_code: delivery.last_status_code,
-    status: delivery.status,
-    webhook_endpoint_id: delivery.webhook_endpoint_id,
-  };
+	return {
+		attempt_count: delivery.attempt_count,
+		id: delivery.id,
+		last_attempt_at: delivery.last_attempt_at?.toISOString() ?? null,
+		last_status_code: delivery.last_status_code,
+		status: delivery.status,
+		webhook_endpoint_id: delivery.webhook_endpoint_id,
+	};
 }
 
 export async function getWebhookEventForOrganization({
-  eventId,
-  organizationId,
+	eventId,
+	organizationId,
 }: {
-  eventId: string;
-  organizationId: string;
+	eventId: string;
+	organizationId: string;
 }): Promise<WebhookEventResponse | null> {
-  const [event] = await db
-    .select({
-      created_at: events.createdAt,
-      id: events.id,
-      trigger_id: events.triggerId,
-      trigger_type: events.triggerType,
-      type: events.type,
-    })
-    .from(events)
-    .where(
-      and(
-        eq(events.id, eventId),
-        eq(events.organizationId, organizationId),
-        eq(events.environment, "live")
-      )
-    )
-    .limit(1);
+	const [event] = await db
+		.select({
+			created_at: events.createdAt,
+			id: events.id,
+			trigger_id: events.triggerId,
+			trigger_type: events.triggerType,
+			type: events.type,
+		})
+		.from(events)
+		.where(
+			and(
+				eq(events.id, eventId),
+				eq(events.organizationId, organizationId),
+				eq(events.environment, "live"),
+			),
+		)
+		.limit(1);
 
-  if (!event) {
-    return null;
-  }
+	if (!event) {
+		return null;
+	}
 
-  const deliveries = await db
-    .select({
-      attempt_count: webhook_deliveries.attemptCount,
-      id: webhook_deliveries.id,
-      last_attempt_at: webhook_deliveries.lastAttemptAt,
-      last_status_code: webhook_deliveries.lastStatusCode,
-      status: webhook_deliveries.status,
-      webhook_endpoint_id: webhook_deliveries.webhookEndpointId,
-    })
-    .from(webhook_deliveries)
-    .where(eq(webhook_deliveries.eventId, event.id));
+	const deliveries = await db
+		.select({
+			attempt_count: webhook_deliveries.attemptCount,
+			id: webhook_deliveries.id,
+			last_attempt_at: webhook_deliveries.lastAttemptAt,
+			last_status_code: webhook_deliveries.lastStatusCode,
+			status: webhook_deliveries.status,
+			webhook_endpoint_id: webhook_deliveries.webhookEndpointId,
+		})
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.eventId, event.id));
 
-  return {
-    created_at: event.created_at.toISOString(),
-    deliveries: deliveries.map(mapWebhookEventDelivery),
-    id: event.id,
-    trigger_id: event.trigger_id,
-    trigger_type: event.trigger_type as WebhookEventResponse["trigger_type"],
-    type: event.type,
-  };
+	return {
+		created_at: event.created_at.toISOString(),
+		deliveries: deliveries.map(mapWebhookEventDelivery),
+		id: event.id,
+		trigger_id: event.trigger_id,
+		trigger_type: event.trigger_type as WebhookEventResponse["trigger_type"],
+		type: event.type,
+	};
 }

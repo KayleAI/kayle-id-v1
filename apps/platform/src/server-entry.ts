@@ -4,5 +4,5 @@ import { DemoRunMailbox as WorkerDemoRunMailbox } from "@/demo/run-mailbox";
 export const DemoRunMailbox = WorkerDemoRunMailbox;
 
 export default {
-  fetch: server.fetch,
+	fetch: server.fetch,
 };

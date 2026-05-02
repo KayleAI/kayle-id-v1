@@ -9,28 +9,28 @@ import { and, eq } from "drizzle-orm";
  * @returns The organization ID and whether it is enabled
  */
 export async function deleteApiKey(
-  id: string,
-  organizationId: string
+	id: string,
+	organizationId: string,
 ): Promise<{ status: "success" | "error"; message?: string }> {
-  const [deleted] = await db
-    .delete(api_keys)
-    .where(
-      and(
-        eq(api_keys.id, id),
-        eq(api_keys.organizationId, organizationId),
-        eq(api_keys.environment, "live")
-      )
-    )
-    .returning({
-      deletedId: api_keys.id,
-    });
+	const [deleted] = await db
+		.delete(api_keys)
+		.where(
+			and(
+				eq(api_keys.id, id),
+				eq(api_keys.organizationId, organizationId),
+				eq(api_keys.environment, "live"),
+			),
+		)
+		.returning({
+			deletedId: api_keys.id,
+		});
 
-  if (!deleted?.deletedId) {
-    return {
-      status: "error",
-      message: "API key not found",
-    };
-  }
+	if (!deleted?.deletedId) {
+		return {
+			status: "error",
+			message: "API key not found",
+		};
+	}
 
-  return { status: "success", message: "API key deleted successfully" };
+	return { status: "success", message: "API key deleted successfully" };
 }

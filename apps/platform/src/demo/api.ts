@@ -1,287 +1,344 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
 import type {
-  DemoRequestedShareFields,
-  DemoSessionShareFields,
-  DemoSessionStatus,
+	DemoRequestedShareFields,
+	DemoSessionShareFields,
+	DemoSessionStatus,
 } from "./types";
 
-type DemoBindings = {
-  API?: Fetcher;
-  KAYLE_DEMO_API_KEY?: string;
-  KAYLE_DEMO_ORG_SLUG?: string;
-};
+interface DemoBindings {
+	API?: Fetcher;
+	KAYLE_DEMO_API_KEY?: string;
+	KAYLE_DEMO_ORG_SLUG?: string;
+}
 
-type ApiErrorPayload = {
-  code?: string;
-  hint?: string;
-  message?: string;
-};
+interface ApiErrorPayload {
+	code?: string;
+	hint?: string;
+	message?: string;
+}
 
-type ApiEnvelope<T> = {
-  data: T | null;
-  error: ApiErrorPayload | null;
-};
+interface ApiEnvelope<T> {
+	data: T | null;
+	error: ApiErrorPayload | null;
+}
 
 const LOCAL_DEMO_WEBHOOK_ORIGIN = "http://127.0.0.1:3001";
+const UNEXPECTED_UPSTREAM_RESPONSE = "Unexpected upstream response.";
 
 export class DemoApiError extends Error {
-  readonly code: string | null;
-  readonly hint: string | null;
-  readonly status: number;
+	readonly code: string | null;
+	readonly hint: string | null;
+	readonly status: number;
 
-  constructor({
-    code,
-    hint,
-    message,
-    status,
-  }: {
-    code?: string | null;
-    hint?: string | null;
-    message: string;
-    status: number;
-  }) {
-    super(message);
-    this.name = "DemoApiError";
-    this.code = code ?? null;
-    this.hint = hint ?? null;
-    this.status = status;
-  }
+	constructor({
+		code,
+		hint,
+		message,
+		status,
+	}: {
+		code?: string | null;
+		hint?: string | null;
+		message: string;
+		status: number;
+	}) {
+		super(message);
+		this.name = "DemoApiError";
+		this.code = code ?? null;
+		this.hint = hint ?? null;
+		this.status = status;
+	}
 }
 
 function requireApiBinding(bindings: DemoBindings): Fetcher {
-  if (!bindings.API) {
-    throw new DemoApiError({
-      message: "Platform API binding is not configured.",
-      status: 500,
-    });
-  }
+	if (!bindings.API) {
+		throw new DemoApiError({
+			message: "Platform API binding is not configured.",
+			status: 500,
+		});
+	}
 
-  return bindings.API;
+	return bindings.API;
 }
 
 export function getDemoApiKey(bindings: DemoBindings): string {
-  const apiKey = bindings.KAYLE_DEMO_API_KEY?.trim();
-  if (!apiKey) {
-    throw new DemoApiError({
-      message: "KAYLE_DEMO_API_KEY is not configured.",
-      status: 500,
-    });
-  }
+	const apiKey = bindings.KAYLE_DEMO_API_KEY?.trim();
+	if (!apiKey) {
+		throw new DemoApiError({
+			message: "KAYLE_DEMO_API_KEY is not configured.",
+			status: 500,
+		});
+	}
 
-  return apiKey;
+	return apiKey;
 }
 
 export function getDemoOrgSlug(bindings: DemoBindings): string {
-  return bindings.KAYLE_DEMO_ORG_SLUG?.trim() || "kayle";
+	return bindings.KAYLE_DEMO_ORG_SLUG?.trim() || "kayle";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function getStringValue(
+	payload: Record<string, unknown>,
+	key: string,
+): string | undefined {
+	const value = payload[key];
+	return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function parseErrorPayload(value: unknown): ApiErrorPayload | null {
+	if (value === null || value === undefined) {
+		return null;
+	}
+
+	if (!isRecord(value)) {
+		return {
+			message: UNEXPECTED_UPSTREAM_RESPONSE,
+		};
+	}
+
+	const error = {
+		code: getStringValue(value, "code"),
+		hint: getStringValue(value, "hint"),
+		message: getStringValue(value, "message"),
+	};
+
+	return error.code || error.hint || error.message ? error : null;
 }
 
 async function parseEnvelope<T>(response: Response): Promise<ApiEnvelope<T>> {
-  try {
-    return (await response.json()) as ApiEnvelope<T>;
-  } catch {
-    return {
-      data: null,
-      error: {
-        message: response.statusText || "Unexpected upstream response.",
-      },
-    };
-  }
+	try {
+		const payload = await response.json();
+
+		if (!isRecord(payload) || !("data" in payload)) {
+			return {
+				data: null,
+				error: {
+					message: UNEXPECTED_UPSTREAM_RESPONSE,
+				},
+			};
+		}
+
+		return {
+			data:
+				payload.data === null || payload.data === undefined
+					? null
+					: (payload.data as T),
+			error: parseErrorPayload(payload.error),
+		};
+	} catch {
+		return {
+			data: null,
+			error: {
+				message: response.statusText || UNEXPECTED_UPSTREAM_RESPONSE,
+			},
+		};
+	}
+}
+
+function unwrapEnvelope<T>({
+	envelope,
+	fallbackMessage,
+	response,
+}: {
+	envelope: ApiEnvelope<T>;
+	fallbackMessage: string;
+	response: Response;
+}): T {
+	if (response.ok && envelope.data !== null && envelope.data !== undefined) {
+		return envelope.data;
+	}
+
+	throw new DemoApiError({
+		code: envelope.error?.code,
+		hint: envelope.error?.hint,
+		message: envelope.error?.message ?? fallbackMessage,
+		status: response.status,
+	});
 }
 
 async function requestApi<T>({
-  bindings,
-  body,
-  headers,
-  method,
-  path,
-  useAuth,
+	bindings,
+	body,
+	headers,
+	method,
+	path,
+	useAuth,
 }: {
-  bindings: DemoBindings;
-  body?: unknown;
-  headers?: HeadersInit;
-  method: string;
-  path: string;
-  useAuth: boolean;
+	bindings: DemoBindings;
+	body?: unknown;
+	headers?: HeadersInit;
+	method: string;
+	path: string;
+	useAuth: boolean;
 }): Promise<T> {
-  const api = requireApiBinding(bindings);
-  const requestHeaders = new Headers(headers);
+	const api = requireApiBinding(bindings);
+	const requestHeaders = new Headers(headers);
 
-  if (useAuth) {
-    requestHeaders.set("Authorization", `Bearer ${getDemoApiKey(bindings)}`);
-  }
+	if (useAuth) {
+		requestHeaders.set("Authorization", `Bearer ${getDemoApiKey(bindings)}`);
+	}
 
-  if (body !== undefined) {
-    requestHeaders.set("Content-Type", "application/json");
-  }
+	if (body !== undefined) {
+		requestHeaders.set("Content-Type", "application/json");
+	}
 
-  const response = await api.fetch(`http://api${path}`, {
-    method,
-    headers: requestHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+	const response = await api.fetch(`http://api${path}`, {
+		method,
+		headers: requestHeaders,
+		body: body === undefined ? undefined : JSON.stringify(body),
+	});
 
-  const envelope = await parseEnvelope<T>(response);
-  if (!(response.ok && envelope.data)) {
-    throw new DemoApiError({
-      code: envelope.error?.code,
-      hint: envelope.error?.hint,
-      message:
-        envelope.error?.message ??
-        `Upstream request failed with ${response.status}.`,
-      status: response.status,
-    });
-  }
-
-  return envelope.data;
+	const envelope = await parseEnvelope<T>(response);
+	return unwrapEnvelope({
+		envelope,
+		fallbackMessage: `Upstream request failed with ${response.status}.`,
+		response,
+	});
 }
 
 export function buildDemoWebhookUrl({
-  request,
-  runId,
-  token,
+	request,
+	runId,
+	token,
 }: {
-  request: Request;
-  runId: string;
-  token: string;
+	request: Request;
+	runId: string;
+	token: string;
 }): string {
-  const url =
-    process.env.NODE_ENV === "production"
-      ? new URL(request.url)
-      : new URL(LOCAL_DEMO_WEBHOOK_ORIGIN);
-  url.pathname = `/api/demo/webhooks/${runId}/${token}`;
-  url.search = "";
-  url.hash = "";
-  return url.toString();
+	const url =
+		process.env.NODE_ENV === "production"
+			? new URL(request.url)
+			: new URL(LOCAL_DEMO_WEBHOOK_ORIGIN);
+	url.pathname = `/api/demo/webhooks/${runId}/${token}`;
+	url.search = "";
+	url.hash = "";
+	return url.toString();
 }
 
 export async function createDemoWebhookEndpoint({
-  bindings,
-  request,
-  runId,
-  token,
+	bindings,
+	request,
+	runId,
+	token,
 }: {
-  bindings: DemoBindings;
-  request: Request;
-  runId: string;
-  token: string;
+	bindings: DemoBindings;
+	request: Request;
+	runId: string;
+	token: string;
 }): Promise<{ endpointId: string; signingSecret: string }> {
-  const data = await requestApi<{
-    endpoint: {
-      id: string;
-    };
-    signing_secret: string;
-  }>({
-    bindings,
-    method: "POST",
-    path: "/v1/webhooks/endpoints",
-    useAuth: true,
-    body: {
-      url: buildDemoWebhookUrl({ request, runId, token }),
-      enabled: true,
-      subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
-    },
-  });
+	const data = await requestApi<{
+		endpoint: {
+			id: string;
+		};
+		signing_secret: string;
+	}>({
+		bindings,
+		method: "POST",
+		path: "/v1/webhooks/endpoints",
+		useAuth: true,
+		body: {
+			url: buildDemoWebhookUrl({ request, runId, token }),
+			enabled: true,
+			subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
+		},
+	});
 
-  return {
-    endpointId: data.endpoint.id,
-    signingSecret: data.signing_secret,
-  };
+	return {
+		endpointId: data.endpoint.id,
+		signingSecret: data.signing_secret,
+	};
 }
 
 export async function createDemoWebhookEncryptionKey({
-  bindings,
-  endpointId,
-  keyId,
-  publicJwk,
+	bindings,
+	endpointId,
+	keyId,
+	publicJwk,
 }: {
-  bindings: DemoBindings;
-  endpointId: string;
-  keyId: string;
-  publicJwk: JsonWebKey;
+	bindings: DemoBindings;
+	endpointId: string;
+	keyId: string;
+	publicJwk: JsonWebKey;
 }): Promise<void> {
-  await requestApi({
-    bindings,
-    method: "POST",
-    path: `/v1/webhooks/endpoints/${endpointId}/keys`,
-    useAuth: true,
-    body: {
-      key_id: keyId,
-      jwk: publicJwk,
-      algorithm: "RSA-OAEP-256",
-      key_type: "RSA",
-    },
-  });
+	await requestApi({
+		bindings,
+		method: "POST",
+		path: `/v1/webhooks/endpoints/${endpointId}/keys`,
+		useAuth: true,
+		body: {
+			key_id: keyId,
+			jwk: publicJwk,
+			algorithm: "RSA-OAEP-256",
+			key_type: "RSA",
+		},
+	});
 }
 
 export async function disableDemoWebhookEndpoint({
-  bindings,
-  endpointId,
+	bindings,
+	endpointId,
 }: {
-  bindings: DemoBindings;
-  endpointId: string;
+	bindings: DemoBindings;
+	endpointId: string;
 }): Promise<void> {
-  await requestApi({
-    bindings,
-    method: "PATCH",
-    path: `/v1/webhooks/endpoints/${endpointId}`,
-    useAuth: true,
-    body: {
-      enabled: false,
-    },
-  });
+	await requestApi({
+		bindings,
+		method: "PATCH",
+		path: `/v1/webhooks/endpoints/${endpointId}`,
+		useAuth: true,
+		body: {
+			enabled: false,
+		},
+	});
 }
 
 export function createDemoSession({
-  bindings,
-  shareFields,
+	bindings,
+	shareFields,
 }: {
-  bindings: DemoBindings;
-  shareFields: DemoRequestedShareFields | undefined;
+	bindings: DemoBindings;
+	shareFields: DemoRequestedShareFields | undefined;
 }): Promise<{
-  id: string;
-  share_fields: DemoSessionShareFields;
-  verification_url: string;
+	id: string;
+	share_fields: DemoSessionShareFields;
+	verification_url: string;
 }> {
-  return requestApi<{
-    id: string;
-    share_fields: DemoSessionShareFields;
-    verification_url: string;
-  }>({
-    bindings,
-    method: "POST",
-    path: "/v1/sessions",
-    useAuth: true,
-    body: shareFields ? { share_fields: shareFields } : {},
-  });
+	return requestApi<{
+		id: string;
+		share_fields: DemoSessionShareFields;
+		verification_url: string;
+	}>({
+		bindings,
+		method: "POST",
+		path: "/v1/sessions",
+		useAuth: true,
+		body: shareFields ? { share_fields: shareFields } : {},
+	});
 }
 
 export async function getPublicDemoSessionStatus({
-  bindings,
-  sessionId,
+	bindings,
+	sessionId,
 }: {
-  bindings: DemoBindings;
-  sessionId: string;
+	bindings: DemoBindings;
+	sessionId: string;
 }): Promise<DemoSessionStatus | null> {
-  const api = requireApiBinding(bindings);
-  const response = await api.fetch(
-    `http://api/v1/verify/session/${sessionId}/status`
-  );
+	const api = requireApiBinding(bindings);
+	const response = await api.fetch(
+		`http://api/v1/verify/session/${sessionId}/status`,
+	);
 
-  if (response.status === 404) {
-    return null;
-  }
+	if (response.status === 404) {
+		return null;
+	}
 
-  const envelope = await parseEnvelope<DemoSessionStatus>(response);
-  if (!(response.ok && envelope.data)) {
-    throw new DemoApiError({
-      code: envelope.error?.code,
-      hint: envelope.error?.hint,
-      message:
-        envelope.error?.message ??
-        `Session status request failed with ${response.status}.`,
-      status: response.status,
-    });
-  }
-
-  return envelope.data;
+	const envelope = await parseEnvelope<DemoSessionStatus>(response);
+	return unwrapEnvelope({
+		envelope,
+		fallbackMessage: `Session status request failed with ${response.status}.`,
+		response,
+	});
 }

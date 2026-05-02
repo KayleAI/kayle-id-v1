@@ -7,9 +7,9 @@ import { drizzle } from "drizzle-orm/d1";
  * @see https://orm.drizzle.team/docs
  */
 const getClient = (env: { TRUST_STORE: D1Database }) => {
-  return drizzle(env.TRUST_STORE, {
-    schema,
-  });
+	return drizzle(env.TRUST_STORE, {
+		schema,
+	});
 };
 
 export { getClient };

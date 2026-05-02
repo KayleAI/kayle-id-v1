@@ -4,8 +4,8 @@ import {
   createPkdCertificateRecord,
   createPkdCrlRecord,
   extractCscaCertificatesFromMasterList,
-  type PkdCscaRecord,
   type PkdCertificateRecord,
+  type PkdCscaRecord,
   type PkdTrustBundleDscSegmentJson,
   type PkdTrustBundleJson,
   type PkdTrustBundleSource,
@@ -17,25 +17,25 @@ import {
   relativeDistinguishedNameKey,
 } from "../apps/api/src/v1/verify/pkd-trust";
 
-type CliArgs = {
+interface CliArgs {
   masterListsPath: string;
   objectPath: string;
   outputPath: string;
-};
+}
 
 type OutputFormat = "json" | "sql";
 
 type LdifEntry = Map<string, string[]>;
 
-type CscaAccumulator = {
+interface CscaAccumulator {
   certBytes: Uint8Array;
   certRecord: PkdCscaRecord;
-};
+}
 
-type DistinguishedNameAttribute = {
+interface DistinguishedNameAttribute {
   name: string;
   value: string;
-};
+}
 
 const USER_CERTIFICATE_BINARY = "usercertificate;binary";
 const CRL_BINARY = "certificaterevocationlist;binary";
@@ -193,7 +193,7 @@ function parseLdifEntries(text: string): LdifEntry[] {
 
     if (separatorIndex <= 0) {
       throw new Error(
-        `Invalid LDIF line format (missing colon separator): ${line}`,
+        `Invalid LDIF line format (missing colon separator): ${line}`
       );
     }
 
@@ -527,30 +527,36 @@ async function buildTrustBundle({
   const segments = [...dscsByCountrySegment.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .flatMap(([countrySegment, dscs]) =>
-      chunkItems(dscs, MAX_DSCS_PER_SEGMENT).map((segmentDscs, index, chunks) => {
-        const segmentKey =
-          chunks.length === 1
-            ? countrySegment
-            : `${countrySegment}-${String(index + 1).padStart(2, "0")}`;
+      chunkItems(dscs, MAX_DSCS_PER_SEGMENT).map(
+        (segmentDscs, index, chunks) => {
+          const segmentKey =
+            chunks.length === 1
+              ? countrySegment
+              : `${countrySegment}-${String(index + 1).padStart(2, "0")}`;
 
-        for (const record of segmentDscs) {
-          addIndexSegment(
-            dscSegmentIndex.issuerSerial,
-            `${record.issuerKey}:${record.serialNumberHex.toLowerCase()}`,
-            segmentKey
-          );
+          for (const record of segmentDscs) {
+            addIndexSegment(
+              dscSegmentIndex.issuerSerial,
+              `${record.issuerKey}:${record.serialNumberHex.toLowerCase()}`,
+              segmentKey
+            );
 
-          if (record.skiHex) {
-            addIndexSegment(dscSegmentIndex.skiHex, record.skiHex, segmentKey);
+            if (record.skiHex) {
+              addIndexSegment(
+                dscSegmentIndex.skiHex,
+                record.skiHex,
+                segmentKey
+              );
+            }
           }
-        }
 
-        return {
-          dscs: segmentDscs,
-          segmentKey,
-          version: pkdTrustBundleVersion(),
-        };
-      })
+          return {
+            dscs: segmentDscs,
+            segmentKey,
+            version: pkdTrustBundleVersion(),
+          };
+        }
+      )
     );
 
   return {

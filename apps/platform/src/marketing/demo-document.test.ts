@@ -1,196 +1,196 @@
 import { expect, test } from "vitest";
 import {
-  buildDemoDocumentPreview,
-  buildDemoWebhookEventPreview,
-  buildPassportMachineReadableZone,
-  formatDemoClaimValue,
-  formatDemoDocumentDate,
-  inferDemoDocumentKind,
-  parseDemoDecryptedWebhook,
+	buildDemoDocumentPreview,
+	buildDemoWebhookEventPreview,
+	buildPassportMachineReadableZone,
+	formatDemoClaimValue,
+	formatDemoDocumentDate,
+	inferDemoDocumentKind,
+	parseDemoDecryptedWebhook,
 } from "./demo-document";
 
 test("parseDemoDecryptedWebhook reads claims and selected field keys", () => {
-  const parsed = parseDemoDecryptedWebhook(
-    JSON.stringify({
-      type: "verification.attempt.succeeded",
-      data: {
-        claims: {
-          document_number: "123456789",
-          family_name: "DOE",
-        },
-        selected_field_keys: ["document_number", "family_name"],
-      },
-      metadata: {
-        contract_version: 1,
-        verification_session_id: "vs_demo_test",
-      },
-    })
-  );
+	const parsed = parseDemoDecryptedWebhook(
+		JSON.stringify({
+			type: "verification.attempt.succeeded",
+			data: {
+				claims: {
+					document_number: "123456789",
+					family_name: "DOE",
+				},
+				selected_field_keys: ["document_number", "family_name"],
+			},
+			metadata: {
+				contract_version: 1,
+				verification_session_id: "vs_demo_test",
+			},
+		}),
+	);
 
-  expect(parsed).toEqual({
-    claims: {
-      document_number: "123456789",
-      family_name: "DOE",
-    },
-    contractVersion: 1,
-    selectedFieldKeys: ["document_number", "family_name"],
-    type: "verification.attempt.succeeded",
-    verificationSessionId: "vs_demo_test",
-  });
+	expect(parsed).toEqual({
+		claims: {
+			document_number: "123456789",
+			family_name: "DOE",
+		},
+		contractVersion: 1,
+		selectedFieldKeys: ["document_number", "family_name"],
+		type: "verification.attempt.succeeded",
+		verificationSessionId: "vs_demo_test",
+	});
 });
 
 test("buildDemoDocumentPreview defaults to passport when no document type code is present", () => {
-  const preview = buildDemoDocumentPreview(
-    JSON.stringify({
-      data: {
-        claims: {
-          family_name: "DOE",
-          given_names: "JANE MARIE",
-          document_number: "123456789",
-        },
-      },
-    })
-  );
+	const preview = buildDemoDocumentPreview(
+		JSON.stringify({
+			data: {
+				claims: {
+					family_name: "DOE",
+					given_names: "JANE MARIE",
+					document_number: "123456789",
+				},
+			},
+		}),
+	);
 
-  expect(preview?.documentKind).toBe("passport");
-  expect(preview?.title).toBe("Passport");
+	expect(preview?.documentKind).toBe("passport");
+	expect(preview?.title).toBe("Passport");
 });
 
 test("inferDemoDocumentKind treats MRZ I-codes as identity cards", () => {
-  expect(inferDemoDocumentKind("I")).toBe("id-card");
-  expect(inferDemoDocumentKind("ID")).toBe("id-card");
-  expect(inferDemoDocumentKind("P")).toBe("passport");
+	expect(inferDemoDocumentKind("I")).toBe("id-card");
+	expect(inferDemoDocumentKind("ID")).toBe("id-card");
+	expect(inferDemoDocumentKind("P")).toBe("passport");
 });
 
 test("formatDemoDocumentDate renders ISO dates in document style", () => {
-  expect(formatDemoDocumentDate("2032-04-16")).toBe("16 APR 2032");
-  expect(formatDemoDocumentDate("not-a-date")).toBe("not-a-date");
+	expect(formatDemoDocumentDate("2032-04-16")).toBe("16 APR 2032");
+	expect(formatDemoDocumentDate("not-a-date")).toBe("not-a-date");
 });
 
 test("formatDemoClaimValue summarizes document photos", () => {
-  expect(
-    formatDemoClaimValue("document_photo", {
-      dataBase64: "abc123",
-      format: "jpeg2000",
-      height: 640,
-      width: 480,
-    })
-  ).toBe("Chip portrait · JPEG2000 · 480×640");
+	expect(
+		formatDemoClaimValue("document_photo", {
+			dataBase64: "abc123",
+			format: "jpeg2000",
+			height: 640,
+			width: 480,
+		}),
+	).toBe("Chip portrait · JPEG2000 · 480×640");
 });
 
 test("buildPassportMachineReadableZone formats a TD3 passport footer", () => {
-  expect(
-    buildPassportMachineReadableZone({
-      dateOfBirth: "1990-04-12",
-      documentExpiryDate: "2032-04-16",
-      documentNumber: "123456789",
-      documentTypeCode: "P",
-      familyName: "Doe",
-      givenNames: "Jane Marie",
-      issuingCountryCode: "GBR",
-      mrzOptionalData: "ABC12345",
-      nationalityCode: "GBR",
-      sexMarker: "F",
-    })
-  ).toEqual([
-    "P<GBRDOE<<JANE<MARIE<<<<<<<<<<<<<<<<<<<<<<<<",
-    "1234567897GBR9004126F3204164ABC12345<<<<<<46",
-  ]);
+	expect(
+		buildPassportMachineReadableZone({
+			dateOfBirth: "1990-04-12",
+			documentExpiryDate: "2032-04-16",
+			documentNumber: "123456789",
+			documentTypeCode: "P",
+			familyName: "Doe",
+			givenNames: "Jane Marie",
+			issuingCountryCode: "GBR",
+			mrzOptionalData: "ABC12345",
+			nationalityCode: "GBR",
+			sexMarker: "F",
+		}),
+	).toEqual([
+		"P<GBRDOE<<JANE<MARIE<<<<<<<<<<<<<<<<<<<<<<<<",
+		"1234567897GBR9004126F3204164ABC12345<<<<<<46",
+	]);
 });
 
 test("buildPassportMachineReadableZone keeps MRZ structure for partial claims", () => {
-  const mrz = buildPassportMachineReadableZone({
-    dateOfBirth: null,
-    documentExpiryDate: null,
-    documentNumber: null,
-    documentTypeCode: "P",
-    familyName: null,
-    givenNames: "ARSEN",
-    issuingCountryCode: null,
-    mrzOptionalData: null,
-    nationalityCode: null,
-    sexMarker: null,
-  });
+	const mrz = buildPassportMachineReadableZone({
+		dateOfBirth: null,
+		documentExpiryDate: null,
+		documentNumber: null,
+		documentTypeCode: "P",
+		familyName: null,
+		givenNames: "ARSEN",
+		issuingCountryCode: null,
+		mrzOptionalData: null,
+		nationalityCode: null,
+		sexMarker: null,
+	});
 
-  expect(mrz[0]).toHaveLength(44);
-  expect(mrz[1]).toHaveLength(44);
-  expect(mrz[0]).toContain("ARSEN");
+	expect(mrz[0]).toHaveLength(44);
+	expect(mrz[1]).toHaveLength(44);
+	expect(mrz[0]).toContain("ARSEN");
 });
 
 test("buildDemoDocumentPreview includes machine readable zone for passports", () => {
-  const preview = buildDemoDocumentPreview(
-    JSON.stringify({
-      data: {
-        claims: {
-          date_of_birth: "1990-04-12",
-          document_expiry_date: "2032-04-16",
-          document_number: "123456789",
-          document_type_code: "P",
-          family_name: "DOE",
-          given_names: "JANE MARIE",
-          issuing_country_code: "GBR",
-          nationality_code: "GBR",
-          sex_marker: "F",
-        },
-      },
-    })
-  );
+	const preview = buildDemoDocumentPreview(
+		JSON.stringify({
+			data: {
+				claims: {
+					date_of_birth: "1990-04-12",
+					document_expiry_date: "2032-04-16",
+					document_number: "123456789",
+					document_type_code: "P",
+					family_name: "DOE",
+					given_names: "JANE MARIE",
+					issuing_country_code: "GBR",
+					nationality_code: "GBR",
+					sex_marker: "F",
+				},
+			},
+		}),
+	);
 
-  expect(preview?.machineReadableZone).toEqual([
-    "P<GBRDOE<<JANE<MARIE<<<<<<<<<<<<<<<<<<<<<<<<",
-    "1234567897GBR9004126F3204164<<<<<<<<<<<<<<08",
-  ]);
+	expect(preview?.machineReadableZone).toEqual([
+		"P<GBRDOE<<JANE<MARIE<<<<<<<<<<<<<<<<<<<<<<<<",
+		"1234567897GBR9004126F3204164<<<<<<<<<<<<<<08",
+	]);
 });
 
 test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
-  const preview = buildDemoWebhookEventPreview(
-    JSON.stringify({
-      type: "verification.attempt.failed",
-      data: {
-        failure_code: "passport_authenticity_failed",
-      },
-      metadata: {
-        contract_version: 1,
-        verification_attempt_id: "va_demo_test",
-        verification_session_id: "vs_demo_test",
-      },
-    })
-  );
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.attempt.failed",
+			data: {
+				failure_code: "passport_authenticity_failed",
+			},
+			metadata: {
+				contract_version: 1,
+				verification_attempt_id: "va_demo_test",
+				verification_session_id: "vs_demo_test",
+			},
+		}),
+	);
 
-  expect(preview).toEqual({
-    contractVersion: 1,
-    description:
-      "We couldn’t verify your passport. Try again or use a different one.",
-    eventType: "verification.attempt.failed",
-    failureCode: "passport_authenticity_failed",
-    failureDescription:
-      "We couldn’t verify your passport. Try again or use a different one.",
-    failureTitle: "Passport check failed",
-    title: "Attempt Failed",
-    verificationAttemptId: "va_demo_test",
-    verificationSessionId: "vs_demo_test",
-  });
+	expect(preview).toEqual({
+		contractVersion: 1,
+		description:
+			"We couldn’t verify your passport. Try again or use a different one.",
+		eventType: "verification.attempt.failed",
+		failureCode: "passport_authenticity_failed",
+		failureDescription:
+			"We couldn’t verify your passport. Try again or use a different one.",
+		failureTitle: "Passport check failed",
+		title: "Attempt Failed",
+		verificationAttemptId: "va_demo_test",
+		verificationSessionId: "vs_demo_test",
+	});
 });
 
 test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => {
-  const preview = buildDemoWebhookEventPreview(
-    JSON.stringify({
-      type: "verification.attempt.failed",
-      data: {
-        failure_code: "unexpected_failure_code",
-      },
-    })
-  );
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.attempt.failed",
+			data: {
+				failure_code: "unexpected_failure_code",
+			},
+		}),
+	);
 
-  expect(preview).toEqual({
-    contractVersion: null,
-    description: "A verification attempt failed with Unexpected Failure Code.",
-    eventType: "verification.attempt.failed",
-    failureCode: "unexpected_failure_code",
-    failureDescription: null,
-    failureTitle: null,
-    title: "Attempt Failed",
-    verificationAttemptId: null,
-    verificationSessionId: null,
-  });
+	expect(preview).toEqual({
+		contractVersion: null,
+		description: "A verification attempt failed with Unexpected Failure Code.",
+		eventType: "verification.attempt.failed",
+		failureCode: "unexpected_failure_code",
+		failureDescription: null,
+		failureTitle: null,
+		title: "Attempt Failed",
+		verificationAttemptId: null,
+		verificationSessionId: null,
+	});
 });

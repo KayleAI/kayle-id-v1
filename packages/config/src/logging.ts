@@ -18,31 +18,31 @@ export type SafeRequestLoggerInput =
       path: string;
     };
 
-export type SafeErrorContext = {
+export interface SafeErrorContext {
   error_code: string;
-  error_message: string;
-  error_name: string;
   error_fix?: string;
   error_link?: string;
+  error_message: string;
+  error_name: string;
   error_why?: string;
   status?: number;
-};
+}
 
-export type SafeErrorContextInput = {
+export interface SafeErrorContextInput {
   code: string;
   error: unknown;
-  message: string;
   fix?: string;
   link?: string;
+  message: string;
   status?: number;
   why?: string;
-};
+}
 
-export type SafeLogEventInput = {
+export interface SafeLogEventInput {
   details?: Record<string, unknown>;
   event: string;
   level?: SafeLogLevel;
-};
+}
 
 export type SafeLogErrorInput = SafeErrorContextInput &
   Omit<SafeLogEventInput, "level"> & {

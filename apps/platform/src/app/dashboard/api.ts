@@ -1,74 +1,42 @@
-import { parseErrorResponse } from "@/utils/parse-error-response";
+import { requestApiResource } from "@/utils/api-client";
 
-export type SessionAnalyticsSummary = {
-  total: number;
-  active: number;
-  success: number;
-  failure: number;
-  expired: number;
-  cancelled: number;
-};
+export interface SessionAnalyticsSummary {
+	active: number;
+	cancelled: number;
+	expired: number;
+	failure: number;
+	success: number;
+	total: number;
+}
 
-export type SessionAnalyticsTrendPoint = {
-  date: string;
-  success: number;
-  failure: number;
-  expired: number;
-  cancelled: number;
-};
+export interface SessionAnalyticsTrendPoint {
+	cancelled: number;
+	date: string;
+	expired: number;
+	failure: number;
+	success: number;
+}
 
-export type SessionAnalyticsTimelinePoint = {
-  date: string;
-  total: number;
-  active: number;
-  success: number;
-  failure: number;
-  expired: number;
-  cancelled: number;
-};
+export interface SessionAnalyticsTimelinePoint {
+	active: number;
+	cancelled: number;
+	date: string;
+	expired: number;
+	failure: number;
+	success: number;
+	total: number;
+}
 
-export type SessionAnalyticsOverview = {
-  summary: SessionAnalyticsSummary;
-  trend: SessionAnalyticsTrendPoint[];
-  timeline: SessionAnalyticsTimelinePoint[];
-};
-
-type ApiError = {
-  code: string;
-  message: string;
-  hint?: string;
-  docs?: string;
-};
-
-type ApiEnvelope<T> = {
-  data: T | null;
-  error: ApiError | null;
-};
-
-async function requestAnalytics<T>(path: string): Promise<T> {
-  const response = await fetch(`/api/analytics${path}`, {
-    credentials: "include",
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      await parseErrorResponse(
-        response,
-        `Request failed with ${response.status}.`
-      )
-    );
-  }
-
-  const payload = (await response.json()) as ApiEnvelope<T>;
-
-  if (payload.error || payload.data === null) {
-    throw new Error(payload.error?.message ?? "Unexpected analytics response.");
-  }
-
-  return payload.data;
+export interface SessionAnalyticsOverview {
+	summary: SessionAnalyticsSummary;
+	timeline: SessionAnalyticsTimelinePoint[];
+	trend: SessionAnalyticsTrendPoint[];
 }
 
 export function getSessionAnalyticsOverview(): Promise<SessionAnalyticsOverview> {
-  return requestAnalytics("/sessions/overview");
+	return requestApiResource<SessionAnalyticsOverview>({
+		basePath: "/api/analytics",
+		path: "/sessions/overview",
+		unexpectedMessage: "Unexpected analytics response.",
+	});
 }

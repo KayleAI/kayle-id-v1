@@ -1,10 +1,10 @@
 import {
-  createSafeRequestLogger,
-  emitSafeRequestLog,
-  getSafeErrorStatus,
-  initStructuredLogger,
-  logSafeError,
-  type SafeRequestLogger,
+	createSafeRequestLogger,
+	emitSafeRequestLog,
+	getSafeErrorStatus,
+	initStructuredLogger,
+	logSafeError,
+	type SafeRequestLogger,
 } from "@kayle-id/config/logging";
 import type { Context, MiddlewareHandler } from "hono";
 import { config } from "@/config";
@@ -14,89 +14,99 @@ const REQUEST_LOG_EMITTED_KEY = "request_log_emitted";
 const REQUEST_LOG_MANUAL_EMIT_KEY = "request_log_manual_emit";
 
 type ApiLoggingVariables = {
-  log: SafeRequestLogger;
-  request_log_emitted: boolean;
-  request_log_manual_emit: boolean;
+	log: SafeRequestLogger;
+	request_log_emitted: boolean;
+	request_log_manual_emit: boolean;
 };
 
 type ApiLoggingContext = Context<{
-  Variables: ApiLoggingVariables;
+	Variables: ApiLoggingVariables;
 }>;
 
+interface RequestLoggingMiddlewareOptions {
+	emitRequestLogs?: boolean;
+}
+
 initStructuredLogger({
-  environment: config.environment,
-  service: "kayle-id-api",
-  version: config.version,
+	environment: config.environment,
+	service: "kayle-id-api",
+	version: config.version,
 });
 
 function getLoggingContext(c: Context): ApiLoggingContext {
-  return c as ApiLoggingContext;
+	return c as ApiLoggingContext;
 }
 
 export type ApiRequestLogger = SafeRequestLogger;
 
 export function emitRequestLog(
-  c: Context,
-  status: number
+	c: Context,
+	status: number,
 ): ReturnType<SafeRequestLogger["emit"]> {
-  const loggingContext = getLoggingContext(c);
+	const loggingContext = getLoggingContext(c);
 
-  if (loggingContext.get(REQUEST_LOG_EMITTED_KEY)) {
-    return null;
-  }
+	if (loggingContext.get(REQUEST_LOG_EMITTED_KEY)) {
+		return null;
+	}
 
-  const emitted = emitSafeRequestLog(
-    loggingContext.get(REQUEST_LOG_KEY),
-    status
-  );
-  loggingContext.set(REQUEST_LOG_EMITTED_KEY, true);
-  return emitted;
+	const emitted = emitSafeRequestLog(
+		loggingContext.get(REQUEST_LOG_KEY),
+		status,
+	);
+	loggingContext.set(REQUEST_LOG_EMITTED_KEY, true);
+	return emitted;
 }
 
 export function getRequestLogger(c: Context): ApiRequestLogger {
-  return getLoggingContext(c).get(REQUEST_LOG_KEY);
+	return getLoggingContext(c).get(REQUEST_LOG_KEY);
 }
 
 export function markRequestLogForManualEmit(c: Context): void {
-  getLoggingContext(c).set(REQUEST_LOG_MANUAL_EMIT_KEY, true);
+	getLoggingContext(c).set(REQUEST_LOG_MANUAL_EMIT_KEY, true);
 }
 
-export function requestLoggingMiddleware(): MiddlewareHandler {
-  return async (c, next) => {
-    const loggingContext = getLoggingContext(c);
-    const existingLogger = loggingContext.get(REQUEST_LOG_KEY);
+export function requestLoggingMiddleware({
+	emitRequestLogs = process.env.NODE_ENV !== "test",
+}: RequestLoggingMiddlewareOptions = {}): MiddlewareHandler {
+	return async (c, next) => {
+		const loggingContext = getLoggingContext(c);
+		const existingLogger = loggingContext.get(REQUEST_LOG_KEY);
 
-    if (existingLogger) {
-      await next();
-      return;
-    }
+		if (existingLogger) {
+			await next();
+			return;
+		}
 
-    const logger = createSafeRequestLogger(c.req.raw);
+		const logger = createSafeRequestLogger(c.req.raw);
 
-    loggingContext.set(REQUEST_LOG_KEY, logger);
-    loggingContext.set(REQUEST_LOG_EMITTED_KEY, false);
-    loggingContext.set(REQUEST_LOG_MANUAL_EMIT_KEY, false);
+		loggingContext.set(REQUEST_LOG_KEY, logger);
+		loggingContext.set(REQUEST_LOG_EMITTED_KEY, false);
+		loggingContext.set(REQUEST_LOG_MANUAL_EMIT_KEY, false);
 
-    try {
-      await next();
+		try {
+			await next();
 
-      if (loggingContext.get(REQUEST_LOG_MANUAL_EMIT_KEY)) {
-        return;
-      }
+			if (loggingContext.get(REQUEST_LOG_MANUAL_EMIT_KEY)) {
+				return;
+			}
 
-      emitRequestLog(c, c.res.status);
-    } catch (error) {
-      const status = getSafeErrorStatus(error) ?? 500;
+			if (emitRequestLogs) {
+				emitRequestLog(c, c.res.status);
+			}
+		} catch (error) {
+			const status = getSafeErrorStatus(error) ?? 500;
 
-      logSafeError(logger, {
-        code: "request_failed",
-        error,
-        event: "request_failed",
-        message: "The request failed before a response was returned.",
-        status,
-      });
-      emitRequestLog(c, status);
-      throw error;
-    }
-  };
+			logSafeError(logger, {
+				code: "request_failed",
+				error,
+				event: "request_failed",
+				message: "The request failed before a response was returned.",
+				status,
+			});
+			if (emitRequestLogs) {
+				emitRequestLog(c, status);
+			}
+			throw error;
+		}
+	};
 }

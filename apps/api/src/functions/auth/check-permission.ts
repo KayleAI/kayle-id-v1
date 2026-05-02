@@ -1,36 +1,37 @@
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organization_members } from "@kayle-id/database/schema/auth";
 import { and, eq } from "drizzle-orm";
+import { hasOrgRole, isOrgRole, type OrgRole } from "@/auth/permissions";
 
 /**
- * Check if a given user has sufficient permissions to perform an action in an organization.
+ * Returns true when `userId` is a member of `organizationId` whose stored role
+ * meets or exceeds `requiredRole` per the owner > admin > member ordering.
  *
- * @todo For now, it's just role-based permissions, but we'll need to add more granular permissions in the future. (i.e., right now, any user in an organization can perform actions)
- *
- * @param userId - The ID of the user to check permissions for
- * @param organizationId - The ID of the organization to check permissions for
- * @param permissions - The permissions to check
- * @returns True if the user has the necessary permissions, false otherwise
+ * An unrecognized stored role is treated as below all known roles (deny).
  */
 export async function checkPermission(
-  userId: string,
-  organizationId: string,
-  _permissions?: string[]
+	userId: string,
+	organizationId: string,
+	requiredRole: OrgRole = "member",
 ): Promise<boolean> {
-  const [member] = await db
-    .select()
-    .from(auth_organization_members)
-    .where(
-      and(
-        eq(auth_organization_members.userId, userId),
-        eq(auth_organization_members.organizationId, organizationId)
-      )
-    )
-    .limit(1);
+	const [member] = await db
+		.select({ role: auth_organization_members.role })
+		.from(auth_organization_members)
+		.where(
+			and(
+				eq(auth_organization_members.userId, userId),
+				eq(auth_organization_members.organizationId, organizationId),
+			),
+		)
+		.limit(1);
 
-  if (!member) {
-    return false;
-  }
+	if (!member) {
+		return false;
+	}
 
-  return true;
+	if (!isOrgRole(member.role)) {
+		return false;
+	}
+
+	return hasOrgRole(member.role, requiredRole);
 }

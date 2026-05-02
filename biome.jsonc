@@ -1,13 +1,27 @@
 {
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/remix",
+    "ultracite/biome/vitest"
+  ],
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite/core"],
   "files": {
     "includes": [
+      "**",
+      "!node_modules",
+      "!dist",
       "!bun.lock",
       "!**/.wrangler",
       "!**/.wrangler-out",
       "!**/cloudflare-env.d.ts",
-      "!**/routeTree.gen.ts"
+      "!**/routeTree.gen.ts",
+      "!**/.css"
     ]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

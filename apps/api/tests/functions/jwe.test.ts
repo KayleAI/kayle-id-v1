@@ -7,52 +7,52 @@ import { createJWE } from "@/functions/jwe";
  * Test whether we can create a JWE
  */
 test("createJWE", async () => {
-  const payload = "Hello, world!";
-  const jwe = await createJWE(payload, {
-    publicKey: await file(
-      new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url)
-    ).text(),
-  });
-  expect(jwe).toBeString();
+	const payload = "Hello, world!";
+	const jwe = await createJWE(payload, {
+		publicKey: await file(
+			new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url),
+		).text(),
+	});
+	expect(jwe).toBeString();
 
-  // Decrypt the JWE using the private key
-  const privateKey = await file(
-    new URL("../../../../tests/secrets/rsa_private.pem", import.meta.url)
-  ).text();
+	// Decrypt the JWE using the private key
+	const privateKey = await file(
+		new URL("../../../../tests/secrets/rsa_private.pem", import.meta.url),
+	).text();
 
-  const { plaintext, protectedHeader } = await compactDecrypt(
-    jwe,
-    await importPKCS8(privateKey, "RSA-OAEP-256")
-  );
+	const { plaintext, protectedHeader } = await compactDecrypt(
+		jwe,
+		await importPKCS8(privateKey, "RSA-OAEP-256"),
+	);
 
-  // Assert header is what we expect
-  expect(protectedHeader.alg).toBe("RSA-OAEP-256");
-  expect(protectedHeader.enc).toBe("A256GCM");
+	// Assert header is what we expect
+	expect(protectedHeader.alg).toBe("RSA-OAEP-256");
+	expect(protectedHeader.enc).toBe("A256GCM");
 
-  // Assert we can correctly decode the plaintext back to the original payload
-  const decoded = new TextDecoder().decode(plaintext);
-  expect(decoded).toBe(payload);
+	// Assert we can correctly decode the plaintext back to the original payload
+	const decoded = new TextDecoder().decode(plaintext);
+	expect(decoded).toBe(payload);
 });
 
 test("createJWE supports JWK public keys", async () => {
-  const payload = "Hello, JWK!";
-  const publicKeyText = await file(
-    new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url)
-  ).text();
-  const publicJwk = await exportJWK(
-    await importSPKI(publicKeyText, "RSA-OAEP-256")
-  );
+	const payload = "Hello, JWK!";
+	const publicKeyText = await file(
+		new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url),
+	).text();
+	const publicJwk = await exportJWK(
+		await importSPKI(publicKeyText, "RSA-OAEP-256"),
+	);
 
-  const jwe = await createJWE(payload, {
-    publicJwk,
-  });
-  const privateKey = await file(
-    new URL("../../../../tests/secrets/rsa_private.pem", import.meta.url)
-  ).text();
-  const { plaintext } = await compactDecrypt(
-    jwe,
-    await importPKCS8(privateKey, "RSA-OAEP-256")
-  );
+	const jwe = await createJWE(payload, {
+		publicJwk,
+	});
+	const privateKey = await file(
+		new URL("../../../../tests/secrets/rsa_private.pem", import.meta.url),
+	).text();
+	const { plaintext } = await compactDecrypt(
+		jwe,
+		await importPKCS8(privateKey, "RSA-OAEP-256"),
+	);
 
-  expect(new TextDecoder().decode(plaintext)).toBe(payload);
+	expect(new TextDecoder().decode(plaintext)).toBe(payload);
 });

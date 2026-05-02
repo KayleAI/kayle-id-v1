@@ -1,0 +1,348 @@
+import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import { formatDate } from "@/utils/format-date";
+import {
+	type DeliveryStatus,
+	parsePublicKeyInput,
+	type WebhookDelivery,
+	type WebhookEncryptionKey,
+	type WebhookEndpoint,
+	type WebhookEvent,
+} from "./api";
+import {
+	EMPTY_ENDPOINT_DELIVERY_STATS,
+	type EndpointDeliveryStats,
+	getDeliveryActivityTimestamp,
+	getEndpointDeliveryStats,
+	getSelectedEndpointDeliveryStats,
+} from "./stats";
+import { type DeliveryTrendPoint, getEndpointDeliveryTrend } from "./trend";
+
+export type WebhooksTab = "endpoints" | "events";
+export type EndpointDetailTab = "overview" | "performance" | "deliveries";
+
+export type { DeliveryTrendPoint, EndpointDeliveryStats };
+export {
+	EMPTY_ENDPOINT_DELIVERY_STATS,
+	getDeliveryActivityTimestamp,
+	getEndpointDeliveryStats,
+	getEndpointDeliveryTrend,
+	getSelectedEndpointDeliveryStats,
+};
+
+export interface CreateEndpointInitialPublicKey {
+	jwk: JsonWebKey;
+	keyId: string;
+}
+
+export interface CreateEndpointSubmission {
+	enabled: boolean;
+	initialPublicKey: CreateEndpointInitialPublicKey | null;
+	name: string | null;
+	subscribedEventTypes: string[];
+	url: string;
+}
+
+export interface CreateEndpointSubmissionResult {
+	publicKeyError: string | null;
+}
+
+export const TAB_OPTIONS: Array<{
+	label: string;
+	value: WebhooksTab;
+}> = [
+	{
+		value: "endpoints",
+		label: "Endpoints",
+	},
+	{
+		value: "events",
+		label: "Events",
+	},
+];
+
+const WWW_PREFIX_REGEX = /^www\./;
+
+export function formatOptionalDate(dateString: string | null): string {
+	return dateString ? formatDate(dateString) : "Never";
+}
+
+export function formatCount(value: number): string {
+	return value.toLocaleString();
+}
+
+export function formatCountLabel(
+	count: number,
+	singular: string,
+	plural = `${singular}s`,
+): string {
+	return `${formatCount(count)} ${count === 1 ? singular : plural}`;
+}
+
+export function getEndpointHostLabel(url: string): string {
+	try {
+		return new URL(url).host.replace(WWW_PREFIX_REGEX, "");
+	} catch {
+		return url;
+	}
+}
+
+export function getEndpointPathLabel(url: string): string {
+	try {
+		const parsedUrl = new URL(url);
+		return parsedUrl.pathname === "/" ? parsedUrl.host : parsedUrl.pathname;
+	} catch {
+		return url;
+	}
+}
+
+export function getEndpointDisplayName(
+	endpoint: Pick<WebhookEndpoint, "name" | "url">,
+): string {
+	return endpoint.name?.trim() || getEndpointPathLabel(endpoint.url);
+}
+
+export function getEndpointPageTitle(
+	endpoint: Pick<WebhookEndpoint, "name" | "url">,
+): string {
+	return endpoint.name?.trim() || getEndpointHostLabel(endpoint.url);
+}
+
+export function getEndpointSecondaryLabel(
+	endpoint: Pick<WebhookEndpoint, "name" | "url">,
+): string {
+	return endpoint.name?.trim()
+		? endpoint.url
+		: getEndpointHostLabel(endpoint.url);
+}
+
+export function getEndpointPageSubtitle(
+	endpoint: Pick<WebhookEndpoint, "name" | "url">,
+): string {
+	return endpoint.url;
+}
+
+export function getEndpointsById(
+	endpoints: WebhookEndpoint[],
+): Record<string, WebhookEndpoint> {
+	return Object.fromEntries(
+		endpoints.map((endpoint) => [endpoint.id, endpoint] as const),
+	);
+}
+
+export function getDeliveriesForEvent(
+	deliveries: WebhookDelivery[],
+	eventId: string,
+): WebhookDelivery[] {
+	return deliveries
+		.filter((delivery) => delivery.event_id === eventId)
+		.sort((left, right) =>
+			getDeliveryActivityTimestamp(right).localeCompare(
+				getDeliveryActivityTimestamp(left),
+			),
+		);
+}
+
+export function getAttachedEndpointIds(event: WebhookEvent): string[] {
+	return Array.from(
+		new Set(event.deliveries.map((delivery) => delivery.webhook_endpoint_id)),
+	);
+}
+
+export function getRecentDeliveriesForEndpoint(
+	deliveries: WebhookDelivery[],
+	endpointId: string,
+	limit = 10,
+): WebhookDelivery[] {
+	return deliveries
+		.filter((delivery) => delivery.webhook_endpoint_id === endpointId)
+		.sort((left, right) =>
+			getDeliveryActivityTimestamp(right).localeCompare(
+				getDeliveryActivityTimestamp(left),
+			),
+		)
+		.slice(0, limit);
+}
+
+export function isWebhookEndpointDirty({
+	endpoint,
+	endpointEnabled,
+	endpointName,
+	endpointSubscribedEventTypes,
+	endpointUrl,
+}: {
+	endpoint: WebhookEndpoint | null;
+	endpointEnabled: boolean;
+	endpointName: string;
+	endpointSubscribedEventTypes: string[];
+	endpointUrl: string;
+}): boolean {
+	if (!endpoint) {
+		return false;
+	}
+
+	return (
+		(endpoint.name ?? "") !== endpointName.trim() ||
+		endpoint.url !== endpointUrl ||
+		endpoint.enabled !== endpointEnabled ||
+		!areEventSelectionsEqual(
+			endpoint.subscribed_event_types,
+			endpointSubscribedEventTypes,
+		)
+	);
+}
+
+export function shouldShowMissingKeyAlert({
+	endpoint,
+	isKeysLoading,
+	keys,
+}: {
+	endpoint: WebhookEndpoint | null;
+	isKeysLoading: boolean;
+	keys: WebhookEncryptionKey[];
+}): boolean {
+	return (
+		endpoint !== null && !isKeysLoading && keys.every((key) => !key.is_active)
+	);
+}
+
+export function getEventTriggerLabel(event: WebhookEvent): string {
+	return event.trigger_type.replace("_", " ");
+}
+
+export function areEventSelectionsEqual(
+	left: string[],
+	right: string[],
+): boolean {
+	const normalizedLeft = [...left].sort();
+	const normalizedRight = [...right].sort();
+
+	if (normalizedLeft.length !== normalizedRight.length) {
+		return false;
+	}
+
+	return normalizedLeft.every(
+		(eventType, index) => eventType === normalizedRight[index],
+	);
+}
+
+export function toggleEventSelection(
+	selectedEventTypes: string[],
+	eventType: string,
+): string[] {
+	if (selectedEventTypes.includes(eventType)) {
+		if (selectedEventTypes.length === 1) {
+			return selectedEventTypes;
+		}
+
+		return selectedEventTypes.filter(
+			(selectedEventType) => selectedEventType !== eventType,
+		);
+	}
+
+	return [...selectedEventTypes, eventType];
+}
+
+export function getWebhookEventTypeDescription(eventType: string): string {
+	if (eventType === "verification.attempt.succeeded") {
+		return "Dispatch completed verification attempts to this endpoint.";
+	}
+
+	if (eventType === "verification.attempt.failed") {
+		return "Dispatch failed verification attempts to this endpoint.";
+	}
+
+	if (eventType === "verification.session.expired") {
+		return "Dispatch verification sessions that expire before completion.";
+	}
+
+	if (eventType === "verification.session.cancelled") {
+		return "Dispatch verification sessions cancelled by the platform.";
+	}
+
+	return "Dispatch this event type to the endpoint when it is emitted.";
+}
+
+export function getEventSubscriptionSummary(
+	selectedEventTypes: string[],
+): string {
+	if (selectedEventTypes.length === SUPPORTED_WEBHOOK_EVENT_TYPES.length) {
+		return "All events";
+	}
+
+	return formatCountLabel(selectedEventTypes.length, "event");
+}
+
+export async function getCreateEndpointInitialPublicKey({
+	publicKeyId,
+	publicKeyInput,
+	shouldConfigurePublicKey,
+}: {
+	publicKeyId: string;
+	publicKeyInput: string;
+	shouldConfigurePublicKey: boolean;
+}): Promise<CreateEndpointInitialPublicKey | null> {
+	if (!shouldConfigurePublicKey) {
+		return null;
+	}
+
+	if (!publicKeyId.trim()) {
+		throw new Error("Key ID is required.");
+	}
+
+	return {
+		jwk: await parsePublicKeyInput(publicKeyInput),
+		keyId: publicKeyId.trim(),
+	};
+}
+
+export function getWebhookEventReplayDisabledReason(
+	event: WebhookEvent,
+): string | null {
+	if (event.deliveries.length === 0) {
+		return "This event has no deliveries to replay.";
+	}
+
+	return null;
+}
+
+const BADGE_PALETTE = {
+	emerald:
+		"border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400",
+	blue: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+	amber:
+		"border-amber-500/20 bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
+	red: "border-red-500/20 bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400",
+	muted: "border-border bg-muted/50 text-muted-foreground",
+} as const;
+
+type BadgeStatus = DeliveryStatus | "active" | "disabled" | "inactive";
+
+const STATUS_BADGE_CLASS: Record<BadgeStatus, string> = {
+	succeeded: BADGE_PALETTE.emerald,
+	active: BADGE_PALETTE.emerald,
+	pending: BADGE_PALETTE.blue,
+	delivering: BADGE_PALETTE.blue,
+	failed: BADGE_PALETTE.red,
+	inactive: BADGE_PALETTE.red,
+	disabled: BADGE_PALETTE.muted,
+};
+
+export function getStatusBadgeClass(status: BadgeStatus): string {
+	return STATUS_BADGE_CLASS[status];
+}
+
+export function getResponseCodeClass(statusCode: number | null): string {
+	if (statusCode === null) {
+		return BADGE_PALETTE.muted;
+	}
+
+	if (statusCode < 300) {
+		return BADGE_PALETTE.emerald;
+	}
+
+	if (statusCode < 500) {
+		return BADGE_PALETTE.amber;
+	}
+
+	return BADGE_PALETTE.red;
+}

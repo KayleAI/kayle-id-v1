@@ -1,57 +1,94 @@
+import { db } from "@kayle-id/database/drizzle";
+import { verification_attempts } from "@kayle-id/database/schema/core";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
+
 export const ATTEMPT_CONNECTION_ACTIVE_CODE =
-  "ATTEMPT_CONNECTION_ACTIVE" as const;
+	"ATTEMPT_CONNECTION_ACTIVE" as const;
+
+const STALE_CLAIM_MS = 15 * 60_000;
 
 type AttemptOwnershipResult =
-  | {
-      ok: true;
-      owned: boolean;
-    }
-  | {
-      ok: false;
-      code: typeof ATTEMPT_CONNECTION_ACTIVE_CODE;
-    };
+	| {
+			ok: true;
+			owned: boolean;
+	  }
+	| {
+			ok: false;
+			code: typeof ATTEMPT_CONNECTION_ACTIVE_CODE;
+	  };
 
-const activeAttemptOwners = new Map<string, string>();
-
-export function claimAttemptConnection({
-  attemptId,
-  ownerId,
+/**
+ * Claims an attempt for the given WebSocket connection. The claim is durable
+ * across Worker isolate recycling because it lives in
+ * `verification_attempts.claimed_by_connection_id`. A second connection
+ * attempting to claim a still-live attempt is rejected with
+ * `ATTEMPT_CONNECTION_ACTIVE`. Stale claims (older than 15 minutes — outlives
+ * the socket lifetime cap) are recoverable so a crashed isolate cannot wedge
+ * an attempt forever.
+ */
+export async function claimAttemptConnection({
+	attemptId,
+	ownerId,
 }: {
-  attemptId: string;
-  ownerId: string;
-}): AttemptOwnershipResult {
-  const existingOwner = activeAttemptOwners.get(attemptId);
+	attemptId: string;
+	ownerId: string;
+}): Promise<AttemptOwnershipResult> {
+	const now = new Date();
+	const staleThreshold = new Date(now.getTime() - STALE_CLAIM_MS);
 
-  if (!existingOwner) {
-    activeAttemptOwners.set(attemptId, ownerId);
-    return {
-      ok: true,
-      owned: true,
-    };
-  }
+	const claimed = await db
+		.update(verification_attempts)
+		.set({
+			claimedByConnectionId: ownerId,
+			claimedAt: now,
+		})
+		.where(
+			and(
+				eq(verification_attempts.id, attemptId),
+				or(
+					isNull(verification_attempts.claimedByConnectionId),
+					eq(verification_attempts.claimedByConnectionId, ownerId),
+					lt(verification_attempts.claimedAt, staleThreshold),
+				),
+			),
+		)
+		.returning({
+			id: verification_attempts.id,
+			claimedBy: verification_attempts.claimedByConnectionId,
+		});
 
-  if (existingOwner === ownerId) {
-    return {
-      ok: true,
-      owned: false,
-    };
-  }
+	if (claimed.length === 0) {
+		return {
+			ok: false,
+			code: ATTEMPT_CONNECTION_ACTIVE_CODE,
+		};
+	}
 
-  return {
-    ok: false,
-    code: ATTEMPT_CONNECTION_ACTIVE_CODE,
-  };
+	return {
+		ok: true,
+		owned: true,
+	};
 }
 
-export function releaseAttemptConnection({
-  attemptId,
-  ownerId,
+export async function releaseAttemptConnection({
+	attemptId,
+	ownerId,
 }: {
-  attemptId: string;
-  ownerId: string;
-}): void {
-  const existingOwner = activeAttemptOwners.get(attemptId);
-  if (existingOwner === ownerId) {
-    activeAttemptOwners.delete(attemptId);
-  }
+	attemptId: string;
+	ownerId: string;
+}): Promise<void> {
+	await db
+		.update(verification_attempts)
+		.set({
+			claimedByConnectionId: null,
+			claimedAt: null,
+		})
+		.where(
+			and(
+				eq(verification_attempts.id, attemptId),
+				eq(verification_attempts.claimedByConnectionId, ownerId),
+			),
+		);
 }
+
+export const ATTEMPT_STALE_CLAIM_MS = STALE_CLAIM_MS;

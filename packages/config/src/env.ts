@@ -2,6 +2,7 @@ import type { Hyperdrive, R2Bucket } from "@cloudflare/workers-types";
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
 import { z } from "zod";
+import { createRuntimeEnv, getImportMetaEnv } from "./runtime-env";
 
 if (process.env.NODE_ENV !== "production") {
   config({
@@ -11,14 +12,11 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-let cloudflareEnv: Record<string, unknown> = {};
+let cloudflareEnv: unknown;
 
 try {
   const cf = "cloudflare:workers";
-  cloudflareEnv = ((await import(/* @vite-ignore */ cf))?.env ?? {}) as Record<
-    string,
-    unknown
-  >;
+  cloudflareEnv = (await import(/* @vite-ignore */ cf))?.env;
 } catch {
   // ignore
 }
@@ -56,11 +54,11 @@ export const env = createEnv({
     PUBLIC_DEVELOPMENT_API_BASE_URL: z.string().url().optional(),
   },
 
-  runtimeEnv: {
-    ...(typeof process !== "undefined" ? process?.env : {}),
-    ...(typeof import.meta !== "undefined" ? import.meta.env : {}),
-    ...(cloudflareEnv as Record<string, string>),
-  },
+  runtimeEnv: createRuntimeEnv(
+    typeof process === "undefined" ? undefined : process?.env,
+    getImportMetaEnv(import.meta),
+    cloudflareEnv
+  ),
 
   emptyStringAsUndefined: true,
 

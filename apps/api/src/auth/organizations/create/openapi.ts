@@ -1,5 +1,15 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import {
+	ALLOWED_LOGO_MIME,
+	MAX_LOGO_BYTES,
+} from "@/auth/organizations/create/logo";
 import { ErrorResponse } from "@/openapi/base";
+
+// Base64 encodes 3 input bytes as 4 output chars (rounded up to multiples of 4
+// with `=` padding). Cap at the encoded size of MAX_LOGO_BYTES + a small
+// margin so oversized payloads are rejected by Zod before the route handler
+// has to decode them.
+const MAX_LOGO_BASE64_LENGTH = Math.ceil(MAX_LOGO_BYTES / 3) * 4 + 4;
 
 export const internalCreateOrganization = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -15,8 +25,8 @@ export const internalCreateOrganization = createRoute({
 						slug: z.string().min(1),
 						logo: z
 							.object({
-								data: z.string().min(1),
-								contentType: z.string().min(1),
+								data: z.string().min(1).max(MAX_LOGO_BASE64_LENGTH),
+								contentType: z.enum(ALLOWED_LOGO_MIME),
 							})
 							.optional(),
 					}),

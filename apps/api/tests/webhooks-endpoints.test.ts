@@ -3,6 +3,7 @@ import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
 import { webhook_endpoints } from "@kayle-id/database/schema/webhooks";
 import { eq } from "drizzle-orm";
+import { createApiKey } from "@/functions/auth/create-api-key";
 import app from "@/index";
 import { setup, type TestData, teardown } from "./setup";
 
@@ -387,5 +388,121 @@ describe("/v1/webhooks/endpoints", () => {
 		);
 
 		expect(getResponse.status).toBe(404);
+	});
+});
+
+describe("/v1/webhooks/endpoints API-key scope enforcement", () => {
+	test("denies a key with no scopes on every webhooks route", async () => {
+		const organizationId = TEST_DATA?.organizationId as string;
+		const { apiKey } = await createApiKey({
+			name: "No-scope key",
+			organizationId,
+			permissions: [],
+		});
+
+		const listResponse = await app.request("/v1/webhooks/endpoints", {
+			headers: { Authorization: `Bearer ${apiKey}` },
+		});
+		const createResponse = await app.request("/v1/webhooks/endpoints", {
+			body: JSON.stringify({
+				url: "https://example.com/webhooks/scope-test",
+			}),
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		});
+
+		expect(listResponse.status).toBe(403);
+		expect(createResponse.status).toBe(403);
+	});
+
+	test("denies a webhooks:read-only key on signing-secret reveal/rotate and write routes", async () => {
+		const organizationId = TEST_DATA?.organizationId as string;
+		const { apiKey: readOnlyKey } = await createApiKey({
+			name: "webhooks:read only",
+			organizationId,
+			permissions: ["webhooks:read"],
+		});
+
+		const createResponse = await app.request("/v1/webhooks/endpoints", {
+			body: JSON.stringify({
+				url: "https://example.com/webhooks/scope-test-2",
+			}),
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		});
+		const created = (await createResponse.json()) as {
+			data: { endpoint: { id: string } };
+		};
+		const endpointId = created.data.endpoint.id;
+
+		const listResponse = await app.request("/v1/webhooks/endpoints", {
+			headers: { Authorization: `Bearer ${readOnlyKey}` },
+		});
+		const revealResponse = await app.request(
+			`/v1/webhooks/endpoints/${endpointId}/signing-secret/reveal`,
+			{
+				headers: { Authorization: `Bearer ${readOnlyKey}` },
+				method: "POST",
+			},
+		);
+		const rotateResponse = await app.request(
+			`/v1/webhooks/endpoints/${endpointId}/signing-secret/rotate`,
+			{
+				headers: { Authorization: `Bearer ${readOnlyKey}` },
+				method: "POST",
+			},
+		);
+		const deleteResponse = await app.request(
+			`/v1/webhooks/endpoints/${endpointId}`,
+			{
+				headers: { Authorization: `Bearer ${readOnlyKey}` },
+				method: "DELETE",
+			},
+		);
+
+		expect(listResponse.status).toBe(200);
+		expect(revealResponse.status).toBe(403);
+		expect(rotateResponse.status).toBe(403);
+		expect(deleteResponse.status).toBe(403);
+	});
+
+	test("allows webhooks:write key on signing-secret reveal", async () => {
+		const organizationId = TEST_DATA?.organizationId as string;
+		const { apiKey: writeKey } = await createApiKey({
+			name: "webhooks:write",
+			organizationId,
+			permissions: ["webhooks:write"],
+		});
+
+		const createResponse = await app.request("/v1/webhooks/endpoints", {
+			body: JSON.stringify({
+				url: "https://example.com/webhooks/scope-test-3",
+			}),
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		});
+		const created = (await createResponse.json()) as {
+			data: { endpoint: { id: string } };
+		};
+		const endpointId = created.data.endpoint.id;
+
+		const revealResponse = await app.request(
+			`/v1/webhooks/endpoints/${endpointId}/signing-secret/reveal`,
+			{
+				headers: { Authorization: `Bearer ${writeKey}` },
+				method: "POST",
+			},
+		);
+
+		expect(revealResponse.status).toBe(200);
 	});
 });

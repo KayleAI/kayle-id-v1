@@ -60,6 +60,38 @@ interface MagicAdapterContext {
 const invalidMagicLinkMessage =
   "Your link is invalid or has expired. Please try again.";
 
+const SCHEME_PATH_PATTERN = /^\/[a-z][a-z0-9+.-]*:/i;
+
+/**
+ * Returns true when `input` is safe to redirect to from a magic-link callback —
+ * i.e. it is a same-site relative path. Absolute URLs, protocol-relative paths
+ * (`//evil.example`), backslash-prefixed paths (`/\evil.example`), and
+ * scheme-prefixed paths (`/javascript:foo`) are rejected to close the
+ * post-login open-redirect surface.
+ */
+export function isSafeMagicCallback(input: string): boolean {
+  if (!input.startsWith("/")) {
+    return false;
+  }
+
+  if (input.startsWith("//") || input.startsWith("/\\")) {
+    return false;
+  }
+
+  if (SCHEME_PATH_PATTERN.test(input)) {
+    return false;
+  }
+
+  return true;
+}
+
+const callbackURLSchema = z
+  .string()
+  .refine(isSafeMagicCallback, {
+    message: "callbackURL must be a same-site path starting with '/'.",
+  })
+  .optional();
+
 const magicLinkTokenValueSchema = z.object({
   email: z.string().email(),
   type: z.enum(["sign-in", "email-verification"]),
@@ -190,7 +222,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           body: z.object({
             email: z.string().email(),
             type: z.enum(["sign-in", "email-verification"]),
-            callbackURL: z.string().optional(),
+            callbackURL: callbackURLSchema,
           }),
         },
         async (ctx) => {
@@ -247,7 +279,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           method: "GET",
           query: z.object({
             token: z.string(),
-            callbackURL: z.string().optional(),
+            callbackURL: callbackURLSchema,
           }),
           requireHeaders: true,
         },

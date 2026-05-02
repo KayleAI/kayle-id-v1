@@ -3,6 +3,7 @@ import { db } from "@kayle-id/database/drizzle";
 import { auth_organization_members } from "@kayle-id/database/schema/auth";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
+import { API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 import { verifyApiKey } from "@/functions/auth/verify-api-key";
 import app from "@/index";
@@ -93,6 +94,7 @@ beforeAll(async () => {
 	const { apiKey, id: apiKeyId } = await createApiKey({
 		name: "Test API Key",
 		organizationId,
+		permissions: [...API_KEY_SCOPES],
 	});
 
 	TEST_DATA = {
@@ -145,6 +147,7 @@ describe("API Key Endpoints", () => {
 		const response = await app.request("/v1/auth/api-keys", {
 			body: JSON.stringify({
 				name: "Created API Key",
+				permissions: ["sessions:write"],
 			}),
 			headers: createJsonHeaders(testData.sessionCookie),
 			method: "POST",
@@ -171,6 +174,7 @@ describe("API Key Endpoints", () => {
 		const { apiKey, id } = await createApiKey({
 			name: "Before Update",
 			organizationId,
+			permissions: ["sessions:write"],
 		});
 		const response = await app.request(`/v1/auth/api-keys/${id}`, {
 			body: JSON.stringify({
@@ -217,6 +221,7 @@ describe("API Key Endpoints", () => {
 		const createResponse = await app.request("/v1/auth/api-keys", {
 			body: JSON.stringify({
 				name: "Invalid Metadata",
+				permissions: ["sessions:write"],
 				metadata: {
 					nested: {
 						value: true,
@@ -251,6 +256,7 @@ describe("API Key Endpoints", () => {
 		const { apiKey, id } = await createApiKey({
 			name: "Delete Me",
 			organizationId,
+			permissions: ["sessions:write"],
 		});
 		const response = await app.request(`/v1/auth/api-keys/${id}`, {
 			headers: createJsonHeaders(testData.sessionCookie),
@@ -309,6 +315,7 @@ describe("API Key Endpoints", () => {
 		const { id } = await createApiKey({
 			name: "Forbidden API Key",
 			organizationId,
+			permissions: ["sessions:write"],
 		});
 
 		await db
@@ -328,6 +335,7 @@ describe("API Key Endpoints", () => {
 			app.request("/v1/auth/api-keys", {
 				body: JSON.stringify({
 					name: "Forbidden Create",
+					permissions: ["sessions:write"],
 				}),
 				headers: createJsonHeaders(testData.sessionCookie),
 				method: "POST",
@@ -380,6 +388,7 @@ describe("API Key Endpoints", () => {
 		const { apiKey, id } = await createApiKey({
 			name: "Disabled Bearer Key",
 			organizationId,
+			permissions: ["sessions:write"],
 		});
 
 		const okResponse = await app.request("/v1/sessions", {

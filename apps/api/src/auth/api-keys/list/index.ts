@@ -22,7 +22,11 @@ listApiKeys.openapi(internalListApiKeys, async (c) => {
 	const limit = query.limit ?? 10;
 
 	// ensure the user has permission to list API keys
-	const hasPermission = await checkPermission(c.get("userId"), organizationId);
+	const hasPermission = await checkPermission(
+		c.get("userId"),
+		organizationId,
+		"admin",
+	);
 
 	if (!hasPermission) {
 		return c.json(

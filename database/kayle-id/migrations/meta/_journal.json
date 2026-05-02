@@ -78,6 +78,20 @@
       "when": 1777724407299,
       "tag": "0011_add_session_cancel_token",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777728631414,
+      "tag": "0012_add_verification_attempt_claim",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777728800000,
+      "tag": "0013_backfill_api_key_permissions",
+      "breakpoints": true
     }
   ]
 }

@@ -14,13 +14,13 @@ import {
 import { persistTrackedAttemptPhase } from "./phase-state";
 import type { VerifySocketContext } from "./socket-context";
 
-function resetAttemptState(
+async function resetAttemptState(
 	context: VerifySocketContext,
 	attemptId: string,
-): void {
+): Promise<void> {
 	const { connectionOwnerId, state } = context;
 
-	releaseAttemptConnection({
+	await releaseAttemptConnection({
 		attemptId,
 		ownerId: connectionOwnerId,
 	});
@@ -91,7 +91,7 @@ export async function handleHelloMessage(
 		return;
 	}
 
-	const ownership = claimAttemptConnection({
+	const ownership = await claimAttemptConnection({
 		attemptId: attempt.id,
 		ownerId: connectionOwnerId,
 	});
@@ -130,7 +130,7 @@ export async function handleHelloMessage(
 		});
 		state.currentPhase = "mobile_connected";
 	} catch (error) {
-		resetAttemptState(context, attempt.id);
+		await resetAttemptState(context, attempt.id);
 		throw error;
 	}
 

@@ -8,7 +8,7 @@ import {
 } from "@/logging";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import { releaseAttemptConnection } from "./attempt-connection";
-import { resetTransferState } from "./data-payload";
+import { MAX_FRAME_BYTES, resetTransferState } from "./data-payload";
 import type { ActiveVerifySessionContext } from "./session-context";
 import {
 	createVerifySocketState,
@@ -21,6 +21,12 @@ import { handleShareSelectionMessage } from "./socket-share";
 import { createVerifySocketTransport } from "./socket-transport";
 import { createWebSocketPairTuple } from "./utils";
 
+const FRAME_TOO_LARGE_CODE = "FRAME_TOO_LARGE";
+const FRAME_TOO_LARGE_MESSAGE =
+	"Verify frame exceeds the maximum allowed size.";
+
+class FrameTooLargeError extends Error {}
+
 async function getBytesFromEvent(
 	event: MessageEvent,
 ): Promise<Uint8Array | undefined> {
@@ -28,12 +34,21 @@ async function getBytesFromEvent(
 		return;
 	}
 	if (event.data instanceof ArrayBuffer) {
+		if (event.data.byteLength > MAX_FRAME_BYTES) {
+			throw new FrameTooLargeError(FRAME_TOO_LARGE_MESSAGE);
+		}
 		return new Uint8Array(event.data);
 	}
 	if (event.data instanceof Uint8Array) {
+		if (event.data.byteLength > MAX_FRAME_BYTES) {
+			throw new FrameTooLargeError(FRAME_TOO_LARGE_MESSAGE);
+		}
 		return event.data;
 	}
 	if (event.data instanceof Blob) {
+		if (event.data.size > MAX_FRAME_BYTES) {
+			throw new FrameTooLargeError(FRAME_TOO_LARGE_MESSAGE);
+		}
 		return new Uint8Array(await event.data.arrayBuffer());
 	}
 	return;
@@ -129,6 +144,15 @@ export function startVerifySocketSession(
 				return handleDecodedMessage(decoded);
 			})
 			.catch((error) => {
+				if (error instanceof FrameTooLargeError) {
+					context.transport.sendError(
+						FRAME_TOO_LARGE_CODE,
+						FRAME_TOO_LARGE_MESSAGE,
+					);
+					context.transport.closeSocket(1009, FRAME_TOO_LARGE_CODE);
+					return;
+				}
+
 				logSafeError(log, {
 					code: "verify_ws_internal_error",
 					error,
@@ -159,7 +183,7 @@ export function startVerifySocketSession(
 		}
 
 		if (context.state.attemptId) {
-			releaseAttemptConnection({
+			void releaseAttemptConnection({
 				attemptId: context.state.attemptId,
 				ownerId: connectionOwnerId,
 			});

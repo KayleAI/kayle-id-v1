@@ -1,6 +1,7 @@
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
+import type { ApiKeyScope } from "@/auth/permissions";
 import { createHMAC } from "@/functions/hmac";
 import { generateId } from "@/utils/generate-id";
 
@@ -14,11 +15,11 @@ export async function createApiKey({
 	name,
 	organizationId,
 	metadata = {},
-	permissions = [],
+	permissions,
 }: {
 	name: string;
 	organizationId: string;
-	permissions?: string[];
+	permissions: ApiKeyScope[];
 	metadata?: Record<string, string | number | boolean>;
 }): Promise<{ id: string; apiKey: string }> {
 	const environment = "live";

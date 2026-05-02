@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   constantTimeStringEqual,
   createMagicVerifyLinkUrl,
+  isSafeMagicCallback,
   parseMagicLinkTokenValue,
   shouldRateLimitMagicPath,
 } from "./index";
@@ -80,5 +81,39 @@ describe("createMagicVerifyLinkUrl", () => {
     ).toBe(
       "https://kayle.id/api/auth/magic/verify-link?token=token%2Bwith%2Fsymbols&callbackURL=%2Fdashboard%3Fnext%3D%2Fsettings%26from%3Demail"
     );
+  });
+});
+
+describe("isSafeMagicCallback", () => {
+  test("accepts same-site relative paths", () => {
+    expect(isSafeMagicCallback("/")).toBe(true);
+    expect(isSafeMagicCallback("/dashboard")).toBe(true);
+    expect(isSafeMagicCallback("/dashboard/settings?tab=profile")).toBe(true);
+    expect(isSafeMagicCallback("/path-with/dashes_and.dots")).toBe(true);
+  });
+
+  test("rejects absolute URLs to other origins", () => {
+    expect(isSafeMagicCallback("https://evil.example/dashboard")).toBe(false);
+    expect(isSafeMagicCallback("http://evil.example")).toBe(false);
+    expect(isSafeMagicCallback("javascript:alert(1)")).toBe(false);
+  });
+
+  test("rejects protocol-relative paths", () => {
+    expect(isSafeMagicCallback("//evil.example")).toBe(false);
+    expect(isSafeMagicCallback("//evil.example/dashboard")).toBe(false);
+  });
+
+  test("rejects backslash-prefixed paths that browsers may rewrite", () => {
+    expect(isSafeMagicCallback("/\\evil.example")).toBe(false);
+  });
+
+  test("rejects scheme-prefixed paths inside the relative segment", () => {
+    expect(isSafeMagicCallback("/javascript:alert(1)")).toBe(false);
+    expect(isSafeMagicCallback("/data:text/html,<script>")).toBe(false);
+  });
+
+  test("rejects paths that do not start with a slash", () => {
+    expect(isSafeMagicCallback("dashboard")).toBe(false);
+    expect(isSafeMagicCallback("")).toBe(false);
   });
 });

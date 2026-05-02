@@ -5,7 +5,21 @@ import { api_keys } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
+import {
+	type ApiKeyScope,
+	isApiKeyScope,
+	SCOPE_REQUIRED_ROLE,
+} from "@/auth/permissions";
+import { checkPermission } from "@/functions/auth/check-permission";
 import { createHMAC } from "@/functions/hmac";
+
+type AuthVariables = {
+	environment: "live";
+	type: "api" | "session";
+	organizationId?: string;
+	userId?: string;
+	permissions?: ApiKeyScope[];
+};
 
 const sessionMiddleware = createMiddleware<{
 	Bindings: CloudflareBindings;
@@ -35,11 +49,7 @@ const sessionMiddleware = createMiddleware<{
 
 const authenticate = createMiddleware<{
 	Bindings: CloudflareBindings;
-	Variables: {
-		environment: "live";
-		type: "api" | "session";
-		organizationId?: string;
-	};
+	Variables: AuthVariables;
 }>(async (c, next) => {
 	const headers = new Headers(c.req.raw.headers);
 	const authorization = headers.get("authorization");
@@ -51,16 +61,18 @@ const authenticate = createMiddleware<{
 			secret: env.AUTH_SECRET,
 		});
 		const [
-			{ organizationId, environment, enabled } = {
+			{ organizationId, environment, enabled, permissions } = {
 				organizationId: null,
 				environment: "live",
 				enabled: false,
+				permissions: [] as string[],
 			},
 		] = await db
 			.select({
 				organizationId: api_keys.organizationId,
 				environment: api_keys.environment,
 				enabled: api_keys.enabled,
+				permissions: api_keys.permissions,
 			})
 			.from(api_keys)
 			.where(eq(api_keys.keyHash, keyHash))
@@ -70,9 +82,14 @@ const authenticate = createMiddleware<{
 			return unauthorized(c);
 		}
 
+		const scopes = Array.isArray(permissions)
+			? permissions.filter(isApiKeyScope)
+			: [];
+
 		c.set("type", "api");
 		c.set("environment", "live");
 		c.set("organizationId", organizationId);
+		c.set("permissions", scopes);
 
 		return await next();
 	}
@@ -93,8 +110,90 @@ const authenticate = createMiddleware<{
 	c.set("type", "session");
 	c.set("environment", "live");
 	c.set("organizationId", activeOrganizationId);
+	c.set("userId", response.session.userId);
 	await next();
 });
+
+async function sessionCallerHasScope(
+	c: Context<{ Bindings: CloudflareBindings; Variables: AuthVariables }>,
+	scope: ApiKeyScope,
+): Promise<boolean> {
+	const userId = c.get("userId");
+	const organizationId = c.get("organizationId");
+
+	if (!(userId && organizationId)) {
+		return false;
+	}
+
+	return checkPermission(userId, organizationId, SCOPE_REQUIRED_ROLE[scope]);
+}
+
+/**
+ * Hono middleware that enforces a scope on the active caller. API-key callers
+ * must have the scope explicitly listed in their key's `permissions` array;
+ * session (dashboard) callers must hold an org role that meets or exceeds the
+ * scope's required role per `SCOPE_REQUIRED_ROLE`.
+ */
+export function requireScope(scope: ApiKeyScope) {
+	return createMiddleware<{
+		Bindings: CloudflareBindings;
+		Variables: AuthVariables;
+	}>(async (c, next) => {
+		if (c.get("type") === "session") {
+			if (!(await sessionCallerHasScope(c, scope))) {
+				return forbidden(c);
+			}
+			return next();
+		}
+
+		const granted = c.get("permissions") ?? [];
+
+		if (!granted.includes(scope)) {
+			return forbidden(c);
+		}
+
+		return next();
+	});
+}
+
+/**
+ * Convenience middleware for REST-style sub-routers where GET/HEAD = read scope
+ * and any other method = write scope. The write scope implies the read scope —
+ * a key (or org role) holding the write tier may still call read routes in
+ * the same area.
+ */
+export function requireReadWriteScope(scopes: {
+	read: ApiKeyScope;
+	write: ApiKeyScope;
+}) {
+	return createMiddleware<{
+		Bindings: CloudflareBindings;
+		Variables: AuthVariables;
+	}>(async (c, next) => {
+		const method = c.req.method.toUpperCase();
+		const isRead = method === "GET" || method === "HEAD";
+
+		if (c.get("type") === "session") {
+			const required = isRead ? scopes.read : scopes.write;
+			if (!(await sessionCallerHasScope(c, required))) {
+				return forbidden(c);
+			}
+			return next();
+		}
+
+		const granted = c.get("permissions") ?? [];
+
+		if (isRead) {
+			if (!(granted.includes(scopes.read) || granted.includes(scopes.write))) {
+				return forbidden(c);
+			}
+		} else if (!granted.includes(scopes.write)) {
+			return forbidden(c);
+		}
+
+		return next();
+	});
+}
 
 export function unauthorized(c: Context) {
 	return c.json(

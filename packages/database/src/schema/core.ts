@@ -235,6 +235,14 @@ export const verification_attempts = pgTable(
 		 * The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled).
 		 */
 		completedAt: timestamp("completed_at"),
+		/**
+		 * Connection ID of the verify WebSocket that currently owns this attempt.
+		 * Cleared when the socket closes; refused for re-claim while held by a
+		 * different live connection. Stale claims are recovered after
+		 * `claimedAt` ages past 15 minutes (see attempt-connection.ts).
+		 */
+		claimedByConnectionId: text("claimed_by_connection_id"),
+		claimedAt: timestamp("claimed_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()

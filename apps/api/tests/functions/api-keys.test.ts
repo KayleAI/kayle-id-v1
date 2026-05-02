@@ -26,6 +26,7 @@ describe("Handling API Keys", () => {
 		const { apiKey } = await createApiKey({
 			name: "Test API Key",
 			organizationId: TEST_DATA?.organizationId as string,
+			permissions: ["sessions:write"],
 		});
 
 		// Assert that the API key is created
@@ -61,6 +62,7 @@ describe("Handling API Keys", () => {
 		const { id, apiKey } = await createApiKey({
 			name: "Test API Key",
 			organizationId: TEST_DATA?.organizationId as string,
+			permissions: ["sessions:write"],
 		});
 
 		// delete the API key

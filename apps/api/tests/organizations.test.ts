@@ -65,6 +65,20 @@ type StorageBinding = NonNullable<typeof env.STORAGE>;
 const LOCAL_LOGO_URL_PATTERN = /^http:\/\/127\.0\.0\.1:8787\/r2\/logos\//u;
 const LOGO_SLUG_PATTERN = /^logo-/u;
 
+const PNG_HEADER_BYTES = new Uint8Array([
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00,
+]);
+
+function base64Encode(bytes: Uint8Array): string {
+	let binary = "";
+	for (let index = 0; index < bytes.length; index += 1) {
+		binary += String.fromCharCode(bytes[index]);
+	}
+	return btoa(binary);
+}
+
+const TINY_PNG_BASE64 = base64Encode(PNG_HEADER_BYTES);
+
 function requireTestData(): SessionAuthTestData {
 	if (!TEST_DATA) {
 		throw new Error("organizations_test_data_missing");
@@ -233,7 +247,7 @@ describe("Organization Endpoints", () => {
 			body: JSON.stringify({
 				logo: {
 					contentType: "image/png",
-					data: btoa("tiny-logo"),
+					data: TINY_PNG_BASE64,
 				},
 				name: "Logo Organization",
 				slug: `logo-${crypto.randomUUID()}`,
@@ -289,12 +303,12 @@ describe("Organization Endpoints", () => {
 				code: "INTERNAL_SERVER_ERROR",
 				docs: "https://kayle.id/docs/api/errors#internal_server_error",
 				hint: "Please try again in a few moments.",
-				message: "organization_create_failed",
+				message: "Failed to create organization.",
 			},
 		});
 	});
 
-	test("returns a structured internal error when logo data is invalid", async () => {
+	test("returns a 400 with the validator message when logo data is invalid base64", async () => {
 		const testData = requireTestData();
 
 		const response = await app.request("/v1/auth/orgs", {
@@ -310,18 +324,58 @@ describe("Organization Endpoints", () => {
 			method: "POST",
 		});
 
-		expect(response.status).toBe(500);
+		expect(response.status).toBe(400);
 
 		const payload = (await response.json()) as OrganizationCreateResponse;
 
-		expect(payload).toEqual({
-			data: null,
-			error: {
-				code: "INTERNAL_SERVER_ERROR",
-				docs: "https://kayle.id/docs/api/errors#internal_server_error",
-				hint: "Please try again in a few moments.",
-				message: "Organization logo data must be base64 encoded.",
-			},
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo data must be base64 encoded.",
+		);
+	});
+
+	test("rejects a logo whose content-type does not match its magic bytes", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/jpeg",
+					data: TINY_PNG_BASE64,
+				},
+				name: "Spoofed Logo Organization",
+				slug: `spoofed-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
 		});
+
+		expect(response.status).toBe(400);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo content type does not match the file contents.",
+		);
+	});
+
+	test("rejects a logo content-type outside the allowlist", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/svg+xml",
+					data: btoa("<svg/>"),
+				},
+				name: "SVG Logo Organization",
+				slug: `svg-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
 	});
 });

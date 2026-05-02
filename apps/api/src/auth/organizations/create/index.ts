@@ -3,7 +3,7 @@ import { auth } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { logSafeError } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
-import { uploadOrganizationLogo } from "./logo";
+import { LogoValidationError, uploadOrganizationLogo } from "./logo";
 import { internalCreateOrganization } from "./openapi";
 
 const createOrganizationRoute = new OpenAPIHono<{
@@ -43,6 +43,21 @@ createOrganizationRoute.openapi(internalCreateOrganization, async (c) => {
 			200,
 		);
 	} catch (error) {
+		if (error instanceof LogoValidationError) {
+			return c.json(
+				{
+					data: null,
+					error: {
+						code: "INVALID_LOGO",
+						message: error.message,
+						hint: "Provide a PNG, JPEG, GIF, or WebP image under 1 MiB whose content type matches its bytes.",
+						docs: "https://kayle.id/docs/api/errors#invalid_logo",
+					} as const,
+				},
+				400,
+			);
+		}
+
 		logSafeError(log, {
 			code: "organization_create_failed",
 			error,
@@ -55,10 +70,7 @@ createOrganizationRoute.openapi(internalCreateOrganization, async (c) => {
 				data: null,
 				error: {
 					code: "INTERNAL_SERVER_ERROR",
-					message:
-						error instanceof Error
-							? error.message
-							: "Failed to create organization",
+					message: "Failed to create organization.",
 					hint: "Please try again in a few moments.",
 					docs: "https://kayle.id/docs/api/errors#internal_server_error",
 				} as const,

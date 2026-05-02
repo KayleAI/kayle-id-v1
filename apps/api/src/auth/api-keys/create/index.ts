@@ -23,6 +23,7 @@ createApiKeyRoute.openapi(internalCreateApiKey, async (c) => {
 		const hasPermission = await checkPermission(
 			c.get("userId"),
 			organizationId,
+			"admin",
 		);
 
 		if (!hasPermission) {

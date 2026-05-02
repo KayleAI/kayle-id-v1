@@ -1,6 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
+import type { ApiKeyScope } from "@/auth/permissions";
 
 /**
  * Update an API key.
@@ -21,7 +22,7 @@ export async function updateApiKey(
 	}: {
 		name?: string;
 		enabled?: boolean;
-		permissions?: string[];
+		permissions?: ApiKeyScope[];
 		metadata?: Record<string, string | number | boolean>;
 	},
 ): Promise<{ status: "success" | "error"; message?: string }> {

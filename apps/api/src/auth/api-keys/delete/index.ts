@@ -23,6 +23,7 @@ deleteApiKeyRoute.openapi(internalDeleteApiKey, async (c) => {
 		const hasPermission = await checkPermission(
 			c.get("userId"),
 			organizationId,
+			"admin",
 		);
 
 		if (!hasPermission) {

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { API_KEY_SCOPES } from "@/auth/permissions";
 
 const ApiKeyMetadataValue = z.union([z.string(), z.number(), z.boolean()]);
 
@@ -8,16 +9,18 @@ export const ApiKeyIdParam = z.object({
 	id: z.string().min(1),
 });
 
+const ApiKeyScopeArray = z.array(z.enum(API_KEY_SCOPES));
+
 export const ApiKeyCreateRequest = z.object({
 	name: z.string().min(1),
-	permissions: z.array(z.string()).optional(),
+	permissions: ApiKeyScopeArray.min(1),
 	metadata: ApiKeyMetadata.optional(),
 });
 
 export const ApiKeyUpdateRequest = z.object({
 	name: z.string().min(1).optional(),
 	enabled: z.boolean().optional(),
-	permissions: z.array(z.string()).optional(),
+	permissions: ApiKeyScopeArray.min(1).optional(),
 	metadata: ApiKeyMetadata.optional(),
 });
 

@@ -1,3 +1,4 @@
+import { API_KEY_SCOPES, type ApiKeyScope } from "@kayle-id/auth/permissions";
 import type { ApiKey } from "@kayle-id/auth/types";
 import {
 	type Pagination,
@@ -10,6 +11,11 @@ const API_KEYS_PATH = "/api/auth/api-keys";
 export const API_KEYS_QUERY_KEY = ["api-keys"] as const;
 
 const UNEXPECTED_API_KEY_RESPONSE = "Unexpected API key response.";
+
+// TODO: surface scope selection in the create modal so users can issue
+// least-privilege keys. Until then, the dashboard issues fully-scoped keys
+// (matches the pre-enforcement default and unblocks the modal UX).
+const DEFAULT_API_KEY_PERMISSIONS: readonly ApiKeyScope[] = API_KEY_SCOPES;
 
 interface ApiKeyMutationResult {
 	message: string;
@@ -41,12 +47,14 @@ export function listApiKeys(): Promise<ListApiKeysResult> {
 
 export function createApiKey({
 	name,
+	permissions = DEFAULT_API_KEY_PERMISSIONS,
 }: {
 	name: string;
+	permissions?: readonly ApiKeyScope[];
 }): Promise<CreateApiKeyResult> {
 	return requestApiResource<CreateApiKeyResult>({
 		basePath: API_KEYS_PATH,
-		body: { name },
+		body: { name, permissions },
 		method: "POST",
 		unexpectedMessage: UNEXPECTED_API_KEY_RESPONSE,
 	});

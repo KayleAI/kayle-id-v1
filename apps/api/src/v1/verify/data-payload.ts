@@ -7,6 +7,15 @@ type RequiredNfcArtifact = "dg1" | "dg2" | "sod";
 const SELFIE_KIND = 3;
 const REQUIRED_SELFIE_TOTAL = 3;
 
+// Size caps for inbound verify uploads. These are intentionally conservative
+// and may need to be widened with telemetry from real-world passport reads.
+// Each cap is checked before storage to keep memory pressure bounded and to
+// prevent slow-loris-style streaming exhaustion of a Worker isolate.
+export const MAX_FRAME_BYTES = 256 * 1024;
+export const MAX_CHUNKS_PER_KEY = 256;
+export const MAX_KIND_BYTES = 8 * 1024 * 1024;
+export const MAX_TOTAL_TRANSFER_BYTES = 32 * 1024 * 1024;
+
 export type MissingTransferChunk = {
 	kind: number;
 	index: number;
@@ -35,6 +44,8 @@ export type VerifyTransferState = {
 	sod?: Uint8Array;
 	selfies: Map<number, Uint8Array>;
 	chunks: Map<string, VerifyChunkEntry>;
+	/** Cumulative bytes received across all chunks/artifacts for this attempt. */
+	bytesReceived: number;
 };
 
 export type VerifyDataPayload = {
@@ -61,6 +72,7 @@ export function createTransferState(): VerifyTransferState {
 	return {
 		selfies: new Map(),
 		chunks: new Map(),
+		bytesReceived: 0,
 	};
 }
 
@@ -70,6 +82,7 @@ export function resetTransferState(state: VerifyTransferState): void {
 	state.dg2 = undefined;
 	state.sod = undefined;
 	state.chunks.clear();
+	state.bytesReceived = 0;
 }
 
 function isNonNegativeInteger(value: number): boolean {
@@ -278,11 +291,17 @@ function assembleChunk({
 	chunk: Uint8Array;
 }): { complete: boolean; data?: Uint8Array } {
 	if (chunkTotal <= 1) {
+		state.bytesReceived += chunk.length;
 		return { complete: true, data: chunk };
 	}
 
 	const entry = getOrCreateChunkEntry(state.chunks, key, chunkTotal);
+	const isNewPart = !entry.parts.has(chunkIndex);
 	entry.parts.set(chunkIndex, chunk);
+
+	if (isNewPart) {
+		state.bytesReceived += chunk.length;
+	}
 
 	if (entry.parts.size < entry.chunkTotal) {
 		return { complete: false };
@@ -309,6 +328,14 @@ function storeData({
 	index: number;
 	data: Uint8Array;
 }): { ok: true } | { ok: false; code: string; message: string } {
+	if (data.length > MAX_KIND_BYTES) {
+		return {
+			ok: false,
+			code: "ARTIFACT_TOO_LARGE",
+			message: "Verify artifact exceeds the maximum allowed size.",
+		};
+	}
+
 	switch (kind) {
 		case 0:
 			state.dg1 = data;
@@ -416,12 +443,29 @@ function createChunkRetryResult({
 function validateDataPayload({
 	state,
 	kind,
+	raw,
 	index,
 	total,
 	chunkIndex,
 	chunkTotal,
 	chunkKey,
 }: NormalizedDataPayload & { state: VerifyTransferState }): DataResult | null {
+	if (raw.length > MAX_FRAME_BYTES) {
+		return createErrorResult({
+			state,
+			code: "FRAME_TOO_LARGE",
+			message: "Verify frame exceeds the maximum allowed size.",
+		});
+	}
+
+	if (state.bytesReceived + raw.length > MAX_TOTAL_TRANSFER_BYTES) {
+		return createErrorResult({
+			state,
+			code: "TRANSFER_TOO_LARGE",
+			message: "Verify transfer exceeds the maximum allowed size.",
+		});
+	}
+
 	if (!(isNonNegativeInteger(index) && isNonNegativeInteger(total))) {
 		return createChunkRetryResult({
 			state,
@@ -465,6 +509,14 @@ function validateDataPayload({
 			index,
 			chunkIndex,
 			reason: "invalid_chunk_range",
+		});
+	}
+
+	if (chunkTotal > MAX_CHUNKS_PER_KEY) {
+		return createErrorResult({
+			state,
+			code: "CHUNK_TOTAL_TOO_LARGE",
+			message: "chunkTotal exceeds the maximum allowed value.",
 		});
 	}
 

@@ -5,7 +5,7 @@
       "persistent": true,
       "cache": false
     },
-    "cf-typegen": {
+    "cf:types": {
       "cache": false
     },
     "test": {

@@ -406,7 +406,7 @@ export function DemoDocumentPreviewPanel({
 							{visibleItemCount > 0
 								? `${visibleItemCount} shared ${
 										visibleItemCount === 1 ? "field" : "fields"
-									} from the verified ${documentKindLabel.toLowerCase()} are listed below.`
+									} from the verified ${documentKindLabel.toLowerCase()} listed below.`
 								: `Verified ${documentKindLabel.toLowerCase()} data is ready to inspect.`}
 						</p>
 					</div>

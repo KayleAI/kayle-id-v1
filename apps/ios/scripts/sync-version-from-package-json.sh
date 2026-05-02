@@ -38,3 +38,11 @@ cp "${SOURCE_INFO_PLIST_PATH}" "${GENERATED_INFO_PLIST_PATH}"
 
 "${PLIST_BUDDY}" -c "Set :CFBundleShortVersionString ${PACKAGE_VERSION}" "${GENERATED_INFO_PLIST_PATH}"
 "${PLIST_BUDDY}" -c "Set :CFBundleVersion ${PACKAGE_VERSION}" "${GENERATED_INFO_PLIST_PATH}"
+
+# The source Info.plist sets `NSAppTransportSecurity > NSAllowsArbitraryLoads`
+# so DEBUG builds can talk to a Tailscale-routed dev API over plain HTTP. That
+# flag MUST NOT ship to the App Store — it disables ATS app-wide. Strip it for
+# any non-Debug configuration so Release builds get default ATS (HTTPS only).
+if [ "${CONFIGURATION:-Release}" != "Debug" ]; then
+  "${PLIST_BUDDY}" -c "Delete :NSAppTransportSecurity:NSAllowsArbitraryLoads" "${GENERATED_INFO_PLIST_PATH}" 2>/dev/null || true
+fi

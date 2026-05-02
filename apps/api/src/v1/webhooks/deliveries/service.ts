@@ -1,4 +1,8 @@
 import { indexBy } from "@kayle-id/config/collections";
+import {
+	createSafeRequestLogger,
+	logSafeError,
+} from "@kayle-id/config/logging";
 import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
@@ -269,6 +273,13 @@ async function sendWebhookDeliveryRequest({
 		secret: signingSecret,
 	});
 
+	// Refuse to follow 3xx so a compromised or malicious endpoint can't
+	// redirect the signed payload (X-Kayle-Signature) to an attacker host.
+	// Cloudflare Workers does not implement `redirect: "error"` (workerd
+	// throws TypeError up front), so we use `"manual"` and treat any 3xx
+	// the endpoint returns as a failed delivery — `response.ok` is false
+	// for 3xx, so `persistWebhookDeliveryAttemptResult` records it as
+	// failed without ever following the redirect.
 	return fetch(endpoint.url, {
 		body: delivery.payload,
 		headers: {
@@ -278,9 +289,7 @@ async function sendWebhookDeliveryRequest({
 			"X-Kayle-Signature": signatureHeader,
 		},
 		method: "POST",
-		// Refuse to follow 3xx so a compromised or malicious endpoint can't
-		// redirect the signed payload (X-Kayle-Signature) to an attacker host.
-		redirect: "error",
+		redirect: "manual",
 		// Bound delivery wall-clock so a slow endpoint can't park CF Workers
 		// CPU/wall time and the retry pipeline can move on.
 		signal: AbortSignal.timeout(WEBHOOK_DELIVERY_TIMEOUT_MS),
@@ -603,7 +612,28 @@ export async function attemptWebhookDelivery({
 			delivery: context.delivery,
 			response,
 		});
-	} catch {
+	} catch (error) {
+		// The DB row only records `status_code = NULL` for thrown deliveries,
+		// which makes silent fetch errors (e.g. workerd rejecting an unsupported
+		// option) impossible to diagnose from the table alone. Emit through the
+		// structured logger so the next regression here is visible in the same
+		// log pipeline as the rest of the worker.
+		const logger = createSafeRequestLogger({
+			headers: new Headers(),
+			method: "POST",
+			path: "/internal/webhook-delivery",
+		});
+		logSafeError(logger, {
+			code: "webhook_delivery_attempt_threw",
+			details: {
+				delivery_id: deliveryId,
+				endpoint_url: context.endpoint.url,
+			},
+			error,
+			event: "webhooks.delivery.attempt_threw",
+			message: "Webhook delivery attempt threw before persisting a result.",
+		});
+		logger.emit({ _forceKeep: true });
 		return markWebhookDeliveryFailedAndReload(deliveryId);
 	}
 

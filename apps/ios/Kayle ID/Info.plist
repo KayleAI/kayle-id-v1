@@ -68,25 +68,19 @@
 		<string>A0000002471001</string>
 		<string>00000000000000</string>
 	</array>
+	<!--
+		`NSAllowsArbitraryLoads` lets DEBUG builds talk to a Tailscale-routed
+		dev API over plain HTTP. The build-phase script
+		`apps/ios/scripts/sync-version-from-package-json.sh` strips this key
+		from the generated Info.plist for any non-Debug configuration, so
+		Release / App Store builds ship with default ATS (HTTPS only).
+		The Swift-side `APIService.isAllowedDevelopmentHttpHost` further
+		restricts the dev URL to loopback and the Tailscale CGNAT range.
+	-->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>localhost</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<false/>
-			</dict>
-			<key>127.0.0.1</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<false/>
-			</dict>
-		</dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
 	</dict>
 </dict>
 </plist>

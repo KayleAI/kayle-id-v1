@@ -145,10 +145,11 @@ enum APIService {
       return nil
     }
 
-    // ATS now only permits HTTP to localhost / 127.0.0.1, so reject any other
-    // host that was configured with http:// up front rather than letting the
-    // request fail later inside URLSession with an opaque ATS error.
-    if scheme == "http" && host != "localhost" && host != "127.0.0.1" {
+    // ATS is relaxed app-wide via `NSAllowsArbitraryLoads`, so this gate is
+    // the only thing keeping a dev `KAYLE_DEV_API_BASE_URL` from pointing at
+    // an arbitrary HTTP host. Limit it to loopback and Tailscale CGNAT
+    // (100.64.0.0/10) — the ranges a paired iPhone can actually reach.
+    if scheme == "http" && !isAllowedDevelopmentHttpHost(host) {
       return nil
     }
 
@@ -157,6 +158,36 @@ enum APIService {
     components.host = host
     components.port = url.port
     return components.string
+  }
+
+  private static func isAllowedDevelopmentHttpHost(_ host: String) -> Bool {
+    if host == "localhost" || host == "127.0.0.1" {
+      return true
+    }
+    return isTailscaleCGNATAddress(host)
+  }
+
+  // Tailscale assigns IPs from the 100.64.0.0/10 CGNAT range (RFC 6598), so a
+  // dev box reachable from a paired iPhone over Tailscale will land on
+  // 100.64.0.0 – 100.127.255.255. Matching the range lets the host gate
+  // accept whatever Tailscale IP the dev machine currently has without
+  // requiring a code change every time it rotates.
+  private static func isTailscaleCGNATAddress(_ host: String) -> Bool {
+    let octets = host.split(separator: ".")
+    guard octets.count == 4 else {
+      return false
+    }
+
+    var values: [Int] = []
+    values.reserveCapacity(4)
+    for octet in octets {
+      guard let value = Int(octet), value >= 0, value <= 255 else {
+        return false
+      }
+      values.append(value)
+    }
+
+    return values[0] == 100 && values[1] >= 64 && values[1] <= 127
   }
 }
 

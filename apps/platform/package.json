@@ -9,7 +9,7 @@
 		"test": "vitest run",
 		"deploy": "wrangler deploy --minify",
 		"preview": "npm run build && vite preview",
-		"cf-typegen": "wrangler types --env-interface CloudflareBindings cloudflare-env.d.ts"
+		"cf:types": "wrangler types --env-interface CloudflareBindings cloudflare-env.d.ts"
 	},
 	"dependencies": {
 		"@cloudflare/vite-plugin": "1.32.3",

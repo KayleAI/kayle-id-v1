@@ -15,6 +15,7 @@ import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
+import { hashSessionCancelToken } from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
 import { configureVerifyAssetFetcherFromEnv } from "./verify-assets";
@@ -150,11 +151,48 @@ verify.get(
 	},
 );
 
+const cancelBodySchema = z.object({
+	cancel_token: z.string().min(1),
+});
+
+function constantTimeStringEqual(a: string, b: string): boolean {
+	if (a.length !== b.length) {
+		return false;
+	}
+
+	let mismatch = 0;
+	for (let index = 0; index < a.length; index++) {
+		mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+	}
+
+	return mismatch === 0;
+}
+
 verify.post(
 	"/session/:id/cancel",
 	validator("param", sessionParamJsonValidator),
+	validator("json", (value, c) => {
+		const parsed = cancelBodySchema.safeParse(value);
+		if (parsed.success) {
+			return parsed.data;
+		}
+
+		const response = createVerifyJsonErrorResponse({
+			code: "INVALID_REQUEST",
+			status: 400,
+		});
+
+		return c.json(
+			{
+				data: response.data,
+				error: response.error,
+			},
+			response.status,
+		);
+	}),
 	async (c) => {
 		const { id } = c.req.valid("param");
+		const { cancel_token: providedToken } = c.req.valid("json");
 
 		const [rawSession] = await db
 			.select()
@@ -182,11 +220,79 @@ verify.post(
 			);
 		}
 
+		// Reject sessions that pre-date the cancel-token migration: nothing to
+		// authenticate against, so the public cancel surface refuses the request.
+		// The integrator can still cancel via the authenticated `/v1/sessions/:id
+		// /cancel` endpoint (which checks org ownership instead).
+		if (!rawSession.cancelTokenHash) {
+			const response = createVerifyJsonErrorResponse({
+				code: "CANCEL_TOKEN_INVALID",
+				status: 401,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		const providedTokenHash = await hashSessionCancelToken(providedToken);
+		if (
+			!constantTimeStringEqual(providedTokenHash, rawSession.cancelTokenHash)
+		) {
+			const response = createVerifyJsonErrorResponse({
+				code: "CANCEL_TOKEN_INVALID",
+				status: 401,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
 		const session = await expireVerificationSessionIfNeeded({
 			row: rawSession,
 		});
 
-		if (!["completed", "expired", "cancelled"].includes(session.status)) {
+		// Idempotency: if cancel was already consumed and the session is in a
+		// terminal state, return the same 204 we'd return on first success so
+		// the verify browser doesn't surface a confusing error after retry.
+		const isTerminal = ["completed", "expired", "cancelled"].includes(
+			session.status,
+		);
+
+		if (rawSession.cancelTokenConsumedAt) {
+			if (isTerminal) {
+				return c.body(null, 204);
+			}
+
+			const response = createVerifyJsonErrorResponse({
+				code: "CANCEL_TOKEN_USED",
+				status: 401,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		await db
+			.update(verification_sessions)
+			.set({ cancelTokenConsumedAt: new Date() })
+			.where(eq(verification_sessions.id, session.id));
+
+		if (!isTerminal) {
 			await cancelVerificationSession({
 				row: session,
 				organizationId: session.organizationId,

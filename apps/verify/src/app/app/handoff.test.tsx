@@ -74,8 +74,8 @@ vi.mock("../session-provider", () => ({
 }));
 
 vi.mock("@/config/handoff", () => ({
-	requestCancelVerifySession: (sessionId: string) =>
-		requestCancelVerifySessionMock(sessionId),
+	requestCancelVerifySession: (sessionId: string, cancelToken: string) =>
+		requestCancelVerifySessionMock(sessionId, cancelToken),
 	requestHandoffPayload: (sessionId: string) =>
 		requestHandoffPayloadMock(sessionId),
 	requestVerifySessionStatus: (sessionId: string) =>
@@ -243,6 +243,10 @@ beforeEach(() => {
 		configurable: true,
 		value: closeSpy,
 	});
+	// Default URL search includes the cancel token. Tests that need to
+	// simulate a missing token can call window.history.replaceState with a
+	// different query.
+	window.history.replaceState({}, "", "/?cancel_token=ct_test_cancel_token");
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
@@ -538,6 +542,7 @@ describe("Handoff", () => {
 		);
 		expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
 			"vs_test_session123",
+			"ct_test_cancel_token",
 		);
 		expect(view.queryByTestId("qr-code")).toBeNull();
 		expect(

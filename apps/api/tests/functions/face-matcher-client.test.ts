@@ -114,13 +114,12 @@ test("matchFaces fails closed when matcher config is unavailable", async () => {
 	});
 });
 
-test("matchFaces does not require a matcher secret when the binding is available", async () => {
-	let capturedAuthHeader: string | null = "not-set";
+test("matchFaces fails closed when the matcher binding is set but the secret is missing", async () => {
+	let matcherCalled = false;
 
 	const matcherBinding = {
-		fetch(input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
-			capturedAuthHeader = request.headers.get(FACE_MATCHER_AUTH_HEADER);
+		fetch(_input: RequestInfo | URL, _init?: RequestInit) {
+			matcherCalled = true;
 
 			return new Response(
 				JSON.stringify({
@@ -147,11 +146,12 @@ test("matchFaces does not require a matcher secret when the binding is available
 	});
 
 	expect(result).toEqual({
-		faceScore: 0.87,
-		passed: true,
-		usedFallback: false,
+		faceScore: null,
+		passed: false,
+		reason: "face_matcher_misconfigured",
+		usedFallback: true,
 	});
-	expect(capturedAuthHeader).toBeNull();
+	expect(matcherCalled).toBe(false);
 });
 
 test("matchFaces fails closed when the matcher returns invalid JSON", async () => {

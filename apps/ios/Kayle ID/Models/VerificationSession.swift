@@ -359,7 +359,19 @@ final class VerificationSession: ObservableObject {
       throw VerificationError.notInitialized
     }
 
-    try await APIService.cancelVerification(sessionId: currentPayload.sessionId)
+    // The cancel endpoint requires the one-shot cancel_token that the verify
+    // browser embedded into the handoff QR payload. If the user scanned an
+    // older QR that pre-dates the cancel-token rollout, we have nothing to
+    // authenticate with — bail silently so the session naturally expires
+    // server-side instead of throwing an unactionable error to the user.
+    guard let cancelToken = currentPayload.cancelToken else {
+      return
+    }
+
+    try await APIService.cancelVerification(
+      sessionId: currentPayload.sessionId,
+      cancelToken: cancelToken
+    )
   }
 
   func clearDocumentCaptureState() {

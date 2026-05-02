@@ -54,6 +54,22 @@ export const ERROR_MESSAGES = {
     description: "Use the device you started with or start again.",
   },
 
+  CANCEL_TOKEN_INVALID: {
+    title: "Cannot cancel session",
+    description:
+      "This session can’t be cancelled from this link. Open the original verify link or contact support.",
+  },
+
+  CANCEL_TOKEN_USED: {
+    title: "Already cancelled",
+    description: "This session has already been cancelled.",
+  },
+
+  INVALID_REQUEST: {
+    title: "Invalid request",
+    description: "The request payload was missing or malformed.",
+  },
+
   ATTEMPT_CONNECTION_ACTIVE: {
     title: "Already open",
     description:

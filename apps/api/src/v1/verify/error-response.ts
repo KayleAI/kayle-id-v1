@@ -11,7 +11,7 @@ export function createVerifyJsonErrorResponse({
 	status,
 }: {
 	code: keyof typeof ERROR_MESSAGES;
-	status: 400 | 404 | 409 | 410;
+	status: 400 | 401 | 404 | 409 | 410;
 }) {
 	return {
 		data: null,

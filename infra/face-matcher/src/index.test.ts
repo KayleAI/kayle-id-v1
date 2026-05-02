@@ -133,13 +133,45 @@ test("face matcher worker rejects malformed requests", async () => {
   const response = await worker.fetch(
     createWorkerRequest("http://face-matcher/match", {
       body: formData,
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "test-secret",
+      },
+      method: "POST",
+    }),
+    createBindings({
+      FACE_MATCHER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(400);
+});
+
+test("face matcher worker fails closed (503) when the shared secret is missing", async () => {
+  const portrait = await loadVerifyFixtureBytes("icon.jpg");
+  const worker = createFaceMatcherWorker({ emitRequestLogs: false });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://face-matcher/match", {
+      body: createFaceMatcherRequestFormData({
+        dg2Image: createDg2Artifact({
+          imageData: portrait,
+          imageFormat: "jpeg",
+        }),
+        selfies: [portrait],
+      }),
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "anything",
+      },
       method: "POST",
     }),
     createBindings(),
     createExecutionContext()
   );
 
-  expect(response.status).toBe(400);
+  expect(response.status).toBe(503);
+  const payload = (await response.json()) as { error?: { code?: string } };
+  expect(payload.error?.code).toBe("MATCHER_MISCONFIGURED");
 });
 
 test("face matcher worker rejects unauthorized requests", async () => {

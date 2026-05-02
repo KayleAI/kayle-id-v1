@@ -71,6 +71,13 @@
       "when": 1774118880580,
       "tag": "0010_third_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777724407299,
+      "tag": "0011_add_session_cancel_token",
+      "breakpoints": true
     }
   ]
 }

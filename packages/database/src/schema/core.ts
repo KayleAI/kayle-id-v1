@@ -96,6 +96,26 @@ export const verification_sessions = pgTable(
 		shareFields: jsonb("share_fields").default({}).notNull(),
 		redirectUrl: text("redirect_url"),
 		/**
+		 * HMAC-SHA256 of the one-shot cancel token issued at session creation.
+		 *
+		 * The plaintext token is returned exactly once in the create-session
+		 * response and embedded in `verification_url` as a query parameter so the
+		 * verify browser / native app can pass it back when cancelling. Required
+		 * by `POST /v1/verify/session/:id/cancel`.
+		 *
+		 * Nullable so older rows that predate the cancel-token migration remain
+		 * representable; on those rows the public cancel endpoint rejects with
+		 * `CANCEL_TOKEN_INVALID`.
+		 */
+		cancelTokenHash: text("cancel_token_hash"),
+		/**
+		 * Timestamp of the first successful public cancel against this session.
+		 * Once set, the cancel endpoint short-circuits subsequent calls (idempotent
+		 * 204 if the session is already terminal, otherwise rejects with
+		 * `CANCEL_TOKEN_USED`).
+		 */
+		cancelTokenConsumedAt: timestamp("cancel_token_consumed_at"),
+		/**
 		 * The expiration time of the verification session.
 		 *
 		 * @default 60 minutes after creation

@@ -53,18 +53,25 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-function isInternalRequestAuthorized(
+type InternalAuthOutcome =
+  | { ok: true }
+  | { ok: false; reason: "secret_missing" | "credentials_invalid" };
+
+function authorizeInternalRequest(
   request: Request,
   matcherSecret?: string
-): boolean {
+): InternalAuthOutcome {
   if (!(typeof matcherSecret === "string" && matcherSecret.length > 0)) {
-    return true;
+    return { ok: false, reason: "secret_missing" };
   }
 
-  return (
+  const headerMatch =
     request.headers.get(FACE_MATCHER_AUTH_HEADER) === matcherSecret ||
-    request.headers.get("authorization") === `Bearer ${matcherSecret}`
-  );
+    request.headers.get("authorization") === `Bearer ${matcherSecret}`;
+
+  return headerMatch
+    ? { ok: true }
+    : { ok: false, reason: "credentials_invalid" };
 }
 
 function resolveStringEnvValue(env: unknown, key: string): string | null {
@@ -178,8 +185,34 @@ async function handleMatchRequest({
 }): Promise<Response> {
   const matcherSecret =
     resolveStringEnvValue(env, "FACE_MATCHER_SECRET") ?? undefined;
+  const authOutcome = authorizeInternalRequest(request, matcherSecret);
 
-  if (!isInternalRequestAuthorized(request, matcherSecret)) {
+  if (!authOutcome.ok) {
+    if (authOutcome.reason === "secret_missing") {
+      // Fail closed when the worker is missing the shared secret. Treat this
+      // as misconfiguration (503) rather than UNAUTHORIZED (401) so the API
+      // side can distinguish "deploy is broken" from "caller sent the wrong
+      // header" and alert on it.
+      logEvent(logger, {
+        details: {
+          error_code: "face_matcher_secret_missing",
+          status: 503,
+        },
+        event: "face_matcher.misconfigured",
+        level: "warn",
+      });
+
+      return jsonResponse(
+        {
+          error: {
+            code: "MATCHER_MISCONFIGURED",
+            message: "Face matcher is missing its shared secret.",
+          },
+        },
+        503
+      );
+    }
+
     logEvent(logger, {
       details: {
         error_code: "face_matcher_unauthorized",

@@ -1,4 +1,5 @@
 import { indexBy } from "@kayle-id/config/collections";
+import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
@@ -223,6 +224,11 @@ async function resolveEndpointSigningSecret({
 	}
 }
 
+const WEBHOOK_DELIVERY_TIMEOUT_MS = 15_000;
+const WEBHOOK_FETCH_REJECTED_STATUS = 0;
+
+const ALLOW_LOOPBACK_WEBHOOK_URLS = process.env.NODE_ENV !== "production";
+
 async function sendWebhookDeliveryRequest({
 	delivery,
 	endpoint,
@@ -234,6 +240,30 @@ async function sendWebhookDeliveryRequest({
 	eventType: SupportedWebhookEventType;
 	signingSecret: string;
 }): Promise<Response> {
+	// Re-validate at send time. Existing rows may predate the input schema, and
+	// even after the schema rejects bad URLs at create / update we don't want a
+	// future schema regression to silently start dispatching the signed payload
+	// to a `javascript:` / `file:` / spoofed-IP target.
+	const urlOutcome = parseSafeUrl(endpoint.url, {
+		allowLoopback: ALLOW_LOOPBACK_WEBHOOK_URLS,
+		mode: "webhook",
+	});
+
+	if (!urlOutcome.ok) {
+		return new Response(
+			JSON.stringify({
+				error: {
+					code: "WEBHOOK_URL_REJECTED",
+					message: `Webhook endpoint URL is not acceptable: ${urlOutcome.reason}`,
+				},
+			}),
+			{
+				headers: { "Content-Type": "application/json" },
+				status: WEBHOOK_FETCH_REJECTED_STATUS,
+			},
+		);
+	}
+
 	const signatureHeader = await createWebhookSignatureHeader({
 		payload: delivery.payload ?? "",
 		secret: signingSecret,
@@ -248,6 +278,12 @@ async function sendWebhookDeliveryRequest({
 			"X-Kayle-Signature": signatureHeader,
 		},
 		method: "POST",
+		// Refuse to follow 3xx so a compromised or malicious endpoint can't
+		// redirect the signed payload (X-Kayle-Signature) to an attacker host.
+		redirect: "error",
+		// Bound delivery wall-clock so a slow endpoint can't park CF Workers
+		// CPU/wall time and the retry pipeline can move on.
+		signal: AbortSignal.timeout(WEBHOOK_DELIVERY_TIMEOUT_MS),
 	});
 }
 

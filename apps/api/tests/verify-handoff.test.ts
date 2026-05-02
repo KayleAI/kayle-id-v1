@@ -75,6 +75,15 @@ async function createSession({
 }: {
 	redirectUrl?: string;
 } = {}): Promise<string> {
+	const { sessionId } = await createSessionWithCancelToken({ redirectUrl });
+	return sessionId;
+}
+
+async function createSessionWithCancelToken({
+	redirectUrl,
+}: {
+	redirectUrl?: string;
+} = {}): Promise<{ sessionId: string; cancelToken: string }> {
 	const response = await v1.request("/sessions", {
 		body: redirectUrl
 			? JSON.stringify({
@@ -94,13 +103,22 @@ async function createSession({
 		);
 	}
 
-	const payload = (await response.json()) as { data: { id: string } };
+	const payload = (await response.json()) as {
+		data: { id: string; cancel_token?: string };
+	};
 
 	if (!payload.data?.id) {
 		throw new Error("Session creation response is missing data.id");
 	}
 
-	return payload.data.id;
+	if (!payload.data.cancel_token) {
+		throw new Error("Session creation response is missing data.cancel_token");
+	}
+
+	return {
+		sessionId: payload.data.id,
+		cancelToken: payload.data.cancel_token,
+	};
 }
 
 describe("/v1/verify/session/:id/handoff", () => {
@@ -346,11 +364,13 @@ describe("/v1/verify/session/:id/status", () => {
 	test.serial(
 		"Cancels a live verification session via the public verify route",
 		async () => {
-			const sessionId = await createSession();
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
 
 			const response = await app.request(
 				`/v1/verify/session/${sessionId}/cancel`,
 				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
 					method: "POST",
 				},
 			);
@@ -369,12 +389,96 @@ describe("/v1/verify/session/:id/status", () => {
 		},
 	);
 
+	test.serial("Rejects public cancel without a cancel_token", async () => {
+		const { sessionId } = await createSessionWithCancelToken();
+
+		const response = await app.request(
+			`/v1/verify/session/${sessionId}/cancel`,
+			{
+				method: "POST",
+			},
+		);
+
+		expect(response.status).toBe(400);
+		const payload = (await response.json()) as VerifySessionStatusResponse;
+		expect(payload.error?.code).toBe("INVALID_REQUEST");
+	});
+
+	test.serial("Rejects public cancel with the wrong cancel_token", async () => {
+		const { sessionId } = await createSessionWithCancelToken();
+
+		const response = await app.request(
+			`/v1/verify/session/${sessionId}/cancel`,
+			{
+				body: JSON.stringify({ cancel_token: "ct_wrong_value" }),
+				headers: { "Content-Type": "application/json" },
+				method: "POST",
+			},
+		);
+
+		expect(response.status).toBe(401);
+		const payload = (await response.json()) as VerifySessionStatusResponse;
+		expect(payload.error?.code).toBe("CANCEL_TOKEN_INVALID");
+	});
+
+	test.serial(
+		"Rejects public cancel with a token bound to a different session",
+		async () => {
+			const { sessionId: targetSessionId } =
+				await createSessionWithCancelToken();
+			const { cancelToken: foreignToken } =
+				await createSessionWithCancelToken();
+
+			const response = await app.request(
+				`/v1/verify/session/${targetSessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: foreignToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(401);
+			const payload = (await response.json()) as VerifySessionStatusResponse;
+			expect(payload.error?.code).toBe("CANCEL_TOKEN_INVALID");
+		},
+	);
+
+	test.serial(
+		"Public cancel is idempotent on the same token after a successful cancel",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+
+			const firstResponse = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+			expect(firstResponse.status).toBe(204);
+
+			const secondResponse = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+			expect(secondResponse.status).toBe(204);
+		},
+	);
+
 	test.serial(
 		"Returns 404 when cancelling an unknown verification session",
 		async () => {
 			const response = await app.request(
 				"/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
 				{
+					body: JSON.stringify({ cancel_token: "ct_anything" }),
+					headers: { "Content-Type": "application/json" },
 					method: "POST",
 				},
 			);

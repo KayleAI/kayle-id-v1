@@ -183,9 +183,12 @@ export async function requestVerifySessionDetails(
 
 export async function requestCancelVerifySession(
 	sessionId: string,
+	cancelToken: string,
 ): Promise<void> {
 	const response = await fetch(`/v1/verify/session/${sessionId}/cancel`, {
 		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ cancel_token: cancelToken }),
 	});
 
 	if (response.status === 204) {

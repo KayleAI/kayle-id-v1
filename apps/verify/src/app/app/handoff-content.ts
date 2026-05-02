@@ -20,8 +20,18 @@ type TerminalContent = {
 	title: string;
 };
 
-export function buildHandoffUrl(payload: HandoffPayload): string {
-	return `kayle-id://${encodeURIComponent(JSON.stringify(payload))}`;
+export function buildHandoffUrl(
+	payload: HandoffPayload,
+	cancelToken?: string,
+): string {
+	// Embed cancel_token (when available) into the QR payload so the iOS app
+	// can call POST /v1/verify/session/:id/cancel with the same auth that the
+	// verify browser uses. Older builds that don't read this field continue to
+	// ignore it harmlessly.
+	const data = cancelToken
+		? { ...payload, cancel_token: cancelToken }
+		: payload;
+	return `kayle-id://${encodeURIComponent(JSON.stringify(data))}`;
 }
 
 export function isHandoffPayloadExpired(

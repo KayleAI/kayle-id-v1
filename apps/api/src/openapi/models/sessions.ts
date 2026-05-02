@@ -80,7 +80,13 @@ export const Session = z
 			.string()
 			.url()
 			.describe(
-				"The URL that the platform should send the user to in order to complete the verification.",
+				"The URL that the platform should send the user to in order to complete the verification. Includes the one-shot `cancel_token` as a query parameter so the verify browser / native app can pass it back when cancelling.",
+			),
+		cancel_token: z
+			.string()
+			.optional()
+			.describe(
+				"One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation — store it server-side if you intend to surface a cancel link from your dashboard or email; the verify URL already includes it for browser/native cancel flows.",
 			),
 		expires_at: z
 			.string()

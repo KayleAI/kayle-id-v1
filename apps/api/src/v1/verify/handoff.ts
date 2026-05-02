@@ -57,6 +57,8 @@ export async function issueHandoffPayload(
 			contractVersion: verification_sessions.contractVersion,
 			expiresAt: verification_sessions.expiresAt,
 			updatedAt: verification_sessions.updatedAt,
+			cancelTokenHash: verification_sessions.cancelTokenHash,
+			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
 		})
 		.from(verification_sessions)
 		.where(

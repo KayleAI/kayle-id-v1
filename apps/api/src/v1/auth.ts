@@ -51,20 +51,22 @@ const authenticate = createMiddleware<{
 			secret: env.AUTH_SECRET,
 		});
 		const [
-			{ organizationId, environment } = {
+			{ organizationId, environment, enabled } = {
 				organizationId: null,
 				environment: "live",
+				enabled: false,
 			},
 		] = await db
 			.select({
 				organizationId: api_keys.organizationId,
 				environment: api_keys.environment,
+				enabled: api_keys.enabled,
 			})
 			.from(api_keys)
 			.where(eq(api_keys.keyHash, keyHash))
 			.limit(1);
 
-		if (!(organizationId && environment === "live")) {
+		if (!(organizationId && environment === "live" && enabled)) {
 			return unauthorized(c);
 		}
 

@@ -6,6 +6,16 @@ export function generateMobileWriteTokenSeed(): string {
 	return generateRandomString(64);
 }
 
+export function generateSessionCancelToken(): string {
+	return generateRandomString(48);
+}
+
+export function hashSessionCancelToken(token: string): Promise<string> {
+	return createHMAC(`verify_cancel_token_v1|${token}`, {
+		secret: env.AUTH_SECRET,
+	});
+}
+
 export function deriveMobileWriteToken({
 	sessionId,
 	attemptId,

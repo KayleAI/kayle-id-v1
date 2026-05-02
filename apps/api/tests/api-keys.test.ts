@@ -373,4 +373,37 @@ describe("API Key Endpoints", () => {
 
 		expect(response.status).toBe(401);
 	});
+
+	test("rejects Bearer requests authenticated by a disabled API key", async () => {
+		const testData = requireTestData();
+		const organizationId = requireOrganizationId(testData.organizationId);
+		const { apiKey, id } = await createApiKey({
+			name: "Disabled Bearer Key",
+			organizationId,
+		});
+
+		const okResponse = await app.request("/v1/sessions", {
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+			},
+			method: "POST",
+		});
+		expect(okResponse.status).toBe(200);
+
+		await db
+			.update(api_keys)
+			.set({ enabled: false })
+			.where(eq(api_keys.id, id));
+
+		const rejectedResponse = await app.request("/v1/sessions", {
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+			},
+			method: "POST",
+		});
+		expect(rejectedResponse.status).toBe(401);
+
+		const payload = (await rejectedResponse.json()) as ApiKeyMutationResponse;
+		expect(payload.error?.code).toBe("UNAUTHORIZED");
+	});
 });

@@ -216,6 +216,25 @@ export function matchFaces({
 		);
 	}
 
+	if (!matcherSecret) {
+		// Fail-closed when the API side is missing the shared secret. The
+		// matcher worker now also rejects unsigned requests, so sending one
+		// would produce a 503 anyway — but bailing here keeps the missing-
+		// secret signal local and makes the logs unambiguous.
+		logEvent(logger, {
+			details: {
+				attempt_id: attemptId ?? null,
+				error_code: "face_matcher_secret_missing",
+			},
+			event: "verify.face_matcher.misconfigured",
+			level: "warn",
+		});
+
+		return Promise.resolve(
+			createUnavailableFaceScore("face_matcher_misconfigured"),
+		);
+	}
+
 	return requestFaceMatcher({
 		matcherBinding,
 		matcherSecret,

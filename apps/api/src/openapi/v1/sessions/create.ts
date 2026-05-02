@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { safeRedirectUrl } from "@kayle-id/config/safe-url";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
 import { RequestedShareField, Session } from "@/openapi/models/sessions";
+
+const ALLOW_LOOPBACK_URLS = process.env.NODE_ENV !== "production";
 
 export const createSession = createRoute({
 	method: "post",
@@ -20,12 +23,12 @@ export const createSession = createRoute({
 				"application/json": {
 					schema: z
 						.object({
-							redirect_url: z
-								.string()
-								.url()
+							redirect_url: safeRedirectUrl({
+								allowLoopback: ALLOW_LOOPBACK_URLS,
+							})
 								.optional()
 								.describe(
-									"Optional URL to redirect the user to after the verification session is completed.",
+									"Optional URL to redirect the user to after the verification session is completed. Must use https:// (http:// is only accepted for localhost in development).",
 								),
 							share_fields: z
 								.record(z.string(), RequestedShareField)

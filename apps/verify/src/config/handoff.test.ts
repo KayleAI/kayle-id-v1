@@ -76,7 +76,9 @@ describe("verify handoff requests", () => {
 			),
 		);
 
-		await expect(requestCancelVerifySession("vs_test")).rejects.toMatchObject({
+		await expect(
+			requestCancelVerifySession("vs_test", "ct_token"),
+		).rejects.toMatchObject({
 			code: "SESSION_TERMINAL",
 			message: "Session is already complete.",
 		});

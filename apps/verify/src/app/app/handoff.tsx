@@ -47,6 +47,15 @@ function buildRedirectTargetUrl({
 	return targetUrl.toString();
 }
 
+function readCancelTokenFromLocation(): string | null {
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	const value = new URLSearchParams(window.location.search).get("cancel_token");
+	return value && value.length > 0 ? value : null;
+}
+
 function isVerifyRequestError(
 	value: unknown,
 ): value is Error & { code: string } {
@@ -108,9 +117,14 @@ export function Handoff() {
 		null,
 	);
 
+	const cancelTokenFromLocation = useMemo(readCancelTokenFromLocation, []);
+
 	const handoffUrl = useMemo(
-		() => (handoffPayload ? buildHandoffUrl(handoffPayload) : null),
-		[handoffPayload],
+		() =>
+			handoffPayload
+				? buildHandoffUrl(handoffPayload, cancelTokenFromLocation ?? undefined)
+				: null,
+		[handoffPayload, cancelTokenFromLocation],
 	);
 
 	const redirectTargetUrl = useMemo(() => {
@@ -233,8 +247,14 @@ export function Handoff() {
 			return;
 		}
 
+		const cancelToken = readCancelTokenFromLocation();
+		if (!cancelToken) {
+			setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			return;
+		}
+
 		try {
-			await requestCancelVerifySession(sessionId);
+			await requestCancelVerifySession(sessionId, cancelToken);
 			setHandoffPayload(null);
 			setHandoffError(null);
 			setHandoffLoading(false);

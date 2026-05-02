@@ -8,6 +8,10 @@ import { and, asc, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
+	generateSessionCancelToken,
+	hashSessionCancelToken,
+} from "@/v1/verify/token-crypto";
+import {
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSessionExpired,
 } from "@/v1/webhooks/deliveries/service";
@@ -96,7 +100,12 @@ export function getAttemptsBySessionIds(sessionIds: string[]) {
 		.where(inArray(verification_attempts.verificationSessionId, sessionIds));
 }
 
-export function createVerificationSession({
+export type CreatedVerificationSession = {
+	row: typeof verification_sessions.$inferSelect;
+	cancelToken: string;
+};
+
+export async function createVerificationSession({
 	id,
 	organizationId,
 	environment,
@@ -110,8 +119,11 @@ export function createVerificationSession({
 	redirectUrl: string | null;
 	shareFields: ShareFields;
 	contractVersion: number;
-}) {
-	return db.transaction(async (tx) => {
+}): Promise<CreatedVerificationSession> {
+	const cancelToken = generateSessionCancelToken();
+	const cancelTokenHash = await hashSessionCancelToken(cancelToken);
+
+	const row = await db.transaction(async (tx) => {
 		const [created] = await tx
 			.insert(verification_sessions)
 			.values({
@@ -122,11 +134,21 @@ export function createVerificationSession({
 				redirectUrl,
 				shareFields,
 				contractVersion,
+				cancelTokenHash,
 			})
 			.returning();
 
 		return created;
 	});
+
+	if (!row) {
+		throw new Error("verification_session_create_returned_no_row");
+	}
+
+	return {
+		row,
+		cancelToken,
+	};
 }
 
 export async function cancelVerificationSession({

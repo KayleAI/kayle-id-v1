@@ -49,7 +49,7 @@ export const createSessionHandler: RouteHandler<
 	}
 
 	const id = generateId({ type: "vs", environment });
-	const created = await createVerificationSession({
+	const { row: created, cancelToken } = await createVerificationSession({
 		id,
 		organizationId,
 		environment,
@@ -69,6 +69,7 @@ export const createSessionHandler: RouteHandler<
 	const data = mapSessionRowToResponse({
 		row: created,
 		attempts: query.include_attempts ? [] : undefined,
+		cancelToken,
 	});
 
 	return c.json(

@@ -1,8 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { safeWebhookUrl } from "@kayle-id/config/safe-url";
 import { webhookEventTypeSchema } from "@kayle-id/config/webhook-events";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
 import { WebhookEndpoint } from "@/openapi/models/webhook";
+
+const ALLOW_LOOPBACK_URLS = process.env.NODE_ENV !== "production";
 
 export const updateWebhookEndpoint = createRoute({
 	method: "patch",
@@ -28,11 +31,11 @@ export const updateWebhookEndpoint = createRoute({
 								.nullable()
 								.optional()
 								.describe("Updated display name for the webhook endpoint."),
-							url: z
-								.string()
-								.url()
+							url: safeWebhookUrl({ allowLoopback: ALLOW_LOOPBACK_URLS })
 								.optional()
-								.describe("New URL for the webhook endpoint."),
+								.describe(
+									"New URL for the webhook endpoint. Must use https:// (http:// is only accepted for localhost in development).",
+								),
 							enabled: z
 								.boolean()
 								.optional()

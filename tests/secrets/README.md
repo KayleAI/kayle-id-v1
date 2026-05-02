@@ -1,8 +1,19 @@
-# Secrets used for our CI/CD pipeline are stored in this directory.
+# Synthetic test fixtures
 
-They include:
+This directory holds a **non-production, synthetic RSA keypair** used solely by
+unit tests in `apps/api/tests/functions/{webhook-deliveries,jwe}.test.ts` to
+verify that the webhook payload JWE round-trip works.
 
-- [`rsa_private.pem`](rsa_private.pem) — used for webhook receivers to decrypt events sent to them
-  - This is the key stored by the platform integrating Kayle ID to decrypt events sent to them
-- [`rsa_public.pem`](rsa_public.pem) — used for encrypting events to send to webhook receivers
-  - Kayle ID uses this key to encrypt events before sending them to webhook receivers
+These keys have **never** been used to encrypt real customer data and must
+**never** be deployed to any environment that handles real traffic. They can
+be rotated at any time without ceremony — regenerate with:
+
+```sh
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out rsa_private.pem
+openssl pkey -in rsa_private.pem -pubout -out rsa_public.pem
+```
+
+Files:
+
+- `rsa_private.pem` — synthetic private key, decrypts test webhook payloads
+- `rsa_public.pem` — synthetic public key, encrypts test webhook payloads

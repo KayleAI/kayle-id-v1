@@ -3,7 +3,6 @@ import { afterEach, expect, test, vi } from "vitest";
 import {
 	buildDemoWebhookUrl,
 	createDemoWebhookEndpoint,
-	type DemoApiError,
 	getPublicDemoSessionStatus,
 } from "./api";
 
@@ -98,7 +97,7 @@ test("createDemoWebhookEndpoint rejects malformed upstream success responses", a
 			runId: "demo_123",
 			token: "token_123",
 		}),
-	).rejects.toMatchObject<Partial<DemoApiError>>({
+	).rejects.toMatchObject({
 		message: "Unexpected upstream response.",
 		status: 200,
 	});
@@ -149,7 +148,7 @@ test("getPublicDemoSessionStatus throws the upstream API error message", async (
 			},
 			sessionId: "vs_live_expired",
 		}),
-	).rejects.toMatchObject<Partial<DemoApiError>>({
+	).rejects.toMatchObject({
 		code: "SESSION_EXPIRED",
 		hint: "Start a new session.",
 		message: "Session expired.",

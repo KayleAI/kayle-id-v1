@@ -114,7 +114,14 @@ const plugins = [
 
 export const auth = betterAuth({
   secret: env.AUTH_SECRET,
-  baseURL: publicAuthBaseURL,
+  // In production we pin baseURL to the public origin so cookies, magic-link
+  // emails, and redirects use the user-facing URL. Locally we leave it unset
+  // so better-auth derives the basePath from `options.basePath` and uses the
+  // request origin — otherwise its router (which keys off `baseURL.pathname`)
+  // strips `/api/auth` from incoming `/v1/auth/...` requests and 404s.
+  ...(process.env.NODE_ENV === "production"
+    ? { baseURL: publicAuthBaseURL }
+    : {}),
   database: drizzleAdapter(db, {
     provider: "pg",
     usePlural: false,

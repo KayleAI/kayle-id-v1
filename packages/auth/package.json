@@ -22,7 +22,7 @@
     "@kayle-id/emails": "*",
     "better-auth": "^1.6.5",
     "better-call": "1.1.0",
-    "zod": "4.1.13"
+    "zod": "^4.3.6"
   },
   "exports": {
     "./*": "./src/*.ts",

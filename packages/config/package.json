@@ -11,7 +11,7 @@
     "@t3-oss/env-core": "0.13.8",
     "@types/bun": "latest",
     "dotenv": "17.2.3",
-    "zod": "4.1.12"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "typescript": "^5"

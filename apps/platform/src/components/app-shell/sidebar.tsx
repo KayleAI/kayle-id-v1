@@ -92,16 +92,12 @@ export function AppSidebar() {
 	};
 
 	return (
-		<Sidebar
-			className="border-r-0! bg-accent!"
-			collapsible="icon"
-			variant="sidebar"
-		>
+		<Sidebar className="border-r-0!" collapsible="icon" variant="sidebar">
 			<SidebarLogo />
 
 			<SidebarSeparator className="mx-0!" />
 
-			<SidebarContent className="bg-accent!">
+			<SidebarContent>
 				<SidebarGroup>
 					<SidebarGroupLabel>Platform</SidebarGroupLabel>
 					<SidebarGroupContent>
@@ -113,7 +109,7 @@ export function AppSidebar() {
 											<TooltipTrigger
 												render={
 													<SidebarMenuButton
-														className="hover:bg-accent-foreground/2.5 active:bg-accent-foreground/5 data-active:bg-accent-foreground/2.5 data-active:font-semibold"
+														className="hover:bg-secondary-foreground/2.5 active:bg-secondary-foreground/5 data-active:bg-secondary-foreground/2.5 data-active:font-semibold"
 														isActive={currentPath.startsWith(item.url)}
 														render={
 															<Link to={item.url}>
@@ -134,15 +130,15 @@ export function AppSidebar() {
 				</SidebarGroup>
 			</SidebarContent>
 
-			<SidebarFooter className="gap-0 bg-accent! p-0!">
+			<SidebarFooter className="gap-0 p-0!">
 				{/* User Section */}
-				<SidebarMenu className="border-accent-foreground/10 border-t p-2">
+				<SidebarMenu className="border-secondary-foreground/10 border-t p-2">
 					<SidebarMenuItem>
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={
 									<SidebarMenuButton
-										className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+										className="data-[state=open]:bg-sidebar-secondary data-[state=open]:text-sidebar-secondary-foreground"
 										size="lg"
 									>
 										<Avatar className="size-8 rounded-lg grayscale">
@@ -217,13 +213,13 @@ export function AppSidebar() {
 				</SidebarMenu>
 
 				{/* Organization Section */}
-				<SidebarMenu className="border-accent-foreground/10 border-t p-2">
+				<SidebarMenu className="border-secondary-foreground/10 border-t p-2">
 					<SidebarMenuItem>
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={
 									<SidebarMenuButton
-										className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+										className="data-[state=open]:bg-sidebar-secondary data-[state=open]:text-sidebar-secondary-foreground"
 										size="lg"
 									>
 										<Avatar className="size-8">
@@ -329,7 +325,7 @@ function SidebarLogo() {
 	const isCollapsed = useMemo(() => state === "collapsed", [state]);
 
 	return (
-		<SidebarHeader className="bg-accent!">
+		<SidebarHeader>
 			<SidebarMenu>
 				<SidebarMenuItem>
 					<SidebarMenuButton

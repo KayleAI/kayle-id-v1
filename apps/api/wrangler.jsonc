@@ -23,8 +23,14 @@
 	},
 	"vars": {
 		"PUBLIC_AUTH_URL": "https://kayle.id",
-		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 	},
+	"send_email": [
+		{
+			"name": "SEND_EMAIL",
+			"remote": true
+		}
+	],
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",

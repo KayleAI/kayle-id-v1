@@ -9,12 +9,12 @@ declare namespace Cloudflare {
 		STORAGE: R2Bucket;
 		TRUST_STORE: D1Database;
 		HYPERDRIVE: Hyperdrive;
+		SEND_EMAIL: SendEmail;
 		ASSETS: Fetcher;
 		KAYLE_INTERNAL_TOKEN: string;
 		AUTH_SECRET: string;
 		PUBLIC_AUTH_URL: string;
-		RESEND_API_KEY: string;
-		RESEND_FROM_EMAIL: string;
+		EMAIL_FROM_ADDRESS: string;
 		FACE_MATCHER_SECRET: string;
 		FACE_MATCHER: Fetcher /* kayle-id-face-matcher */;
 	}
@@ -24,7 +24,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "KAYLE_INTERNAL_TOKEN" | "AUTH_SECRET" | "PUBLIC_AUTH_URL" | "RESEND_API_KEY" | "RESEND_FROM_EMAIL" | "FACE_MATCHER_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "KAYLE_INTERNAL_TOKEN" | "AUTH_SECRET" | "PUBLIC_AUTH_URL" | "EMAIL_FROM_ADDRESS" | "FACE_MATCHER_SECRET">> {}
 }
 
 // Begin runtime types

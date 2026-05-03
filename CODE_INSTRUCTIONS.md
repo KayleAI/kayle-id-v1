@@ -124,15 +124,14 @@ REDIS_TOKEN=
 # Dummy non-empty values are enough for local boot.
 GOOGLE_CLIENT_ID=dummy-google-client-id
 GOOGLE_CLIENT_SECRET=dummy-google-client-secret
-RESEND_API_KEY=dummy-resend-api-key
-RESEND_FROM_EMAIL="Kayle ID <auth@kayle.id>"
+EMAIL_FROM_ADDRESS="Kayle ID <auth@kayle.id>"
 ```
 
 Important notes:
 
 - `KAYLE_INTERNAL_TOKEN` must match between root `.env` and `apps/platform/.env`.
 - `KAYLE_DEV_API_BASE_URL` must be reachable from the physical iPhone. `http://127.0.0.1:8787` will not work on the phone.
-- In development, magic OTP sign-in is logged by the API instead of being emailed, so `RESEND_API_KEY` can be a dummy value.
+- In development, magic OTP sign-in is logged by the API instead of being emailed, so the Cloudflare Email Service binding is unused locally and `EMAIL_FROM_ADDRESS` only needs to be a valid-looking address.
 - If you actually want Google sign-in to work locally, replace the dummy Google values with real OAuth credentials.
 
 ### `apps/platform/.env`

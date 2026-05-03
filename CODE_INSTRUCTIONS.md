@@ -131,7 +131,7 @@ Do not hand-author this file. Generate it when you need API tests:
 
 ```bash
 cd apps/api
-bun run test:setup
+bun ./tests/generate-test-env.ts
 ```
 
 That command creates `apps/api/.env.test` from `/.env.test.example` and injects the generated trust bundle JSON used by the API test worker.
@@ -347,7 +347,7 @@ bun test ./scripts/import-icao-pkd.test.ts
 
 ```bash
 cd apps/api
-bun run test:setup
+bun ./tests/generate-test-env.ts
 ```
 
 #### In-process API tests
@@ -374,15 +374,15 @@ Terminal A:
 
 ```bash
 cd infra/face-matcher
-bun run test:dev
+bunx wrangler dev --env-file ../../.env.test.example --local --ip 127.0.0.1 --port 8788 --inspector-port 9232
 ```
 
 Terminal B:
 
 ```bash
 cd apps/api
-bun run test:setup
-bun run test:dev
+bun ./tests/generate-test-env.ts
+bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230
 ```
 
 Terminal C:

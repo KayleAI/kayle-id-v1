@@ -651,6 +651,12 @@ jobs:
         env:
           ARCHIVE_PATH: ${{ runner.temp }}/KayleID.xcarchive
           PROVISIONING_PROFILE_NAME: ${{ steps.profile.outputs.name }}
+          # Append the workflow's run_attempt to CFBundleVersion so each re-run
+          # of the same package version uploads as a fresh build (1.2.1.1,
+          # 1.2.1.2, ...) instead of being rejected by App Store Connect for
+          # duplicating CFBundleVersion. CFBundleShortVersionString stays at
+          # the package.json marketing version.
+          IOS_BUILD_NUMBER: ${{ github.run_attempt }}
         run: |
           xcodebuild archive \
             -project "${APP_PROJECT_PATH}" \
@@ -662,7 +668,8 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM="${APP_TEAM_ID}" \
             PRODUCT_BUNDLE_IDENTIFIER="${APP_BUNDLE_ID}" \
-            PROVISIONING_PROFILE_SPECIFIER="${PROVISIONING_PROFILE_NAME}"
+            PROVISIONING_PROFILE_SPECIFIER="${PROVISIONING_PROFILE_NAME}" \
+            IOS_BUILD_NUMBER="${IOS_BUILD_NUMBER}"
 
       - name: Verify archived SDK version
         shell: bash

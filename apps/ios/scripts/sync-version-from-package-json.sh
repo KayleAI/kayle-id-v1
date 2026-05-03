@@ -31,13 +31,34 @@ if [ "${VERSION_SEGMENT_COUNT}" -ne 3 ]; then
   exit 1
 fi
 
+# CFBundleVersion (the "build number" in Apple terminology) must be unique per
+# CFBundleShortVersionString in App Store Connect. CI passes IOS_BUILD_NUMBER as
+# the GitHub workflow's run_attempt so each re-run of the same package version
+# produces a fresh CFBundleVersion (e.g. 1.2.1.1, 1.2.1.2, ...). Local builds
+# default to 1, which is harmless because they are never uploaded.
+IOS_BUILD_NUMBER="${IOS_BUILD_NUMBER:-1}"
+
+case "${IOS_BUILD_NUMBER}" in
+  ''|*[!0-9]*)
+    echo "IOS_BUILD_NUMBER must be a positive integer. Received ${IOS_BUILD_NUMBER}." >&2
+    exit 1
+    ;;
+esac
+
+if [ "${IOS_BUILD_NUMBER}" -lt 1 ]; then
+  echo "IOS_BUILD_NUMBER must be >= 1. Received ${IOS_BUILD_NUMBER}." >&2
+  exit 1
+fi
+
+BUNDLE_VERSION="${PACKAGE_VERSION}.${IOS_BUILD_NUMBER}"
+
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 mkdir -p "$(dirname "${GENERATED_INFO_PLIST_PATH}")"
 cp "${SOURCE_INFO_PLIST_PATH}" "${GENERATED_INFO_PLIST_PATH}"
 
 "${PLIST_BUDDY}" -c "Set :CFBundleShortVersionString ${PACKAGE_VERSION}" "${GENERATED_INFO_PLIST_PATH}"
-"${PLIST_BUDDY}" -c "Set :CFBundleVersion ${PACKAGE_VERSION}" "${GENERATED_INFO_PLIST_PATH}"
+"${PLIST_BUDDY}" -c "Set :CFBundleVersion ${BUNDLE_VERSION}" "${GENERATED_INFO_PLIST_PATH}"
 
 # The source Info.plist sets `NSAppTransportSecurity > NSAllowsArbitraryLoads`
 # so DEBUG builds can talk to a Tailscale-routed dev API over plain HTTP. That

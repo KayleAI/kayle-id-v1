@@ -6,8 +6,12 @@ import { resolveVerifyErrorMessage } from "./error-response";
 import { matchFaces } from "./face-matcher-client";
 import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
 import type { VerifySocketContext } from "./socket-context";
-import { validateAuthenticity } from "./validation";
 import {
+	validateActiveAuthentication,
+	validateAuthenticity,
+} from "./validation";
+import {
+	type ActiveAuthValidationResult,
 	DEFAULT_FACE_MATCH_THRESHOLD,
 	type FaceScoreResult,
 } from "./validation-types";
@@ -80,7 +84,10 @@ async function rejectAttemptWithVerdict({
 	riskScore,
 }: {
 	attemptId: string;
-	code: "passport_authenticity_failed" | "selfie_face_mismatch";
+	code:
+		| "passport_authenticity_failed"
+		| "passport_active_authentication_failed"
+		| "selfie_face_mismatch";
 	context: VerifySocketContext;
 	riskScore: number;
 }) {
@@ -197,43 +204,127 @@ function resolveSelfieMatchThreshold(
 	}
 }
 
-export async function runPhaseValidation(
-	context: VerifySocketContext,
-	attemptId: string,
-	nextPhase: "nfc_complete" | "selfie_complete",
-) {
-	if (nextPhase === "nfc_complete") {
-		const { dg1, dg2, sod } = context.state.transfer;
+async function runActiveAuthValidation({
+	attemptId,
+	context,
+}: {
+	attemptId: string;
+	context: VerifySocketContext;
+}) {
+	const { activeAuthChallenge, activeAuthSignature, dg14, dg15 } =
+		context.state.transfer;
 
-		if (!(dg1 && dg2 && sod)) {
-			return null;
-		}
+	if (!dg15) {
+		return null;
+	}
 
-		const authenticity = await validateAuthenticity({ dg1, dg2, sod });
-		if (authenticity.ok) {
-			return null;
-		}
-
+	if (!(activeAuthChallenge && activeAuthSignature)) {
 		logEvent(context.log, {
 			details: {
 				attempt_id: attemptId,
-				crl_status: authenticity.crlStatus,
-				passive_auth_detail: authenticity.detail ?? null,
-				passive_auth_reason: authenticity.reason,
-				signer_source: authenticity.signerSource,
+				reason: "active_auth_artifacts_missing",
 			},
-			event: "verify.ws.passive_auth_failed",
+			event: "verify.ws.active_auth_failed",
 		});
 
 		const verdict = await rejectAttemptWithVerdict({
 			attemptId,
-			code: "passport_authenticity_failed",
+			code: "passport_active_authentication_failed",
 			context,
 			riskScore: 1,
 		});
 		context.transport.sendVerdict(verdict);
 		context.transport.closeAfterVerdict(verdict.reasonCode);
 		return verdict;
+	}
+
+	const result: ActiveAuthValidationResult = await validateActiveAuthentication(
+		{
+			challenge: activeAuthChallenge,
+			dg14,
+			dg15,
+			signature: activeAuthSignature,
+		},
+	);
+
+	if (result.ok) {
+		logEvent(context.log, {
+			details: {
+				active_auth_algorithm: result.algorithm,
+				active_auth_hash_algorithm: result.hashAlgorithm,
+				attempt_id: attemptId,
+			},
+			event: "verify.ws.active_auth_succeeded",
+		});
+		return null;
+	}
+
+	logEvent(context.log, {
+		details: {
+			active_auth_detail: result.detail ?? null,
+			active_auth_reason: result.reason,
+			attempt_id: attemptId,
+		},
+		event: "verify.ws.active_auth_failed",
+	});
+
+	const verdict = await rejectAttemptWithVerdict({
+		attemptId,
+		code: "passport_active_authentication_failed",
+		context,
+		riskScore: 1,
+	});
+	context.transport.sendVerdict(verdict);
+	context.transport.closeAfterVerdict(verdict.reasonCode);
+	return verdict;
+}
+
+export async function runPhaseValidation(
+	context: VerifySocketContext,
+	attemptId: string,
+	nextPhase: "nfc_complete" | "selfie_complete",
+) {
+	if (nextPhase === "nfc_complete") {
+		const { dg1, dg2, dg14, dg15, sod } = context.state.transfer;
+
+		if (!(dg1 && dg2 && sod)) {
+			return null;
+		}
+
+		const authenticity = await validateAuthenticity({
+			dg1,
+			dg2,
+			dg14,
+			dg15,
+			sod,
+		});
+		if (!authenticity.ok) {
+			logEvent(context.log, {
+				details: {
+					attempt_id: attemptId,
+					crl_status: authenticity.crlStatus,
+					passive_auth_detail: authenticity.detail ?? null,
+					passive_auth_reason: authenticity.reason,
+					signer_source: authenticity.signerSource,
+				},
+				event: "verify.ws.passive_auth_failed",
+			});
+
+			const verdict = await rejectAttemptWithVerdict({
+				attemptId,
+				code: "passport_authenticity_failed",
+				context,
+				riskScore: 1,
+			});
+			context.transport.sendVerdict(verdict);
+			context.transport.closeAfterVerdict(verdict.reasonCode);
+			return verdict;
+		}
+
+		return await runActiveAuthValidation({
+			attemptId,
+			context,
+		});
 	}
 
 	const documentPortrait = context.state.transfer.dg2;

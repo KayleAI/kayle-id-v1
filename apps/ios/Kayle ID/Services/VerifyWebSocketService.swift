@@ -6,6 +6,9 @@ enum VerifyDataKind: Int {
   case dg2 = 1
   case sod = 2
   case selfie = 3
+  case dg14 = 4
+  case dg15 = 5
+  case activeAuth = 6
 }
 
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {

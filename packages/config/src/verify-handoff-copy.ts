@@ -71,6 +71,11 @@ export const VERIFY_HANDOFF_COPY = {
         description: "We couldn’t verify your passport.",
       },
 
+      passportActiveAuthenticationFailed: {
+        title: "Document check failed",
+        description: "We couldn’t confirm your passport chip.",
+      },
+
       selfieFaceMismatch: {
         title: "Face doesn’t match",
         description: "Your selfie doesn’t match your passport photo.",

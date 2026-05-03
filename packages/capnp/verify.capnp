@@ -17,6 +17,9 @@ enum DataKind {
   dg2 @1;
   sod @2;
   selfie @3;
+  dg14 @4;
+  dg15 @5;
+  activeAuth @6;
 }
 
 struct DataPayload {

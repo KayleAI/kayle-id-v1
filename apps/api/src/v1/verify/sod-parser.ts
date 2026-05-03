@@ -18,6 +18,7 @@ export type ParsedSodSecurityObject = {
 	algorithm: SupportedHashAlgorithm;
 	dg1Hash: Uint8Array;
 	dg2Hash: Uint8Array;
+	dgHashes: Map<number, Uint8Array>;
 	signedData: SignedData;
 };
 
@@ -152,22 +153,17 @@ function parseDgHashEntry(child: unknown): {
 function parseRequiredDgHashes(hashValuesNode: Sequence): {
 	dg1Hash: Uint8Array;
 	dg2Hash: Uint8Array;
+	dgHashes: Map<number, Uint8Array>;
 } {
-	let dg1Hash: Uint8Array | null = null;
-	let dg2Hash: Uint8Array | null = null;
+	const dgHashes = new Map<number, Uint8Array>();
 
 	for (const child of hashValuesNode.valueBlock.value) {
 		const { dataGroupNumber, digest } = parseDgHashEntry(child);
-
-		if (dataGroupNumber === 1) {
-			dg1Hash = digest;
-			continue;
-		}
-
-		if (dataGroupNumber === 2) {
-			dg2Hash = digest;
-		}
+		dgHashes.set(dataGroupNumber, digest);
 	}
+
+	const dg1Hash = dgHashes.get(1);
+	const dg2Hash = dgHashes.get(2);
 
 	if (!(dg1Hash && dg2Hash)) {
 		throw new Error("required_dg_hash_missing");
@@ -176,6 +172,7 @@ function parseRequiredDgHashes(hashValuesNode: Sequence): {
 	return {
 		dg1Hash,
 		dg2Hash,
+		dgHashes,
 	};
 }
 
@@ -189,12 +186,13 @@ export function parseSodSecurityObject(
 	const { hashAlgorithmNode, hashValuesNode } =
 		parseLdsSecurityObjectNodes(root);
 	const algorithm = parseDigestAlgorithm(hashAlgorithmNode);
-	const { dg1Hash, dg2Hash } = parseRequiredDgHashes(hashValuesNode);
+	const { dg1Hash, dg2Hash, dgHashes } = parseRequiredDgHashes(hashValuesNode);
 
 	return {
 		algorithm,
 		dg1Hash,
 		dg2Hash,
+		dgHashes,
 		signedData,
 	};
 }

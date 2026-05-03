@@ -1,3 +1,4 @@
+import { validateActiveAuthentication as validateActiveAuthenticationInternal } from "./active-auth";
 import {
 	decodeFaceImageBytes as decodeFaceImageBytesInternal,
 	extractDg2FaceImage as extractDg2FaceImageInternal,
@@ -9,13 +10,16 @@ import {
 } from "./pkd-trust";
 import { validateAuthenticity as validateAuthenticityInternal } from "./sod-authenticity";
 import type {
+	ActiveAuthValidationResult as ActiveAuthValidationResultValue,
 	AuthenticityValidationResult as AuthenticityValidationResultValue,
 	DecodedImage,
 	Dg2FaceImage as Dg2FaceImageValue,
+	SupportedHashAlgorithm,
 } from "./validation-types";
 import { configureVerifyAssetFetcher as configureVerifyAssetFetcherInternal } from "./verify-assets";
 
 export type AuthenticityValidationResult = AuthenticityValidationResultValue;
+export type ActiveAuthValidationResult = ActiveAuthValidationResultValue;
 export type Dg2FaceImage = Dg2FaceImageValue;
 export type PassiveAuthTrustBundle = PkdTrustBundle;
 
@@ -47,12 +51,16 @@ export function validateAuthenticity({
 	checkDate,
 	dg1,
 	dg2,
+	dg14,
+	dg15,
 	sod,
 	trustBundle,
 }: {
 	checkDate?: Date;
 	dg1: Uint8Array;
 	dg2: Uint8Array;
+	dg14?: Uint8Array;
+	dg15?: Uint8Array;
 	sod: Uint8Array;
 	trustBundle?: PkdTrustBundle;
 }): Promise<AuthenticityValidationResultValue> {
@@ -60,7 +68,34 @@ export function validateAuthenticity({
 		checkDate,
 		dg1,
 		dg2,
+		dg14,
+		dg15,
 		sod,
 		trustBundle,
+	});
+}
+
+export function validateActiveAuthentication({
+	challenge,
+	dg14,
+	dg15,
+	signature,
+	sodAlgorithm,
+	sodDg15Hash,
+}: {
+	challenge: Uint8Array;
+	dg14?: Uint8Array;
+	dg15: Uint8Array;
+	signature: Uint8Array;
+	sodAlgorithm?: SupportedHashAlgorithm;
+	sodDg15Hash?: Uint8Array;
+}): Promise<ActiveAuthValidationResultValue> {
+	return validateActiveAuthenticationInternal({
+		challenge,
+		dg14,
+		dg15,
+		signature,
+		sodAlgorithm,
+		sodDg15Hash,
 	});
 }

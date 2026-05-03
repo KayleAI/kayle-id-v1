@@ -982,6 +982,22 @@ describe("verify validation engine", () => {
 		}
 	});
 
+	test("fails authenticity when DG15 bytes are uploaded without a matching SOD hash entry", async () => {
+		const artifacts = await createValidNfcArtifacts();
+		const dg15 = Uint8Array.of(0x6f, 0x03, 0x01, 0x02, 0x03);
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+			dg15,
+		});
+
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.reason).toBe("dg_hash_mismatch");
+		}
+	});
+
 	test("fails authenticity on digest mismatch", async () => {
 		const dg1 = new TextEncoder().encode(
 			"P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",

@@ -12,7 +12,10 @@ typedef enum verify_data_kind {
   VERIFY_DATA_DG1 = 0,
   VERIFY_DATA_DG2 = 1,
   VERIFY_DATA_SOD = 2,
-  VERIFY_DATA_SELFIE = 3
+  VERIFY_DATA_SELFIE = 3,
+  VERIFY_DATA_DG14 = 4,
+  VERIFY_DATA_DG15 = 5,
+  VERIFY_DATA_ACTIVE_AUTH = 6
 } verify_data_kind_t;
 
 typedef enum verify_server_message_kind {

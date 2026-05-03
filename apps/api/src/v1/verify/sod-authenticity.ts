@@ -350,16 +350,45 @@ async function validateSignerCandidate({
 	};
 }
 
+async function verifyOptionalDgHash({
+	algorithm,
+	bytes,
+	dataGroupNumber,
+	dgHashes,
+}: {
+	algorithm: ParsedSodSecurityObject["algorithm"];
+	bytes: Uint8Array | undefined;
+	dataGroupNumber: number;
+	dgHashes: Map<number, Uint8Array>;
+}): Promise<boolean> {
+	if (!bytes || bytes.length === 0) {
+		return true;
+	}
+
+	const expectedHash = dgHashes.get(dataGroupNumber);
+
+	if (!expectedHash) {
+		return false;
+	}
+
+	const actualHash = await createDigest(algorithm, bytes);
+	return bytesEqual(actualHash, expectedHash);
+}
+
 export async function validateAuthenticity({
 	checkDate = new Date(),
 	dg1,
 	dg2,
+	dg14,
+	dg15,
 	sod,
 	trustBundle,
 }: {
 	checkDate?: Date;
 	dg1: Uint8Array;
 	dg2: Uint8Array;
+	dg14?: Uint8Array;
+	dg15?: Uint8Array;
 	sod: Uint8Array;
 	trustBundle?: PkdTrustBundle;
 }): Promise<AuthenticityValidationResult> {
@@ -404,6 +433,27 @@ export async function validateAuthenticity({
 			bytesEqual(dg2Digest, parsed.dg2Hash)
 		)
 	) {
+		return failureResult({
+			reason: "dg_hash_mismatch",
+		});
+	}
+
+	const [dg14Verified, dg15Verified] = await Promise.all([
+		verifyOptionalDgHash({
+			algorithm: parsed.algorithm,
+			bytes: dg14,
+			dataGroupNumber: 14,
+			dgHashes: parsed.dgHashes,
+		}),
+		verifyOptionalDgHash({
+			algorithm: parsed.algorithm,
+			bytes: dg15,
+			dataGroupNumber: 15,
+			dgHashes: parsed.dgHashes,
+		}),
+	]);
+
+	if (!(dg14Verified && dg15Verified)) {
 		return failureResult({
 			reason: "dg_hash_mismatch",
 		});

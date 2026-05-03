@@ -93,6 +93,12 @@ function toCapnpDataKind(
       return CapnpDataKind.SOD;
     case CapnpDataKind.SELFIE:
       return CapnpDataKind.SELFIE;
+    case CapnpDataKind.DG14:
+      return CapnpDataKind.DG14;
+    case CapnpDataKind.DG15:
+      return CapnpDataKind.DG15;
+    case CapnpDataKind.ACTIVE_AUTH:
+      return CapnpDataKind.ACTIVE_AUTH;
     default:
       return CapnpDataKind.DG1;
   }

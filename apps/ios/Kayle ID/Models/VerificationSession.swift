@@ -819,11 +819,29 @@ final class VerificationSession: ObservableObject {
       )
     }
 
-    return [
+    var plans: [NFCUploadPlan] = [
       NFCUploadPlan(kind: .dg1, chunks: chunkData(dg1.data, chunkSize: nfcChunkSize)),
       NFCUploadPlan(kind: .dg2, chunks: chunkData(dg2.data, chunkSize: nfcChunkSize)),
       NFCUploadPlan(kind: .sod, chunks: chunkData(sod.data, chunkSize: nfcChunkSize)),
     ]
+
+    if let dg14 = result.dataGroups.first(where: { $0.id == 0x6E }) {
+      plans.append(NFCUploadPlan(kind: .dg14, chunks: chunkData(dg14.data, chunkSize: nfcChunkSize)))
+    }
+
+    if let dg15 = result.dataGroups.first(where: { $0.id == 0x6F }) {
+      plans.append(NFCUploadPlan(kind: .dg15, chunks: chunkData(dg15.data, chunkSize: nfcChunkSize)))
+
+      if let challenge = result.activeAuthChallenge,
+         let signature = result.activeAuthSignature {
+        var aaPayload = Data()
+        aaPayload.append(challenge)
+        aaPayload.append(signature)
+        plans.append(NFCUploadPlan(kind: .activeAuth, chunks: chunkData(aaPayload, chunkSize: nfcChunkSize)))
+      }
+    }
+
+    return plans
   }
 
   private func chunkData(_ raw: Data, chunkSize: Int) -> [Data] {

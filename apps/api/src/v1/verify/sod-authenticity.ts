@@ -273,7 +273,7 @@ async function validateSignerCandidate({
 	signer: ResolvedSignerCertificate;
 }): Promise<
 	| {
-			crlStatus: Exclude<PassiveAuthCrlStatus, "not_checked" | "revoked">;
+			crlStatus: "verified_not_revoked";
 			ok: true;
 	  }
 	| {
@@ -338,6 +338,32 @@ async function validateSignerCandidate({
 			failure: failureResult({
 				crlStatus,
 				reason: "crl_revoked",
+				signerSource: signer.signerSource,
+			}),
+			ok: false,
+		};
+	}
+
+	if (crlStatus === "missing") {
+		// CRL coverage is required — no soft-fail. The signer can't be checked
+		// against revocation, so the document doesn't pass passive auth.
+		return {
+			failure: failureResult({
+				crlStatus,
+				reason: "crl_missing",
+				signerSource: signer.signerSource,
+			}),
+			ok: false,
+		};
+	}
+
+	if (crlStatus === "stale") {
+		// CRL is past nextUpdate. Treat as authoritative-coverage-missing —
+		// fresh issuance status is unknown.
+		return {
+			failure: failureResult({
+				crlStatus,
+				reason: "crl_stale",
 				signerSource: signer.signerSource,
 			}),
 			ok: false,

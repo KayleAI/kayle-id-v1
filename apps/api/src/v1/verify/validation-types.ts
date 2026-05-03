@@ -9,13 +9,15 @@ export type SupportedImageFormat = "jpeg" | "jpeg2000";
 export type PassiveAuthCrlStatus =
 	| "not_checked"
 	| "revoked"
-	| "soft_fail_missing"
-	| "soft_fail_stale"
+	| "missing"
+	| "stale"
 	| "verified_not_revoked";
 
 export type PassiveAuthFailureReason =
 	| "chain_untrusted"
+	| "crl_missing"
 	| "crl_revoked"
+	| "crl_stale"
 	| "cms_signature_invalid"
 	| "dg_hash_mismatch"
 	| "missing_required_artifacts"
@@ -114,7 +116,7 @@ export type Dg14Declares = {
 
 export type AuthenticityValidationResult =
 	| {
-			crlStatus: Exclude<PassiveAuthCrlStatus, "not_checked" | "revoked">;
+			crlStatus: "verified_not_revoked";
 			ok: true;
 			algorithm: SupportedHashAlgorithm;
 			signerSource: PassiveAuthSignerSource;

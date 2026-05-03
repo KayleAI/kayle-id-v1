@@ -1,0 +1,72 @@
+{
+	"counts": {
+		"cscas": 1,
+		"crls": 1,
+		"dscs": 1,
+		"ignoredBcsc": 0,
+		"ignoredBcscNc": 0
+	},
+	"cscas": [
+		{
+			"akiHex": null,
+			"derBase64": "MIIBfTCCASKgAwIBAgICA+kwCgYIKoZIzj0EAwIwJTEjMAkGA1UEBhMCVVQwFgYDVQQDDA9LYXlsZSBUZXN0IENTQ0EwHhcNMjQwMTAxMDAwMDAwWhcNNDkxMjMxMDAwMDAwWjAlMSMwCQYDVQQGEwJVVDAWBgNVBAMMD0theWxlIFRlc3QgQ1NDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIiAn6/t0doNnWOUHz1HHSehqdrUPyC9S/hgUsAX7kd6sYbCIJ7/vbz6PX//daplLM5iSzicRhf42kbd+W793vajQjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgAGMB0GA1UdDgQWBBQpK+Ovc/VJ6dV/a9joh95YOzl3LTAKBggqhkjOPQQDAgNJADBGAiEAnmxY/dZC/JAJvxKLa4ZuEDyEtTWwy0MFF2cpAFGz5LsCIQD1xvDiKnahX984sFy3aJ4j5qvNjrIMaL6mC1MWP0wbXQ==",
+			"issuerKey": "302531233009060355040613025554301606035504030c0f4b61796c6520546573742043534341",
+			"issuerName": "C=UT, CN=Kayle Test CSCA",
+			"notAfter": "2049-12-31T00:00:00.000Z",
+			"notBefore": "2024-01-01T00:00:00.000Z",
+			"serialNumberHex": "03e9",
+			"skiHex": "292be3af73f549e9d57f6bd8e887de583b39772d",
+			"sourceCountryCode": "UT",
+			"sourceDn": "cn=Kayle Test Master List,o=Kayle Test",
+			"subjectKey": "302531233009060355040613025554301606035504030c0f4b61796c6520546573742043534341",
+			"subjectName": "C=UT, CN=Kayle Test CSCA",
+			"masterListSources": [
+				{
+					"countryCode": "UT",
+					"dn": "cn=Kayle Test Master List,o=Kayle Test"
+				}
+			]
+		}
+	],
+	"crls": [
+		{
+			"akiHex": "292be3af73f549e9d57f6bd8e887de583b39772d",
+			"derBase64": "MIHTMHsCAQEwCgYIKoZIzj0EAwIwJTEjMAkGA1UEBhMCVVQwFgYDVQQDDA9LYXlsZSBUZXN0IENTQ0EXDTI0MDEwMTAwMDAwMFoXDTQ5MTIzMTAwMDAwMFowAKAjMCEwHwYDVR0jBBgwFoAUKSvjr3P1SenVf2vY6IfeWDs5dy0wCgYIKoZIzj0EAwIDSAAwRQIgWij/LsrNf3MZ3iUp8IiRvyI/ku+WBCIP2GUfZAXqtPkCIQDJkMmQ6Iztdw/IXl+PF+MCIqVHQQ+3rkTrD3X8Gx4PpQ==",
+			"issuerKey": "302531233009060355040613025554301606035504030c0f4b61796c6520546573742043534341",
+			"issuerName": "C=UT, CN=Kayle Test CSCA",
+			"nextUpdate": "2049-12-31T00:00:00.000Z",
+			"revokedSerialNumbersHex": [],
+			"sourceCountryCode": "UT",
+			"sourceDn": "cn=Kayle Test PKD Source,o=Kayle Test",
+			"thisUpdate": "2024-01-01T00:00:00.000Z"
+		}
+	],
+	"dscs": [
+		{
+			"akiHex": "292be3af73f549e9d57f6bd8e887de583b39772d",
+			"derBase64": "MIIBmTCCAT+gAwIBAgICB9EwCgYIKoZIzj0EAwIwJTEjMAkGA1UEBhMCVVQwFgYDVQQDDA9LYXlsZSBUZXN0IENTQ0EwHhcNMjQwMTAxMDAwMDAwWhcNNDkxMjMxMDAwMDAwWjAkMSIwCQYDVQQGEwJVVDAVBgNVBAMMDktheWxlIFRlc3QgRFNDMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwwZ3KYF3O8JvL5Xtm3nXosIE90k6yn3AUuzz8FMa3nEaJ4ddPYrQ2aeziiOjpDFv1A9vbt1pIRVtbOo+wcL8LKNgMF4wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCAIAwHQYDVR0OBBYEFIx1mR2XuV7FINyY091b7xqxws8aMB8GA1UdIwQYMBaAFCkr469z9Unp1X9r2OiH3lg7OXctMAoGCCqGSM49BAMCA0gAMEUCIQCfNbW4YWceJtmv96MXWKDuUKarzVS0bBJgDpxml0o4GQIgOn+vRsJ4QWdmplHNCnLccMVIw7DciX6E1lWvCBTnzWk=",
+			"issuerKey": "302531233009060355040613025554301606035504030c0f4b61796c6520546573742043534341",
+			"issuerName": "C=UT, CN=Kayle Test CSCA",
+			"notAfter": "2049-12-31T00:00:00.000Z",
+			"notBefore": "2024-01-01T00:00:00.000Z",
+			"serialNumberHex": "07d1",
+			"skiHex": "8c75991d97b95ec520dc98d3dd5bef1ab1c2cf1a",
+			"sourceCountryCode": "UT",
+			"sourceDn": "cn=Kayle Test PKD Source,o=Kayle Test",
+			"subjectKey": "302431223009060355040613025554301506035504030c0e4b61796c65205465737420445343",
+			"subjectName": "C=UT, CN=Kayle Test DSC"
+		}
+	],
+	"generatedAt": "2025-01-15T00:00:00.000Z",
+	"sources": {
+		"masterListsLdif": {
+			"path": "tests://master-list.ldif",
+			"version": "test"
+		},
+		"objectLdif": {
+			"path": "tests://objects.ldif",
+			"version": "test"
+		}
+	},
+	"version": 2
+}

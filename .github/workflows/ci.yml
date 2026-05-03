@@ -173,10 +173,11 @@ jobs:
           echo "Face matcher started with PID ${MATCHER_PID}"
           wait_for_matcher
 
-          (
-            cd apps/api
-            bun ./tests/generate-test-env.ts
-          )
+          # Bun auto-loads `apps/api/.env.test` into the test process when
+          # NODE_ENV=test, and wrangler dev needs the same vars — copy the
+          # committed example into the location both expect.
+          cp ./.env.test.example ./apps/api/.env.test
+
           (
             cd apps/api
             bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230 --env test

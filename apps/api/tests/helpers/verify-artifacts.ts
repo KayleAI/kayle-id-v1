@@ -550,7 +550,11 @@ export async function createPassiveAuthTestChain({
 	cscaCommonName = TEST_CA_COMMON_NAME,
 	cscaEcNamedCurve = "P-256",
 	cscaKeyType = "ec",
+	cscaNotAfter = DEFAULT_CA_NOT_AFTER,
+	cscaNotBefore = DEFAULT_CA_NOT_BEFORE,
 	countryCode = TEST_PASSIVE_AUTH_COUNTRY_CODE,
+	crlNextUpdate = DEFAULT_CRL_NEXT_UPDATE,
+	crlThisUpdate = DEFAULT_CRL_THIS_UPDATE,
 	dscEcNamedCurve = "P-256",
 	dscKeyType = "ec",
 	dscCommonName = TEST_DSC_COMMON_NAME,
@@ -564,7 +568,11 @@ export async function createPassiveAuthTestChain({
 	cscaCommonName?: string;
 	cscaEcNamedCurve?: TestEcNamedCurve;
 	cscaKeyType?: TestKeyType;
+	cscaNotAfter?: Date;
+	cscaNotBefore?: Date;
 	countryCode?: string;
+	crlNextUpdate?: Date;
+	crlThisUpdate?: Date;
 	dscEcNamedCurve?: TestEcNamedCurve;
 	dscKeyType?: TestKeyType;
 	dscCommonName?: string;
@@ -589,8 +597,8 @@ export async function createPassiveAuthTestChain({
 		includeSubjectKeyIdentifier: includeCscaSubjectKeyIdentifier,
 		isCertificateAuthority: true,
 		keyPair: cscaKeys,
-		notAfter: DEFAULT_CA_NOT_AFTER,
-		notBefore: DEFAULT_CA_NOT_BEFORE,
+		notAfter: cscaNotAfter,
+		notBefore: cscaNotBefore,
 		serialNumber: 1001,
 	});
 	const dscKeys =
@@ -621,9 +629,9 @@ export async function createPassiveAuthTestChain({
 					issuerPrivateKey: csca.keyPair.privateKey,
 					nextUpdate: staleCrl
 						? new Date("2024-12-31T00:00:00.000Z")
-						: DEFAULT_CRL_NEXT_UPDATE,
+						: crlNextUpdate,
 					revokedCertificates: revokeDsc ? [dsc.cert] : [],
-					thisUpdate: DEFAULT_CRL_THIS_UPDATE,
+					thisUpdate: crlThisUpdate,
 				}),
 			]
 		: [];
@@ -642,9 +650,113 @@ export async function createPassiveAuthTestChain({
 let defaultPassiveAuthChainPromise: Promise<PassiveAuthTestChain> | null = null;
 
 function loadDefaultPassiveAuthChain(): Promise<PassiveAuthTestChain> {
-	defaultPassiveAuthChainPromise ??= createPassiveAuthTestChain();
+	defaultPassiveAuthChainPromise ??= loadFixedPassiveAuthChain();
 
 	return defaultPassiveAuthChainPromise;
+}
+
+const PASSIVE_AUTH_FIXTURES_DIR = new URL(
+	"../fixtures/passive-auth/",
+	import.meta.url,
+);
+
+function pemDecode(pem: string): Uint8Array {
+	const base64 = pem
+		.replace(/-----BEGIN [^-]+-----/u, "")
+		.replace(/-----END [^-]+-----/u, "")
+		.replace(/\s+/gu, "");
+	return new Uint8Array(Buffer.from(base64, "base64"));
+}
+
+function parseCertificateFromDer(der: Uint8Array): Certificate {
+	const decoded = fromBER(bufferBytes(der));
+	if (decoded.offset === -1) {
+		throw new Error("passive_auth_fixture_cert_parse_failed");
+	}
+	return new Certificate({ schema: decoded.result });
+}
+
+function importEcPrivateKey(der: Uint8Array): Promise<CryptoKey> {
+	return crypto.subtle.importKey(
+		"pkcs8",
+		bufferBytes(der),
+		{ name: "ECDSA", namedCurve: "P-256" },
+		true,
+		["sign"],
+	);
+}
+
+function importEcPublicKeyFromCertificate(
+	cert: Certificate,
+): Promise<CryptoKey> {
+	const spki = exactBytes(
+		new Uint8Array(cert.subjectPublicKeyInfo.toSchema().toBER(false)),
+	);
+	return crypto.subtle.importKey(
+		"spki",
+		bufferBytes(spki),
+		{ name: "ECDSA", namedCurve: "P-256" },
+		true,
+		["verify"],
+	);
+}
+
+async function readFixtureText(filename: string): Promise<string> {
+	const bunRuntime = getBunRuntime();
+	if (!bunRuntime) {
+		throw new Error("bun_runtime_required_for_passive_auth_fixtures");
+	}
+	const buffer = await bunRuntime
+		.file(new URL(filename, PASSIVE_AUTH_FIXTURES_DIR))
+		.arrayBuffer();
+	return new TextDecoder().decode(new Uint8Array(buffer));
+}
+
+/**
+ * Loads the committed passive-auth fixture chain. The integration test process
+ * and the API server both end up with the *same* CSCA + DSC + CRL because the
+ * fixtures live in source control — see `apps/api/tests/fixtures/passive-auth/`.
+ * Roll the fixtures via that directory's `regenerate.ts` if the validity
+ * dates ever need to be pushed further out.
+ */
+async function loadFixedPassiveAuthChain(): Promise<PassiveAuthTestChain> {
+	ensurePkijsEngine();
+	const [cscaPem, cscaKeyPem, dscPem, dscKeyPem, bundleJson] =
+		await Promise.all([
+			readFixtureText("csca.pem"),
+			readFixtureText("csca-key.pem"),
+			readFixtureText("dsc.pem"),
+			readFixtureText("dsc-key.pem"),
+			readFixtureText("trust-bundle.json"),
+		]);
+
+	const cscaDer = pemDecode(cscaPem);
+	const dscDer = pemDecode(dscPem);
+	const cscaCert = parseCertificateFromDer(cscaDer);
+	const dscCert = parseCertificateFromDer(dscDer);
+	const [cscaPrivateKey, cscaPublicKey, dscPrivateKey, dscPublicKey] =
+		await Promise.all([
+			importEcPrivateKey(pemDecode(cscaKeyPem)),
+			importEcPublicKeyFromCertificate(cscaCert),
+			importEcPrivateKey(pemDecode(dscKeyPem)),
+			importEcPublicKeyFromCertificate(dscCert),
+		]);
+
+	const trustBundle = hydratePkdTrustBundle(JSON.parse(bundleJson));
+
+	return {
+		csca: {
+			cert: cscaCert,
+			derBytes: cscaDer,
+			keyPair: { privateKey: cscaPrivateKey, publicKey: cscaPublicKey },
+		},
+		dsc: {
+			cert: dscCert,
+			derBytes: dscDer,
+			keyPair: { privateKey: dscPrivateKey, publicKey: dscPublicKey },
+		},
+		trustBundle,
+	};
 }
 
 export function createSelfieJpeg({

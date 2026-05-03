@@ -208,18 +208,27 @@ function resolveSelfieMatchThreshold(
 async function runActiveAuthValidation({
 	attemptId,
 	context,
+	sodDeclaresDg15,
 }: {
 	attemptId: string;
 	context: VerifySocketContext;
+	sodDeclaresDg15: boolean;
 }) {
-	const { activeAuthChallenge, activeAuthSignature, dg14, dg15 } =
-		context.state.transfer;
-
-	if (!dg15) {
+	if (!sodDeclaresDg15) {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				reason: "sod_no_dg15",
+			},
+			event: "verify.ws.active_auth_skipped",
+		});
 		return null;
 	}
 
-	if (!(activeAuthChallenge && activeAuthSignature)) {
+	const { activeAuthChallenge, activeAuthSignature, dg14, dg15 } =
+		context.state.transfer;
+
+	if (!(dg15 && activeAuthChallenge && activeAuthSignature)) {
 		logEvent(context.log, {
 			details: {
 				attempt_id: attemptId,
@@ -331,6 +340,7 @@ export async function runPhaseValidation(
 		return await runActiveAuthValidation({
 			attemptId,
 			context,
+			sodDeclaresDg15: authenticity.sodDeclares.dg15,
 		});
 	}
 

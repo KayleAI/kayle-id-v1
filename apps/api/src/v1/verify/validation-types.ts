@@ -26,6 +26,8 @@ export type PassiveAuthFailureReason =
 	| "signer_certificate_expired"
 	| "signer_certificate_invalid"
 	| "signer_certificate_not_yet_valid"
+	| "sod_declared_dg_missing"
+	| "sod_undeclared_dg_supplied"
 	| "trust_bundle_unavailable"
 	| "unsupported_digest_algorithm";
 
@@ -72,12 +74,18 @@ export type Dg2FaceImage = {
 
 export const DEFAULT_FACE_MATCH_THRESHOLD = 0.8;
 
+export type SodDeclares = {
+	dg14: boolean;
+	dg15: boolean;
+};
+
 export type AuthenticityValidationResult =
 	| {
 			crlStatus: Exclude<PassiveAuthCrlStatus, "not_checked" | "revoked">;
 			ok: true;
 			algorithm: SupportedHashAlgorithm;
 			signerSource: PassiveAuthSignerSource;
+			sodDeclares: SodDeclares;
 			source: "cms_signed_data";
 	  }
 	| {

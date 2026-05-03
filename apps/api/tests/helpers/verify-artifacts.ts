@@ -921,6 +921,7 @@ export async function createValidationPortraitJpeg({
 }
 
 export async function createUnsignedSodArtifact({
+	additionalDataGroupHashes = [],
 	algorithm = "SHA-256",
 	dg1,
 	dg1HashOverride,
@@ -931,6 +932,10 @@ export async function createUnsignedSodArtifact({
 }: {
 	dg1: Uint8Array;
 	dg2: Uint8Array;
+	additionalDataGroupHashes?: Array<{
+		dataGroupNumber: number;
+		hash: Uint8Array;
+	}>;
 	algorithm?: SupportedHashAlgorithm;
 	includeDg1Hash?: boolean;
 	includeDg2Hash?: boolean;
@@ -973,6 +978,21 @@ export async function createUnsignedSodArtifact({
 		);
 	}
 
+	for (const entry of additionalDataGroupHashes) {
+		dataGroupHashes.push(
+			new Sequence({
+				value: [
+					new Integer({
+						value: entry.dataGroupNumber,
+					}),
+					new OctetString({
+						valueHex: bufferBytes(entry.hash),
+					}),
+				],
+			}),
+		);
+	}
+
 	const ldsSecurityObject = new Sequence({
 		value: [
 			new Integer({
@@ -1006,6 +1026,7 @@ export async function createUnsignedSodArtifact({
 }
 
 export async function createSodArtifact({
+	additionalDataGroupHashes = [],
 	algorithm = "SHA-256",
 	dg1,
 	dg1HashOverride,
@@ -1023,6 +1044,10 @@ export async function createSodArtifact({
 }: {
 	dg1: Uint8Array;
 	dg2: Uint8Array;
+	additionalDataGroupHashes?: Array<{
+		dataGroupNumber: number;
+		hash: Uint8Array;
+	}>;
 	algorithm?: SupportedHashAlgorithm;
 	includeDg1Hash?: boolean;
 	includeDg2Hash?: boolean;
@@ -1049,6 +1074,7 @@ export async function createSodArtifact({
 	}
 
 	const contentInfoBytes = await createUnsignedSodArtifact({
+		additionalDataGroupHashes,
 		algorithm,
 		dg1,
 		dg1HashOverride,

@@ -286,15 +286,64 @@ final class PassportNFCReader: NSObject, ObservableObject {
     )
   }
 
-  /// Extracts the CA-v2 transcript from MRTDModel when available. The reader
-  /// library doesn't yet surface a `chipAuthenticationTranscript` property in
-  /// the version we depend on, so this returns nil until that hook lands —
-  /// at which point this helper is the single place to wire it in. Until
-  /// then, the server falls back to PA + AA and skips CA validation when DG14
-  /// declares no chip-auth public key. If DG14 *does* declare CA and no
-  /// transcript is uploaded, validation fails closed (clone-replay defense).
+  /// Serializes the MRTDReader-captured CA-v2 transcript into the wire layout
+  /// the backend expects (`apps/api/src/v1/verify/chip-auth-transcript.ts`).
+  /// Returns nil when the chip didn't perform CA-v2 (CA-v1, DESede, or no CA).
   private func extractChipAuthTranscript(from passport: MRTDModel) -> Data? {
-    return nil
+    guard let transcript = passport.chipAuthenticationTranscript else { return nil }
+    return Self.encodeChipAuthTranscript(transcript)
+  }
+
+  static func encodeChipAuthTranscript(_ transcript: ChipAuthenticationTranscript) -> Data? {
+    guard let oidBytes = transcript.oid.data(using: .utf8) else { return nil }
+
+    let keyIdBytes = transcript.keyId.map { encodeUnsignedBigEndian(Int($0)) } ?? Data()
+    guard keyIdBytes.count <= 0xFF else { return nil }
+
+    let sk = transcript.terminalPrivateKey
+    let pk = transcript.terminalPublicKey
+    let nonce = transcript.chipNonce
+    let token = transcript.chipToken
+
+    guard oidBytes.count <= 0xFFFF,
+          sk.count <= 0xFFFF,
+          pk.count <= 0xFFFF,
+          nonce.count <= 0xFF,
+          token.count <= 0xFF else {
+      return nil
+    }
+
+    var out = Data()
+    out.append(0x01)  // version
+    appendUInt16BE(&out, oidBytes.count)
+    out.append(oidBytes)
+    out.append(UInt8(keyIdBytes.count))
+    out.append(keyIdBytes)
+    appendUInt16BE(&out, sk.count)
+    out.append(contentsOf: sk)
+    appendUInt16BE(&out, pk.count)
+    out.append(contentsOf: pk)
+    out.append(UInt8(nonce.count))
+    out.append(contentsOf: nonce)
+    out.append(UInt8(token.count))
+    out.append(contentsOf: token)
+    return out
+  }
+
+  private static func appendUInt16BE(_ data: inout Data, _ value: Int) {
+    data.append(UInt8((value >> 8) & 0xFF))
+    data.append(UInt8(value & 0xFF))
+  }
+
+  private static func encodeUnsignedBigEndian(_ value: Int) -> Data {
+    if value == 0 { return Data() }
+    var v = value
+    var bytes = [UInt8]()
+    while v > 0 {
+      bytes.insert(UInt8(v & 0xFF), at: 0)
+      v >>= 8
+    }
+    return Data(bytes)
   }
 
   private func buildMRZKey(from mrz: String) throws -> String {

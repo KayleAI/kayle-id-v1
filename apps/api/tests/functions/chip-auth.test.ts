@@ -611,6 +611,197 @@ async function deriveBitsBetween({
 	return new Uint8Array(bits);
 }
 
+/**
+ * Byte-for-byte mirror of the Swift `PassportNFCReader.encodeChipAuthTranscript`
+ * helper. Keeps the iOS encoder pinned against this test — any drift in the
+ * Swift implementation will fail the equality assertion below.
+ */
+function iosMirrorEncodeChipAuthTranscript(input: {
+	oid: string;
+	keyId: number | null;
+	terminalPrivateKey: Uint8Array;
+	terminalPublicKey: Uint8Array;
+	chipNonce: Uint8Array;
+	chipToken: Uint8Array;
+}): Uint8Array {
+	const oidBytes = new TextEncoder().encode(input.oid);
+	const keyIdBytes = (() => {
+		if (input.keyId === null || input.keyId === 0) {
+			return new Uint8Array();
+		}
+		const out: number[] = [];
+		let remaining = input.keyId;
+		while (remaining > 0) {
+			out.unshift(remaining & 0xff);
+			remaining = remaining >>> 8;
+		}
+		return Uint8Array.from(out);
+	})();
+
+	const u16be = (n: number) => Uint8Array.of((n >> 8) & 0xff, n & 0xff);
+
+	return concat(
+		Uint8Array.of(0x01),
+		u16be(oidBytes.length),
+		oidBytes,
+		Uint8Array.of(keyIdBytes.length),
+		keyIdBytes,
+		u16be(input.terminalPrivateKey.length),
+		input.terminalPrivateKey,
+		u16be(input.terminalPublicKey.length),
+		input.terminalPublicKey,
+		Uint8Array.of(input.chipNonce.length),
+		input.chipNonce,
+		Uint8Array.of(input.chipToken.length),
+		input.chipToken,
+	);
+}
+
+describe("iOS encoder ↔ backend parser round-trip", () => {
+	test("Swift-mirror encoder produces bytes identical to the test encoder", () => {
+		const inputs = {
+			chipNonce: hexToBytes("00112233445566778899aabbccddeeff"),
+			chipToken: hexToBytes("0011223344556677"),
+			keyId: 1,
+			oid: ID_CA_ECDH_AES_CBC_CMAC_128_OID,
+			terminalPrivateKey: hexToBytes("aa".repeat(32)),
+			terminalPublicKey: concat(
+				Uint8Array.of(0x04),
+				hexToBytes("bb".repeat(32)),
+				hexToBytes("cc".repeat(32)),
+			),
+		};
+
+		const reference = buildTranscript({
+			chipNonce: inputs.chipNonce,
+			chipToken: inputs.chipToken,
+			keyId: BigInt(inputs.keyId),
+			oid: inputs.oid,
+			terminalPrivateKey: inputs.terminalPrivateKey,
+			terminalPublicKey: inputs.terminalPublicKey,
+		});
+
+		const fromIosMirror = iosMirrorEncodeChipAuthTranscript(inputs);
+		expect(bytesToHex(fromIosMirror)).toBe(bytesToHex(reference));
+	});
+
+	test("iOS-mirror encoded transcript validates end-to-end", async () => {
+		const chip = await generateP256KeyPair();
+		const terminal = await generateP256KeyPair();
+		const oid = ID_CA_ECDH_AES_CBC_CMAC_128_OID;
+
+		const dg14 = buildDg14({
+			caOid: oid,
+			chipPublicKeySpki: buildEcdhSubjectPublicKeyInfo({
+				publicPoint: chip.publicPoint,
+			}),
+			keyId: 1n,
+		});
+
+		const sharedSecret = await crypto.subtle
+			.deriveBits(
+				{
+					$public: chip.keyPair.publicKey,
+					name: "ECDH",
+					public: chip.keyPair.publicKey,
+				} as never,
+				terminal.keyPair.privateKey,
+				256,
+			)
+			.then((bits) => new Uint8Array(bits));
+
+		const chipNonce = crypto.getRandomValues(new Uint8Array(16));
+		const kMac = await deriveChipAuthKMac({
+			hash: "SHA-1",
+			keyLength: 16,
+			nonce: chipNonce,
+			sharedSecret,
+		});
+		const tokenInput = encodeAuthenticatedPublicKeyTokenInput({
+			algorithmOid: ID_PK_ECDH_OID,
+			terminalPublicKey: terminal.publicPoint,
+		});
+		const chipToken = truncateMacToken(
+			await aesCmac({ key: kMac, message: tokenInput }),
+		);
+
+		const transcript = iosMirrorEncodeChipAuthTranscript({
+			chipNonce,
+			chipToken,
+			keyId: 1,
+			oid,
+			terminalPrivateKey: terminal.privateScalar,
+			terminalPublicKey: terminal.publicPoint,
+		});
+
+		const result = await validateChipAuthentication({
+			chipAuthData: transcript,
+			dg14,
+		});
+
+		expect(result.ok).toBe(true);
+	});
+});
+
+describe("DG14 chip-auth version gating", () => {
+	test("parseDg14 captures version 2 from CA-v2 SecurityInfos", async () => {
+		const { publicPoint } = await generateP256KeyPair();
+		const dg14 = buildDg14({
+			caOid: ID_CA_ECDH_AES_CBC_CMAC_128_OID,
+			chipPublicKeySpki: buildEcdhSubjectPublicKeyInfo({ publicPoint }),
+			keyId: 1n,
+		});
+		const parsed = parseDg14(dg14);
+		expect(parsed.chipAuthInfos[0]?.version).toBe(2);
+	});
+
+	test("parseDg14 captures version 1 from CA-v1 SecurityInfos", async () => {
+		const { publicPoint } = await generateP256KeyPair();
+		const spki = buildEcdhSubjectPublicKeyInfo({ publicPoint });
+		const spkiSequence = (() => {
+			const { fromBER } = require("asn1js") as typeof import("asn1js");
+			const decoded = fromBER(bufferBytes(spki));
+			if (decoded.offset === -1) {
+				throw new Error("test_sequence_parse_failed");
+			}
+			return decoded.result;
+		})();
+
+		const chipAuthInfo = new Sequence({
+			value: [
+				new ObjectIdentifier({ value: ID_CA_ECDH_AES_CBC_CMAC_128_OID }),
+				new Integer({ value: 1 }),
+				new Integer({ value: 1 }),
+			] as never,
+		});
+		const chipAuthPublicKeyInfo = new Sequence({
+			value: [
+				new ObjectIdentifier({ value: ID_PK_ECDH_OID }),
+				spkiSequence,
+				new Integer({ value: 1 }),
+			] as never,
+		});
+		const securityInfos = new Asn1Set({
+			value: [chipAuthInfo, chipAuthPublicKeyInfo],
+		});
+		const inner = new Uint8Array(securityInfos.toBER(false));
+		const lenBytes = (() => {
+			if (inner.length < 0x80) return Uint8Array.of(inner.length);
+			const out: number[] = [];
+			let r = inner.length;
+			while (r > 0) {
+				out.unshift(r & 0xff);
+				r = Math.floor(r / 256);
+			}
+			return Uint8Array.from([0x80 | out.length, ...out]);
+		})();
+		const dg14 = concat(Uint8Array.of(0x6e), lenBytes, inner);
+
+		const parsed = parseDg14(dg14);
+		expect(parsed.chipAuthInfos[0]?.version).toBe(1);
+	});
+});
+
 describe("OID hash registry", () => {
 	test("AES-128 CMAC variant uses SHA-1 and 16-byte keys", () => {
 		const transcript = buildTranscript({

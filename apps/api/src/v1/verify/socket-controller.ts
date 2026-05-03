@@ -160,11 +160,13 @@ export function startVerifySocketSession(
 					message: "WebSocket message handling failed.",
 					status: 500,
 				});
+				// Never forward raw error.message to the client — Drizzle and pg-pool
+				// errors include the failing SQL + parameter values, which can leak
+				// schema and internal identifiers, and the same string ends up in
+				// our logs via `send_error` debug.
 				context.transport.sendError(
 					"INTERNAL_ERROR",
-					error instanceof Error
-						? error.message
-						: "Unknown websocket handling error.",
+					"An internal server error occurred.",
 				);
 				context.transport.closeSocket(1011, "INTERNAL_ERROR");
 			});

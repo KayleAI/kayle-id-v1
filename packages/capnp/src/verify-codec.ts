@@ -43,6 +43,9 @@ export interface VerifyServerMessage {
   ack?: {
     message: string;
   };
+  activeAuthChallenge?: {
+    challenge: Uint8Array;
+  };
   error?: {
     code: string;
     message: string;
@@ -70,6 +73,9 @@ export interface VerifyServerMessage {
 }
 
 export type VerifyServerVerdict = NonNullable<VerifyServerMessage["verdict"]>;
+export type VerifyServerActiveAuthChallenge = NonNullable<
+  VerifyServerMessage["activeAuthChallenge"]
+>;
 export type VerifyShareRequest = NonNullable<
   VerifyServerMessage["shareRequest"]
 >;
@@ -93,6 +99,12 @@ function toCapnpDataKind(
       return CapnpDataKind.SOD;
     case CapnpDataKind.SELFIE:
       return CapnpDataKind.SELFIE;
+    case CapnpDataKind.DG14:
+      return CapnpDataKind.DG14;
+    case CapnpDataKind.DG15:
+      return CapnpDataKind.DG15;
+    case CapnpDataKind.ACTIVE_AUTH:
+      return CapnpDataKind.ACTIVE_AUTH;
     default:
       return CapnpDataKind.DG1;
   }
@@ -147,6 +159,17 @@ export function encodeServerShareRequest(
     item.required = field.required;
   }
 
+  return new Uint8Array(packet.toArrayBuffer());
+}
+
+export function encodeServerActiveAuthChallenge(
+  challenge: VerifyServerActiveAuthChallenge
+): Uint8Array {
+  const packet = new Message();
+  const root = packet.initRoot(CapnpServerMessage);
+  const next = root._initActiveAuthChallenge();
+  const challengeBytes = challenge.challenge ?? new Uint8Array();
+  next._initChallenge(challengeBytes.length).copyBuffer(challengeBytes);
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -220,6 +243,14 @@ export function decodeServerMessage(
           },
         };
       }
+      case CapnpServerMessage.ACTIVE_AUTH_CHALLENGE:
+        return {
+          activeAuthChallenge: {
+            challenge: new Uint8Array(
+              root.activeAuthChallenge.challenge.toUint8Array()
+            ),
+          },
+        };
       case CapnpServerMessage.SHARE_READY: {
         const selectedFieldKeys = root.shareReady.selectedFieldKeys;
         const decodedKeys: string[] = [];

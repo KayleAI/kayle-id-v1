@@ -982,6 +982,114 @@ describe("verify validation engine", () => {
 		}
 	});
 
+	test("fails authenticity when DG15 bytes are uploaded without a matching SOD hash entry", async () => {
+		const artifacts = await createValidNfcArtifacts();
+		const dg15 = Uint8Array.of(0x6f, 0x03, 0x01, 0x02, 0x03);
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+			dg15,
+		});
+
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.reason).toBe("sod_undeclared_dg_supplied");
+		}
+	});
+
+	test("fails authenticity when SOD declares DG15 hash but client omits DG15 bytes", async () => {
+		const artifacts = await createValidNfcArtifacts();
+		const dg15 = Uint8Array.of(0x6f, 0x03, 0x01, 0x02, 0x03);
+		const dg15Hash = new Uint8Array(
+			await crypto.subtle.digest("SHA-256", dg15),
+		);
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+			sod: await createSodArtifact({
+				additionalDataGroupHashes: [{ dataGroupNumber: 15, hash: dg15Hash }],
+				dg1: artifacts.dg1,
+				dg2: artifacts.dg2,
+			}),
+		});
+
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.reason).toBe("sod_declared_dg_missing");
+		}
+	});
+
+	test("fails authenticity when SOD declares DG14 hash but client omits DG14 bytes", async () => {
+		const artifacts = await createValidNfcArtifacts();
+		const dg14 = Uint8Array.of(0x6e, 0x03, 0x0a, 0x0b, 0x0c);
+		const dg14Hash = new Uint8Array(
+			await crypto.subtle.digest("SHA-256", dg14),
+		);
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+			sod: await createSodArtifact({
+				additionalDataGroupHashes: [{ dataGroupNumber: 14, hash: dg14Hash }],
+				dg1: artifacts.dg1,
+				dg2: artifacts.dg2,
+			}),
+		});
+
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.reason).toBe("sod_declared_dg_missing");
+		}
+	});
+
+	test("passes authenticity with sodDeclares={dg14:false,dg15:false} when SOD declares neither", async () => {
+		const artifacts = await createValidNfcArtifacts();
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+		});
+
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
+			expect(result.sodDeclares.dg14).toBeFalse();
+			expect(result.sodDeclares.dg15).toBeFalse();
+		}
+	});
+
+	test("passes authenticity with sodDeclares={dg14:true,dg15:true} when SOD declares both and client uploads matching bytes", async () => {
+		const artifacts = await createValidNfcArtifacts();
+		const dg14 = Uint8Array.of(0x6e, 0x03, 0x0a, 0x0b, 0x0c);
+		const dg15 = Uint8Array.of(0x6f, 0x03, 0x01, 0x02, 0x03);
+		const [dg14Hash, dg15Hash] = await Promise.all([
+			crypto.subtle.digest("SHA-256", dg14),
+			crypto.subtle.digest("SHA-256", dg15),
+		]);
+
+		const result = await validateAuthenticity({
+			...artifacts,
+			checkDate: TEST_PASSIVE_AUTH_CHECK_DATE,
+			dg14,
+			dg15,
+			sod: await createSodArtifact({
+				additionalDataGroupHashes: [
+					{ dataGroupNumber: 14, hash: new Uint8Array(dg14Hash) },
+					{ dataGroupNumber: 15, hash: new Uint8Array(dg15Hash) },
+				],
+				dg1: artifacts.dg1,
+				dg2: artifacts.dg2,
+			}),
+		});
+
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
+			expect(result.sodDeclares.dg14).toBeTrue();
+			expect(result.sodDeclares.dg15).toBeTrue();
+		}
+	});
+
 	test("fails authenticity on digest mismatch", async () => {
 		const dg1 = new TextEncoder().encode(
 			"P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",

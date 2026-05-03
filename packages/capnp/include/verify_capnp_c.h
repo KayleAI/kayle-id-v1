@@ -12,7 +12,10 @@ typedef enum verify_data_kind {
   VERIFY_DATA_DG1 = 0,
   VERIFY_DATA_DG2 = 1,
   VERIFY_DATA_SOD = 2,
-  VERIFY_DATA_SELFIE = 3
+  VERIFY_DATA_SELFIE = 3,
+  VERIFY_DATA_DG14 = 4,
+  VERIFY_DATA_DG15 = 5,
+  VERIFY_DATA_ACTIVE_AUTH = 6
 } verify_data_kind_t;
 
 typedef enum verify_server_message_kind {
@@ -21,7 +24,8 @@ typedef enum verify_server_message_kind {
   VERIFY_SERVER_MESSAGE_ERROR = 2,
   VERIFY_SERVER_MESSAGE_VERDICT = 3,
   VERIFY_SERVER_MESSAGE_SHARE_REQUEST = 4,
-  VERIFY_SERVER_MESSAGE_SHARE_READY = 5
+  VERIFY_SERVER_MESSAGE_SHARE_READY = 5,
+  VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE = 6
 } verify_server_message_kind_t;
 
 typedef enum verify_server_verdict_outcome {
@@ -122,6 +126,13 @@ int verify_server_message_get_share_ready_field(
   uint32_t field_index,
   char* out_key,
   size_t out_key_size
+);
+
+int verify_server_message_get_active_auth_challenge(
+  void* message_reader,
+  uint8_t* out_challenge,
+  size_t out_challenge_size,
+  size_t* out_challenge_length
 );
 
 #ifdef __cplusplus

@@ -4,8 +4,15 @@ export type VerifyChunkEntry = {
 };
 
 type RequiredNfcArtifact = "dg1" | "dg2" | "sod";
+const DG1_KIND = 0;
+const DG2_KIND = 1;
+const SOD_KIND = 2;
 const SELFIE_KIND = 3;
+const DG14_KIND = 4;
+const DG15_KIND = 5;
+const ACTIVE_AUTH_KIND = 6;
 const REQUIRED_SELFIE_TOTAL = 3;
+const ACTIVE_AUTH_CHALLENGE_BYTES = 8;
 
 // Size caps for inbound verify uploads. These are intentionally conservative
 // and may need to be widened with telemetry from real-world passport reads.
@@ -42,6 +49,10 @@ export type VerifyTransferState = {
 	dg1?: Uint8Array;
 	dg2?: Uint8Array;
 	sod?: Uint8Array;
+	dg14?: Uint8Array;
+	dg15?: Uint8Array;
+	activeAuthChallenge?: Uint8Array;
+	activeAuthSignature?: Uint8Array;
 	selfies: Map<number, Uint8Array>;
 	chunks: Map<string, VerifyChunkEntry>;
 	/** Cumulative bytes received across all chunks/artifacts for this attempt. */
@@ -81,6 +92,10 @@ export function resetTransferState(state: VerifyTransferState): void {
 	state.dg1 = undefined;
 	state.dg2 = undefined;
 	state.sod = undefined;
+	state.dg14 = undefined;
+	state.dg15 = undefined;
+	state.activeAuthChallenge = undefined;
+	state.activeAuthSignature = undefined;
 	state.chunks.clear();
 	state.bytesReceived = 0;
 }
@@ -131,7 +146,14 @@ function getMissingChunkIndices(entry: VerifyChunkEntry): number[] {
 }
 
 export function isNfcDataKind(kind: number): boolean {
-	return kind === 0 || kind === 1 || kind === 2;
+	return (
+		kind === DG1_KIND ||
+		kind === DG2_KIND ||
+		kind === SOD_KIND ||
+		kind === DG14_KIND ||
+		kind === DG15_KIND ||
+		kind === ACTIVE_AUTH_KIND
+	);
 }
 
 export function isSelfieDataKind(kind: number): boolean {
@@ -317,6 +339,23 @@ function assembleChunk({
 	return { complete: true, data: merged };
 }
 
+function storeActiveAuthData(
+	state: VerifyTransferState,
+	data: Uint8Array,
+): { ok: true } | { ok: false; code: string; message: string } {
+	if (data.length <= ACTIVE_AUTH_CHALLENGE_BYTES) {
+		return {
+			ok: false,
+			code: "ACTIVE_AUTH_PAYLOAD_INVALID",
+			message: "Active authentication payload is invalid.",
+		};
+	}
+
+	state.activeAuthChallenge = data.slice(0, ACTIVE_AUTH_CHALLENGE_BYTES);
+	state.activeAuthSignature = data.slice(ACTIVE_AUTH_CHALLENGE_BYTES);
+	return { ok: true };
+}
+
 function storeData({
 	state,
 	kind,
@@ -337,18 +376,26 @@ function storeData({
 	}
 
 	switch (kind) {
-		case 0:
+		case DG1_KIND:
 			state.dg1 = data;
 			return { ok: true };
-		case 1:
+		case DG2_KIND:
 			state.dg2 = data;
 			return { ok: true };
-		case 2:
+		case SOD_KIND:
 			state.sod = data;
 			return { ok: true };
-		case 3:
+		case SELFIE_KIND:
 			state.selfies.set(index, data);
 			return { ok: true };
+		case DG14_KIND:
+			state.dg14 = data;
+			return { ok: true };
+		case DG15_KIND:
+			state.dg15 = data;
+			return { ok: true };
+		case ACTIVE_AUTH_KIND:
+			return storeActiveAuthData(state, data);
 		default:
 			return {
 				ok: false,

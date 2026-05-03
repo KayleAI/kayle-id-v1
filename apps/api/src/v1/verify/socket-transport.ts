@@ -1,5 +1,6 @@
 import {
 	encodeServerAck,
+	encodeServerActiveAuthChallenge,
 	encodeServerError,
 	encodeServerShareReady,
 	encodeServerShareRequest,
@@ -68,6 +69,11 @@ export function createVerifySocketTransport({
 		safeSend(encodeServerAck(message));
 	};
 
+	const sendActiveAuthChallenge = (challenge: Uint8Array) => {
+		logDebug("send_active_auth_challenge", { byte_length: challenge.length });
+		safeSend(encodeServerActiveAuthChallenge({ challenge }));
+	};
+
 	const sendError = (code: string, message: string) => {
 		logDebug("send_error", { code, message });
 		safeSend(encodeServerError(code, message));
@@ -124,6 +130,7 @@ export function createVerifySocketTransport({
 		closeSocket,
 		logDebug,
 		sendAck,
+		sendActiveAuthChallenge,
 		sendAuthErrorAndClose: (code) => {
 			const message = resolveVerifyErrorMessage(code);
 			logEvent(log, {

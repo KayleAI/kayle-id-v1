@@ -139,9 +139,38 @@ verify_server_message_kind_t verify_server_message_kind(void* message_reader) {
       return VERIFY_SERVER_MESSAGE_SHARE_REQUEST;
     case ServerMessage::SHARE_READY:
       return VERIFY_SERVER_MESSAGE_SHARE_READY;
+    case ServerMessage::ACTIVE_AUTH_CHALLENGE:
+      return VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE;
     default:
       return VERIFY_SERVER_MESSAGE_NONE;
   }
+}
+
+int verify_server_message_get_active_auth_challenge(
+  void* message_reader,
+  uint8_t* out_challenge,
+  size_t out_challenge_size,
+  size_t* out_challenge_length
+) {
+  if (!message_reader || !out_challenge_length) {
+    return 0;
+  }
+
+  auto* reader = reinterpret_cast<capnp::MessageReader*>(message_reader);
+  auto root = reader->getRoot<ServerMessage>();
+  if (root.which() != ServerMessage::ACTIVE_AUTH_CHALLENGE) {
+    return 0;
+  }
+
+  auto challenge = root.getActiveAuthChallenge().getChallenge();
+  *out_challenge_length = challenge.size();
+
+  if (!out_challenge || out_challenge_size < challenge.size()) {
+    return 0;
+  }
+
+  std::memcpy(out_challenge, challenge.begin(), challenge.size());
+  return 1;
 }
 
 int verify_server_message_get_ack(

@@ -95,7 +95,9 @@ private enum PreviewFixtures {
     gender: "F",
     expiryDate: "2030-01-01",
     issuingAuthority: "GBR",
-    documentType: "Passport"
+    documentType: "Passport",
+    activeAuthChallenge: nil,
+    activeAuthSignature: nil
   )
 
   static let shareRequest = VerifyShareRequest(

@@ -350,16 +350,84 @@ async function validateSignerCandidate({
 	};
 }
 
+type OptionalDgCheckResult =
+	| { ok: true }
+	| {
+			ok: false;
+			reason:
+				| "dg_hash_mismatch"
+				| "sod_declared_dg_missing"
+				| "sod_undeclared_dg_supplied";
+	  };
+
+async function verifyDeclaredDgHash({
+	algorithm,
+	bytes,
+	expectedHash,
+}: {
+	algorithm: ParsedSodSecurityObject["algorithm"];
+	bytes: Uint8Array | undefined;
+	expectedHash: Uint8Array;
+}): Promise<OptionalDgCheckResult> {
+	if (!bytes || bytes.length === 0) {
+		return { ok: false, reason: "sod_declared_dg_missing" };
+	}
+
+	const actualHash = await createDigest(algorithm, bytes);
+
+	if (!bytesEqual(actualHash, expectedHash)) {
+		return { ok: false, reason: "dg_hash_mismatch" };
+	}
+
+	return { ok: true };
+}
+
+function assertUndeclaredDgAbsent({
+	bytes,
+}: {
+	bytes: Uint8Array | undefined;
+}): OptionalDgCheckResult {
+	if (bytes && bytes.length > 0) {
+		return { ok: false, reason: "sod_undeclared_dg_supplied" };
+	}
+
+	return { ok: true };
+}
+
+async function checkOptionalDg({
+	algorithm,
+	bytes,
+	dataGroupNumber,
+	dgHashes,
+}: {
+	algorithm: ParsedSodSecurityObject["algorithm"];
+	bytes: Uint8Array | undefined;
+	dataGroupNumber: number;
+	dgHashes: Map<number, Uint8Array>;
+}): Promise<OptionalDgCheckResult> {
+	const expectedHash = dgHashes.get(dataGroupNumber);
+
+	if (expectedHash) {
+		return verifyDeclaredDgHash({ algorithm, bytes, expectedHash });
+	}
+
+	return assertUndeclaredDgAbsent({ bytes });
+}
+
 export async function validateAuthenticity({
 	checkDate = new Date(),
 	dg1,
 	dg2,
+	dg14,
+	dg15,
 	sod,
 	trustBundle,
 }: {
 	checkDate?: Date;
 	dg1: Uint8Array;
 	dg2: Uint8Array;
+	dg14?: Uint8Array;
+	dg15?: Uint8Array;
 	sod: Uint8Array;
 	trustBundle?: PkdTrustBundle;
 }): Promise<AuthenticityValidationResult> {
@@ -407,6 +475,29 @@ export async function validateAuthenticity({
 		return failureResult({
 			reason: "dg_hash_mismatch",
 		});
+	}
+
+	const [dg14Check, dg15Check] = await Promise.all([
+		checkOptionalDg({
+			algorithm: parsed.algorithm,
+			bytes: dg14,
+			dataGroupNumber: 14,
+			dgHashes: parsed.dgHashes,
+		}),
+		checkOptionalDg({
+			algorithm: parsed.algorithm,
+			bytes: dg15,
+			dataGroupNumber: 15,
+			dgHashes: parsed.dgHashes,
+		}),
+	]);
+
+	if (!dg14Check.ok) {
+		return failureResult({ reason: dg14Check.reason });
+	}
+
+	if (!dg15Check.ok) {
+		return failureResult({ reason: dg15Check.reason });
 	}
 
 	const bundle = (() => {
@@ -471,6 +562,10 @@ export async function validateAuthenticity({
 			crlStatus: evaluation.crlStatus,
 			ok: true,
 			signerSource: signer.signerSource,
+			sodDeclares: {
+				dg14: parsed.dgHashes.has(14),
+				dg15: parsed.dgHashes.has(15),
+			},
 			source: "cms_signed_data",
 		};
 	}

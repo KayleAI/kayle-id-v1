@@ -105,6 +105,11 @@ final class VerificationSession: ObservableObject {
   @Published var nfcResult: PassportReadResult?
   @Published var selfieImages: [UIImage] = []
   @Published var hasRFIDSymbol: Bool?
+  /// AA challenge issued by the server. Set asynchronously after hello — must
+  /// be threaded into PassportReader so the chip signs *this* nonce, not one
+  /// the client picked. Closes the Challenge Semantics weakness from
+  /// ICAO 9303 Part 11 §6.1.
+  @Published var activeAuthChallenge: Data?
 
   // Services
   private var webSocketService: VerifyWebSocketService?
@@ -427,6 +432,20 @@ final class VerificationSession: ObservableObject {
             return
           }
           self.handleShareRequest(shareRequest)
+        }
+      },
+      onActiveAuthChallenge: { [weak self] challenge in
+        Task { @MainActor [weak self] in
+          guard
+            let self,
+            shouldHandleAttemptScopedEvent(
+              currentAttemptId: self.payload?.attemptId,
+              eventAttemptId: attemptId
+            )
+          else {
+            return
+          }
+          self.activeAuthChallenge = challenge
         }
       }
     )
@@ -819,11 +838,29 @@ final class VerificationSession: ObservableObject {
       )
     }
 
-    return [
+    var plans: [NFCUploadPlan] = [
       NFCUploadPlan(kind: .dg1, chunks: chunkData(dg1.data, chunkSize: nfcChunkSize)),
       NFCUploadPlan(kind: .dg2, chunks: chunkData(dg2.data, chunkSize: nfcChunkSize)),
       NFCUploadPlan(kind: .sod, chunks: chunkData(sod.data, chunkSize: nfcChunkSize)),
     ]
+
+    if let dg14 = result.dataGroups.first(where: { $0.id == 0x6E }) {
+      plans.append(NFCUploadPlan(kind: .dg14, chunks: chunkData(dg14.data, chunkSize: nfcChunkSize)))
+    }
+
+    if let dg15 = result.dataGroups.first(where: { $0.id == 0x6F }) {
+      plans.append(NFCUploadPlan(kind: .dg15, chunks: chunkData(dg15.data, chunkSize: nfcChunkSize)))
+
+      if let challenge = result.activeAuthChallenge,
+         let signature = result.activeAuthSignature {
+        var aaPayload = Data()
+        aaPayload.append(challenge)
+        aaPayload.append(signature)
+        plans.append(NFCUploadPlan(kind: .activeAuth, chunks: chunkData(aaPayload, chunkSize: nfcChunkSize)))
+      }
+    }
+
+    return plans
   }
 
   private func chunkData(_ raw: Data, chunkSize: Int) -> [Data] {

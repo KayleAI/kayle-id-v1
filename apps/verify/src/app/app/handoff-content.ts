@@ -67,6 +67,14 @@ export function buildTerminalContent(
 		};
 	}
 
+	if (failureCode === "passport_active_authentication_failed") {
+		return {
+			colour: "red",
+			...VERIFY_HANDOFF_COPY.screens.terminal
+				.passportActiveAuthenticationFailed,
+		};
+	}
+
 	if (failureCode === "selfie_face_mismatch") {
 		return {
 			colour: "red",

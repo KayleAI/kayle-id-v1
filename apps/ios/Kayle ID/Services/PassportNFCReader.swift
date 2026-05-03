@@ -21,6 +21,11 @@ struct PassportReadResult: Equatable {
   let issuingAuthority: String
   let documentType: String
 
+  // Active Authentication (ICAO 9303 Part 11 §6.1) — populated when the chip
+  // exposes DG15 and MRTDReader successfully ran the challenge/response.
+  let activeAuthChallenge: Data?
+  let activeAuthSignature: Data?
+
   // Custom Equatable - compare document fields, not images
   static func == (lhs: PassportReadResult, rhs: PassportReadResult) -> Bool {
     lhs.mrz == rhs.mrz &&
@@ -34,12 +39,12 @@ struct PassportReadResult: Equatable {
     var dict: [String: Any] = [:]
 
     // DG1 (MRZ from chip)
-    if let dg1 = dataGroups.first(where: { $0.id == 1 }) {
+    if let dg1 = dataGroups.first(where: { $0.id == 0x61 }) {
       dict["dg1"] = ["raw": dg1.data.base64EncodedString()]
     }
 
     // DG2 (Face image)
-    if let dg2 = dataGroups.first(where: { $0.id == 2 }) {
+    if let dg2 = dataGroups.first(where: { $0.id == 0x75 }) {
       var dg2Dict: [String: Any] = ["raw": dg2.data.base64EncodedString()]
       if let image = passportImage, let jpeg = image.jpegData(compressionQuality: 0.8) {
         dg2Dict["faceImage"] = jpeg.base64EncodedString()
@@ -50,6 +55,21 @@ struct PassportReadResult: Equatable {
     // SOD (Security Object Document) - if available
     if let sod = dataGroups.first(where: { $0.name.contains("SOD") }) {
       dict["sod"] = ["raw": sod.data.base64EncodedString()]
+    }
+
+    if let dg14 = dataGroups.first(where: { $0.id == 0x6E }) {
+      dict["dg14"] = ["raw": dg14.data.base64EncodedString()]
+    }
+
+    if let dg15 = dataGroups.first(where: { $0.id == 0x6F }) {
+      dict["dg15"] = ["raw": dg15.data.base64EncodedString()]
+    }
+
+    if let challenge = activeAuthChallenge, let signature = activeAuthSignature {
+      dict["activeAuth"] = [
+        "challenge": challenge.base64EncodedString(),
+        "signature": signature.base64EncodedString(),
+      ]
     }
 
     return try JSONSerialization.data(withJSONObject: dict)
@@ -73,6 +93,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
   private var currentMRZ: String = ""
   private var currentMRZKey: String = ""
   private var currentCardAccessNumber: String?
+  private var currentActiveAuthChallenge: [UInt8]?
   private var readTask: Task<Void, Never>?
 
   nonisolated override init() {
@@ -89,6 +110,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
     currentMRZ = ""
     currentMRZKey = ""
     currentCardAccessNumber = nil
+    currentActiveAuthChallenge = nil
     result = nil
     errorMessage = nil
     progress = 0
@@ -97,16 +119,26 @@ final class PassportNFCReader: NSObject, ObservableObject {
 
   /// Start NFC reading with a pre-computed MRZ key (BAC authentication key).
   /// The mrzKey should be: documentNumber + checkDigit + birthDate + checkDigit + expiryDate + checkDigit
-  func start(mrzKey: String, cardAccessNumber: String? = nil) {
+  ///
+  /// `activeAuthChallenge` is an optional server-issued nonce. When provided
+  /// the chip is asked to sign exactly these bytes during Active
+  /// Authentication, blocking the Challenge Semantics replay where a
+  /// compromised client could pick the challenge.
+  func start(
+    mrzKey: String,
+    cardAccessNumber: String? = nil,
+    activeAuthChallenge: Data? = nil
+  ) {
     stop()
     status = "Initializing NFC reader..."
-    
+
     // Setup delegate first
     setupDelegate()
-    
+
     currentMRZ = mrzKey
     currentMRZKey = mrzKey
     currentCardAccessNumber = cardAccessNumber
+    currentActiveAuthChallenge = activeAuthChallenge.map { Array($0) }
 
     // Validate MRZ key format (should be around 24 characters: 9+1+6+1+6+1)
     guard mrzKey.count >= 20 else {
@@ -117,22 +149,30 @@ final class PassportNFCReader: NSObject, ObservableObject {
 
     // Cancel any existing read task
     readTask?.cancel()
-    
+
     // Update status before starting
     status = "Press your document against your device and hold still to read the chip."
-    
+
     // Start reading on a background task
     readTask = Task { [weak self] in
       await self?.readPassport()
     }
   }
-  
+
   /// Start NFC reading by parsing a full MRZ string.
   /// Use this when you have the raw MRZ from the scanner.
-  func start(mrz: String, cardAccessNumber: String? = nil) {
+  func start(
+    mrz: String,
+    cardAccessNumber: String? = nil,
+    activeAuthChallenge: Data? = nil
+  ) {
     do {
       let mrzKey = try buildMRZKey(from: mrz)
-      start(mrzKey: mrzKey, cardAccessNumber: cardAccessNumber)
+      start(
+        mrzKey: mrzKey,
+        cardAccessNumber: cardAccessNumber,
+        activeAuthChallenge: activeAuthChallenge
+      )
     } catch {
       result = nil
       errorMessage = "We couldn't use this scan to read the chip. Try scanning again."
@@ -145,7 +185,8 @@ final class PassportNFCReader: NSObject, ObservableObject {
       let config = PassportReadingConfiguration(
         mrzKey: currentMRZKey,
         cardAccessNumber: currentCardAccessNumber,
-        dataGroups: [.DG1, .DG2, .SOD],
+        dataGroups: [.DG1, .DG2, .DG14, .DG15, .SOD],
+        aaChallenge: currentActiveAuthChallenge,
         displayMessageHandler: { [weak self] message in
           self?.handleDisplayMessage(message)
           return nil
@@ -206,6 +247,13 @@ final class PassportNFCReader: NSObject, ObservableObject {
         )
       }
 
+    let aaChallenge = passport.activeAuthenticationChallenge.isEmpty
+      ? nil
+      : Data(passport.activeAuthenticationChallenge)
+    let aaSignature = passport.activeAuthenticationSignature.isEmpty
+      ? nil
+      : Data(passport.activeAuthenticationSignature)
+
     return PassportReadResult(
       mrz: currentMRZ,
       dg1MRZ: dg1MRZ,
@@ -220,7 +268,9 @@ final class PassportNFCReader: NSObject, ObservableObject {
       gender: passport.gender,
       expiryDate: passport.documentExpiryDate,
       issuingAuthority: passport.issuingAuthority,
-      documentType: passport.documentType
+      documentType: passport.documentType,
+      activeAuthChallenge: aaChallenge,
+      activeAuthSignature: aaSignature
     )
   }
 

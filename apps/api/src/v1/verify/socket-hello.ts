@@ -13,6 +13,7 @@ import {
 } from "./hello-auth";
 import { persistTrackedAttemptPhase } from "./phase-state";
 import type { VerifySocketContext } from "./socket-context";
+import { deriveActiveAuthChallenge } from "./validation";
 
 async function resetAttemptState(
 	context: VerifySocketContext,
@@ -120,6 +121,7 @@ export async function handleHelloMessage(
 	if (authState.kind === "resume") {
 		await persistConnectedPhaseIfMissing(context, attempt.id);
 		transport.sendAck("hello_ok");
+		await sendActiveAuthChallenge(context, attempt.id);
 		return;
 	}
 
@@ -141,4 +143,16 @@ export async function handleHelloMessage(
 	}
 
 	transport.sendAck("hello_ok");
+	await sendActiveAuthChallenge(context, attempt.id);
+}
+
+async function sendActiveAuthChallenge(
+	context: VerifySocketContext,
+	attemptId: string,
+): Promise<void> {
+	const challenge = await deriveActiveAuthChallenge({
+		attemptId,
+		authSecret: context.env.AUTH_SECRET,
+	});
+	context.transport.sendActiveAuthChallenge(challenge);
 }

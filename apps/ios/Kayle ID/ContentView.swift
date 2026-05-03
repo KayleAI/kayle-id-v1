@@ -818,7 +818,8 @@ struct ContentView: View {
     hasStartedNFCScan = true
     nfcReader.start(
       mrzKey: session.mrzResult?.mrzKey ?? "",
-      cardAccessNumber: cardAccessNumber
+      cardAccessNumber: cardAccessNumber,
+      activeAuthChallenge: session.activeAuthChallenge
     )
   }
 

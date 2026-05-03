@@ -31,6 +31,7 @@ export const verificationAttemptFailureCodes = [
 	"session_expired",
 	"session_cancelled",
 	"passport_authenticity_failed",
+	"passport_active_authentication_failed",
 	"selfie_face_mismatch",
 ] as const;
 

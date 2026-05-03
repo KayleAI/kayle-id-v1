@@ -45,6 +45,9 @@ type HandoffResponse = {
 
 type ServerAckOrError = {
 	ack?: string;
+	activeAuthChallenge?: {
+		challenge: Uint8Array;
+	};
 	error?: {
 		code: string;
 		message: string;
@@ -239,6 +242,14 @@ function decodeServerMessage(bytes: Uint8Array): ServerAckOrError | null {
 					},
 				};
 			}
+			case ServerMessage.ACTIVE_AUTH_CHALLENGE:
+				return {
+					activeAuthChallenge: {
+						challenge: new Uint8Array(
+							root.activeAuthChallenge.challenge.toUint8Array(),
+						),
+					},
+				};
 
 			default:
 				return null;
@@ -311,6 +322,13 @@ function awaitServerMessage(socket: WebSocket): Promise<ServerAckOrError> {
 			if (!decoded) {
 				cleanup();
 				reject(new Error("Failed to decode server protobuf message."));
+				return;
+			}
+
+			// The server emits an activeAuthChallenge after every successful hello
+			// as part of the AA protocol. Tests that don't exercise AA expect the
+			// next ack/verdict directly, so skip the challenge and keep listening.
+			if (decoded.activeAuthChallenge !== undefined) {
 				return;
 			}
 
@@ -397,6 +415,10 @@ function awaitServerMessageOrClose(socket: WebSocket): Promise<
 			if (!decoded) {
 				cleanup();
 				reject(new Error("Failed to decode server protobuf message."));
+				return;
+			}
+
+			if (decoded.activeAuthChallenge !== undefined) {
 				return;
 			}
 

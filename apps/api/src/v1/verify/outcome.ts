@@ -35,7 +35,10 @@ export async function markAttemptFailed({
 }: {
 	session: SessionContext;
 	attemptId: string;
-	failureCode: "passport_authenticity_failed" | "selfie_face_mismatch";
+	failureCode:
+		| "passport_authenticity_failed"
+		| "passport_active_authentication_failed"
+		| "selfie_face_mismatch";
 	riskScore: number;
 }): Promise<{
 	deliveryIds: string[];

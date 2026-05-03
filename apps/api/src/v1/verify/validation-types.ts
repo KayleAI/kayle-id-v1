@@ -26,8 +26,36 @@ export type PassiveAuthFailureReason =
 	| "signer_certificate_expired"
 	| "signer_certificate_invalid"
 	| "signer_certificate_not_yet_valid"
+	| "sod_declared_dg_missing"
+	| "sod_undeclared_dg_supplied"
 	| "trust_bundle_unavailable"
 	| "unsupported_digest_algorithm";
+
+export type ActiveAuthFailureReason =
+	| "challenge_invalid_length"
+	| "challenge_mismatch"
+	| "dg14_parse_failed"
+	| "dg15_missing"
+	| "dg15_parse_failed"
+	| "public_key_invalid"
+	| "signature_format_invalid"
+	| "signature_invalid"
+	| "signature_invalid_encoding"
+	| "signature_missing"
+	| "sod_dg15_hash_mismatch"
+	| "sod_dg15_hash_missing";
+
+export type ActiveAuthValidationResult =
+	| {
+			ok: true;
+			algorithm: "rsa" | "ecdsa";
+			hashAlgorithm: "SHA-1" | "SHA-224" | "SHA-256" | "SHA-384" | "SHA-512";
+	  }
+	| {
+			ok: false;
+			reason: ActiveAuthFailureReason;
+			detail?: string | null;
+	  };
 
 export type PassiveAuthSignerSource = "bundle" | "sod";
 
@@ -46,12 +74,18 @@ export type Dg2FaceImage = {
 
 export const DEFAULT_FACE_MATCH_THRESHOLD = 0.8;
 
+export type SodDeclares = {
+	dg14: boolean;
+	dg15: boolean;
+};
+
 export type AuthenticityValidationResult =
 	| {
 			crlStatus: Exclude<PassiveAuthCrlStatus, "not_checked" | "revoked">;
 			ok: true;
 			algorithm: SupportedHashAlgorithm;
 			signerSource: PassiveAuthSignerSource;
+			sodDeclares: SodDeclares;
 			source: "cms_signed_data";
 	  }
 	| {

@@ -134,6 +134,12 @@ export const ERROR_MESSAGES = {
       "We couldn’t confirm your passport chip. Try again or use a different one.",
   },
 
+  passport_chip_authentication_failed: {
+    title: "Passport check failed",
+    description:
+      "We couldn’t confirm your passport chip. Try again or use a different one.",
+  },
+
   selfie_face_mismatch: {
     title: "Face doesn’t match",
     description: "Your selfie doesn’t match your passport photo. Try again.",

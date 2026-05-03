@@ -57,6 +57,35 @@ export type ActiveAuthValidationResult =
 			detail?: string | null;
 	  };
 
+export type ChipAuthFailureReason =
+	| "algorithm_unsupported"
+	| "chip_curve_unsupported"
+	| "chip_public_key_invalid"
+	| "chip_public_key_not_found"
+	| "chip_token_mismatch"
+	| "dg14_missing"
+	| "dg14_parse_failed"
+	| "dh_unsupported"
+	| "info_not_found"
+	| "key_agreement_failed"
+	| "mac_algorithm_unsupported"
+	| "sod_dg14_hash_mismatch"
+	| "terminal_public_key_invalid"
+	| "transcript_missing"
+	| "transcript_parse_failed";
+
+export type ChipAuthValidationResult =
+	| {
+			ok: true;
+			algorithm: string;
+			keyAgreement: "DH" | "ECDH";
+	  }
+	| {
+			ok: false;
+			reason: ChipAuthFailureReason;
+			detail?: string | null;
+	  };
+
 export type PassiveAuthSignerSource = "bundle" | "sod";
 
 export type DecodedImage = {
@@ -77,6 +106,10 @@ export const DEFAULT_FACE_MATCH_THRESHOLD = 0.8;
 export type SodDeclares = {
 	dg14: boolean;
 	dg15: boolean;
+};
+
+export type Dg14Declares = {
+	chipAuthentication: boolean;
 };
 
 export type AuthenticityValidationResult =

@@ -860,6 +860,10 @@ final class VerificationSession: ObservableObject {
       }
     }
 
+    if let chipAuthTranscript = result.chipAuthTranscript {
+      plans.append(NFCUploadPlan(kind: .chipAuth, chunks: chunkData(chipAuthTranscript, chunkSize: nfcChunkSize)))
+    }
+
     return plans
   }
 

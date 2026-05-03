@@ -97,7 +97,8 @@ private enum PreviewFixtures {
     issuingAuthority: "GBR",
     documentType: "Passport",
     activeAuthChallenge: nil,
-    activeAuthSignature: nil
+    activeAuthSignature: nil,
+    chipAuthTranscript: nil
   )
 
   static let shareRequest = VerifyShareRequest(

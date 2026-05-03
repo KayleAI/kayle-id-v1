@@ -2,6 +2,7 @@ import { logEvent } from "@kayle-id/config/logging";
 import { attemptWebhookDelivery } from "@/v1/webhooks/deliveries/service";
 import { getNfcTransferStatus, getSelfieTransferStatus } from "./data-payload";
 import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
+import { parseDg14 } from "./dg14-parser";
 import { resolveVerifyErrorMessage } from "./error-response";
 import { matchFaces } from "./face-matcher-client";
 import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
@@ -10,9 +11,11 @@ import {
 	deriveActiveAuthChallenge,
 	validateActiveAuthentication,
 	validateAuthenticity,
+	validateChipAuthentication,
 } from "./validation";
 import {
 	type ActiveAuthValidationResult,
+	type ChipAuthValidationResult,
 	DEFAULT_FACE_MATCH_THRESHOLD,
 	type FaceScoreResult,
 } from "./validation-types";
@@ -88,6 +91,7 @@ async function rejectAttemptWithVerdict({
 	code:
 		| "passport_authenticity_failed"
 		| "passport_active_authentication_failed"
+		| "passport_chip_authentication_failed"
 		| "selfie_face_mismatch";
 	context: VerifySocketContext;
 	riskScore: number;
@@ -104,7 +108,7 @@ async function rejectAttemptWithVerdict({
 			(async () => {
 				for (const deliveryId of result.deliveryIds) {
 					await attemptWebhookDelivery({
-						authSecret: context.env.AUTH_SECRET,
+						authSecret: context.env.AUTH_SECRET as string,
 						deliveryId,
 					});
 				}
@@ -250,7 +254,7 @@ async function runActiveAuthValidation({
 
 	const expectedChallenge = await deriveActiveAuthChallenge({
 		attemptId,
-		authSecret: context.env.AUTH_SECRET,
+		authSecret: context.env.AUTH_SECRET as string,
 	});
 
 	const result: ActiveAuthValidationResult = await validateActiveAuthentication(
@@ -295,6 +299,181 @@ async function runActiveAuthValidation({
 	return verdict;
 }
 
+type Dg14ChipAuthSummary = {
+	declaration: "none" | "v1_only" | "v2";
+	chipAuthInfoCount: number;
+	chipAuthInfoVersions: number[];
+	chipAuthInfoOids: string[];
+	chipAuthPublicKeyCount: number;
+	chipAuthPublicKeyOids: string[];
+};
+
+function summarizeDg14ChipAuth(
+	dg14: Uint8Array | undefined,
+): Dg14ChipAuthSummary {
+	const empty: Dg14ChipAuthSummary = {
+		declaration: "none",
+		chipAuthInfoCount: 0,
+		chipAuthInfoVersions: [],
+		chipAuthInfoOids: [],
+		chipAuthPublicKeyCount: 0,
+		chipAuthPublicKeyOids: [],
+	};
+
+	if (!dg14 || dg14.length === 0) {
+		return empty;
+	}
+
+	try {
+		const parsed = parseDg14(dg14);
+		const infos = parsed.chipAuthInfos;
+		const declaration: Dg14ChipAuthSummary["declaration"] = (() => {
+			if (infos.length === 0) return "none";
+			return infos.some((info) => info.version >= 2) ? "v2" : "v1_only";
+		})();
+
+		return {
+			declaration,
+			chipAuthInfoCount: infos.length,
+			chipAuthInfoVersions: infos.map((info) => info.version),
+			chipAuthInfoOids: infos.map((info) => info.algorithm.oid),
+			chipAuthPublicKeyCount: parsed.chipAuthPublicKeys.length,
+			chipAuthPublicKeyOids: parsed.chipAuthPublicKeys.map(
+				(entry) => entry.algorithmOid,
+			),
+		};
+	} catch {
+		// PA already enforces SOD ↔ DG14 binding for declared DG14, so if the
+		// bytes are unreadable PA will reject before we get here.
+		return empty;
+	}
+}
+
+function chipAuthSummaryDetails(summary: Dg14ChipAuthSummary) {
+	return {
+		dg14_chip_auth_declaration: summary.declaration,
+		dg14_chip_auth_info_count: summary.chipAuthInfoCount,
+		dg14_chip_auth_info_oids: summary.chipAuthInfoOids,
+		dg14_chip_auth_info_versions: summary.chipAuthInfoVersions,
+		dg14_chip_auth_public_key_count: summary.chipAuthPublicKeyCount,
+		dg14_chip_auth_public_key_oids: summary.chipAuthPublicKeyOids,
+	};
+}
+
+async function runChipAuthValidation({
+	attemptId,
+	context,
+	sodDeclaresDg14,
+}: {
+	attemptId: string;
+	context: VerifySocketContext;
+	sodDeclaresDg14: boolean;
+}) {
+	const { chipAuthTranscript, dg14 } = context.state.transfer;
+
+	if (!sodDeclaresDg14) {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				reason: "sod_no_dg14",
+			},
+			event: "verify.ws.chip_auth_skipped",
+		});
+		return null;
+	}
+
+	const summary = summarizeDg14ChipAuth(dg14);
+
+	if (summary.declaration === "none") {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				...chipAuthSummaryDetails(summary),
+				reason: "dg14_has_no_chip_auth",
+				transcript_uploaded: chipAuthTranscript !== undefined,
+			},
+			event: "verify.ws.chip_auth_skipped",
+		});
+		return null;
+	}
+
+	if (summary.declaration === "v1_only") {
+		// CA-v1 chips only restart secure messaging; they never return a chip
+		// token to verify server-side. Skip and let any subsequent AA path run.
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				...chipAuthSummaryDetails(summary),
+				reason: "dg14_v1_only",
+				transcript_uploaded: chipAuthTranscript !== undefined,
+			},
+			event: "verify.ws.chip_auth_skipped",
+		});
+		return null;
+	}
+
+	if (!(dg14 && chipAuthTranscript)) {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				...chipAuthSummaryDetails(summary),
+				reason: "chip_auth_artifacts_missing",
+			},
+			event: "verify.ws.chip_auth_failed",
+		});
+
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "passport_chip_authentication_failed",
+			context,
+			riskScore: 1,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	const result: ChipAuthValidationResult = await validateChipAuthentication({
+		chipAuthData: chipAuthTranscript,
+		dg14,
+	});
+
+	if (result.ok) {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				chip_auth_algorithm: result.algorithm,
+				chip_auth_key_agreement: result.keyAgreement,
+				...chipAuthSummaryDetails(summary),
+				transcript_byte_count: chipAuthTranscript.length,
+			},
+			event: "verify.ws.chip_auth_succeeded",
+		});
+		return null;
+	}
+
+	logEvent(context.log, {
+		details: {
+			attempt_id: attemptId,
+			...chipAuthSummaryDetails(summary),
+			chip_auth_detail: result.detail ?? null,
+			chip_auth_reason: result.reason,
+			transcript_byte_count: chipAuthTranscript.length,
+		},
+		event: "verify.ws.chip_auth_failed",
+	});
+
+	const verdict = await rejectAttemptWithVerdict({
+		attemptId,
+		code: "passport_chip_authentication_failed",
+		context,
+		riskScore: 1,
+	});
+	context.transport.sendVerdict(verdict);
+	context.transport.closeAfterVerdict(verdict.reasonCode);
+	return verdict;
+}
+
 export async function runPhaseValidation(
 	context: VerifySocketContext,
 	attemptId: string,
@@ -319,6 +498,8 @@ export async function runPhaseValidation(
 				details: {
 					attempt_id: attemptId,
 					crl_status: authenticity.crlStatus,
+					dg14_uploaded: dg14 !== undefined,
+					dg15_uploaded: dg15 !== undefined,
 					passive_auth_detail: authenticity.detail ?? null,
 					passive_auth_reason: authenticity.reason,
 					signer_source: authenticity.signerSource,
@@ -335,6 +516,30 @@ export async function runPhaseValidation(
 			context.transport.sendVerdict(verdict);
 			context.transport.closeAfterVerdict(verdict.reasonCode);
 			return verdict;
+		}
+
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				crl_status: authenticity.crlStatus,
+				dg14_uploaded: dg14 !== undefined,
+				dg15_uploaded: dg15 !== undefined,
+				passive_auth_algorithm: authenticity.algorithm,
+				signer_source: authenticity.signerSource,
+				sod_declares_dg14: authenticity.sodDeclares.dg14,
+				sod_declares_dg15: authenticity.sodDeclares.dg15,
+			},
+			event: "verify.ws.passive_auth_succeeded",
+		});
+
+		const chipAuthVerdict = await runChipAuthValidation({
+			attemptId,
+			context,
+			sodDeclaresDg14: authenticity.sodDeclares.dg14,
+		});
+
+		if (chipAuthVerdict) {
+			return chipAuthVerdict;
 		}
 
 		return await runActiveAuthValidation({

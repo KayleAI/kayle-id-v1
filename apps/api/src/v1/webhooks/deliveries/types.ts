@@ -9,6 +9,7 @@ export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
 export type VerificationAttemptFailedCode =
 	| "passport_authenticity_failed"
 	| "passport_active_authentication_failed"
+	| "passport_chip_authentication_failed"
 	| "selfie_face_mismatch";
 
 export type VerificationAttemptMetadata = {

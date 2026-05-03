@@ -1,13 +1,13 @@
 {
-  "originHash" : "f7e082083baa0aec4a48d66a210193d20e65085a6d9376c026e94566044a8c24",
+  "originHash" : "f07b1cd5ead9ce2f4bd2e550675666d0ec47ae8860ce141b238cccdf786c831d",
   "pins" : [
     {
       "identity" : "mrtdreader",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/arsenstorm/MRTDReader",
       "state" : {
-        "revision" : "d4e341efa8bdf2c5fa213176f4c64a2a7efed934",
-        "version" : "4.0.4"
+        "revision" : "5a7c19da5e8eb91865b725974a7df24b8ad6ee9a",
+        "version" : "4.0.5"
       }
     },
     {

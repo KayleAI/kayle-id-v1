@@ -11,6 +11,7 @@ const SELFIE_KIND = 3;
 const DG14_KIND = 4;
 const DG15_KIND = 5;
 const ACTIVE_AUTH_KIND = 6;
+const CHIP_AUTH_KIND = 7;
 const REQUIRED_SELFIE_TOTAL = 3;
 const ACTIVE_AUTH_CHALLENGE_BYTES = 8;
 
@@ -53,6 +54,7 @@ export type VerifyTransferState = {
 	dg15?: Uint8Array;
 	activeAuthChallenge?: Uint8Array;
 	activeAuthSignature?: Uint8Array;
+	chipAuthTranscript?: Uint8Array;
 	selfies: Map<number, Uint8Array>;
 	chunks: Map<string, VerifyChunkEntry>;
 	/** Cumulative bytes received across all chunks/artifacts for this attempt. */
@@ -96,6 +98,7 @@ export function resetTransferState(state: VerifyTransferState): void {
 	state.dg15 = undefined;
 	state.activeAuthChallenge = undefined;
 	state.activeAuthSignature = undefined;
+	state.chipAuthTranscript = undefined;
 	state.chunks.clear();
 	state.bytesReceived = 0;
 }
@@ -152,7 +155,8 @@ export function isNfcDataKind(kind: number): boolean {
 		kind === SOD_KIND ||
 		kind === DG14_KIND ||
 		kind === DG15_KIND ||
-		kind === ACTIVE_AUTH_KIND
+		kind === ACTIVE_AUTH_KIND ||
+		kind === CHIP_AUTH_KIND
 	);
 }
 
@@ -396,6 +400,9 @@ function storeData({
 			return { ok: true };
 		case ACTIVE_AUTH_KIND:
 			return storeActiveAuthData(state, data);
+		case CHIP_AUTH_KIND:
+			state.chipAuthTranscript = data;
+			return { ok: true };
 		default:
 			return {
 				ok: false,

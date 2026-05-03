@@ -26,6 +26,11 @@ struct PassportReadResult: Equatable {
   let activeAuthChallenge: Data?
   let activeAuthSignature: Data?
 
+  // Chip Authentication (TR-03110-2 §3.4) — populated when MRTDReader runs
+  // CA-v2 against the chip and returns the transcript needed for server-side
+  // T_PICC verification. Wire layout matches packages/api ChipAuthTranscript.
+  let chipAuthTranscript: Data?
+
   // Custom Equatable - compare document fields, not images
   static func == (lhs: PassportReadResult, rhs: PassportReadResult) -> Bool {
     lhs.mrz == rhs.mrz &&
@@ -70,6 +75,10 @@ struct PassportReadResult: Equatable {
         "challenge": challenge.base64EncodedString(),
         "signature": signature.base64EncodedString(),
       ]
+    }
+
+    if let chipAuthTranscript {
+      dict["chipAuth"] = ["transcript": chipAuthTranscript.base64EncodedString()]
     }
 
     return try JSONSerialization.data(withJSONObject: dict)
@@ -254,6 +263,8 @@ final class PassportNFCReader: NSObject, ObservableObject {
       ? nil
       : Data(passport.activeAuthenticationSignature)
 
+    let caTranscript = extractChipAuthTranscript(from: passport)
+
     return PassportReadResult(
       mrz: currentMRZ,
       dg1MRZ: dg1MRZ,
@@ -270,8 +281,69 @@ final class PassportNFCReader: NSObject, ObservableObject {
       issuingAuthority: passport.issuingAuthority,
       documentType: passport.documentType,
       activeAuthChallenge: aaChallenge,
-      activeAuthSignature: aaSignature
+      activeAuthSignature: aaSignature,
+      chipAuthTranscript: caTranscript
     )
+  }
+
+  /// Serializes the MRTDReader-captured CA-v2 transcript into the wire layout
+  /// the backend expects (`apps/api/src/v1/verify/chip-auth-transcript.ts`).
+  /// Returns nil when the chip didn't perform CA-v2 (CA-v1, DESede, or no CA).
+  private func extractChipAuthTranscript(from passport: MRTDModel) -> Data? {
+    guard let transcript = passport.chipAuthenticationTranscript else { return nil }
+    return Self.encodeChipAuthTranscript(transcript)
+  }
+
+  static func encodeChipAuthTranscript(_ transcript: ChipAuthenticationTranscript) -> Data? {
+    guard let oidBytes = transcript.oid.data(using: .utf8) else { return nil }
+
+    let keyIdBytes = transcript.keyId.map { encodeUnsignedBigEndian(Int($0)) } ?? Data()
+    guard keyIdBytes.count <= 0xFF else { return nil }
+
+    let sk = transcript.terminalPrivateKey
+    let pk = transcript.terminalPublicKey
+    let nonce = transcript.chipNonce
+    let token = transcript.chipToken
+
+    guard oidBytes.count <= 0xFFFF,
+          sk.count <= 0xFFFF,
+          pk.count <= 0xFFFF,
+          nonce.count <= 0xFF,
+          token.count <= 0xFF else {
+      return nil
+    }
+
+    var out = Data()
+    out.append(0x01)  // version
+    appendUInt16BE(&out, oidBytes.count)
+    out.append(oidBytes)
+    out.append(UInt8(keyIdBytes.count))
+    out.append(keyIdBytes)
+    appendUInt16BE(&out, sk.count)
+    out.append(contentsOf: sk)
+    appendUInt16BE(&out, pk.count)
+    out.append(contentsOf: pk)
+    out.append(UInt8(nonce.count))
+    out.append(contentsOf: nonce)
+    out.append(UInt8(token.count))
+    out.append(contentsOf: token)
+    return out
+  }
+
+  private static func appendUInt16BE(_ data: inout Data, _ value: Int) {
+    data.append(UInt8((value >> 8) & 0xFF))
+    data.append(UInt8(value & 0xFF))
+  }
+
+  private static func encodeUnsignedBigEndian(_ value: Int) -> Data {
+    if value == 0 { return Data() }
+    var v = value
+    var bytes = [UInt8]()
+    while v > 0 {
+      bytes.insert(UInt8(v & 0xFF), at: 0)
+      v >>= 8
+    }
+    return Data(bytes)
   }
 
   private func buildMRZKey(from mrz: String) throws -> String {

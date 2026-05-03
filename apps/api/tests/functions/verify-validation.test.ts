@@ -724,7 +724,7 @@ describe("verify validation engine", () => {
 		}
 	});
 
-	test("soft-passes passive authentication when CRL coverage is missing", async () => {
+	test("fails passive authentication when CRL coverage is missing", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const noCrlChain = await createPassiveAuthTestChain({
 			includeCrl: false,
@@ -743,14 +743,15 @@ describe("verify validation engine", () => {
 			trustBundle: noCrlChain.trustBundle,
 		});
 
-		expect(result.ok).toBeTrue();
-		if (result.ok) {
-			expect(result.crlStatus).toBe("soft_fail_missing");
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.crlStatus).toBe("missing");
+			expect(result.reason).toBe("crl_missing");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
 
-	test("soft-passes passive authentication when CRL coverage is stale", async () => {
+	test("fails passive authentication when CRL coverage is stale", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const staleCrlChain = await createPassiveAuthTestChain({
 			staleCrl: true,
@@ -769,9 +770,10 @@ describe("verify validation engine", () => {
 			trustBundle: staleCrlChain.trustBundle,
 		});
 
-		expect(result.ok).toBeTrue();
-		if (result.ok) {
-			expect(result.crlStatus).toBe("soft_fail_stale");
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.crlStatus).toBe("stale");
+			expect(result.reason).toBe("crl_stale");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -909,7 +911,7 @@ describe("verify validation engine", () => {
 		}
 	});
 
-	test("soft-passes passive authentication when only stale verified CRLs are available", async () => {
+	test("fails passive authentication when only stale verified CRLs are available", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const chain = await createPassiveAuthTestChain();
 		const trustBundle = await createTrustBundleWithCrlRecords({
@@ -938,14 +940,15 @@ describe("verify validation engine", () => {
 			trustBundle,
 		});
 
-		expect(result.ok).toBeTrue();
-		if (result.ok) {
-			expect(result.crlStatus).toBe("soft_fail_stale");
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.crlStatus).toBe("stale");
+			expect(result.reason).toBe("crl_stale");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
 
-	test("soft-passes passive authentication when only missing or unverifiable CRLs are available", async () => {
+	test("fails passive authentication when only missing or unverifiable CRLs are available", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const chain = await createPassiveAuthTestChain();
 		const invalidSignerChain = await createPassiveAuthTestChain();
@@ -975,9 +978,10 @@ describe("verify validation engine", () => {
 			trustBundle,
 		});
 
-		expect(result.ok).toBeTrue();
-		if (result.ok) {
-			expect(result.crlStatus).toBe("soft_fail_missing");
+		expect(result.ok).toBeFalse();
+		if (!result.ok) {
+			expect(result.crlStatus).toBe("missing");
+			expect(result.reason).toBe("crl_missing");
 			expect(result.signerSource).toBe("sod");
 		}
 	});

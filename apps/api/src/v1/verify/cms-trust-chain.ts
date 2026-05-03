@@ -264,7 +264,7 @@ export async function evaluateCrlStatus({
 	});
 
 	if (candidates.length === 0) {
-		return "soft_fail_missing";
+		return "missing";
 	}
 
 	const verifiedCandidates: Array<{
@@ -328,6 +328,6 @@ export async function evaluateCrlStatus({
 	}
 
 	return verifiedCandidates.some((entry) => entry.state === "stale_verified")
-		? "soft_fail_stale"
-		: "soft_fail_missing";
+		? "stale"
+		: "missing";
 }

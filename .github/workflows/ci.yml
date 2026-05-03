@@ -167,7 +167,7 @@ jobs:
 
           (
             cd infra/face-matcher
-            bun run test:dev
+            bunx wrangler dev --env-file ../../.env.test.example --local --ip 127.0.0.1 --port 8788 --inspector-port 9232
           ) > /tmp/face-matcher.log 2>&1 &
           MATCHER_PID=$!
           echo "Face matcher started with PID ${MATCHER_PID}"
@@ -175,11 +175,11 @@ jobs:
 
           (
             cd apps/api
-            bun run test:setup
+            bun ./tests/generate-test-env.ts
           )
           (
             cd apps/api
-            bun run test:dev
+            bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230 --env test
           ) > /tmp/api.log 2>&1 &
           SERVER_PID=$!
           echo "API server started with PID ${SERVER_PID}"

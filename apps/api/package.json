@@ -3,9 +3,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bunx wrangler dev --env-file ../../.env --ip 0.0.0.0 --port 8787 --inspector-port 9230",
-		"test:setup": "bun ./tests/generate-test-env.ts",
-		"test:dev": "bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230",
-		"deploy": "bunx wrangler deploy --minify",
+		"deploy": "bunx wrangler deploy --minify --env production",
 		"cf:types": "bunx wrangler types --env-file .env.example --env-interface CloudflareBindings cloudflare-env.d.ts"
 	},
 	"dependencies": {

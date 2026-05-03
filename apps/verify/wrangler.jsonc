@@ -27,5 +27,17 @@
 			"zone_name": "kayle.id",
 			"custom_domain": false
 		}
-	]
+	],
+	"vars": {
+		"PUBLIC_API_HOST": "127.0.0.1:8787",
+		"PUBLIC_API_PROTOCOL": "ws"
+	},
+	"env": {
+		"production": {
+			"vars": {
+				"PUBLIC_API_HOST": "api.kayle.id",
+				"PUBLIC_API_PROTOCOL": "wss"
+			}
+		}
+	}
 }

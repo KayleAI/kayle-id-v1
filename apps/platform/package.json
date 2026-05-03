@@ -3,11 +3,11 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "ln -sf ../../.env .env && vite dev",
 		"build": "vite build",
 		"serve": "vite preview",
 		"test": "vitest run",
-		"deploy": "wrangler deploy --minify",
+		"deploy": "wrangler deploy --minify --env production",
 		"preview": "npm run build && vite preview",
 		"cf:types": "wrangler types --env-interface CloudflareBindings cloudflare-env.d.ts"
 	},

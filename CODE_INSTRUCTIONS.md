@@ -85,80 +85,40 @@ CAPNPROTO_SWIFT_PATH=~/capnproto-swift bash ./scripts/generate-capnp.sh
 
 ## 1. Environment variables
 
-There are three env files that matter for local development:
+The local stack reads everything from a single `.env` at the repo root. You only need one of two commands to populate it.
 
-- `/.env`: shared by the API, database tooling, face matcher, and some shared config
-- `apps/platform/.env`: platform-specific env vars
-- `apps/api/.env.test`: generated test-only env file
+**Outside contributors — `bun run env:setup`.**
 
-`apps/verify/.env` is optional. The verify app already defaults to the local API in development.
-
-### Root `.env`
-
-Create `~/kayle-id/.env` (or wherever you cloned the repo to) with:
-
-```dotenv
-DATABASE_URL=postgres://postgres:postgres@localhost:6432/kayle-id
-
-KAYLE_INTERNAL_TOKEN=replace-with-one-random-shared-token
-AUTH_SECRET=replace-with-one-random-secret
-
-# Recommended for the current local platform auth flow.
-# The checked-in .env.example still shows https://localhost:8787,
-# but the platform app proxies auth through https://localhost:3000/api/auth.
-PUBLIC_AUTH_URL=https://localhost:3000
-
-# Required for the physical iPhone build if you want the app to use your local API.
-# Do not use localhost here. Use an IP or hostname reachable from the phone.
-# Tailscale IP is a good choice.
-KAYLE_DEV_API_BASE_URL=http://<reachable-host>:8787
-
-# Optional but recommended to keep API -> face matcher requests authenticated.
-FACE_MATCHER_SECRET=replace-with-one-random-secret
-
-# Optional unless you wire Redis-backed behavior.
-REDIS_URL=
-REDIS_TOKEN=
-
-# Required by the current env schema, even if you are not using them locally.
-# Dummy non-empty values are enough for local boot.
-GOOGLE_CLIENT_ID=dummy-google-client-id
-GOOGLE_CLIENT_SECRET=dummy-google-client-secret
-RESEND_API_KEY=dummy-resend-api-key
-RESEND_FROM_EMAIL="Kayle ID <auth@kayle.id>"
+```bash
+bun run env:setup
 ```
 
-Important notes:
+This writes a working `.env` with random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, and `FACE_MATCHER_SECRET`, and dummy values for Google OAuth and Resend. The dev API logs the magic OTP and email body instead of calling those services, so dummies are sufficient for the full sign-in flow. The script refuses to overwrite an existing `.env` — delete it first if you want a fresh bootstrap.
 
-- `KAYLE_INTERNAL_TOKEN` must match between root `.env` and `apps/platform/.env`.
-- `KAYLE_DEV_API_BASE_URL` must be reachable from the physical iPhone. `http://127.0.0.1:8787` will not work on the phone.
-- In development, magic OTP sign-in is logged by the API instead of being emailed, so `RESEND_API_KEY` can be a dummy value.
-- If you actually want Google sign-in to work locally, replace the dummy Google values with real OAuth credentials.
+**Maintainers — `bun run env:pull`.**
 
-### `apps/platform/.env`
+After installing the [Infisical CLI](https://infisical.com/docs/cli/overview) and running `infisical login` once:
 
-Create `~/kayle-id/apps/platform/.env` (or wherever you cloned the repo to) with:
-
-```dotenv
-KAYLE_INTERNAL_TOKEN=replace-with-the-same-value-from-root-env
-
-# Optional, but required if you want the local /demo flow to create sessions.
-KAYLE_DEMO_API_KEY=
-
-# Optional. Defaults to "kayle" if omitted.
-KAYLE_DEMO_ORG_SLUG=
+```bash
+bun run env:pull           # pulls the dev environment from Infisical
+bun run env:pull -- staging  # pull a different env if needed
 ```
 
-Notes:
+This rewrites the repo-root `.env` with the real shared dev secrets. The Infisical workspace is pinned in `.infisical.json`.
 
-- `KAYLE_DEMO_API_KEY` is not required to boot the platform app.
-- It is required if you want `https://localhost:3000/demo` to create real sessions against the local API.
+### Optional dev-only overrides
+
+Add these to `.env` only if you need them:
+
+- `KAYLE_DEV_API_BASE_URL=http://<reachable-host>:8787` — required for the physical iPhone build. Do **not** use `localhost`; use an IP or hostname reachable from the phone (a Tailscale IP works well).
+- `KAYLE_DEMO_API_KEY` / `KAYLE_DEMO_ORG_SLUG` — required only if you want `https://localhost:3000/demo` to create real sessions against the local API. `KAYLE_DEMO_ORG_SLUG` defaults to `"kayle"`.
+- `REDIS_URL` / `REDIS_TOKEN` — only needed if you wire Redis-backed behavior.
+- Real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — only if you want to test real Google sign-in locally.
+- Real `RESEND_API_KEY` — only if you want to test real outbound email locally.
 
 ### Optional `apps/verify/.env`
 
-You can leave `apps/verify/.env` alone. The dev app already defaults to the local API host.
-
-If you want to be explicit, use:
+The verify app already defaults to the local API host. If you need to override:
 
 ```dotenv
 PUBLIC_API_HOST=127.0.0.1:8787

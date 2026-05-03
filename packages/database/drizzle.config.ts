@@ -8,9 +8,6 @@ dotenv.config({
 			? new URL("../../.env.production", import.meta.url).pathname
 			: new URL("../../.env", import.meta.url).pathname,
 	debug: false,
-	// Always prefer the repo's .env for drizzle config, even if DATABASE_URL
-	// is set globally in the shell. This keeps local dev & CI predictable.
-	override: true,
 });
 
 export default defineConfig({

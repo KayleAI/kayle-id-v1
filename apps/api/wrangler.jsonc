@@ -21,10 +21,6 @@
 		"directory": "./public",
 		"run_worker_first": true
 	},
-	"vars": {
-		"PUBLIC_AUTH_URL": "https://kayle.id",
-		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
-	},
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
@@ -64,5 +60,27 @@
 			"zone_name": "kayle.id",
 			"custom_domain": false
 		}
-	]
+	],
+	"vars": {
+		"PUBLIC_AUTH_URL": "http://localhost:3000",
+		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+	},
+	"env": {
+		"production": {
+			"vars": {
+				"PUBLIC_AUTH_URL": "https://kayle.id",
+				"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+			}
+		}
+	},
+	"secrets": {
+		"required": [
+			"KAYLE_INTERNAL_TOKEN",
+			"AUTH_SECRET",
+			"GOOGLE_CLIENT_ID",
+			"GOOGLE_CLIENT_SECRET",
+			"RESEND_API_KEY",
+			"FACE_MATCHER_SECRET"
+		]
+	}
 }

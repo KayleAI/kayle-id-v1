@@ -105,6 +105,8 @@ function toCapnpDataKind(
       return CapnpDataKind.DG15;
     case CapnpDataKind.ACTIVE_AUTH:
       return CapnpDataKind.ACTIVE_AUTH;
+    case CapnpDataKind.CHIP_AUTH:
+      return CapnpDataKind.CHIP_AUTH;
     default:
       return CapnpDataKind.DG1;
   }

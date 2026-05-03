@@ -20,6 +20,7 @@ enum DataKind {
   dg14 @4;
   dg15 @5;
   activeAuth @6;
+  chipAuth @7;
 }
 
 struct DataPayload {

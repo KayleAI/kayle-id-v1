@@ -2,6 +2,7 @@ import {
 	deriveActiveAuthChallenge as deriveActiveAuthChallengeInternal,
 	validateActiveAuthentication as validateActiveAuthenticationInternal,
 } from "./active-auth";
+import { validateChipAuthentication as validateChipAuthenticationInternal } from "./chip-auth";
 import {
 	decodeFaceImageBytes as decodeFaceImageBytesInternal,
 	extractDg2FaceImage as extractDg2FaceImageInternal,
@@ -15,6 +16,7 @@ import { validateAuthenticity as validateAuthenticityInternal } from "./sod-auth
 import type {
 	ActiveAuthValidationResult as ActiveAuthValidationResultValue,
 	AuthenticityValidationResult as AuthenticityValidationResultValue,
+	ChipAuthValidationResult as ChipAuthValidationResultValue,
 	DecodedImage,
 	Dg2FaceImage as Dg2FaceImageValue,
 	SupportedHashAlgorithm,
@@ -23,6 +25,7 @@ import { configureVerifyAssetFetcher as configureVerifyAssetFetcherInternal } fr
 
 export type AuthenticityValidationResult = AuthenticityValidationResultValue;
 export type ActiveAuthValidationResult = ActiveAuthValidationResultValue;
+export type ChipAuthValidationResult = ChipAuthValidationResultValue;
 export type Dg2FaceImage = Dg2FaceImageValue;
 export type PassiveAuthTrustBundle = PkdTrustBundle;
 
@@ -114,4 +117,23 @@ export function deriveActiveAuthChallenge({
 	authSecret: string;
 }): Promise<Uint8Array> {
 	return deriveActiveAuthChallengeInternal({ attemptId, authSecret });
+}
+
+export function validateChipAuthentication({
+	chipAuthData,
+	dg14,
+	sodAlgorithm,
+	sodDg14Hash,
+}: {
+	chipAuthData: Uint8Array;
+	dg14: Uint8Array;
+	sodAlgorithm?: SupportedHashAlgorithm;
+	sodDg14Hash?: Uint8Array;
+}): Promise<ChipAuthValidationResultValue> {
+	return validateChipAuthenticationInternal({
+		chipAuthData,
+		dg14,
+		sodAlgorithm,
+		sodDg14Hash,
+	});
 }

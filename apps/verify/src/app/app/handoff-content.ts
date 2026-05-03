@@ -75,6 +75,13 @@ export function buildTerminalContent(
 		};
 	}
 
+	if (failureCode === "passport_chip_authentication_failed") {
+		return {
+			colour: "red",
+			...VERIFY_HANDOFF_COPY.screens.terminal.passportChipAuthenticationFailed,
+		};
+	}
+
 	if (failureCode === "selfie_face_mismatch") {
 		return {
 			colour: "red",

@@ -26,6 +26,11 @@ struct PassportReadResult: Equatable {
   let activeAuthChallenge: Data?
   let activeAuthSignature: Data?
 
+  // Chip Authentication (TR-03110-2 §3.4) — populated when MRTDReader runs
+  // CA-v2 against the chip and returns the transcript needed for server-side
+  // T_PICC verification. Wire layout matches packages/api ChipAuthTranscript.
+  let chipAuthTranscript: Data?
+
   // Custom Equatable - compare document fields, not images
   static func == (lhs: PassportReadResult, rhs: PassportReadResult) -> Bool {
     lhs.mrz == rhs.mrz &&
@@ -70,6 +75,10 @@ struct PassportReadResult: Equatable {
         "challenge": challenge.base64EncodedString(),
         "signature": signature.base64EncodedString(),
       ]
+    }
+
+    if let chipAuthTranscript {
+      dict["chipAuth"] = ["transcript": chipAuthTranscript.base64EncodedString()]
     }
 
     return try JSONSerialization.data(withJSONObject: dict)
@@ -254,6 +263,8 @@ final class PassportNFCReader: NSObject, ObservableObject {
       ? nil
       : Data(passport.activeAuthenticationSignature)
 
+    let caTranscript = extractChipAuthTranscript(from: passport)
+
     return PassportReadResult(
       mrz: currentMRZ,
       dg1MRZ: dg1MRZ,
@@ -270,8 +281,20 @@ final class PassportNFCReader: NSObject, ObservableObject {
       issuingAuthority: passport.issuingAuthority,
       documentType: passport.documentType,
       activeAuthChallenge: aaChallenge,
-      activeAuthSignature: aaSignature
+      activeAuthSignature: aaSignature,
+      chipAuthTranscript: caTranscript
     )
+  }
+
+  /// Extracts the CA-v2 transcript from MRTDModel when available. The reader
+  /// library doesn't yet surface a `chipAuthenticationTranscript` property in
+  /// the version we depend on, so this returns nil until that hook lands —
+  /// at which point this helper is the single place to wire it in. Until
+  /// then, the server falls back to PA + AA and skips CA validation when DG14
+  /// declares no chip-auth public key. If DG14 *does* declare CA and no
+  /// transcript is uploaded, validation fails closed (clone-replay defense).
+  private func extractChipAuthTranscript(from passport: MRTDModel) -> Data? {
+    return nil
   }
 
   private func buildMRZKey(from mrz: String) throws -> String {

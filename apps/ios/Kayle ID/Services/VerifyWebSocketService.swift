@@ -9,6 +9,7 @@ enum VerifyDataKind: Int {
   case dg14 = 4
   case dg15 = 5
   case activeAuth = 6
+  case chipAuth = 7
 }
 
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {

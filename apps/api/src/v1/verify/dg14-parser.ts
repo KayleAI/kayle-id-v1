@@ -1,4 +1,12 @@
 import { Set as Asn1Set, Integer, ObjectIdentifier, Sequence } from "asn1js";
+import {
+	type ChipAuthAlgorithm,
+	chipAuthAlgorithmFromOid,
+} from "./chip-auth-oids";
+import {
+	type ChipAuthPublicKeyAlgorithm,
+	chipAuthPublicKeyAlgorithmFromOid,
+} from "./chip-auth-public-key-oids";
 import { exactBytes, parseBer, sequenceChildren } from "./sod-asn1-utils";
 import { readTlv } from "./tlv";
 
@@ -18,8 +26,23 @@ export type ActiveAuthEcdsaHashAlgorithm =
 	| "SHA-384"
 	| "SHA-512";
 
+export type ChipAuthInfoEntry = {
+	algorithm: ChipAuthAlgorithm;
+	keyId: bigint | null;
+	version: number;
+};
+
+export type ChipAuthPublicKeyInfoEntry = {
+	algorithm: ChipAuthPublicKeyAlgorithm;
+	algorithmOid: string;
+	keyId: bigint | null;
+	subjectPublicKeyInfoBytes: Uint8Array;
+};
+
 export type ParsedDg14 = {
 	activeAuthEcdsaHashAlgorithm: ActiveAuthEcdsaHashAlgorithm | null;
+	chipAuthInfos: ChipAuthInfoEntry[];
+	chipAuthPublicKeys: ChipAuthPublicKeyInfoEntry[];
 };
 
 function unwrapDg14Body(dg14: Uint8Array): Uint8Array {
@@ -80,9 +103,93 @@ function readActiveAuthInfo(
 	);
 }
 
+function readKeyId(node: unknown): bigint | null {
+	if (!(node instanceof Integer)) {
+		return null;
+	}
+
+	const bytes = new Uint8Array(node.valueBlock.valueHexView);
+
+	if (bytes.length === 0) {
+		return 0n;
+	}
+
+	let result = 0n;
+	for (const byte of bytes) {
+		result = (result << 8n) | BigInt(byte);
+	}
+	return result;
+}
+
+function readChipAuthInfo(securityInfo: Sequence): ChipAuthInfoEntry | null {
+	const [oidNode, versionNode, keyIdNode] = sequenceChildren(securityInfo);
+
+	if (
+		!(oidNode instanceof ObjectIdentifier && versionNode instanceof Integer)
+	) {
+		return null;
+	}
+
+	const algorithm = chipAuthAlgorithmFromOid(oidNode.valueBlock.toString());
+
+	if (!algorithm) {
+		return null;
+	}
+
+	const versionBytes = new Uint8Array(versionNode.valueBlock.valueHexView);
+	let version = 0;
+	for (const byte of versionBytes) {
+		version = (version << 8) | byte;
+	}
+
+	return {
+		algorithm,
+		keyId: readKeyId(keyIdNode),
+		version,
+	};
+}
+
+function readChipAuthPublicKeyInfo(
+	securityInfo: Sequence,
+): ChipAuthPublicKeyInfoEntry | null {
+	const [oidNode, subjectPublicKeyInfoNode, keyIdNode] =
+		sequenceChildren(securityInfo);
+
+	if (
+		!(
+			oidNode instanceof ObjectIdentifier &&
+			subjectPublicKeyInfoNode instanceof Sequence
+		)
+	) {
+		return null;
+	}
+
+	const algorithmOid = oidNode.valueBlock.toString();
+	const algorithm = chipAuthPublicKeyAlgorithmFromOid(algorithmOid);
+
+	if (!algorithm) {
+		return null;
+	}
+
+	const subjectPublicKeyInfoBytes = exactBytes(
+		new Uint8Array(subjectPublicKeyInfoNode.toBER(false)),
+	);
+
+	return {
+		algorithm,
+		algorithmOid,
+		keyId: readKeyId(keyIdNode),
+		subjectPublicKeyInfoBytes,
+	};
+}
+
 export function parseDg14(dg14: Uint8Array): ParsedDg14 {
 	if (dg14.length === 0) {
-		return { activeAuthEcdsaHashAlgorithm: null };
+		return {
+			activeAuthEcdsaHashAlgorithm: null,
+			chipAuthInfos: [],
+			chipAuthPublicKeys: [],
+		};
 	}
 
 	const securityInfosBytes = exactBytes(unwrapDg14Body(dg14));
@@ -92,20 +199,36 @@ export function parseDg14(dg14: Uint8Array): ParsedDg14 {
 		throw new Error("dg14_parse_failed");
 	}
 
-	let hashAlgorithm: ActiveAuthEcdsaHashAlgorithm | null = null;
+	let activeAuthEcdsaHashAlgorithm: ActiveAuthEcdsaHashAlgorithm | null = null;
+	const chipAuthInfos: ChipAuthInfoEntry[] = [];
+	const chipAuthPublicKeys: ChipAuthPublicKeyInfoEntry[] = [];
 
 	for (const child of root.valueBlock.value) {
 		if (!(child instanceof Sequence)) {
 			continue;
 		}
 
-		const candidate = readActiveAuthInfo(child);
+		const aaCandidate = readActiveAuthInfo(child);
+		if (aaCandidate && !activeAuthEcdsaHashAlgorithm) {
+			activeAuthEcdsaHashAlgorithm = aaCandidate;
+			continue;
+		}
 
-		if (candidate) {
-			hashAlgorithm = candidate;
-			break;
+		const caInfo = readChipAuthInfo(child);
+		if (caInfo) {
+			chipAuthInfos.push(caInfo);
+			continue;
+		}
+
+		const caPublicKeyInfo = readChipAuthPublicKeyInfo(child);
+		if (caPublicKeyInfo) {
+			chipAuthPublicKeys.push(caPublicKeyInfo);
 		}
 	}
 
-	return { activeAuthEcdsaHashAlgorithm: hashAlgorithm };
+	return {
+		activeAuthEcdsaHashAlgorithm,
+		chipAuthInfos,
+		chipAuthPublicKeys,
+	};
 }

@@ -1,5 +1,11 @@
 name: kayle-id
 icon: apps/platform/public/android-chrome-512x512.png
+# Maintainer note: every worker reads from the repo-root `.env`. Maintainers
+# run `bun run env:pull` once to populate it from Infisical.
+#
+# Contributors without Infisical access should run `bun run env:setup` (which
+# generates a working `.env` with random/dummy values) and use `bun run dev`
+# directly instead of solo.
 processes:
   API:
     command: bun run dev
@@ -29,9 +35,9 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
-  Drizzle Gateway:
-    command: drizzle-gateway
-    working_dir: null
+  Studio:
+    command: bun drizzle-kit studio
+    working_dir: ./packages/database
     auto_start: false
     auto_restart: false
     restart_when_changed: []
@@ -51,21 +57,21 @@ processes:
     restart_when_changed: []
     env: {}
   Seed:
-    command: bun run dev:seed -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
+    command: infisical run --env=dev -- bun run dev:seed -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
     working_dir: ./
     auto_start: false
     auto_restart: false
     restart_when_changed: []
     env: {}
   Seed (Production):
-    command: bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
+    command: infisical run --env=prod -- bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
     working_dir: ./
     auto_start: false
     auto_restart: false
     restart_when_changed: []
     env: {}
   iOS (Local):
-    command: bash ./apps/ios/scripts/run-on-connected-device.sh
+    command: infisical run --env=dev -- bash ./apps/ios/scripts/run-on-connected-device.sh
     working_dir: ./
     auto_start: false
     auto_restart: false

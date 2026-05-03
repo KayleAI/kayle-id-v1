@@ -21,10 +21,6 @@
 		"directory": "./public",
 		"run_worker_first": true
 	},
-	"vars": {
-		"PUBLIC_AUTH_URL": "https://kayle.id",
-		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
-	},
 	"send_email": [
 		{
 			"name": "SEND_EMAIL",
@@ -70,5 +66,100 @@
 			"zone_name": "kayle.id",
 			"custom_domain": false
 		}
-	]
+	],
+	"vars": {
+		"PUBLIC_AUTH_URL": "http://localhost:3000",
+		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+	},
+	"env": {
+		"production": {
+			"vars": {
+				"PUBLIC_AUTH_URL": "https://kayle.id",
+				"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+			},
+			"hyperdrive": [
+				{
+					"binding": "HYPERDRIVE",
+					"id": "576f2213d15149ad8746112f488ae37c",
+					"localConnectionString": "postgres://postgres:postgres@localhost:6432/kayle-id"
+				}
+			],
+			"services": [
+				{
+					"binding": "FACE_MATCHER",
+					"service": "kayle-id-face-matcher"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "STORAGE",
+					"bucket_name": "kayle-id-r2",
+					"remote": false
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "TRUST_STORE",
+					"database_name": "kayle-id-trust-store",
+					"database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
+					"migrations_dir": "../../database/trust-store"
+				}
+			],
+			"secrets": {
+				"required": [
+					"KAYLE_INTERNAL_TOKEN",
+					"AUTH_SECRET",
+					"GOOGLE_CLIENT_ID",
+					"GOOGLE_CLIENT_SECRET",
+					"RESEND_API_KEY",
+					"FACE_MATCHER_SECRET"
+				]
+			}
+		},
+		"test": {
+			"vars": {
+				"PUBLIC_AUTH_URL": "http://localhost:3000",
+				"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+			},
+			"hyperdrive": [
+				{
+					"binding": "HYPERDRIVE",
+					"id": "576f2213d15149ad8746112f488ae37c",
+					"localConnectionString": "postgres://postgres:postgres@localhost:6432/kayle-id"
+				}
+			],
+			"services": [
+				{
+					"binding": "FACE_MATCHER",
+					"service": "kayle-id-face-matcher"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "STORAGE",
+					"bucket_name": "kayle-id-r2",
+					"remote": false
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "TRUST_STORE",
+					"database_name": "kayle-id-trust-store",
+					"database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
+					"migrations_dir": "../../database/trust-store"
+				}
+			],
+			"secrets": {
+				"required": [
+					"KAYLE_INTERNAL_TOKEN",
+					"AUTH_SECRET",
+					"GOOGLE_CLIENT_ID",
+					"GOOGLE_CLIENT_SECRET",
+					"RESEND_API_KEY",
+					"FACE_MATCHER_SECRET",
+					"VERIFY_PKD_TRUST_BUNDLE_JSON"
+				]
+			}
+		}
+	}
 }

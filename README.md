@@ -8,7 +8,26 @@ This open-source repository contains the official implementation of the Kayle ID
 
 ## Local Development
 
-See [CODE_INSTRUCTIONS.md](CODE_INSTRUCTIONS.md) for instructions on how to run Kayle ID locally.
+Quick start:
+
+```bash
+bun install
+bun run env:setup   # writes .env with random local secrets + dummy third-party creds
+bun run db:start
+bun run db:setup
+bun run dev
+```
+
+The bootstrap fills in random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, and `FACE_MATCHER_SECRET`, and dummy values for Google OAuth / Resend. The dev API falls back to logging magic OTPs and email bodies, so contributors do not need any third-party accounts to run the full stack.
+
+Maintainers with Infisical access can pull the shared dev secrets instead:
+
+```bash
+infisical login          # once per machine
+bun run env:pull         # writes the repo-root .env from Infisical
+```
+
+See [CODE_INSTRUCTIONS.md](CODE_INSTRUCTIONS.md) for the full local setup guide (iOS, Cap'n Proto, PKD seeding, tests).
 
 ## Data Processing
 

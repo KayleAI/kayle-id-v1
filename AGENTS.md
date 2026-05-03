@@ -6,6 +6,23 @@ AI agents and contributors must follow these rules strictly.
 
 ---
 
+# Environment Variables
+
+The local stack reads from a single `.env` at the repo root. Do **not** hand-author it.
+
+- `bun run env:setup` — writes a working `.env` with random local secrets + dummy third-party creds. Use this for any task that needs a local boot.
+- `bun run env:pull` — pulls the shared dev secrets from Infisical Cloud (maintainers only).
+
+Infisical is the source of truth for both dev and prod secrets. Production sync to Cloudflare Workers happens through the Infisical → Cloudflare integration; nothing in this repo pushes secrets at deploy time.
+
+Two `.env.example` files survive as machine inputs to `wrangler types` and must stay in sync with the keys configured in Infisical:
+- `apps/api/.env.example`
+- `infra/face-matcher/.env.example`
+
+When adding or removing a runtime env var, update the relevant `.env.example`, the Infisical project, and the `env:setup` script's dummy/random defaults if appropriate. Do not introduce new per-app `.env` files.
+
+---
+
 # Core Philosophy
 
 The AI **must never invent structure**.

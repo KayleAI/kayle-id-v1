@@ -22,6 +22,8 @@
   "scripts": {
     "dev": "turbo run dev --filter=kayle-id-api --filter=kayle-id-face-matcher --filter=kayle-id-platform --filter=kayle-id-verify",
     "dev:seed": "bash ./scripts/seed-local-dev.sh",
+    "env:setup": "bun ./scripts/setup-env.ts",
+    "env:pull": "bash ./scripts/pull-env.sh",
     "test": "turbo run test",
     "prod:seed:pkd": "bash ./scripts/seed-production-pkd.sh",
     "dev:ios": "turbo run dev --filter=kayle-id-ios",

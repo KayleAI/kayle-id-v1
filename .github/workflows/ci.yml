@@ -179,7 +179,7 @@ jobs:
           )
           (
             cd apps/api
-            bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230
+            bunx wrangler dev --env-file ./.env.test --local --ip 127.0.0.1 --port 8787 --inspector-port 9230 --env test
           ) > /tmp/api.log 2>&1 &
           SERVER_PID=$!
           echo "API server started with PID ${SERVER_PID}"

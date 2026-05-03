@@ -31,6 +31,7 @@ export type PassiveAuthFailureReason =
 
 export type ActiveAuthFailureReason =
 	| "challenge_invalid_length"
+	| "challenge_mismatch"
 	| "dg14_parse_failed"
 	| "dg15_missing"
 	| "dg15_parse_failed"

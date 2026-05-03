@@ -84,6 +84,10 @@ struct ShareReady {
   selectedFieldKeys @1 :List(Text);
 }
 
+struct ServerActiveAuthChallenge {
+  challenge @0 :Data;
+}
+
 struct ServerMessage {
   union {
     ack @0 :ServerAck;
@@ -91,5 +95,6 @@ struct ServerMessage {
     verdict @2 :ServerVerdict;
     shareRequest @3 :ShareRequest;
     shareReady @4 :ShareReady;
+    activeAuthChallenge @5 :ServerActiveAuthChallenge;
   }
 }

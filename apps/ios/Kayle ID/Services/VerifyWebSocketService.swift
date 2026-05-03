@@ -22,6 +22,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private let baseURL: String
   private let onFatalError: ((VerifyWebSocketError) -> Void)?
   private let onShareRequest: ((VerifyShareRequest) -> Void)?
+  private let onActiveAuthChallenge: ((Data) -> Void)?
   private let codec = VerifyCapnpCodec()
 
   private var webSocketTask: URLSessionWebSocketTask?
@@ -53,7 +54,8 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     mobileWriteToken: String,
     baseURL: String,
     onFatalError: ((VerifyWebSocketError) -> Void)? = nil,
-    onShareRequest: ((VerifyShareRequest) -> Void)? = nil
+    onShareRequest: ((VerifyShareRequest) -> Void)? = nil,
+    onActiveAuthChallenge: ((Data) -> Void)? = nil
   ) {
     self.sessionId = sessionId
     self.attemptId = attemptId
@@ -61,6 +63,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     self.baseURL = baseURL
     self.onFatalError = onFatalError
     self.onShareRequest = onShareRequest
+    self.onActiveAuthChallenge = onActiveAuthChallenge
     super.init()
   }
 
@@ -474,6 +477,12 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  private func handleActiveAuthChallenge(_ challenge: Data) {
+    Task { @MainActor [onActiveAuthChallenge] in
+      onActiveAuthChallenge?(challenge)
+    }
+  }
+
   private func handleUnexpectedConnectionLoss() {
     let shouldHandle = stateQueue.sync { () -> Bool in
       guard !isClosing else {
@@ -588,6 +597,14 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
         switch message {
         case .data(let data):
           if let serverMessage = self.codec.decodeServerMessage(data) {
+            if let challenge = serverMessage.activeAuthChallenge {
+#if DEBUG
+              print("WS <- activeAuthChallenge bytes=\(challenge.count)")
+#endif
+              self.handleActiveAuthChallenge(challenge)
+              self.receiveLoop(for: task)
+              return
+            }
             let awaitingHello = self.isAwaitingHelloResponse()
             if awaitingHello {
               if let helloResponse = parseHelloResponse(

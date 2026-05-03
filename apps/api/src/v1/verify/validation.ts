@@ -1,4 +1,7 @@
-import { validateActiveAuthentication as validateActiveAuthenticationInternal } from "./active-auth";
+import {
+	deriveActiveAuthChallenge as deriveActiveAuthChallengeInternal,
+	validateActiveAuthentication as validateActiveAuthenticationInternal,
+} from "./active-auth";
 import {
 	decodeFaceImageBytes as decodeFaceImageBytesInternal,
 	extractDg2FaceImage as extractDg2FaceImageInternal,
@@ -79,6 +82,7 @@ export function validateActiveAuthentication({
 	challenge,
 	dg14,
 	dg15,
+	expectedChallenge,
 	signature,
 	sodAlgorithm,
 	sodDg15Hash,
@@ -86,6 +90,7 @@ export function validateActiveAuthentication({
 	challenge: Uint8Array;
 	dg14?: Uint8Array;
 	dg15: Uint8Array;
+	expectedChallenge?: Uint8Array;
 	signature: Uint8Array;
 	sodAlgorithm?: SupportedHashAlgorithm;
 	sodDg15Hash?: Uint8Array;
@@ -94,8 +99,19 @@ export function validateActiveAuthentication({
 		challenge,
 		dg14,
 		dg15,
+		expectedChallenge,
 		signature,
 		sodAlgorithm,
 		sodDg15Hash,
 	});
+}
+
+export function deriveActiveAuthChallenge({
+	attemptId,
+	authSecret,
+}: {
+	attemptId: string;
+	authSecret: string;
+}): Promise<Uint8Array> {
+	return deriveActiveAuthChallengeInternal({ attemptId, authSecret });
 }

@@ -93,6 +93,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
   private var currentMRZ: String = ""
   private var currentMRZKey: String = ""
   private var currentCardAccessNumber: String?
+  private var currentActiveAuthChallenge: [UInt8]?
   private var readTask: Task<Void, Never>?
 
   nonisolated override init() {
@@ -109,6 +110,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
     currentMRZ = ""
     currentMRZKey = ""
     currentCardAccessNumber = nil
+    currentActiveAuthChallenge = nil
     result = nil
     errorMessage = nil
     progress = 0
@@ -117,16 +119,26 @@ final class PassportNFCReader: NSObject, ObservableObject {
 
   /// Start NFC reading with a pre-computed MRZ key (BAC authentication key).
   /// The mrzKey should be: documentNumber + checkDigit + birthDate + checkDigit + expiryDate + checkDigit
-  func start(mrzKey: String, cardAccessNumber: String? = nil) {
+  ///
+  /// `activeAuthChallenge` is an optional server-issued nonce. When provided
+  /// the chip is asked to sign exactly these bytes during Active
+  /// Authentication, blocking the Challenge Semantics replay where a
+  /// compromised client could pick the challenge.
+  func start(
+    mrzKey: String,
+    cardAccessNumber: String? = nil,
+    activeAuthChallenge: Data? = nil
+  ) {
     stop()
     status = "Initializing NFC reader..."
-    
+
     // Setup delegate first
     setupDelegate()
-    
+
     currentMRZ = mrzKey
     currentMRZKey = mrzKey
     currentCardAccessNumber = cardAccessNumber
+    currentActiveAuthChallenge = activeAuthChallenge.map { Array($0) }
 
     // Validate MRZ key format (should be around 24 characters: 9+1+6+1+6+1)
     guard mrzKey.count >= 20 else {
@@ -137,22 +149,30 @@ final class PassportNFCReader: NSObject, ObservableObject {
 
     // Cancel any existing read task
     readTask?.cancel()
-    
+
     // Update status before starting
     status = "Press your document against your device and hold still to read the chip."
-    
+
     // Start reading on a background task
     readTask = Task { [weak self] in
       await self?.readPassport()
     }
   }
-  
+
   /// Start NFC reading by parsing a full MRZ string.
   /// Use this when you have the raw MRZ from the scanner.
-  func start(mrz: String, cardAccessNumber: String? = nil) {
+  func start(
+    mrz: String,
+    cardAccessNumber: String? = nil,
+    activeAuthChallenge: Data? = nil
+  ) {
     do {
       let mrzKey = try buildMRZKey(from: mrz)
-      start(mrzKey: mrzKey, cardAccessNumber: cardAccessNumber)
+      start(
+        mrzKey: mrzKey,
+        cardAccessNumber: cardAccessNumber,
+        activeAuthChallenge: activeAuthChallenge
+      )
     } catch {
       result = nil
       errorMessage = "We couldn't use this scan to read the chip. Try scanning again."
@@ -166,6 +186,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
         mrzKey: currentMRZKey,
         cardAccessNumber: currentCardAccessNumber,
         dataGroups: [.DG1, .DG2, .DG14, .DG15, .SOD],
+        aaChallenge: currentActiveAuthChallenge,
         displayMessageHandler: { [weak self] message in
           self?.handleDisplayMessage(message)
           return nil

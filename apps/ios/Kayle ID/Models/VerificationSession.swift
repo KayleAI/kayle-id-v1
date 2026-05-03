@@ -105,6 +105,11 @@ final class VerificationSession: ObservableObject {
   @Published var nfcResult: PassportReadResult?
   @Published var selfieImages: [UIImage] = []
   @Published var hasRFIDSymbol: Bool?
+  /// AA challenge issued by the server. Set asynchronously after hello — must
+  /// be threaded into PassportReader so the chip signs *this* nonce, not one
+  /// the client picked. Closes the Challenge Semantics weakness from
+  /// ICAO 9303 Part 11 §6.1.
+  @Published var activeAuthChallenge: Data?
 
   // Services
   private var webSocketService: VerifyWebSocketService?
@@ -427,6 +432,20 @@ final class VerificationSession: ObservableObject {
             return
           }
           self.handleShareRequest(shareRequest)
+        }
+      },
+      onActiveAuthChallenge: { [weak self] challenge in
+        Task { @MainActor [weak self] in
+          guard
+            let self,
+            shouldHandleAttemptScopedEvent(
+              currentAttemptId: self.payload?.attemptId,
+              eventAttemptId: attemptId
+            )
+          else {
+            return
+          }
+          self.activeAuthChallenge = challenge
         }
       }
     )

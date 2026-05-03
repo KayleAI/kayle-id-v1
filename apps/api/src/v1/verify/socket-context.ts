@@ -22,6 +22,7 @@ export type VerifySocketTransport = {
 	closeSocket: (code: number, reason: string) => void;
 	logDebug: (label: string, details?: Record<string, unknown>) => void;
 	sendAck: (message: string) => void;
+	sendActiveAuthChallenge: (challenge: Uint8Array) => void;
 	sendAuthErrorAndClose: (
 		code:
 			| "ATTEMPT_CONNECTION_ACTIVE"

@@ -7,6 +7,7 @@ import { matchFaces } from "./face-matcher-client";
 import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
 import type { VerifySocketContext } from "./socket-context";
 import {
+	deriveActiveAuthChallenge,
 	validateActiveAuthentication,
 	validateAuthenticity,
 } from "./validation";
@@ -238,11 +239,17 @@ async function runActiveAuthValidation({
 		return verdict;
 	}
 
+	const expectedChallenge = await deriveActiveAuthChallenge({
+		attemptId,
+		authSecret: context.env.AUTH_SECRET,
+	});
+
 	const result: ActiveAuthValidationResult = await validateActiveAuthentication(
 		{
 			challenge: activeAuthChallenge,
 			dg14,
 			dg15,
+			expectedChallenge,
 			signature: activeAuthSignature,
 		},
 	);

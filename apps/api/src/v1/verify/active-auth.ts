@@ -15,6 +15,7 @@ import type {
 } from "./validation-types";
 
 const ICAO_CHALLENGE_BYTES = 8;
+const ACTIVE_AUTH_CHALLENGE_LABEL = "aa:";
 const ISO_9796_2_LEADING_BYTE = 0x6a;
 const ISO_9796_2_IMPLICIT_TRAILER = 0xbc;
 const ISO_9796_2_EXPLICIT_TRAILER = 0xcc;
@@ -43,6 +44,42 @@ const ISO_9796_2_EXPLICIT_HASH_BY_ID: Record<number, AaHashAlgorithm> = {
 	53: "SHA-512",
 	56: "SHA-224",
 };
+
+/**
+ * Derive the 8-byte AA challenge from a server-only secret. Deterministic so
+ * it survives WebSocket reconnects within the same attempt without requiring
+ * shared state, but unpredictable to anyone without the secret — which is
+ * what gives Active Authentication its anti-cloning value.
+ */
+export async function deriveActiveAuthChallenge({
+	attemptId,
+	authSecret,
+}: {
+	attemptId: string;
+	authSecret: string;
+}): Promise<Uint8Array> {
+	const secretBytes = new TextEncoder().encode(authSecret);
+	const payloadBytes = new TextEncoder().encode(
+		`${ACTIVE_AUTH_CHALLENGE_LABEL}${attemptId}`,
+	);
+	const key = await crypto.subtle.importKey(
+		"raw",
+		bufferBytes(secretBytes),
+		{
+			hash: "SHA-256",
+			name: "HMAC",
+		},
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		bufferBytes(payloadBytes),
+	);
+
+	return new Uint8Array(signature).slice(0, ICAO_CHALLENGE_BYTES);
+}
 
 function failureResult(
 	reason: ActiveAuthFailureReason,
@@ -379,6 +416,7 @@ export async function validateActiveAuthentication({
 	challenge,
 	dg14,
 	dg15,
+	expectedChallenge,
 	signature,
 	sodAlgorithm,
 	sodDg15Hash,
@@ -386,12 +424,22 @@ export async function validateActiveAuthentication({
 	challenge: Uint8Array;
 	dg14?: Uint8Array;
 	dg15: Uint8Array;
+	/**
+	 * Server-derived AA challenge. When provided, the chip-side challenge
+	 * uploaded by the client must match it exactly — this defeats the
+	 * Challenge Semantics weakness from ICAO 9303 Part 11 §6.1.
+	 */
+	expectedChallenge?: Uint8Array;
 	signature: Uint8Array;
 	sodAlgorithm?: SupportedHashAlgorithm;
 	sodDg15Hash?: Uint8Array;
 }): Promise<ActiveAuthValidationResult> {
 	if (challenge.length !== ICAO_CHALLENGE_BYTES) {
 		return failureResult("challenge_invalid_length");
+	}
+
+	if (expectedChallenge && !bytesEqual(challenge, expectedChallenge)) {
+		return failureResult("challenge_mismatch");
 	}
 
 	if (signature.length === 0) {

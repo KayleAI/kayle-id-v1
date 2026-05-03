@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { Integer, ObjectIdentifier, Sequence } from "asn1js";
 import { AlgorithmIdentifier, PublicKeyInfo } from "pkijs";
 import { ensurePkijsEngine } from "@/v1/verify/pkd-trust";
-import { validateActiveAuthentication } from "@/v1/verify/validation";
+import {
+	deriveActiveAuthChallenge,
+	validateActiveAuthentication,
+} from "@/v1/verify/validation";
 
 const ICAO_CHALLENGE_BYTES = 8;
 const RSA_ENCRYPTION_OID = "1.2.840.113549.1.1.1";
@@ -148,10 +151,10 @@ async function generateRsaKeyPair(modulusLength: number): Promise<{
 		throw new Error("rsa_keypair_generation_failed");
 	}
 
-	const exportedPrivateJwk = await crypto.subtle.exportKey(
+	const exportedPrivateJwk = (await crypto.subtle.exportKey(
 		"jwk",
 		generated.privateKey,
-	);
+	)) as JsonWebKey;
 
 	return {
 		exportedPrivateJwk,
@@ -459,5 +462,107 @@ describe("validateActiveAuthentication RSA (ISO/IEC 9796-2 DS1)", () => {
 		});
 
 		expect(result.ok).toBe(false);
+	});
+});
+
+describe("deriveActiveAuthChallenge", () => {
+	test("returns 8 deterministic bytes per (secret, attemptId) pair", async () => {
+		const first = await deriveActiveAuthChallenge({
+			attemptId: "att_123",
+			authSecret: "test-secret",
+		});
+		const second = await deriveActiveAuthChallenge({
+			attemptId: "att_123",
+			authSecret: "test-secret",
+		});
+
+		expect(first.length).toBe(8);
+		expect(Array.from(first)).toEqual(Array.from(second));
+	});
+
+	test("differs across attemptIds", async () => {
+		const first = await deriveActiveAuthChallenge({
+			attemptId: "att_a",
+			authSecret: "test-secret",
+		});
+		const second = await deriveActiveAuthChallenge({
+			attemptId: "att_b",
+			authSecret: "test-secret",
+		});
+
+		expect(Array.from(first)).not.toEqual(Array.from(second));
+	});
+
+	test("differs across secrets", async () => {
+		const first = await deriveActiveAuthChallenge({
+			attemptId: "att_same",
+			authSecret: "secret-one",
+		});
+		const second = await deriveActiveAuthChallenge({
+			attemptId: "att_same",
+			authSecret: "secret-two",
+		});
+
+		expect(Array.from(first)).not.toEqual(Array.from(second));
+	});
+});
+
+describe("validateActiveAuthentication challenge binding", () => {
+	test("rejects when uploaded challenge does not match expectedChallenge", async () => {
+		const keyPair = await generateEcdsaKeyPair("P-256");
+		const subjectPublicKeyInfoBytes = await ecdsaSubjectPublicKeyInfoBytes(
+			keyPair.publicKey,
+		);
+		const dg15 = buildDg15Envelope(subjectPublicKeyInfoBytes);
+		const challenge = crypto.getRandomValues(
+			new Uint8Array(ICAO_CHALLENGE_BYTES),
+		);
+		const expectedChallenge = crypto.getRandomValues(
+			new Uint8Array(ICAO_CHALLENGE_BYTES),
+		);
+		const signature = await signEcdsaActiveAuth({
+			challenge,
+			curveSize: 32,
+			hashAlgorithm: "SHA-256",
+			privateKey: keyPair.privateKey,
+		});
+
+		const result = await validateActiveAuthentication({
+			challenge,
+			dg15,
+			expectedChallenge,
+			signature,
+		});
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.reason).toBe("challenge_mismatch");
+		}
+	});
+
+	test("accepts when uploaded challenge matches expectedChallenge", async () => {
+		const keyPair = await generateEcdsaKeyPair("P-256");
+		const subjectPublicKeyInfoBytes = await ecdsaSubjectPublicKeyInfoBytes(
+			keyPair.publicKey,
+		);
+		const dg15 = buildDg15Envelope(subjectPublicKeyInfoBytes);
+		const challenge = crypto.getRandomValues(
+			new Uint8Array(ICAO_CHALLENGE_BYTES),
+		);
+		const signature = await signEcdsaActiveAuth({
+			challenge,
+			curveSize: 32,
+			hashAlgorithm: "SHA-256",
+			privateKey: keyPair.privateKey,
+		});
+
+		const result = await validateActiveAuthentication({
+			challenge,
+			dg15,
+			expectedChallenge: challenge,
+			signature,
+		});
+
+		expect(result.ok).toBe(true);
 	});
 });

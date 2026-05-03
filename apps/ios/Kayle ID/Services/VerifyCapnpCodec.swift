@@ -104,6 +104,14 @@ nonisolated private func verify_server_message_get_share_ready_field(
   _ outKeySize: Int
 ) -> Int32
 
+@_silgen_name("verify_server_message_get_active_auth_challenge")
+nonisolated private func verify_server_message_get_active_auth_challenge(
+  _ reader: UnsafeMutableRawPointer?,
+  _ outChallenge: UnsafeMutablePointer<UInt8>?,
+  _ outChallengeSize: Int,
+  _ outChallengeLength: UnsafeMutablePointer<Int>?
+) -> Int32
+
 enum VerifyServerMessageKind: Int32 {
   case none = 0
   case ack = 1
@@ -111,6 +119,7 @@ enum VerifyServerMessageKind: Int32 {
   case verdict = 3
   case shareRequest = 4
   case shareReady = 5
+  case activeAuthChallenge = 6
 }
 
 struct VerifyServerMessage {
@@ -120,6 +129,25 @@ struct VerifyServerMessage {
   let verdict: VerifyServerVerdict?
   let shareRequest: VerifyShareRequest?
   let shareReady: VerifyShareReady?
+  let activeAuthChallenge: Data?
+
+  init(
+    ackMessage: String? = nil,
+    errorCode: String? = nil,
+    errorMessage: String? = nil,
+    verdict: VerifyServerVerdict? = nil,
+    shareRequest: VerifyShareRequest? = nil,
+    shareReady: VerifyShareReady? = nil,
+    activeAuthChallenge: Data? = nil
+  ) {
+    self.ackMessage = ackMessage
+    self.errorCode = errorCode
+    self.errorMessage = errorMessage
+    self.verdict = verdict
+    self.shareRequest = shareRequest
+    self.shareReady = shareReady
+    self.activeAuthChallenge = activeAuthChallenge
+  }
 }
 
 final class VerifyCapnpCodec {
@@ -497,6 +525,24 @@ final class VerifyCapnpCodec {
           sessionId: String(cString: sessionIdBuffer),
           selectedFieldKeys: selectedFieldKeys
         )
+      )
+    case .activeAuthChallenge:
+      let bufferSize = 64
+      var buffer = [UInt8](repeating: 0, count: bufferSize)
+      var length: Int = 0
+      let ok = verify_server_message_get_active_auth_challenge(
+        reader.opaque,
+        &buffer,
+        bufferSize,
+        &length
+      )
+
+      guard ok == 1, length > 0, length <= bufferSize else {
+        return VerifyServerMessage()
+      }
+
+      return VerifyServerMessage(
+        activeAuthChallenge: Data(buffer.prefix(length))
       )
     case .none:
       return nil

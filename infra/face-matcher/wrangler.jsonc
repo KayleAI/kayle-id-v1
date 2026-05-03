@@ -20,6 +20,7 @@
   },
   "containers": [
     {
+      "name": "kayle-id-face-matcher-facematchercontainer",
       "class_name": "FaceMatcherContainer",
       "image": "./Dockerfile",
       "max_instances": 2
@@ -44,6 +45,7 @@
       "name": "kayle-id-face-matcher",
       "containers": [
         {
+          "name": "kayle-id-face-matcher-facematchercontainer",
           "class_name": "FaceMatcherContainer",
           "image": "./Dockerfile",
           "max_instances": 2

@@ -100,9 +100,9 @@ const plugins = [
       }
 
       await sendMagicLinkEmail({
-        apiKey: env.RESEND_API_KEY,
+        binding: env.SEND_EMAIL,
         expiresInMinutes: magicLinkExpiryInMinutes,
-        from: env.RESEND_FROM_EMAIL,
+        from: env.EMAIL_FROM_ADDRESS,
         otp: payload.otp,
         to: payload.email,
         type: payload.type,

@@ -1,4 +1,8 @@
-import type { Hyperdrive, R2Bucket } from "@cloudflare/workers-types";
+import type {
+  Hyperdrive,
+  R2Bucket,
+  SendEmail,
+} from "@cloudflare/workers-types";
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
 import { z } from "zod";
@@ -39,13 +43,13 @@ export const env = createEnv({
     REDIS_URL: z.string().min(1).optional(),
     REDIS_TOKEN: z.string().min(1).optional(),
 
-    // Resend
-    RESEND_API_KEY: z.string().min(1),
-    RESEND_FROM_EMAIL: z.string().min(1),
+    // Email
+    EMAIL_FROM_ADDRESS: z.string().min(1),
 
     // Cloudflare Specific Variables
     STORAGE: z.custom<R2Bucket>(),
     HYPERDRIVE: z.custom<Hyperdrive>().optional(),
+    SEND_EMAIL: z.custom<SendEmail>(),
   },
 
   shared: {

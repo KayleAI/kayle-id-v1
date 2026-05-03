@@ -966,8 +966,12 @@ describe("Verification Flows", () => {
 	});
 
 	test.serial(
-		"Rejects second concurrent socket for the same attempt with ATTEMPT_CONNECTION_ACTIVE",
+		"Allows same-device reconnect to take over an active claim",
 		async () => {
+			// iOS calls reconnectForTransfer() right after the NFC scan, which
+			// disconnects + reconnects faster than the old socket's release can
+			// flush. The new socket's hello must succeed because it has already
+			// proven device identity via the resume auth path.
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
 			const helloMessage = encodeHelloMessage({
@@ -989,7 +993,50 @@ describe("Verification Flows", () => {
 				await awaitSocketOpen(socketTwo);
 				socketTwo.send(helloMessage);
 				const secondResponse = await awaitServerMessage(socketTwo);
-				expect(secondResponse.error?.code).toBe("ATTEMPT_CONNECTION_ACTIVE");
+				expect(secondResponse.ack).toBe("hello_ok");
+			} finally {
+				socketOne.close();
+				socketTwo.close();
+			}
+		},
+	);
+
+	test.serial(
+		"Rejects a different device that races a fresh consume hello",
+		async () => {
+			// Two devices grab the same QR and race the consume hello. Only one
+			// can win the claim; the other gets ATTEMPT_CONNECTION_ACTIVE
+			// because the resume path is gated on matching deviceIdHash.
+			const sessionId = await createSession();
+			const handoff = await createHandoff(sessionId);
+
+			const socketOne = openVerifySocket(sessionId);
+			const socketTwo = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketOne);
+				socketOne.send(
+					encodeHelloMessage({
+						attemptId: handoff.attempt_id,
+						mobileWriteToken: handoff.mobile_write_token,
+						deviceId: "ios-device-a",
+						appVersion: "1.0.0",
+					}),
+				);
+				const firstResponse = await awaitServerMessage(socketOne);
+				expect(firstResponse.ack).toBe("hello_ok");
+
+				await awaitSocketOpen(socketTwo);
+				socketTwo.send(
+					encodeHelloMessage({
+						attemptId: handoff.attempt_id,
+						mobileWriteToken: handoff.mobile_write_token,
+						deviceId: "ios-device-b",
+						appVersion: "1.0.0",
+					}),
+				);
+				const secondResponse = await awaitServerMessage(socketTwo);
+				expect(secondResponse.error?.code).toBe("HANDOFF_DEVICE_MISMATCH");
 			} finally {
 				socketOne.close();
 				socketTwo.close();

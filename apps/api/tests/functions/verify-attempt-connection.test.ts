@@ -153,6 +153,59 @@ describe("attempt-connection durable claim", () => {
 		expect(row?.claimedBy).toBe(newOwner);
 	});
 
+	test("allowTakeover lets a new owner displace a live claim", async () => {
+		const { attemptId } = await createSessionAndAttempt();
+		const oldOwner = crypto.randomUUID();
+		const newOwner = crypto.randomUUID();
+
+		await claimAttemptConnection({ attemptId, ownerId: oldOwner });
+
+		const takenOver = await claimAttemptConnection({
+			attemptId,
+			ownerId: newOwner,
+			allowTakeover: true,
+		});
+
+		expect(takenOver.ok).toBeTrue();
+
+		const [row] = await db
+			.select({
+				claimedBy: verification_attempts.claimedByConnectionId,
+			})
+			.from(verification_attempts)
+			.where(eq(verification_attempts.id, attemptId))
+			.limit(1);
+
+		expect(row?.claimedBy).toBe(newOwner);
+	});
+
+	test("a stale release from the prior owner is a no-op after takeover", async () => {
+		const { attemptId } = await createSessionAndAttempt();
+		const oldOwner = crypto.randomUUID();
+		const newOwner = crypto.randomUUID();
+
+		await claimAttemptConnection({ attemptId, ownerId: oldOwner });
+		await claimAttemptConnection({
+			attemptId,
+			ownerId: newOwner,
+			allowTakeover: true,
+		});
+
+		// The previous socket's close handler eventually fires release with
+		// its own ownerId. It must not clear the new owner's claim.
+		await releaseAttemptConnection({ attemptId, ownerId: oldOwner });
+
+		const [row] = await db
+			.select({
+				claimedBy: verification_attempts.claimedByConnectionId,
+			})
+			.from(verification_attempts)
+			.where(eq(verification_attempts.id, attemptId))
+			.limit(1);
+
+		expect(row?.claimedBy).toBe(newOwner);
+	});
+
 	test("release clears the claim only when the owner matches", async () => {
 		const { attemptId } = await createSessionAndAttempt();
 		const owner1 = crypto.randomUUID();

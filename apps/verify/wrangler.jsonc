@@ -34,6 +34,13 @@
 	},
 	"env": {
 		"production": {
+			"name": "kayle-id-verify",
+			"services": [
+				{
+					"binding": "API",
+					"service": "kayle-id-api"
+				}
+			],
 			"vars": {
 				"PUBLIC_API_HOST": "api.kayle.id",
 				"PUBLIC_API_PROTOCOL": "wss"

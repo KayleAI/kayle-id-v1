@@ -282,7 +282,7 @@ jobs:
 
       - name: Build preview face matcher worker bundle
         working-directory: infra/face-matcher
-        run: bun run build
+        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --env production
 
       - name: Package face matcher deploy artifact
         id: package
@@ -332,7 +332,7 @@ jobs:
 
       - name: Deploy preview API worker bundle
         working-directory: apps/api
-        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify
+        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify --env production
 
       - name: Package API deploy artifact
         id: package
@@ -436,7 +436,7 @@ jobs:
 
       - name: Build preview verify worker bundle
         working-directory: apps/verify
-        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify
+        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify --env production
 
       - name: Package verify deploy artifact
         id: package
@@ -1064,7 +1064,8 @@ jobs:
         run: |
           bunx wrangler deploy \
             --config "${RUNNER_TEMP}/deploy-face-matcher/workspace/infra/face-matcher/wrangler.deploy.jsonc" \
-            --no-bundle
+            --no-bundle \
+            --env production
 
   deploy_api:
     name: Deploy API
@@ -1125,7 +1126,8 @@ jobs:
         run: |
           bunx wrangler deploy \
             --config "${RUNNER_TEMP}/deploy-api/workspace/apps/api/wrangler.deploy.jsonc" \
-            --no-bundle
+            --no-bundle \
+            --env production
 
   deploy_platform:
     name: Deploy Platform
@@ -1247,7 +1249,8 @@ jobs:
         run: |
           bunx wrangler deploy \
             --config "${RUNNER_TEMP}/deploy-verify/workspace/apps/verify/wrangler.deploy.jsonc" \
-            --no-bundle
+            --no-bundle \
+            --env production
 
   upload_app_store:
     name: Upload iOS to App Store Connect

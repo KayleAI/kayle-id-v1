@@ -94,6 +94,12 @@ export async function handleHelloMessage(
 	const ownership = await claimAttemptConnection({
 		attemptId: attempt.id,
 		ownerId: connectionOwnerId,
+		// Resume already proved this is the same device via deviceIdHash, so
+		// the new socket is allowed to displace whatever owner the previous
+		// socket left behind. Otherwise the iOS reconnect that runs right
+		// after the NFC scan races the old socket's async release and gets
+		// rejected with ATTEMPT_CONNECTION_ACTIVE.
+		allowTakeover: authState.kind === "resume",
 	});
 
 	if (!ownership.ok) {

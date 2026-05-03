@@ -183,10 +183,12 @@ export function startVerifySocketSession(
 		}
 
 		if (context.state.attemptId) {
-			void releaseAttemptConnection({
-				attemptId: context.state.attemptId,
-				ownerId: connectionOwnerId,
-			});
+			context.scheduleTask(
+				releaseAttemptConnection({
+					attemptId: context.state.attemptId,
+					ownerId: connectionOwnerId,
+				}),
+			);
 		}
 
 		resetTransferState(context.state.transfer);

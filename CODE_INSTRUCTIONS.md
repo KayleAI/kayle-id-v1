@@ -114,7 +114,6 @@ Add these to `.env` only if you need them:
 - `KAYLE_DEMO_API_KEY` / `KAYLE_DEMO_ORG_SLUG` — required only if you want `https://localhost:3000/demo` to create real sessions against the local API. `KAYLE_DEMO_ORG_SLUG` defaults to `"kayle"`.
 - `REDIS_URL` / `REDIS_TOKEN` — only needed if you wire Redis-backed behavior.
 - Real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — only if you want to test real Google sign-in locally.
-- Real `RESEND_API_KEY` — only if you want to test real outbound email locally.
 
 ### Optional `apps/verify/.env`
 

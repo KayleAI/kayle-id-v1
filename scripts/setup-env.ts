@@ -30,15 +30,11 @@ FACE_MATCHER_SECRET=${generateSecret()}
 # Public auth URL — the platform app proxies auth through localhost:3000.
 PUBLIC_AUTH_URL=https://localhost:3000
 
-# Resend sender — freeform string, not a secret.
-RESEND_FROM_EMAIL="Kayle ID <auth@kayle.id>"
-
 # Dummy third-party credentials — the dev API logs the magic OTP and email
 # body instead of calling Google or Resend, so these can stay as dummies
 # unless you want to exercise the real OAuth or email flows.
 GOOGLE_CLIENT_ID=dummy-google-client-id
 GOOGLE_CLIENT_SECRET=dummy-google-client-secret
-RESEND_API_KEY=dummy-resend-api-key
 `;
 
 const main = async (): Promise<void> => {

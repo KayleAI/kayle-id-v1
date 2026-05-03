@@ -69,13 +69,13 @@
 	],
 	"vars": {
 		"PUBLIC_AUTH_URL": "http://localhost:3000",
-		"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 	},
 	"env": {
 		"production": {
 			"vars": {
 				"PUBLIC_AUTH_URL": "https://kayle.id",
-				"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"hyperdrive": [
 				{
@@ -111,7 +111,6 @@
 					"AUTH_SECRET",
 					"GOOGLE_CLIENT_ID",
 					"GOOGLE_CLIENT_SECRET",
-					"RESEND_API_KEY",
 					"FACE_MATCHER_SECRET"
 				]
 			}
@@ -119,7 +118,7 @@
 		"test": {
 			"vars": {
 				"PUBLIC_AUTH_URL": "http://localhost:3000",
-				"RESEND_FROM_EMAIL": "Kayle ID <security@care.kayle.id>"
+				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"hyperdrive": [
 				{
@@ -155,7 +154,6 @@
 					"AUTH_SECRET",
 					"GOOGLE_CLIENT_ID",
 					"GOOGLE_CLIENT_SECRET",
-					"RESEND_API_KEY",
 					"FACE_MATCHER_SECRET",
 					"VERIFY_PKD_TRUST_BUNDLE_JSON"
 				]

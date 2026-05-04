@@ -133,7 +133,13 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 	);
 }
 
-function LeaveCard({ organization }: { organization: FullOrganization }) {
+function LeaveCard({
+	isLastOwner,
+	organization,
+}: {
+	isLastOwner: boolean;
+	organization: FullOrganization;
+}) {
 	const navigate = useNavigate();
 	const { refresh } = useAuth();
 	const queryClient = useQueryClient();
@@ -163,13 +169,22 @@ function LeaveCard({ organization }: { organization: FullOrganization }) {
 					You will lose access to this organization. An owner can re-invite you.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="space-y-4">
+				{isLastOwner ? (
+					<Alert>
+						<AlertTitle>You're the only owner</AlertTitle>
+						<AlertDescription>
+							Promote another member to owner on the Members page before
+							leaving, or delete the organization instead.
+						</AlertDescription>
+					</Alert>
+				) : null}
 				<div className="flex items-center justify-between gap-4">
 					<p className="text-muted-foreground text-sm">
 						You'll be redirected to your other organizations after leaving.
 					</p>
 					<Button
-						disabled={leaveMutation.isPending}
+						disabled={isLastOwner || leaveMutation.isPending}
 						onClick={() => setOpen(true)}
 						type="button"
 						variant="outline"
@@ -289,7 +304,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 							be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
-					<div className="space-y-2 px-6 pb-2">
+					<div className="space-y-2 pb-2">
 						<Label htmlFor="confirm-slug">Confirmation</Label>
 						<Input
 							autoComplete="off"
@@ -324,19 +339,25 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 function SettingsBody({
 	canDelete,
 	canEditSlug,
+	isLastOwner,
 	organization,
 }: {
 	canDelete: boolean;
 	canEditSlug: boolean;
+	isLastOwner: boolean;
 	organization: FullOrganization;
 }) {
 	return (
 		<div className="space-y-6">
 			{canEditSlug ? <SlugCard organization={organization} /> : null}
-			<LeaveCard organization={organization} />
+			<LeaveCard isLastOwner={isLastOwner} organization={organization} />
 			{canDelete ? <DeleteCard organization={organization} /> : null}
 		</div>
 	);
+}
+
+function hasOwnerRole(role: string | undefined): boolean {
+	return role?.split(",").includes("owner") ?? false;
 }
 
 export function OrganizationSettingsPage() {
@@ -351,6 +372,10 @@ export function OrganizationSettingsPage() {
 		?.role as OrganizationRole | undefined;
 	const canEditSlug = currentRole === "owner" || currentRole === "admin";
 	const canDelete = currentRole === "owner";
+	const isCurrentUserOwner = hasOwnerRole(currentRole);
+	const ownerCount =
+		data?.members.filter((member) => hasOwnerRole(member.role)).length ?? 0;
+	const isLastOwner = isCurrentUserOwner && ownerCount <= 1;
 
 	return (
 		<OrganizationPageLayout
@@ -372,6 +397,7 @@ export function OrganizationSettingsPage() {
 				<SettingsBody
 					canDelete={canDelete}
 					canEditSlug={canEditSlug}
+					isLastOwner={isLastOwner}
 					organization={data}
 				/>
 			) : null}

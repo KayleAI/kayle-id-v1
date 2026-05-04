@@ -106,7 +106,7 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 }
 
 interface UpdateOrganizationInput {
-	logo?: string | null;
+	logo?: string;
 	metadata?: OrganizationMetadata;
 	name?: string;
 	slug?: string;

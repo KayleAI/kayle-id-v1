@@ -14,7 +14,7 @@ import { Skeleton } from "@kayleai/ui/skeleton";
 import { Textarea } from "@kayleai/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	type FullOrganization,
@@ -27,6 +27,7 @@ import {
 import { OrganizationPageLayout } from "./layout";
 
 const HTTPS_REGEX = /^https?:\/\//i;
+const MAX_LOGO_BYTES = 1024 * 1024;
 
 function PublicDetailsSkeleton() {
 	return (
@@ -37,7 +38,17 @@ function PublicDetailsSkeleton() {
 	);
 }
 
-function LogoCard({
+function readFileAsDataUrl(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onerror = () =>
+			reject(new Error("Failed to read the selected file."));
+		reader.onload = () => resolve(reader.result as string);
+		reader.readAsDataURL(file);
+	});
+}
+
+function PublicDetailsForm({
 	canEdit,
 	organization,
 }: {
@@ -47,173 +58,60 @@ function LogoCard({
 	const queryClient = useQueryClient();
 	const { refresh } = useAuth();
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [errorMessage, setErrorMessage] = useState("");
 
-	const uploadMutation = useMutation({
-		mutationFn: async (file: File) => {
-			const dataUrl = await new Promise<string>((resolve, reject) => {
-				const reader = new FileReader();
-				reader.onerror = () =>
-					reject(new Error("Failed to read the selected file."));
-				reader.onload = () => resolve(reader.result as string);
-				reader.readAsDataURL(file);
-			});
-			const base64 = dataUrl.split(",")[1] ?? "";
-			const { logo } = await uploadOrganizationLogo({
-				contentType: file.type,
-				data: base64,
-			});
-			await updateOrganization(organization.id, { logo });
-		},
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-			await refresh();
-			toast.success("Logo updated");
-			setErrorMessage("");
-			if (fileInputRef.current) {
-				fileInputRef.current.value = "";
-			}
-		},
-		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to upload logo",
-			);
-		},
-	});
-
-	const removeMutation = useMutation({
-		mutationFn: () => updateOrganization(organization.id, { logo: null }),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-			await refresh();
-			toast.success("Logo removed");
-			setErrorMessage("");
-		},
-		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to remove logo",
-			);
-		},
-	});
-
-	const handleSelectFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (!file) {
-			return;
-		}
-		if (!file.type.startsWith("image/")) {
-			setErrorMessage("Please select an image file.");
-			return;
-		}
-		setErrorMessage("");
-		uploadMutation.mutate(file);
-	};
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Logo</CardTitle>
-				<CardDescription>
-					Shown to users during verification flows. PNG, JPEG, GIF, or WebP up
-					to 1 MiB.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
-				<div className="flex items-center gap-4">
-					<div className="group relative flex size-16 shrink-0">
-						<button
-							aria-label="Upload logo"
-							className="flex size-16 items-center justify-center rounded-lg border-2 border-border border-dashed bg-muted transition-colors hover:border-foreground/50 hover:bg-muted/80"
-							disabled={!canEdit || uploadMutation.isPending}
-							onClick={() => fileInputRef.current?.click()}
-							type="button"
-						>
-							<input
-								accept="image/*"
-								className="hidden"
-								disabled={!canEdit || uploadMutation.isPending}
-								onChange={handleSelectFile}
-								ref={fileInputRef}
-								type="file"
-							/>
-							{organization.logo ? (
-								<img
-									alt={`${organization.name} logo`}
-									className="size-full rounded-lg object-cover"
-									height={64}
-									src={organization.logo}
-									width={64}
-								/>
-							) : (
-								<PlusIcon
-									aria-hidden="true"
-									className="size-6 text-muted-foreground"
-								/>
-							)}
-						</button>
-						{canEdit && organization.logo ? (
-							<button
-								aria-label="Remove logo"
-								className="-top-2 -right-2 absolute flex size-6 items-center justify-center rounded-full border border-border bg-background shadow-sm"
-								disabled={removeMutation.isPending}
-								onClick={() => removeMutation.mutate()}
-								type="button"
-							>
-								<XIcon
-									aria-hidden="true"
-									className="size-3 text-muted-foreground"
-								/>
-							</button>
-						) : null}
-					</div>
-					<div className="min-w-0 flex-1">
-						<p className="font-medium text-foreground text-sm">
-							{organization.logo ? "Replace logo" : "Upload a logo"}
-						</p>
-						<p className="text-muted-foreground text-sm">
-							{canEdit
-								? "Click the placeholder to choose an image."
-								: "Only owners and admins can change the logo."}
-						</p>
-					</div>
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function ProfileCard({
-	canEdit,
-	organization,
-}: {
-	canEdit: boolean;
-	organization: FullOrganization;
-}) {
-	const queryClient = useQueryClient();
-	const { refresh } = useAuth();
 	const [name, setName] = useState(organization.name);
 	const [description, setDescription] = useState(
 		organization.metadata?.description ?? "",
 	);
 	const [website, setWebsite] = useState(organization.metadata?.website ?? "");
+	const [logoPreview, setLogoPreview] = useState<string | null>(
+		organization.logo ?? null,
+	);
+	const [pendingLogo, setPendingLogo] = useState<File | null | undefined>(
+		undefined,
+	);
 	const [errorMessage, setErrorMessage] = useState("");
 
-	const updateMutation = useMutation({
+	useEffect(() => {
+		setName(organization.name);
+		setDescription(organization.metadata?.description ?? "");
+		setWebsite(organization.metadata?.website ?? "");
+		setLogoPreview(organization.logo ?? null);
+		setPendingLogo(undefined);
+		setErrorMessage("");
+	}, [
+		organization.name,
+		organization.logo,
+		organization.metadata?.description,
+		organization.metadata?.website,
+	]);
+
+	const saveMutation = useMutation({
 		mutationFn: async () => {
+			const trimmedName = name.trim();
 			const trimmedWebsite = website.trim();
 			const trimmedDescription = description.trim();
+
+			let logoPayload: string | undefined;
+			if (pendingLogo === null) {
+				logoPayload = "";
+			} else if (pendingLogo instanceof File) {
+				const dataUrl = await readFileAsDataUrl(pendingLogo);
+				const base64 = dataUrl.split(",")[1] ?? "";
+				const { logo } = await uploadOrganizationLogo({
+					contentType: pendingLogo.type,
+					data: base64,
+				});
+				logoPayload = logo;
+			}
+
 			await updateOrganization(organization.id, {
-				name: name.trim(),
+				name: trimmedName,
 				metadata: {
 					description: trimmedDescription ? trimmedDescription : null,
 					website: trimmedWebsite ? trimmedWebsite : null,
 				},
+				...(logoPayload === undefined ? {} : { logo: logoPayload }),
 			});
 		},
 		onSuccess: async () => {
@@ -221,6 +119,10 @@ function ProfileCard({
 			await refresh();
 			toast.success("Public details updated");
 			setErrorMessage("");
+			setPendingLogo(undefined);
+			if (fileInputRef.current) {
+				fileInputRef.current.value = "";
+			}
 		},
 		onError: (err) => {
 			setErrorMessage(
@@ -229,91 +131,209 @@ function ProfileCard({
 		},
 	});
 
-	const handleSave = () => {
-		if (!name.trim()) {
+	const handleSelectFile = async (
+		event: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.target.files?.[0];
+		if (!file) {
+			return;
+		}
+		if (!file.type.startsWith("image/")) {
+			setErrorMessage("Please select an image file.");
+			return;
+		}
+		if (file.size > MAX_LOGO_BYTES) {
+			setErrorMessage("Logo must be 1 MB or smaller.");
+			return;
+		}
+		try {
+			const dataUrl = await readFileAsDataUrl(file);
+			setLogoPreview(dataUrl);
+			setPendingLogo(file);
+			setErrorMessage("");
+		} catch (err) {
+			setErrorMessage(
+				err instanceof Error
+					? err.message
+					: "Failed to read the selected file.",
+			);
+		}
+	};
+
+	const handleRemoveLogo = () => {
+		setLogoPreview(null);
+		setPendingLogo(null);
+		setErrorMessage("");
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
+	};
+
+	const trimmedName = name.trim();
+	const trimmedWebsite = website.trim();
+	const trimmedDescription = description.trim();
+	const isDirty =
+		trimmedName !== organization.name ||
+		trimmedDescription !== (organization.metadata?.description ?? "") ||
+		trimmedWebsite !== (organization.metadata?.website ?? "") ||
+		pendingLogo !== undefined;
+
+	const isSaving = saveMutation.isPending;
+
+	const handleSubmit = (event: React.FormEvent) => {
+		event.preventDefault();
+		if (!canEdit || !isDirty || isSaving) {
+			return;
+		}
+		if (!trimmedName) {
 			setErrorMessage("Name is required");
 			return;
 		}
-		const trimmedWebsite = website.trim();
 		if (trimmedWebsite && !HTTPS_REGEX.test(trimmedWebsite)) {
 			setErrorMessage("Website must start with http:// or https://");
 			return;
 		}
 		setErrorMessage("");
-		updateMutation.mutate();
+		saveMutation.mutate();
 	};
 
-	const isDirty =
-		name.trim() !== organization.name ||
-		description.trim() !== (organization.metadata?.description ?? "") ||
-		website.trim() !== (organization.metadata?.website ?? "");
-
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Profile</CardTitle>
-				<CardDescription>
-					How your organization appears to users during verification.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
-				<div className="space-y-2">
-					<Label htmlFor="public-name">Display name</Label>
-					<Input
-						disabled={!canEdit || updateMutation.isPending}
-						id="public-name"
-						name="name"
-						onChange={(event) => setName(event.target.value)}
-						placeholder="Acme Inc."
-						value={name}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="public-website">Website</Label>
-					<Input
-						autoComplete="url"
-						disabled={!canEdit || updateMutation.isPending}
-						id="public-website"
-						inputMode="url"
-						name="website"
-						onChange={(event) => setWebsite(event.target.value)}
-						placeholder="https://acme.example"
-						type="url"
-						value={website}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="public-description">Description</Label>
-					<Textarea
-						disabled={!canEdit || updateMutation.isPending}
-						id="public-description"
-						name="description"
-						onChange={(event) => setDescription(event.target.value)}
-						placeholder="Tell users a little about your organization."
-						rows={4}
-						value={description}
-					/>
-					<p className="text-muted-foreground text-xs">
-						Shown to users when they're asked to verify with your organization.
-					</p>
-				</div>
-				<div className="flex justify-end">
-					<Button
-						disabled={!canEdit || !isDirty || updateMutation.isPending}
-						onClick={handleSave}
-						type="button"
-					>
-						{updateMutation.isPending ? "Saving..." : "Save changes"}
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
+		<form className="space-y-6" onSubmit={handleSubmit}>
+			{errorMessage ? (
+				<Alert variant="destructive">
+					<AlertTitle>Error</AlertTitle>
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+			) : null}
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Logo</CardTitle>
+					<CardDescription>
+						Shown to users during verification flows. PNG, JPEG, GIF, or WebP up
+						to 1 MiB.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="flex items-center gap-4">
+						<div className="group relative flex size-16 shrink-0">
+							<button
+								aria-label={logoPreview ? "Replace logo" : "Upload logo"}
+								className="flex size-16 items-center justify-center rounded-lg border-2 border-border border-dashed bg-muted transition-colors hover:border-foreground/50 hover:bg-muted/80"
+								disabled={!canEdit || isSaving}
+								onClick={() => fileInputRef.current?.click()}
+								type="button"
+							>
+								<input
+									accept="image/*"
+									className="hidden"
+									disabled={!canEdit || isSaving}
+									onChange={handleSelectFile}
+									ref={fileInputRef}
+									type="file"
+								/>
+								{logoPreview ? (
+									<img
+										alt={`${organization.name} logo`}
+										className="size-full rounded-lg object-cover"
+										height={64}
+										src={logoPreview}
+										width={64}
+									/>
+								) : (
+									<PlusIcon
+										aria-hidden="true"
+										className="size-6 text-muted-foreground"
+									/>
+								)}
+							</button>
+							{canEdit && logoPreview ? (
+								<button
+									aria-label="Remove logo"
+									className="-top-2 -right-2 absolute flex size-6 items-center justify-center rounded-full border border-border bg-background shadow-sm"
+									disabled={isSaving}
+									onClick={handleRemoveLogo}
+									type="button"
+								>
+									<XIcon
+										aria-hidden="true"
+										className="size-3 text-muted-foreground"
+									/>
+								</button>
+							) : null}
+						</div>
+						<div className="min-w-0 flex-1">
+							<p className="font-medium text-foreground text-sm">
+								{logoPreview ? "Replace logo" : "Upload a logo"}
+							</p>
+							<p className="text-muted-foreground text-sm">
+								{canEdit
+									? "Click the placeholder to choose an image. Changes apply when you save."
+									: "Only owners and admins can change the logo."}
+							</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Profile</CardTitle>
+					<CardDescription>
+						How your organization appears to users during verification.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="space-y-2">
+						<Label htmlFor="public-name">Display name</Label>
+						<Input
+							disabled={!canEdit || isSaving}
+							id="public-name"
+							name="name"
+							onChange={(event) => setName(event.target.value)}
+							placeholder="Acme Inc."
+							value={name}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="public-website">Website</Label>
+						<Input
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="public-website"
+							inputMode="url"
+							name="website"
+							onChange={(event) => setWebsite(event.target.value)}
+							placeholder="https://acme.example"
+							type="url"
+							value={website}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="public-description">Description</Label>
+						<Textarea
+							disabled={!canEdit || isSaving}
+							id="public-description"
+							name="description"
+							onChange={(event) => setDescription(event.target.value)}
+							placeholder="Tell users a little about your organization."
+							rows={4}
+							value={description}
+						/>
+						<p className="text-muted-foreground text-xs">
+							Shown to users when they're asked to verify with your
+							organization.
+						</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			<div className="flex justify-end">
+				<Button disabled={!canEdit || !isDirty || isSaving} type="submit">
+					{isSaving ? "Saving..." : "Save changes"}
+				</Button>
+			</div>
+		</form>
 	);
 }
 
@@ -346,10 +366,7 @@ export function OrganizationPublicDetailsPage() {
 			) : null}
 			{isLoading ? <PublicDetailsSkeleton /> : null}
 			{data && !isError ? (
-				<div className="space-y-6">
-					<LogoCard canEdit={canEdit} organization={data} />
-					<ProfileCard canEdit={canEdit} organization={data} />
-				</div>
+				<PublicDetailsForm canEdit={canEdit} organization={data} />
 			) : null}
 		</OrganizationPageLayout>
 	);

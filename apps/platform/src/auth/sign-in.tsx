@@ -208,6 +208,7 @@ export function SignIn() {
 					By signing in to Kayle ID, you agree to our{" "}
 					<Button
 						className="inline-block h-fit! p-0 text-foreground text-xs!"
+						nativeButton={false}
 						render={
 							<a href="/terms" rel="noopener noreferrer" target="_blank">
 								Terms of Service
@@ -218,6 +219,7 @@ export function SignIn() {
 					and{" "}
 					<Button
 						className="inline-block h-fit! p-0 text-foreground text-xs!"
+						nativeButton={false}
 						render={
 							<a href="/privacy" rel="noopener noreferrer" target="_blank">
 								Privacy Policy

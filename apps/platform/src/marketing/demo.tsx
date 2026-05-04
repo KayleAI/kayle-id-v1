@@ -434,6 +434,7 @@ function RunStatusPanel({ run }: { run: DemoRunView | null }) {
 			<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 				{run?.verification_url ? (
 					<Button
+						nativeButton={false}
 						render={
 							<a
 								href={run.verification_url}

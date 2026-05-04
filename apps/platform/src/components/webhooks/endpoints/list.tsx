@@ -98,6 +98,7 @@ export function EndpointActionsMenu({
 						render={
 							<Button
 								className="flex w-full items-center justify-start"
+								nativeButton={false}
 								render={
 									<Link
 										params={{ endpoint: endpoint.id }}

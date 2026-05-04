@@ -11,11 +11,7 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 import app from "@/index";
-import {
-	type SessionAuthTestData,
-	setupSessionAuth,
-	teardownSessionAuth,
-} from "./session-auth";
+import { type SessionAuthTestData, setupSessionAuth } from "./session-auth";
 
 type DeleteUserResponse = {
 	success?: boolean;

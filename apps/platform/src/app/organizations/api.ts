@@ -2,6 +2,8 @@ import { client } from "@kayle-id/auth/client";
 import type { Organization } from "@kayle-id/auth/types";
 import { requestApiResource } from "@/utils/api-client";
 
+const ORG_DELETE_BASE_PATH = "/api/auth/orgs";
+
 export const ORGANIZATION_QUERY_KEY = ["organization"] as const;
 
 export type OrganizationRole = "owner" | "admin" | "member";
@@ -83,6 +85,19 @@ function parseMetadata(value: unknown): OrganizationMetadata | null {
 	}
 }
 
+function toIsoStringOrNull(value: unknown): string | null {
+	if (value === null || value === undefined) {
+		return null;
+	}
+	if (typeof value === "string") {
+		return value;
+	}
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+	return null;
+}
+
 export async function fetchFullOrganization(): Promise<FullOrganization> {
 	const result =
 		(await client.organization.getFullOrganization()) as BetterAuthResult<
@@ -92,6 +107,14 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 
 	return {
 		...(data as unknown as Organization),
+		pendingDeletionAt: toIsoStringOrNull(data.pendingDeletionAt),
+		pendingDeletionRequestedAt: toIsoStringOrNull(
+			data.pendingDeletionRequestedAt,
+		),
+		pendingDeletionRequestedBy:
+			typeof data.pendingDeletionRequestedBy === "string"
+				? data.pendingDeletionRequestedBy
+				: null,
 		createdAt:
 			typeof data.createdAt === "string"
 				? data.createdAt
@@ -168,13 +191,41 @@ export async function leaveOrganization(organizationId: string): Promise<void> {
 	unwrap(result, "Failed to leave organization");
 }
 
-export async function deleteOrganization(
+export async function requestOrganizationDeletion(
+	organizationId: string,
+): Promise<{ sentToEmail: string }> {
+	return await requestApiResource<{ sentToEmail: string }>({
+		basePath: ORG_DELETE_BASE_PATH,
+		body: { organizationId },
+		method: "POST",
+		path: "/request-delete",
+		unexpectedMessage: "Failed to send confirmation code.",
+	});
+}
+
+export async function confirmOrganizationDeletion(
+	organizationId: string,
+	code: string,
+): Promise<{ pendingDeletionAt: string }> {
+	return await requestApiResource<{ pendingDeletionAt: string }>({
+		basePath: ORG_DELETE_BASE_PATH,
+		body: { organizationId, code },
+		method: "POST",
+		path: "/confirm-delete",
+		unexpectedMessage: "Failed to confirm deletion.",
+	});
+}
+
+export async function cancelOrganizationDeletion(
 	organizationId: string,
 ): Promise<void> {
-	const result = (await client.organization.delete({
-		organizationId,
-	})) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to delete organization");
+	await requestApiResource<{ ok: true }>({
+		basePath: ORG_DELETE_BASE_PATH,
+		body: { organizationId },
+		method: "POST",
+		path: "/cancel-delete",
+		unexpectedMessage: "Failed to cancel deletion.",
+	});
 }
 
 interface UploadLogoInput {

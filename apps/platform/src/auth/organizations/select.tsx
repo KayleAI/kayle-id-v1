@@ -95,6 +95,11 @@ export function SelectOrganizations() {
 										{org.name}
 									</h3>
 									<p className="text-muted-foreground text-sm">{org.slug}</p>
+									{org.pendingDeletionAt ? (
+										<p className="mt-1 inline-block rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 font-medium text-[11px] text-destructive uppercase tracking-wide">
+											Pending deletion
+										</p>
+									) : null}
 								</div>
 
 								{/* Loading Indicator */}

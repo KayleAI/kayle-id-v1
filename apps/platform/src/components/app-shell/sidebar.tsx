@@ -306,7 +306,12 @@ export function AppSidebar() {
 													{organization.name.charAt(0).toUpperCase()}
 												</AvatarFallback>
 											</Avatar>
-											{organization.name}
+											<span className="truncate">{organization.name}</span>
+											{organization.pendingDeletionAt ? (
+												<span className="ml-auto rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-medium text-[10px] text-destructive uppercase tracking-wide">
+													Pending
+												</span>
+											) : null}
 										</DropdownMenuItem>
 									))}
 									<DropdownMenuSeparator />

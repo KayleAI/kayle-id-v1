@@ -1,7 +1,9 @@
+import { useAuth } from "@kayle-id/auth/client/provider";
 import { cn } from "@kayleai/ui/utils/cn";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
+import { PendingDeletionBanner } from "./pending-deletion-banner";
 
 interface TabDefinition {
 	href:
@@ -34,9 +36,14 @@ export function OrganizationPageLayout({
 }: OrganizationPageLayoutProps) {
 	const { location } = useRouterState();
 	const currentPath = location.pathname.replace(/\/$/, "");
+	const { activeOrganization } = useAuth();
+	const pendingDeletionAt = activeOrganization?.pendingDeletionAt ?? null;
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+			{pendingDeletionAt ? (
+				<PendingDeletionBanner pendingDeletionAt={pendingDeletionAt} />
+			) : null}
 			<AppHeading button={button} description={description} title={title} />
 
 			<nav

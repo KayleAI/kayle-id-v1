@@ -6,6 +6,7 @@ import {
 import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
+import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { events } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
@@ -647,9 +648,17 @@ export async function processDueWebhookDeliveries({
 	authSecret: string;
 	limit?: number;
 }): Promise<DeliveryRowResponse[]> {
-	const dueDeliveries = await db
-		.select()
+	// Skip deliveries belonging to orgs that are scheduled for deletion. The
+	// deliveries themselves are FK-cascaded once the org is hard-deleted, so
+	// they don't need to be cleaned up here — just paused.
+	const dueRows = await db
+		.select({ delivery: webhook_deliveries })
 		.from(webhook_deliveries)
+		.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
+		.innerJoin(
+			auth_organizations,
+			eq(auth_organizations.id, events.organizationId),
+		)
 		.where(
 			and(
 				eq(webhook_deliveries.status, "pending"),
@@ -657,10 +666,13 @@ export async function processDueWebhookDeliveries({
 					isNull(webhook_deliveries.nextAttemptAt),
 					lte(webhook_deliveries.nextAttemptAt, new Date()),
 				),
+				isNull(auth_organizations.pendingDeletionAt),
 			),
 		)
 		.orderBy(asc(webhook_deliveries.createdAt))
 		.limit(limit);
+
+	const dueDeliveries = dueRows.map((row) => row.delivery);
 
 	const processed: DeliveryRowResponse[] = [];
 

@@ -26,12 +26,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-	deleteOrganization,
+	cancelOrganizationDeletion,
+	confirmOrganizationDeletion,
 	type FullOrganization,
 	fetchFullOrganization,
 	leaveOrganization,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationRole,
+	requestOrganizationDeletion,
 	updateOrganization,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
@@ -91,9 +93,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 		<Card>
 			<CardHeader>
 				<CardTitle>Slug</CardTitle>
-				<CardDescription>
-					The unique identifier used in URLs. Changing this can break links.
-				</CardDescription>
+				<CardDescription>The unique identifier used in URLs.</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{errorMessage ? (
@@ -225,51 +225,144 @@ function LeaveCard({
 	);
 }
 
-function DeleteCard({ organization }: { organization: FullOrganization }) {
-	const navigate = useNavigate();
+function formatDeadline(iso: string): string {
+	try {
+		return new Date(iso).toLocaleString();
+	} catch {
+		return iso;
+	}
+}
+
+function PendingDeletionCard({
+	organization,
+}: {
+	organization: FullOrganization;
+}) {
 	const { refresh } = useAuth();
 	const queryClient = useQueryClient();
-	const [open, setOpen] = useState(false);
-	const [confirmation, setConfirmation] = useState("");
 
-	const deleteMutation = useMutation({
-		mutationFn: () => deleteOrganization(organization.id),
+	const cancelMutation = useMutation({
+		mutationFn: () => cancelOrganizationDeletion(organization.id),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
-			toast.success("Organization deleted");
-			navigate({ to: "/organizations/select" });
+			toast.success("Deletion canceled");
 		},
 		onError: (err) => {
 			toast.error(
-				err instanceof Error ? err.message : "Failed to delete organization",
+				err instanceof Error ? err.message : "Failed to cancel deletion",
+			);
+		},
+	});
+
+	const deadline = organization.pendingDeletionAt
+		? formatDeadline(organization.pendingDeletionAt)
+		: null;
+
+	return (
+		<Card className="border-destructive/30">
+			<CardHeader>
+				<CardTitle className="text-destructive">
+					Scheduled for deletion
+				</CardTitle>
+				<CardDescription>
+					{deadline
+						? `This organization will be permanently deleted at ${deadline}. API keys, webhooks, and verification flows are disabled until the deletion is canceled.`
+						: "This organization is scheduled for deletion."}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div className="flex items-center justify-between gap-4">
+					<p className="text-muted-foreground text-sm">
+						Cancel before the deadline to keep the organization.
+					</p>
+					<Button
+						disabled={cancelMutation.isPending}
+						onClick={() => cancelMutation.mutate()}
+						type="button"
+						variant="destructive"
+					>
+						{cancelMutation.isPending ? "Canceling..." : "Cancel deletion"}
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+
+function DeleteCard({ organization }: { organization: FullOrganization }) {
+	const queryClient = useQueryClient();
+	const { refresh } = useAuth();
+	const [open, setOpen] = useState(false);
+	const [code, setCode] = useState("");
+
+	const requestMutation = useMutation({
+		mutationFn: () => requestOrganizationDeletion(organization.id),
+		onSuccess: () => {
+			toast.success("Confirmation code sent. Check your email.");
+		},
+		onError: (err) => {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to send confirmation code",
 			);
 			setOpen(false);
 		},
 	});
 
-	const isConfirmed = confirmation === organization.slug;
+	const confirmMutation = useMutation({
+		mutationFn: () =>
+			confirmOrganizationDeletion(organization.id, code.trim().toUpperCase()),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+			await refresh();
+			toast.success("Deletion scheduled. You have 48 hours to cancel.");
+			setOpen(false);
+			setCode("");
+		},
+		onError: (err) => {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to confirm deletion",
+			);
+		},
+	});
+
+	const isCodeValid = code.trim().length === 8;
+	const isPending = requestMutation.isPending || confirmMutation.isPending;
+
+	const handleOpenChange = (next: boolean) => {
+		if (isPending) {
+			return;
+		}
+		setOpen(next);
+		if (!next) {
+			setCode("");
+		}
+	};
+
+	const handleStartFlow = () => {
+		setCode("");
+		setOpen(true);
+		requestMutation.mutate();
+	};
 
 	return (
 		<Card className="border-destructive/30">
 			<CardHeader>
 				<CardTitle className="text-destructive">Delete organization</CardTitle>
 				<CardDescription>
-					Permanently delete this organization and all of its data. This cannot
-					be undone.
+					Schedule permanent deletion. We'll email an 8-character confirmation
+					code; entering it freezes the organization for 48 hours before it's
+					permanently deleted.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<div className="flex items-center justify-between gap-4">
 					<p className="text-muted-foreground text-sm">
-						All members, invitations, and API keys will be removed.
+						All members, invitations, API keys, and webhooks will be removed.
 					</p>
 					<Button
-						disabled={deleteMutation.isPending}
-						onClick={() => {
-							setConfirmation("");
-							setOpen(true);
-						}}
+						disabled={isPending}
+						onClick={handleStartFlow}
 						type="button"
 						variant="destructive"
 					>
@@ -277,57 +370,56 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 					</Button>
 				</div>
 			</CardContent>
-			<AlertDialog
-				onOpenChange={(next) => {
-					setOpen(next);
-					if (!next) {
-						setConfirmation("");
-					}
-				}}
-				open={open}
-			>
+			<AlertDialog onOpenChange={handleOpenChange} open={open}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>
-							Delete{" "}
+							Confirm deletion of{" "}
 							<span className="font-semibold text-foreground">
 								{organization.name}
 							</span>
-							?
 						</AlertDialogTitle>
 						<AlertDialogDescription>
-							Type the slug{" "}
-							<span className="font-mono text-foreground">
-								{organization.slug}
-							</span>{" "}
-							to confirm. This permanently deletes the organization and cannot
-							be undone.
+							We sent an 8-character confirmation code to your email. Enter it
+							below to schedule deletion.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="space-y-2 pb-2">
-						<Label htmlFor="confirm-slug">Confirmation</Label>
+						<Label htmlFor="confirm-code">Confirmation code</Label>
 						<Input
 							autoComplete="off"
-							id="confirm-slug"
-							name="confirm-slug"
-							onChange={(event) => setConfirmation(event.target.value)}
-							placeholder={organization.slug}
-							value={confirmation}
+							autoFocus
+							className="font-mono uppercase tracking-widest"
+							id="confirm-code"
+							maxLength={8}
+							name="confirm-code"
+							onChange={(event) => setCode(event.target.value.toUpperCase())}
+							value={code}
 						/>
+						<button
+							className="text-muted-foreground text-xs underline-offset-2 hover:underline disabled:opacity-50"
+							disabled={isPending}
+							onClick={() => requestMutation.mutate()}
+							type="button"
+						>
+							{requestMutation.isPending ? "Sending..." : "Resend code"}
+						</button>
 					</div>
 					<AlertDialogFooter>
 						<AlertDialogCancel
-							disabled={deleteMutation.isPending}
+							disabled={confirmMutation.isPending}
 							variant="secondary"
 						>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
-							disabled={!isConfirmed || deleteMutation.isPending}
-							onClick={() => deleteMutation.mutate()}
+							disabled={!isCodeValid || isPending}
+							onClick={() => confirmMutation.mutate()}
 							variant="destructive"
 						>
-							{deleteMutation.isPending ? "Deleting..." : "Delete forever"}
+							{confirmMutation.isPending
+								? "Confirming..."
+								: "Schedule deletion"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -337,21 +429,33 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 }
 
 function SettingsBody({
-	canDelete,
+	canCancelDeletion,
 	canEditSlug,
+	canScheduleDeletion,
 	isLastOwner,
 	organization,
 }: {
-	canDelete: boolean;
+	canCancelDeletion: boolean;
 	canEditSlug: boolean;
+	canScheduleDeletion: boolean;
 	isLastOwner: boolean;
 	organization: FullOrganization;
 }) {
+	const isPendingDeletion = organization.pendingDeletionAt !== null;
 	return (
 		<div className="space-y-6">
-			{canEditSlug ? <SlugCard organization={organization} /> : null}
-			<LeaveCard isLastOwner={isLastOwner} organization={organization} />
-			{canDelete ? <DeleteCard organization={organization} /> : null}
+			{canEditSlug && !isPendingDeletion ? (
+				<SlugCard organization={organization} />
+			) : null}
+			{isPendingDeletion ? null : (
+				<LeaveCard isLastOwner={isLastOwner} organization={organization} />
+			)}
+			{isPendingDeletion && canCancelDeletion ? (
+				<PendingDeletionCard organization={organization} />
+			) : null}
+			{!isPendingDeletion && canScheduleDeletion ? (
+				<DeleteCard organization={organization} />
+			) : null}
 		</div>
 	);
 }
@@ -371,7 +475,8 @@ export function OrganizationSettingsPage() {
 	const currentRole = data?.members.find((member) => member.userId === user?.id)
 		?.role as OrganizationRole | undefined;
 	const canEditSlug = currentRole === "owner" || currentRole === "admin";
-	const canDelete = currentRole === "owner";
+	const canScheduleDeletion = currentRole === "owner";
+	const canCancelDeletion = currentRole === "owner" || currentRole === "admin";
 	const isCurrentUserOwner = hasOwnerRole(currentRole);
 	const ownerCount =
 		data?.members.filter((member) => hasOwnerRole(member.role)).length ?? 0;
@@ -395,8 +500,9 @@ export function OrganizationSettingsPage() {
 			{isLoading ? <SettingsSkeleton /> : null}
 			{data && !isError ? (
 				<SettingsBody
-					canDelete={canDelete}
+					canCancelDeletion={canCancelDeletion}
 					canEditSlug={canEditSlug}
+					canScheduleDeletion={canScheduleDeletion}
 					isLastOwner={isLastOwner}
 					organization={data}
 				/>

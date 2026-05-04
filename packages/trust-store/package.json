@@ -8,13 +8,13 @@
 		"@types/better-sqlite3": "7.6.13",
 		"@types/bun": "latest",
 		"@types/pg": "8.15.6",
-		"drizzle-kit": "0.31.10"
+		"drizzle-kit": "1.0.0-beta.22"
 	},
 	"peerDependencies": {
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"drizzle-orm": "0.45.2"
+		"drizzle-orm": "1.0.0-beta.22"
 	},
 	"scripts": {
 		"db:generate": "drizzle-kit generate --config ./drizzle.config.ts",

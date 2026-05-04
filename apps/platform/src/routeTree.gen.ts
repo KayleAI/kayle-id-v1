@@ -23,14 +23,16 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AuthAccountIndexRouteImport } from './routes/_auth/account/index'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
+import { Route as AppOrganizationsIndexRouteImport } from './routes/_app/organizations/index'
 import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
 import { Route as AuthOrganizationsSelectRouteImport } from './routes/_auth/organizations/select'
 import { Route as AuthOrganizationsCreateRouteImport } from './routes/_auth/organizations/create'
 import { Route as AuthAccountSettingsRouteImport } from './routes/_auth/account/settings'
 import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
+import { Route as AppOrganizationsSettingsRouteImport } from './routes/_app/organizations/settings'
+import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organizations/public'
+import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
-import { Route as AuthOrganizationsActiveSettingsRouteImport } from './routes/_auth/organizations/_active/settings'
-import { Route as AuthOrganizationsActiveMembersRouteImport } from './routes/_auth/organizations/_active/members'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
 import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
@@ -103,6 +105,11 @@ const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
   path: '/webhooks/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOrganizationsIndexRoute = AppOrganizationsIndexRouteImport.update({
+  id: '/organizations/',
+  path: '/organizations/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApiKeysIndexRoute = AppApiKeysIndexRouteImport.update({
   id: '/api-keys/',
   path: '/api-keys/',
@@ -128,23 +135,27 @@ const AppWebhooksEndpointRoute = AppWebhooksEndpointRouteImport.update({
   path: '/webhooks/$endpoint',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOrganizationsSettingsRoute =
+  AppOrganizationsSettingsRouteImport.update({
+    id: '/organizations/settings',
+    path: '/organizations/settings',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppOrganizationsPublicRoute = AppOrganizationsPublicRouteImport.update({
+  id: '/organizations/public',
+  path: '/organizations/public',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOrganizationsMembersRoute = AppOrganizationsMembersRouteImport.update({
+  id: '/organizations/members',
+  path: '/organizations/members',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   id: '/api-keys/$key',
   path: '/api-keys/$key',
   getParentRoute: () => AppRoute,
 } as any)
-const AuthOrganizationsActiveSettingsRoute =
-  AuthOrganizationsActiveSettingsRouteImport.update({
-    id: '/organizations/_active/settings',
-    path: '/organizations/settings',
-    getParentRoute: () => AuthRoute,
-  } as any)
-const AuthOrganizationsActiveMembersRoute =
-  AuthOrganizationsActiveMembersRouteImport.update({
-    id: '/organizations/_active/members',
-    path: '/organizations/members',
-    getParentRoute: () => AuthRoute,
-  } as any)
 const AppWebhooksEventsEventRoute = AppWebhooksEventsEventRouteImport.update({
   id: '/webhooks/events/$event',
   path: '/webhooks/events/$event',
@@ -181,11 +192,15 @@ export interface FileRoutesByFullPath {
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/members': typeof AppOrganizationsMembersRoute
+  '/organizations/public': typeof AppOrganizationsPublicRoute
+  '/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/account/settings': typeof AuthAccountSettingsRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
   '/organizations/select': typeof AuthOrganizationsSelectRoute
   '/api-keys/': typeof AppApiKeysIndexRoute
+  '/organizations/': typeof AppOrganizationsIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
   '/account/': typeof AuthAccountIndexRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
@@ -193,8 +208,6 @@ export interface FileRoutesByFullPath {
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/organizations/members': typeof AuthOrganizationsActiveMembersRoute
-  '/organizations/settings': typeof AuthOrganizationsActiveSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
@@ -206,11 +219,15 @@ export interface FileRoutesByTo {
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/members': typeof AppOrganizationsMembersRoute
+  '/organizations/public': typeof AppOrganizationsPublicRoute
+  '/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/account/settings': typeof AuthAccountSettingsRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
   '/organizations/select': typeof AuthOrganizationsSelectRoute
   '/api-keys': typeof AppApiKeysIndexRoute
+  '/organizations': typeof AppOrganizationsIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/account': typeof AuthAccountIndexRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
@@ -218,8 +235,6 @@ export interface FileRoutesByTo {
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/organizations/members': typeof AuthOrganizationsActiveMembersRoute
-  '/organizations/settings': typeof AuthOrganizationsActiveSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -236,11 +251,15 @@ export interface FileRoutesById {
   '/_marketing/demo': typeof MarketingDemoRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/_app/organizations/members': typeof AppOrganizationsMembersRoute
+  '/_app/organizations/public': typeof AppOrganizationsPublicRoute
+  '/_app/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/_auth/account/settings': typeof AuthAccountSettingsRoute
   '/_auth/organizations/create': typeof AuthOrganizationsCreateRoute
   '/_auth/organizations/select': typeof AuthOrganizationsSelectRoute
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
+  '/_app/organizations/': typeof AppOrganizationsIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_auth/account/': typeof AuthAccountIndexRoute
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
@@ -248,8 +267,6 @@ export interface FileRoutesById {
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
   '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
-  '/_auth/organizations/_active/members': typeof AuthOrganizationsActiveMembersRoute
-  '/_auth/organizations/_active/settings': typeof AuthOrganizationsActiveSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -263,11 +280,15 @@ export interface FileRouteTypes {
     | '/terms'
     | '/demo'
     | '/api-keys/$key'
+    | '/organizations/members'
+    | '/organizations/public'
+    | '/organizations/settings'
     | '/webhooks/$endpoint'
     | '/account/settings'
     | '/organizations/create'
     | '/organizations/select'
     | '/api-keys/'
+    | '/organizations/'
     | '/webhooks/'
     | '/account/'
     | '/api/analytics/$'
@@ -275,8 +296,6 @@ export interface FileRouteTypes {
     | '/api/demo/$'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
-    | '/organizations/members'
-    | '/organizations/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -288,11 +307,15 @@ export interface FileRouteTypes {
     | '/terms'
     | '/demo'
     | '/api-keys/$key'
+    | '/organizations/members'
+    | '/organizations/public'
+    | '/organizations/settings'
     | '/webhooks/$endpoint'
     | '/account/settings'
     | '/organizations/create'
     | '/organizations/select'
     | '/api-keys'
+    | '/organizations'
     | '/webhooks'
     | '/account'
     | '/api/analytics/$'
@@ -300,8 +323,6 @@ export interface FileRouteTypes {
     | '/api/demo/$'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
-    | '/organizations/members'
-    | '/organizations/settings'
   id:
     | '__root__'
     | '/_app'
@@ -317,11 +338,15 @@ export interface FileRouteTypes {
     | '/_marketing/demo'
     | '/_marketing/'
     | '/_app/api-keys/$key'
+    | '/_app/organizations/members'
+    | '/_app/organizations/public'
+    | '/_app/organizations/settings'
     | '/_app/webhooks/$endpoint'
     | '/_auth/account/settings'
     | '/_auth/organizations/create'
     | '/_auth/organizations/select'
     | '/_app/api-keys/'
+    | '/_app/organizations/'
     | '/_app/webhooks/'
     | '/_auth/account/'
     | '/_api/api/analytics/$'
@@ -329,8 +354,6 @@ export interface FileRouteTypes {
     | '/_api/api/demo/$'
     | '/_api/api/webhooks/$'
     | '/_app/webhooks/events/$event'
-    | '/_auth/organizations/_active/members'
-    | '/_auth/organizations/_active/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -444,6 +467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWebhooksIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/organizations/': {
+      id: '/_app/organizations/'
+      path: '/organizations'
+      fullPath: '/organizations/'
+      preLoaderRoute: typeof AppOrganizationsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-keys/': {
       id: '/_app/api-keys/'
       path: '/api-keys'
@@ -479,26 +509,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWebhooksEndpointRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/organizations/settings': {
+      id: '/_app/organizations/settings'
+      path: '/organizations/settings'
+      fullPath: '/organizations/settings'
+      preLoaderRoute: typeof AppOrganizationsSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/organizations/public': {
+      id: '/_app/organizations/public'
+      path: '/organizations/public'
+      fullPath: '/organizations/public'
+      preLoaderRoute: typeof AppOrganizationsPublicRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/organizations/members': {
+      id: '/_app/organizations/members'
+      path: '/organizations/members'
+      fullPath: '/organizations/members'
+      preLoaderRoute: typeof AppOrganizationsMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-keys/$key': {
       id: '/_app/api-keys/$key'
       path: '/api-keys/$key'
       fullPath: '/api-keys/$key'
       preLoaderRoute: typeof AppApiKeysKeyRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/_auth/organizations/_active/settings': {
-      id: '/_auth/organizations/_active/settings'
-      path: '/organizations/settings'
-      fullPath: '/organizations/settings'
-      preLoaderRoute: typeof AuthOrganizationsActiveSettingsRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/organizations/_active/members': {
-      id: '/_auth/organizations/_active/members'
-      path: '/organizations/members'
-      fullPath: '/organizations/members'
-      preLoaderRoute: typeof AuthOrganizationsActiveMembersRouteImport
-      parentRoute: typeof AuthRoute
     }
     '/_app/webhooks/events/$event': {
       id: '/_app/webhooks/events/$event'
@@ -541,8 +578,12 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
+  AppOrganizationsMembersRoute: typeof AppOrganizationsMembersRoute
+  AppOrganizationsPublicRoute: typeof AppOrganizationsPublicRoute
+  AppOrganizationsSettingsRoute: typeof AppOrganizationsSettingsRoute
   AppWebhooksEndpointRoute: typeof AppWebhooksEndpointRoute
   AppApiKeysIndexRoute: typeof AppApiKeysIndexRoute
+  AppOrganizationsIndexRoute: typeof AppOrganizationsIndexRoute
   AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute
   AppWebhooksEventsEventRoute: typeof AppWebhooksEventsEventRoute
 }
@@ -550,8 +591,12 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
+  AppOrganizationsMembersRoute: AppOrganizationsMembersRoute,
+  AppOrganizationsPublicRoute: AppOrganizationsPublicRoute,
+  AppOrganizationsSettingsRoute: AppOrganizationsSettingsRoute,
   AppWebhooksEndpointRoute: AppWebhooksEndpointRoute,
   AppApiKeysIndexRoute: AppApiKeysIndexRoute,
+  AppOrganizationsIndexRoute: AppOrganizationsIndexRoute,
   AppWebhooksIndexRoute: AppWebhooksIndexRoute,
   AppWebhooksEventsEventRoute: AppWebhooksEventsEventRoute,
 }
@@ -566,8 +611,6 @@ interface AuthRouteChildren {
   AuthOrganizationsCreateRoute: typeof AuthOrganizationsCreateRoute
   AuthOrganizationsSelectRoute: typeof AuthOrganizationsSelectRoute
   AuthAccountIndexRoute: typeof AuthAccountIndexRoute
-  AuthOrganizationsActiveMembersRoute: typeof AuthOrganizationsActiveMembersRoute
-  AuthOrganizationsActiveSettingsRoute: typeof AuthOrganizationsActiveSettingsRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -578,8 +621,6 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthOrganizationsCreateRoute: AuthOrganizationsCreateRoute,
   AuthOrganizationsSelectRoute: AuthOrganizationsSelectRoute,
   AuthAccountIndexRoute: AuthAccountIndexRoute,
-  AuthOrganizationsActiveMembersRoute: AuthOrganizationsActiveMembersRoute,
-  AuthOrganizationsActiveSettingsRoute: AuthOrganizationsActiveSettingsRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

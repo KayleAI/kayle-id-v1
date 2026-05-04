@@ -3,6 +3,7 @@ import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
 import createOrganizationRoute from "./create";
+import uploadLogoRoute from "./logo";
 
 const organizations = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -31,5 +32,6 @@ const organizationMiddleware = createMiddleware<{
 organizations.use(organizationMiddleware);
 
 organizations.route("/", createOrganizationRoute);
+organizations.route("/", uploadLogoRoute);
 
 export default organizations;

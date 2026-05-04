@@ -36,8 +36,10 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+	BuildingIcon,
 	ChevronsUpDownIcon,
 	EllipsisVerticalIcon,
+	GlobeIcon,
 	Key,
 	LayoutDashboard,
 	LogOutIcon,
@@ -252,11 +254,21 @@ export function AppSidebar() {
 									<DropdownMenuLabel className="text-muted-foreground text-xs">
 										{activeOrganization?.name ?? "My Organization"}
 									</DropdownMenuLabel>
+									<DropdownMenuItem render={<Link to="/organizations" />}>
+										<BuildingIcon />
+										Overview
+									</DropdownMenuItem>
 									<DropdownMenuItem
 										render={<Link to="/organizations/members" />}
 									>
 										<UsersIcon />
 										Members
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										render={<Link to="/organizations/public" />}
+									>
+										<GlobeIcon />
+										Public details
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										render={<Link to="/organizations/settings" />}

@@ -2,6 +2,7 @@ import {
   customSessionClient,
   inferAdditionalFields,
   organizationClient,
+  twoFactorClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { magicClient } from "./magic/client";
@@ -14,6 +15,12 @@ const client = createAuthClient({
     inferAdditionalFields<typeof server>(),
     magicClient(),
     organizationClient(),
+    twoFactorClient({
+      // Full-page navigation rather than `useNavigate` so the freshly-cleared
+      // session cookie is observed by the next request without a stale
+      // in-memory session lingering in the React tree.
+      twoFactorPage: "/verify-2fa",
+    }),
     customSessionClient<typeof server>(),
   ],
 });

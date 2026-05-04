@@ -21,6 +21,7 @@ import { Skeleton } from "@kayleai/ui/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
+import { TwoFactorAuthSection } from "@/app/account/two-factor";
 import { formatDate } from "@/utils/format-date";
 
 const SESSIONS_QUERY_KEY = ["account", "sessions"] as const;
@@ -143,6 +144,7 @@ export function AccountSecurityPage() {
 
 	return (
 		<div className="space-y-6">
+			<TwoFactorAuthSection />
 			<Card>
 				<CardHeader>
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

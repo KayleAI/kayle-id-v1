@@ -17,6 +17,7 @@ import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as MarketingDemoRouteImport } from './routes/_marketing/demo'
 import { Route as LegalTermsRouteImport } from './routes/_legal/terms'
 import { Route as LegalPrivacyRouteImport } from './routes/_legal/privacy'
+import { Route as AuthVerify2faRouteImport } from './routes/_auth/verify-2fa'
 import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
 import { Route as AuthSignOutRouteImport } from './routes/_auth/sign-out'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
@@ -75,6 +76,11 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
   getParentRoute: () => LegalRoute,
+} as any)
+const AuthVerify2faRoute = AuthVerify2faRouteImport.update({
+  id: '/verify-2fa',
+  path: '/verify-2fa',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
   id: '/verify',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
   '/verify': typeof AuthVerifyRoute
+  '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
   '/verify': typeof AuthVerifyRoute
+  '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-out': typeof AuthSignOutRoute
   '/_auth/verify': typeof AuthVerifyRoute
+  '/_auth/verify-2fa': typeof AuthVerify2faRoute
   '/_legal/privacy': typeof LegalPrivacyRoute
   '/_legal/terms': typeof LegalTermsRoute
   '/_marketing/demo': typeof MarketingDemoRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-out'
     | '/verify'
+    | '/verify-2fa'
     | '/privacy'
     | '/terms'
     | '/demo'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-out'
     | '/verify'
+    | '/verify-2fa'
     | '/privacy'
     | '/terms'
     | '/demo'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/_auth/sign-out'
     | '/_auth/verify'
+    | '/_auth/verify-2fa'
     | '/_legal/privacy'
     | '/_legal/terms'
     | '/_marketing/demo'
@@ -434,6 +446,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/privacy'
       preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof LegalRoute
+    }
+    '/_auth/verify-2fa': {
+      id: '/_auth/verify-2fa'
+      path: '/verify-2fa'
+      fullPath: '/verify-2fa'
+      preLoaderRoute: typeof AuthVerify2faRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/verify': {
       id: '/_auth/verify'
@@ -640,6 +659,7 @@ interface AuthRouteChildren {
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
+  AuthVerify2faRoute: typeof AuthVerify2faRoute
   AuthOrganizationsCreateRoute: typeof AuthOrganizationsCreateRoute
   AuthOrganizationsSelectRoute: typeof AuthOrganizationsSelectRoute
 }
@@ -648,6 +668,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
   AuthVerifyRoute: AuthVerifyRoute,
+  AuthVerify2faRoute: AuthVerify2faRoute,
   AuthOrganizationsCreateRoute: AuthOrganizationsCreateRoute,
   AuthOrganizationsSelectRoute: AuthOrganizationsSelectRoute,
 }

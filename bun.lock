@@ -67,6 +67,7 @@
         "@tanstack/react-start": "1.167.41",
         "@tanstack/router-plugin": "1.167.22",
         "lucide-react": "0.562.0",
+        "qrcode.react": "4.2.0",
         "react": "19.2.0",
         "react-dom": "19.2.0",
         "react-haiku": "2.4.1",

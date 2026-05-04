@@ -13,12 +13,34 @@ import { sendMagicLinkEmail } from "@kayle-id/emails/send-magic-link-email";
 import { sendVerifyEmail } from "@kayle-id/emails/send-verify-email";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { customSession, openAPI, organization } from "better-auth/plugins";
+import { createAuthMiddleware } from "better-auth/api";
+import { deleteSessionCookie } from "better-auth/cookies";
+import { generateRandomString } from "better-auth/crypto";
+import {
+  customSession,
+  openAPI,
+  organization,
+  twoFactor,
+} from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import { magic } from "./magic";
 import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
 import { findSoleOwnedOrganizations } from "./owned-organizations";
 import type { Organization } from "./types";
+
+const TWO_FACTOR_COOKIE_NAME = "two_factor";
+const TWO_FACTOR_COOKIE_MAX_AGE_SECONDS = 10 * 60; // 10 minutes
+const TWO_FACTOR_VERIFICATION_PREFIX = "2fa-";
+
+// Paths handled outside better-auth's built-in sign-in endpoints (magic-link
+// verification + Google OAuth callback). The twoFactor plugin's after-hook
+// only matches `/sign-in/email|username|phone-number`, so we re-implement the
+// challenge handoff here to keep 2FA enforced on every sign-in path.
+const TWO_FACTOR_ENFORCED_PATHS = new Set([
+  "/magic/verify-otp",
+  "/magic/verify-link",
+  "/callback/google",
+]);
 
 const verifyEmailExpiryInSeconds = 60 * 60;
 const verifyEmailExpiryInMinutes = verifyEmailExpiryInSeconds / 60;
@@ -247,6 +269,19 @@ const plugins = [
       },
     },
   }),
+  twoFactor({
+    issuer: "Kayle ID",
+    // The platform is passwordless (magic link + Google), so credential-based
+    // re-authentication isn't available. Better-auth still requires a password
+    // for users who *do* have a credential account, which is currently only
+    // test fixtures (`emailAndPassword.enabled` is `NODE_ENV === "test"`).
+    allowPasswordless: true,
+    schema: {
+      twoFactor: {
+        modelName: "auth_two_factors",
+      },
+    },
+  }),
   magic({
     expiresIn: magicLinkExpiryInSeconds,
     sendMagicOtpAuth: async (payload, request) => {
@@ -268,6 +303,54 @@ const plugins = [
   }),
 ] satisfies BetterAuthOptions["plugins"];
 
+// Mirrors the twoFactor plugin's after-hook (which only matches better-auth's
+// built-in `/sign-in/email|username|phone-number`) for our magic-link and
+// Google sign-in paths. When the just-completed sign-in belongs to a 2FA-enabled
+// user, we drop the session that magic/oauth issued, mint a short-lived
+// `two_factor` verification cookie, and return a `twoFactorRedirect` payload so
+// the client can route to the TOTP challenge UI.
+const enforceTwoFactorOnNonStandardSignIns = createAuthMiddleware(
+  async (ctx) => {
+    if (!TWO_FACTOR_ENFORCED_PATHS.has(ctx.path)) {
+      return;
+    }
+
+    const data = ctx.context.newSession;
+    if (!data?.user.twoFactorEnabled) {
+      return;
+    }
+
+    deleteSessionCookie(ctx, true);
+    await ctx.context.internalAdapter.deleteSession(data.session.token);
+
+    const twoFactorCookie = ctx.context.createAuthCookie(
+      TWO_FACTOR_COOKIE_NAME,
+      {
+        maxAge: TWO_FACTOR_COOKIE_MAX_AGE_SECONDS,
+      }
+    );
+    const identifier = `${TWO_FACTOR_VERIFICATION_PREFIX}${generateRandomString(20)}`;
+    await ctx.context.internalAdapter.createVerificationValue({
+      identifier,
+      value: data.user.id,
+      expiresAt: new Date(
+        Date.now() + TWO_FACTOR_COOKIE_MAX_AGE_SECONDS * 1000
+      ),
+    });
+    await ctx.setSignedCookie(
+      twoFactorCookie.name,
+      identifier,
+      ctx.context.secret,
+      twoFactorCookie.attributes
+    );
+
+    return ctx.json({
+      twoFactorRedirect: true,
+      twoFactorMethods: ["totp"],
+    });
+  }
+);
+
 export const auth = betterAuth({
   secret: env.AUTH_SECRET,
   // In production we pin baseURL to the public origin so cookies, magic-link
@@ -288,6 +371,9 @@ export const auth = betterAuth({
   experimental: {
     // Eventually we'll want to enable joins but for now we're facing an issue with them not.
     joins: false,
+  },
+  hooks: {
+    after: enforceTwoFactorOnNonStandardSignIns,
   },
   emailAndPassword: {
     enabled: process.env.NODE_ENV === "test",

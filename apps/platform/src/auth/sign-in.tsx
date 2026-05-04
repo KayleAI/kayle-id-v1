@@ -3,14 +3,31 @@ import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
 import { Logo } from "@kayleai/ui/logo";
 import { useNavigate } from "@tanstack/react-router";
+import { KeyRoundIcon } from "lucide-react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function SignIn() {
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
+
+	useEffect(() => {
+		// Conditional UI: when the browser supports it, prompt the user with any
+		// passkeys saved for this site as soon as the email field is focused.
+		const isWebAuthnAvailable =
+			typeof window !== "undefined" &&
+			typeof window.PublicKeyCredential !== "undefined";
+		if (!isWebAuthnAvailable) {
+			return;
+		}
+
+		void client.signIn.passkey({ autoFill: true }).catch(() => {
+			// Conditional UI silently fails on browsers without autofill support;
+			// the explicit "Sign in with passkey" button still works.
+		});
+	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -36,6 +53,25 @@ export function SignIn() {
 			}
 		} catch {
 			setError("Unable to send sign-in link. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handlePasskeySignIn = async () => {
+		setIsLoading(true);
+		setError("");
+
+		try {
+			const result = await client.signIn.passkey();
+			if (result?.error) {
+				setError(result.error.message ?? "Failed to sign in with passkey.");
+				return;
+			}
+
+			navigate({ to: "/dashboard" });
+		} catch {
+			setError("Failed to sign in with passkey.");
 		} finally {
 			setIsLoading(false);
 		}
@@ -83,6 +119,7 @@ export function SignIn() {
 					)}
 
 					<Input
+						autoComplete="username webauthn"
 						disabled={isLoading}
 						id="email"
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -108,6 +145,17 @@ export function SignIn() {
 						<div className="h-px flex-1 bg-border" />
 					</div>
 				</div>
+
+				{/* Passkey Sign In */}
+				<Button
+					className="flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white px-4 py-3 font-medium text-neutral-900 text-sm transition-all duration-200 ease-in-out hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					disabled={isLoading}
+					onClick={handlePasskeySignIn}
+					variant="outline"
+				>
+					<KeyRoundIcon className="h-5 w-5" />
+					Sign in with passkey
+				</Button>
 
 				{/* Google Sign In */}
 				<Button

@@ -1,3 +1,4 @@
+import { passkeyClient } from "@better-auth/passkey/client";
 import {
   customSessionClient,
   inferAdditionalFields,
@@ -14,6 +15,7 @@ const client = createAuthClient({
     inferAdditionalFields<typeof server>(),
     magicClient(),
     organizationClient(),
+    passkeyClient(),
     customSessionClient<typeof server>(),
   ],
 });

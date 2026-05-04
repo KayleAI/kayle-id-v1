@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
+	integer,
 	pgTable,
 	text,
 	timestamp,
@@ -111,6 +112,29 @@ export const auth_organization_members = pgTable(
 	],
 );
 
+export const auth_passkeys = pgTable(
+	"auth_passkeys",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		name: text("name"),
+		publicKey: text("public_key").notNull(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => auth_users.id, { onDelete: "cascade" }),
+		credentialID: text("credential_id").notNull(),
+		counter: integer("counter").notNull(),
+		deviceType: text("device_type").notNull(),
+		backedUp: boolean("backed_up").notNull(),
+		transports: text("transports"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		aaguid: text("aaguid"),
+	},
+	(table) => [
+		index("auth_passkeys_user_id_idx").on(table.userId),
+		index("auth_passkeys_credential_id_idx").on(table.credentialID),
+	],
+);
+
 export const auth_invitations = pgTable(
 	"auth_invitations",
 	{
@@ -138,6 +162,14 @@ export const auth_usersRelations = relations(auth_users, ({ many }) => ({
 	auth_accountss: many(auth_accounts),
 	auth_organization_memberss: many(auth_organization_members),
 	auth_invitationss: many(auth_invitations),
+	auth_passkeyss: many(auth_passkeys),
+}));
+
+export const auth_passkeysRelations = relations(auth_passkeys, ({ one }) => ({
+	auth_users: one(auth_users, {
+		fields: [auth_passkeys.userId],
+		references: [auth_users.id],
+	}),
 }));
 
 export const auth_sessionsRelations = relations(auth_sessions, ({ one }) => ({

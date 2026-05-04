@@ -17,6 +17,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@better-auth/passkey": "1.6.5",
     "@kayle-id/config": "*",
     "@kayle-id/database": "*",
     "@kayle-id/emails": "*",

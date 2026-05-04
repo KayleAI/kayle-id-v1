@@ -1,4 +1,9 @@
 import { env } from "@kayle-id/config/env";
+import {
+  createSafeRequestLogger,
+  logEvent,
+  logSafeError,
+} from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
 import {
   auth_organization_members,
@@ -165,10 +170,33 @@ function shouldSendEmail(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function logDevEmail(label: string, payload: Record<string, unknown>): void {
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(`[dev-email] ${label}`, payload);
+function getDeletionLogger() {
+  return createSafeRequestLogger(
+    new Request("https://kayle.invalid/internal/org-deletion", {
+      method: "POST",
+    })
+  );
+}
+
+/**
+ * Emit a structured "would-have-emailed" event in non-production environments.
+ * No PII: we record only counts/booleans and an opaque event tag — never the
+ * recipient address, requester name, or the confirmation code itself.
+ */
+function logDevEmail(
+  event: string,
+  details: Record<string, number | boolean | string>
+): void {
+  if (process.env.NODE_ENV === "production") {
+    return;
   }
+  const logger = getDeletionLogger();
+  logEvent(logger, {
+    details,
+    event,
+    level: "warn",
+  });
+  logger.emit({ _forceKeep: true });
 }
 
 interface RequestOrgDeletionInput {
@@ -239,10 +267,9 @@ export async function requestOrgDeletion({
       to: requester.email,
     });
   } else {
-    logDevEmail("org-deletion-code", {
-      code,
-      organization: org.name,
-      to: requester.email,
+    logDevEmail("org_deletion.code.dev_skipped", {
+      code_length: code.length,
+      organization_id: organizationId,
     });
   }
 
@@ -365,15 +392,22 @@ export async function confirmOrgDeletion({
         )
       );
     } else {
-      logDevEmail("org-deletion-scheduled", {
-        deadlineLabel,
-        organization: org.name,
-        recipients: filtered.map((r) => r.email),
-        requesterName,
+      logDevEmail("org_deletion.scheduled.dev_skipped", {
+        organization_id: organizationId,
+        recipient_count: filtered.length,
       });
     }
   } catch (err) {
-    console.error("Failed to send org-deletion-scheduled notifications", err);
+    const logger = getDeletionLogger();
+    logSafeError(logger, {
+      code: "org_deletion_scheduled_notification_failed",
+      details: { organization_id: organizationId },
+      error: err,
+      event: "org_deletion.scheduled.notification_failed",
+      message: "Failed to send org-deletion scheduled notifications.",
+      status: 500,
+    });
+    logger.emit({ _forceKeep: true });
   }
 
   return { pendingDeletionAt };
@@ -439,14 +473,22 @@ export async function cancelOrgDeletion({
         )
       );
     } else {
-      logDevEmail("org-deletion-canceled", {
-        cancellerName,
-        organization: org.name,
-        recipients: recipients.map((r) => r.email),
+      logDevEmail("org_deletion.canceled.dev_skipped", {
+        organization_id: organizationId,
+        recipient_count: recipients.length,
       });
     }
   } catch (err) {
-    console.error("Failed to send org-deletion-canceled notifications", err);
+    const logger = getDeletionLogger();
+    logSafeError(logger, {
+      code: "org_deletion_canceled_notification_failed",
+      details: { organization_id: organizationId },
+      error: err,
+      event: "org_deletion.canceled.notification_failed",
+      message: "Failed to send org-deletion canceled notifications.",
+      status: 500,
+    });
+    logger.emit({ _forceKeep: true });
   }
 }
 

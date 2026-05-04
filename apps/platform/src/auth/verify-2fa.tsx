@@ -65,7 +65,7 @@ export function VerifyTwoFactor() {
 
 	return (
 		<div className="flex flex-col items-center justify-center">
-			<form className="w-full max-w-md space-y-8" onSubmit={handleSubmit}>
+			<form className="w-md space-y-8" onSubmit={handleSubmit}>
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -75,7 +75,7 @@ export function VerifyTwoFactor() {
 					</h1>
 					<p className="text-pretty text-lg text-muted-foreground">
 						{mode === "totp"
-							? "Open your authenticator app and enter the 6-digit code."
+							? "Enter the code from your authenticator app."
 							: "Enter one of the backup codes you saved when you enabled 2FA."}
 					</p>
 				</div>

@@ -45,16 +45,34 @@ export function Verify() {
 				type: "sign-in",
 			});
 
+			if (errorMessage) {
+				setError(errorMessage.message || "Invalid code. Please try again.");
+				setIsLoading(false);
+				return;
+			}
+
+			// When the user has 2FA enabled, the server replaces the normal
+			// session-issuing response with `{ twoFactorRedirect: true, ... }` and
+			// the better-auth twoFactorClient performs a full-page navigation to
+			// `/verify-2fa`. In that case the response has no `status`, so we must
+			// not treat it as a failure — just hold the loading state until the
+			// plugin navigates away.
+			const twoFactorRedirect = (data as { twoFactorRedirect?: boolean } | null)
+				?.twoFactorRedirect;
+			if (twoFactorRedirect) {
+				return;
+			}
+
 			if (data?.status) {
-				// Redirect to dashboard or home page after successful verification
 				await refresh();
 				navigate({ to: "/dashboard" });
-			} else {
-				setError(errorMessage?.message || "Invalid code. Please try again.");
+				return;
 			}
+
+			setError("Invalid code. Please try again.");
+			setIsLoading(false);
 		} catch {
 			setError("Invalid code. Please try again.");
-		} finally {
 			setIsLoading(false);
 		}
 	};

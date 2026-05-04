@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { processDueOrganizationDeletions } from "@kayle-id/auth/organization-deletion";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { config } from "@/config";
@@ -120,6 +121,10 @@ const worker = Object.assign(app, {
 				now: new Date(controller.scheduledTime),
 			});
 		}
+
+		await processDueOrganizationDeletions({
+			now: new Date(controller.scheduledTime),
+		});
 
 		await processDueWebhookDeliveries({
 			authSecret: env.AUTH_SECRET,

@@ -1,11 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { server } from "@kayle-id/auth/server";
+import account from "@/auth/account";
 import apiKeys from "@/auth/api-keys";
 import organizations from "./auth/organizations";
 
 const auth = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
 // Auth Handlers
+auth.route("/account", account);
 auth.route("/api-keys", apiKeys);
 auth.route("/orgs", organizations);
 auth.on(["POST", "GET"], "/*", (c) => {

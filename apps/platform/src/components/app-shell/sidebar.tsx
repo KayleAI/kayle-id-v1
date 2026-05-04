@@ -36,15 +36,16 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+	BuildingIcon,
 	ChevronsUpDownIcon,
 	EllipsisVerticalIcon,
+	GlobeIcon,
 	Key,
 	LayoutDashboard,
 	LogOutIcon,
 	PanelLeftIcon,
 	PlusIcon,
 	SettingsIcon,
-	UserIcon,
 	UsersIcon,
 	WebhookIcon,
 } from "lucide-react";
@@ -194,12 +195,8 @@ export function AppSidebar() {
 								<DropdownMenuSeparator />
 								<DropdownMenuGroup>
 									<DropdownMenuItem render={<Link to="/account" />}>
-										<UserIcon />
-										My Account
-									</DropdownMenuItem>
-									<DropdownMenuItem render={<Link to="/account/settings" />}>
 										<SettingsIcon />
-										Settings
+										Account Settings
 									</DropdownMenuItem>
 								</DropdownMenuGroup>
 								<DropdownMenuSeparator />
@@ -252,11 +249,21 @@ export function AppSidebar() {
 									<DropdownMenuLabel className="text-muted-foreground text-xs">
 										{activeOrganization?.name ?? "My Organization"}
 									</DropdownMenuLabel>
+									<DropdownMenuItem render={<Link to="/organizations" />}>
+										<BuildingIcon />
+										Overview
+									</DropdownMenuItem>
 									<DropdownMenuItem
 										render={<Link to="/organizations/members" />}
 									>
 										<UsersIcon />
 										Members
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										render={<Link to="/organizations/public" />}
+									>
+										<GlobeIcon />
+										Public details
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										render={<Link to="/organizations/settings" />}
@@ -299,7 +306,12 @@ export function AppSidebar() {
 													{organization.name.charAt(0).toUpperCase()}
 												</AvatarFallback>
 											</Avatar>
-											{organization.name}
+											<span className="truncate">{organization.name}</span>
+											{organization.pendingDeletionAt ? (
+												<span className="ml-auto rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-medium text-[10px] text-destructive uppercase tracking-wide">
+													Pending
+												</span>
+											) : null}
 										</DropdownMenuItem>
 									))}
 									<DropdownMenuSeparator />

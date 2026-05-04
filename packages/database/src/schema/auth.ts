@@ -15,12 +15,32 @@ export const auth_users = pgTable("auth_users", {
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").default(false).notNull(),
 	image: text("image"),
+	twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at")
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
 });
+
+export const auth_two_factors = pgTable(
+	"auth_two_factors",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => auth_users.id, { onDelete: "cascade" }),
+		secret: text("secret").notNull(),
+		backupCodes: text("backup_codes").notNull(),
+		verified: boolean("verified").default(true).notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [index("auth_two_factors_userId_idx").on(table.userId)],
+);
 
 export const auth_sessions = pgTable(
 	"auth_sessions",
@@ -82,14 +102,27 @@ export const auth_verifications = pgTable(
 	(table) => [index("auth_verifications_identifier_idx").on(table.identifier)],
 );
 
-export const auth_organizations = pgTable("auth_organizations", {
-	id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
-	name: text("name").notNull(),
-	slug: text("slug").notNull().unique(),
-	logo: text("logo"),
-	createdAt: timestamp("created_at").notNull(),
-	metadata: text("metadata"),
-});
+export const auth_organizations = pgTable(
+	"auth_organizations",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		name: text("name").notNull(),
+		slug: text("slug").notNull().unique(),
+		logo: text("logo"),
+		createdAt: timestamp("created_at").notNull(),
+		metadata: text("metadata"),
+		pendingDeletionAt: timestamp("pending_deletion_at"),
+		pendingDeletionRequestedAt: timestamp("pending_deletion_requested_at"),
+		pendingDeletionRequestedBy: uuid(
+			"pending_deletion_requested_by",
+		).references(() => auth_users.id, { onDelete: "set null" }),
+	},
+	(table) => [
+		index("auth_organizations_pending_deletion_at_idx").on(
+			table.pendingDeletionAt,
+		),
+	],
+);
 
 export const auth_organization_members = pgTable(
 	"auth_organization_members",
@@ -163,6 +196,7 @@ export const auth_usersRelations = relations(auth_users, ({ many }) => ({
 	auth_organization_memberss: many(auth_organization_members),
 	auth_invitationss: many(auth_invitations),
 	auth_passkeyss: many(auth_passkeys),
+	auth_two_factorss: many(auth_two_factors),
 }));
 
 export const auth_passkeysRelations = relations(auth_passkeys, ({ one }) => ({
@@ -171,6 +205,16 @@ export const auth_passkeysRelations = relations(auth_passkeys, ({ one }) => ({
 		references: [auth_users.id],
 	}),
 }));
+
+export const auth_two_factorsRelations = relations(
+	auth_two_factors,
+	({ one }) => ({
+		auth_users: one(auth_users, {
+			fields: [auth_two_factors.userId],
+			references: [auth_users.id],
+		}),
+	}),
+);
 
 export const auth_sessionsRelations = relations(auth_sessions, ({ one }) => ({
 	auth_users: one(auth_users, {

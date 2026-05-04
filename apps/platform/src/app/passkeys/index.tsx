@@ -2,6 +2,13 @@ import { client } from "@kayle-id/auth/client";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@kayleai/ui/card";
+import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
@@ -64,104 +71,107 @@ export function PasskeysList() {
 	const passkeys = data ?? [];
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h2 className="font-medium text-lg">Passkeys</h2>
-					<p className="text-muted-foreground text-sm">
-						Sign in faster with biometrics, security keys, or your device's
-						screen lock.
-					</p>
+		<Card>
+			<CardHeader>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<CardTitle>Passkeys</CardTitle>
+						<CardDescription>
+							Sign in faster with biometrics, security keys, or your device's
+							screen lock.
+						</CardDescription>
+					</div>
+					<AddPasskey />
 				</div>
-				<AddPasskey />
-			</div>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{isError ? (
+					<Alert variant="destructive">
+						<AlertTitle>Failed to load passkeys</AlertTitle>
+						<AlertDescription>
+							{error instanceof Error ? error.message : "Please try again."}
+						</AlertDescription>
+					</Alert>
+				) : null}
 
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load passkeys</AlertTitle>
-					<AlertDescription>
-						{error instanceof Error ? error.message : "Please try again."}
-					</AlertDescription>
-				</Alert>
-			) : null}
-
-			<div className="overflow-hidden rounded-md border">
-				<Table>
-					<TableHeader className="bg-muted">
-						<TableRow>
-							<TableHead>Name</TableHead>
-							<TableHead>Device</TableHead>
-							<TableHead>Added</TableHead>
-							<TableHead>
-								<span className="sr-only">Actions</span>
-							</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
+				<div className="overflow-hidden rounded-md border">
+					<Table>
+						<TableHeader className="bg-muted">
 							<TableRow>
-								<TableCell
-									className="text-center text-muted-foreground"
-									colSpan={4}
-								>
-									Loading…
-								</TableCell>
+								<TableHead>Name</TableHead>
+								<TableHead>Device</TableHead>
+								<TableHead>Added</TableHead>
+								<TableHead>
+									<span className="sr-only">Actions</span>
+								</TableHead>
 							</TableRow>
-						) : null}
-						{!isLoading && passkeys.length === 0 ? (
-							<TableRow>
-								<TableCell
-									className="text-center text-muted-foreground"
-									colSpan={4}
-								>
-									No passkeys yet. Add one to sign in without an email link.
-								</TableCell>
-							</TableRow>
-						) : null}
-						{passkeys.map((passkey) => (
-							<TableRow key={passkey.id}>
-								<TableCell className="font-medium">
-									<div className="flex items-center gap-2">
-										<KeyRoundIcon className="size-4 text-muted-foreground" />
-										{passkey.name?.trim() || "Unnamed passkey"}
-									</div>
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{passkey.deviceType === "singleDevice"
-										? "Single device"
-										: "Synced"}
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{formatDate(
-										typeof passkey.createdAt === "string"
-											? passkey.createdAt
-											: passkey.createdAt.toISOString(),
-									)}
-								</TableCell>
-								<TableCell className="text-right">
-									<Button
-										onClick={() =>
-											toast.promise(deleteMutation.mutateAsync(passkey.id), {
-												loading: "Removing passkey…",
-												success: "Passkey removed",
-												error: (err) =>
-													err instanceof Error
-														? err.message
-														: "Failed to remove passkey",
-											})
-										}
-										size="icon"
-										variant="ghost"
+						</TableHeader>
+						<TableBody>
+							{isLoading ? (
+								<TableRow>
+									<TableCell
+										className="text-center text-muted-foreground"
+										colSpan={4}
 									>
-										<TrashIcon className="size-4" />
-									</Button>
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</div>
-		</div>
+										Loading…
+									</TableCell>
+								</TableRow>
+							) : null}
+							{!isLoading && passkeys.length === 0 ? (
+								<TableRow>
+									<TableCell
+										className="text-center text-muted-foreground"
+										colSpan={4}
+									>
+										No passkeys yet. Add one to sign in without an email link.
+									</TableCell>
+								</TableRow>
+							) : null}
+							{passkeys.map((passkey) => (
+								<TableRow key={passkey.id}>
+									<TableCell className="font-medium">
+										<div className="flex items-center gap-2">
+											<KeyRoundIcon className="size-4 text-muted-foreground" />
+											{passkey.name?.trim() || "Unnamed passkey"}
+										</div>
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{passkey.deviceType === "singleDevice"
+											? "Single device"
+											: "Synced"}
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{formatDate(
+											typeof passkey.createdAt === "string"
+												? passkey.createdAt
+												: passkey.createdAt.toISOString(),
+										)}
+									</TableCell>
+									<TableCell className="text-right">
+										<Button
+											onClick={() =>
+												toast.promise(deleteMutation.mutateAsync(passkey.id), {
+													loading: "Removing passkey…",
+													success: "Passkey removed",
+													error: (err) =>
+														err instanceof Error
+															? err.message
+															: "Failed to remove passkey",
+												})
+											}
+											size="icon"
+											variant="ghost"
+										>
+											<TrashIcon className="size-4" />
+										</Button>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }
 

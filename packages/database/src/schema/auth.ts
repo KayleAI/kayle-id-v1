@@ -14,12 +14,32 @@ export const auth_users = pgTable("auth_users", {
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").default(false).notNull(),
 	image: text("image"),
+	twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at")
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
 });
+
+export const auth_two_factors = pgTable(
+	"auth_two_factors",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => auth_users.id, { onDelete: "cascade" }),
+		secret: text("secret").notNull(),
+		backupCodes: text("backup_codes").notNull(),
+		verified: boolean("verified").default(true).notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [index("auth_two_factors_userId_idx").on(table.userId)],
+);
 
 export const auth_sessions = pgTable(
 	"auth_sessions",
@@ -138,7 +158,18 @@ export const auth_usersRelations = relations(auth_users, ({ many }) => ({
 	auth_accountss: many(auth_accounts),
 	auth_organization_memberss: many(auth_organization_members),
 	auth_invitationss: many(auth_invitations),
+	auth_two_factorss: many(auth_two_factors),
 }));
+
+export const auth_two_factorsRelations = relations(
+	auth_two_factors,
+	({ one }) => ({
+		auth_users: one(auth_users, {
+			fields: [auth_two_factors.userId],
+			references: [auth_users.id],
+		}),
+	}),
+);
 
 export const auth_sessionsRelations = relations(auth_sessions, ({ one }) => ({
 	auth_users: one(auth_users, {

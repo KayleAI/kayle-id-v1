@@ -28,6 +28,6 @@
       ".": ["./src"],
       "@/*": ["./src/*"]
     },
-    "types": ["bun"]
+    "types": ["@cloudflare/workers-types", "bun"]
   }
 }

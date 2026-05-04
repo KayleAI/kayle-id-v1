@@ -2,13 +2,15 @@ import { TRUSTED_CLIENT_IP_HEADERS } from "@kayle-id/config/client-ip";
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
-//import { redis } from "@kayle-id/database/redis";
 import { auth as authSchema } from "@kayle-id/database/schema";
 import {
   auth_organization_members,
   auth_organizations,
 } from "@kayle-id/database/schema/auth";
+import { sendChangeEmailVerification } from "@kayle-id/emails/send-change-email-verification";
+import { sendDeleteAccountVerification } from "@kayle-id/emails/send-delete-account-verification";
 import { sendMagicLinkEmail } from "@kayle-id/emails/send-magic-link-email";
+import { sendVerifyEmail } from "@kayle-id/emails/send-verify-email";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
@@ -22,6 +24,8 @@ import {
 } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import { magic } from "./magic";
+import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
+import { findSoleOwnedOrganizations } from "./owned-organizations";
 import type { Organization } from "./types";
 
 const TWO_FACTOR_COOKIE_NAME = "two_factor";
@@ -38,11 +42,75 @@ const TWO_FACTOR_ENFORCED_PATHS = new Set([
   "/callback/google",
 ]);
 
+const verifyEmailExpiryInSeconds = 60 * 60;
+const verifyEmailExpiryInMinutes = verifyEmailExpiryInSeconds / 60;
+const deleteAccountExpiryInSeconds = 60 * 60 * 24;
+const deleteAccountExpiryInMinutes = deleteAccountExpiryInSeconds / 60;
+
+/**
+ * Best-effort decode of a better-auth email-verification JWT to detect whether
+ * it carries a pending email change. We don't need to verify the signature —
+ * better-auth verifies it on the verify endpoint; we only branch the email
+ * copy on whether `updateTo` is present.
+ */
+function readEmailVerificationToken(
+  token: string
+): { updateTo?: string } | null {
+  const parts = token.split(".");
+  if (parts.length < 2 || !parts[1]) {
+    return null;
+  }
+  try {
+    const padded = parts[1].padEnd(
+      parts[1].length + ((4 - (parts[1].length % 4)) % 4),
+      "="
+    );
+    const json = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json) as { updateTo?: string };
+  } catch {
+    return null;
+  }
+}
+
 const user = {
   modelName: "auth_users",
+  changeEmail: {
+    enabled: true,
+    // Without `sendChangeEmailConfirmation`, verified callers fall through to
+    // the global `emailVerification.sendVerificationEmail` handler with a
+    // single-step `change-email-verification` token — so one click on the
+    // emailed link is enough to apply the change. Unverified callers update
+    // immediately (their old address wasn't trusted anyway).
+    updateEmailWithoutVerification: true,
+  },
   deleteUser: {
-    // Account deletion needs a product data-retention policy before enabling.
-    enabled: false,
+    enabled: true,
+    deleteTokenExpiresIn: deleteAccountExpiryInSeconds,
+    sendDeleteAccountVerification: async ({ user: deletingUser, url }) => {
+      if (process.env.NODE_ENV !== "production") {
+        return;
+      }
+
+      await sendDeleteAccountVerification({
+        binding: env.SEND_EMAIL,
+        expiresInMinutes: deleteAccountExpiryInMinutes,
+        from: env.EMAIL_FROM_ADDRESS,
+        to: deletingUser.email,
+        url,
+      });
+    },
+    // Cascade-delete every organisation where the user is the sole owner.
+    // Routed through `hardDeleteOrganizations` so the delete runs in a single
+    // transaction with active-org reassignment for any sessions whose active
+    // org is among them. FK cascades handle members/invitations/api_keys/
+    // webhooks/verification_sessions. Orgs with co-owners are left intact.
+    beforeDelete: async (deletingUser) => {
+      const orgs = await findSoleOwnedOrganizations(deletingUser.id);
+      if (orgs.length === 0) {
+        return;
+      }
+      await hardDeleteOrganizations(orgs.map((org) => org.id));
+    },
   },
 } satisfies BetterAuthOptions["user"];
 
@@ -98,18 +166,106 @@ function logDevelopmentMagicOtp(
 const plugins = [
   ...(process.env.NODE_ENV === "production" ? [] : [openAPI()]),
   organization({
+    // We replace better-auth's immediate `/organization/delete` with our own
+    // request/confirm/cancel state machine that runs on a 48h grace period.
+    disableOrganizationDeletion: true,
     schema: {
       invitation: {
         modelName: "auth_invitations",
       },
       organization: {
         modelName: "auth_organizations",
+        additionalFields: {
+          pendingDeletionAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_at",
+          },
+          pendingDeletionRequestedAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_requested_at",
+          },
+          pendingDeletionRequestedBy: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_requested_by",
+          },
+        },
       },
       member: {
         modelName: "auth_organization_members",
       },
       organizationRole: {
         modelName: "auth_organization_roles",
+      },
+    },
+    organizationHooks: {
+      // Block org-scoped writes once a deletion is scheduled. Without these
+      // hooks an admin/owner could add members, change roles, send invites,
+      // or rename the org during the 48h freeze window.
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeUpdateOrganization: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeAddMember: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeRemoveMember: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeUpdateMemberRole: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeCreateInvitation: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeAcceptInvitation: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
       },
     },
   }),
@@ -260,6 +416,47 @@ export const auth = betterAuth({
   verification: {
     modelName: "auth_verifications",
   },
+  emailVerification: {
+    expiresIn: verifyEmailExpiryInSeconds,
+    /**
+     * Single handler for all email-verification deliveries — both initial
+     * verification (called via `client.sendVerificationEmail`) and the
+     * `change-email-verification` token that follows a `client.changeEmail`
+     * submission. We branch the email copy on the JWT's `updateTo` claim:
+     * if present, this is a change-email confirmation and the address being
+     * delivered to *is* the new address.
+     */
+    sendVerificationEmail: async ({ user: targetUser, url, token }) => {
+      if (process.env.NODE_ENV !== "production") {
+        return;
+      }
+
+      const payload = readEmailVerificationToken(token);
+      const isChangeEmail =
+        typeof payload?.updateTo === "string" && payload.updateTo.length > 0;
+
+      if (isChangeEmail) {
+        await sendChangeEmailVerification({
+          binding: env.SEND_EMAIL,
+          expiresInMinutes: verifyEmailExpiryInMinutes,
+          from: env.EMAIL_FROM_ADDRESS,
+          newEmail: targetUser.email,
+          to: targetUser.email,
+          url,
+        });
+        return;
+      }
+
+      await sendVerifyEmail({
+        binding: env.SEND_EMAIL,
+        email: targetUser.email,
+        expiresInMinutes: verifyEmailExpiryInMinutes,
+        from: env.EMAIL_FROM_ADDRESS,
+        to: targetUser.email,
+        url,
+      });
+    },
+  },
   socialProviders: {
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
@@ -294,12 +491,17 @@ export const auth = betterAuth({
         let activeOrganization: Organization | null = null;
         const activeOrganizationId = getActiveOrganizationId(authSession);
 
-        const organizations: Organization[] = await db
+        const orgRows = await db
           .select({
             id: auth_organizations.id,
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
+            pendingDeletionAt: auth_organizations.pendingDeletionAt,
+            pendingDeletionRequestedAt:
+              auth_organizations.pendingDeletionRequestedAt,
+            pendingDeletionRequestedBy:
+              auth_organizations.pendingDeletionRequestedBy,
           })
           .from(auth_organizations)
           .innerJoin(
@@ -307,6 +509,20 @@ export const auth = betterAuth({
             eq(auth_organizations.id, auth_organization_members.organizationId)
           )
           .where(eq(auth_organization_members.userId, authUser.id));
+
+        const organizations: Organization[] = orgRows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          logo: row.logo,
+          pendingDeletionAt: row.pendingDeletionAt
+            ? row.pendingDeletionAt.toISOString()
+            : null,
+          pendingDeletionRequestedAt: row.pendingDeletionRequestedAt
+            ? row.pendingDeletionRequestedAt.toISOString()
+            : null,
+          pendingDeletionRequestedBy: row.pendingDeletionRequestedBy,
+        }));
 
         if (activeOrganizationId) {
           const foundOrg =

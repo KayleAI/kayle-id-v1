@@ -1,3 +1,4 @@
+import { getOrgDeletionState } from "@kayle-id/auth/organization-deletion";
 import type { VerifyShareRequest } from "@kayle-id/capnp/verify-codec";
 import { db } from "@kayle-id/database/drizzle";
 import { verification_sessions } from "@kayle-id/database/schema/core";
@@ -35,6 +36,17 @@ export async function loadActiveVerifySession(sessionId: string): Promise<
 		.limit(1);
 
 	if (!sessionRow) {
+		return {
+			ok: false,
+			code: "SESSION_NOT_FOUND",
+		};
+	}
+
+	// If the verification's owning org is scheduled for deletion, treat the
+	// session as if it doesn't exist publicly — no leakage of org state to
+	// the verifying user.
+	const deletion = await getOrgDeletionState(sessionRow.organizationId);
+	if (deletion && deletion.pendingDeletionAt !== null) {
 		return {
 			ok: false,
 			code: "SESSION_NOT_FOUND",

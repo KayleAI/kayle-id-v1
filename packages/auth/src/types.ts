@@ -7,6 +7,9 @@ export interface Organization {
   id: string;
   logo: string | null;
   name: string;
+  pendingDeletionAt: string | null;
+  pendingDeletionRequestedAt: string | null;
+  pendingDeletionRequestedBy: string | null;
   slug: string;
 }
 

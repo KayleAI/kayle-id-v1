@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
@@ -188,80 +188,4 @@ export const auth_invitations = pgTable(
 		index("auth_invitations_organizationId_idx").on(table.organizationId),
 		index("auth_invitations_email_idx").on(table.email),
 	],
-);
-
-export const auth_usersRelations = relations(auth_users, ({ many }) => ({
-	auth_sessionss: many(auth_sessions),
-	auth_accountss: many(auth_accounts),
-	auth_organization_memberss: many(auth_organization_members),
-	auth_invitationss: many(auth_invitations),
-	auth_passkeyss: many(auth_passkeys),
-	auth_two_factorss: many(auth_two_factors),
-}));
-
-export const auth_passkeysRelations = relations(auth_passkeys, ({ one }) => ({
-	auth_users: one(auth_users, {
-		fields: [auth_passkeys.userId],
-		references: [auth_users.id],
-	}),
-}));
-
-export const auth_two_factorsRelations = relations(
-	auth_two_factors,
-	({ one }) => ({
-		auth_users: one(auth_users, {
-			fields: [auth_two_factors.userId],
-			references: [auth_users.id],
-		}),
-	}),
-);
-
-export const auth_sessionsRelations = relations(auth_sessions, ({ one }) => ({
-	auth_users: one(auth_users, {
-		fields: [auth_sessions.userId],
-		references: [auth_users.id],
-	}),
-}));
-
-export const auth_accountsRelations = relations(auth_accounts, ({ one }) => ({
-	auth_users: one(auth_users, {
-		fields: [auth_accounts.userId],
-		references: [auth_users.id],
-	}),
-}));
-
-export const auth_organizationsRelations = relations(
-	auth_organizations,
-	({ many }) => ({
-		auth_organization_memberss: many(auth_organization_members),
-		auth_invitationss: many(auth_invitations),
-	}),
-);
-
-export const auth_organization_membersRelations = relations(
-	auth_organization_members,
-	({ one }) => ({
-		auth_organizations: one(auth_organizations, {
-			fields: [auth_organization_members.organizationId],
-			references: [auth_organizations.id],
-		}),
-		auth_users: one(auth_users, {
-			fields: [auth_organization_members.userId],
-			references: [auth_users.id],
-		}),
-	}),
-);
-
-export const auth_invitationsRelations = relations(
-	auth_invitations,
-	({ one }) => ({
-		auth_organizations: one(auth_organizations, {
-			fields: [auth_invitations.organizationId],
-			references: [auth_organizations.id],
-		}),
-		auth_users: one(auth_users, {
-			fields: [auth_invitations.inviterId],
-			references: [auth_users.id],
-		}),
-	}),
 );

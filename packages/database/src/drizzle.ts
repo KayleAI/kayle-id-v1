@@ -1,5 +1,5 @@
 import { pool } from "@kayle-id/database/raw";
-import * as schema from "@kayle-id/database/schema";
+import { relations } from "@kayle-id/database/schema";
 import { drizzle } from "drizzle-orm/node-postgres";
 
 /**
@@ -9,7 +9,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
  */
 const db = drizzle({
 	client: pool,
-	schema,
+	relations,
 });
 
 export { db };

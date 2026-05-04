@@ -6,6 +6,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { KeyRoundIcon } from "lucide-react";
 
 import { useEffect, useState } from "react";
+import { friendlyPasskeyError } from "@/app/passkeys/errors";
 
 export function SignIn() {
 	const navigate = useNavigate();
@@ -65,13 +66,25 @@ export function SignIn() {
 		try {
 			const result = await client.signIn.passkey();
 			if (result?.error) {
-				setError(result.error.message ?? "Failed to sign in with passkey.");
+				setError(
+					friendlyPasskeyError(
+						result.error,
+						"authenticate",
+						result.error.message ?? "Failed to sign in with passkey.",
+					),
+				);
 				return;
 			}
 
 			navigate({ to: "/dashboard" });
-		} catch {
-			setError("Failed to sign in with passkey.");
+		} catch (err) {
+			setError(
+				friendlyPasskeyError(
+					err,
+					"authenticate",
+					"Failed to sign in with passkey.",
+				),
+			);
 		} finally {
 			setIsLoading(false);
 		}

@@ -31,6 +31,7 @@ import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/format-date";
+import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
 
@@ -203,7 +204,13 @@ function AddPasskey() {
 				name: name.trim() || undefined,
 			});
 			if (result?.error) {
-				setErrorMessage(result.error.message ?? "Failed to add passkey.");
+				setErrorMessage(
+					friendlyPasskeyError(
+						result.error,
+						"register",
+						result.error.message ?? "Failed to add passkey.",
+					),
+				);
 				return;
 			}
 			await queryClient.invalidateQueries({ queryKey: PASSKEYS_QUERY_KEY });
@@ -211,7 +218,7 @@ function AddPasskey() {
 			handleOpenChange(false);
 		} catch (err) {
 			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to add passkey.",
+				friendlyPasskeyError(err, "register", "Failed to add passkey."),
 			);
 		} finally {
 			setIsLoading(false);

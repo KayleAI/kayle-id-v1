@@ -81,14 +81,27 @@ export const auth_verifications = pgTable(
 	(table) => [index("auth_verifications_identifier_idx").on(table.identifier)],
 );
 
-export const auth_organizations = pgTable("auth_organizations", {
-	id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
-	name: text("name").notNull(),
-	slug: text("slug").notNull().unique(),
-	logo: text("logo"),
-	createdAt: timestamp("created_at").notNull(),
-	metadata: text("metadata"),
-});
+export const auth_organizations = pgTable(
+	"auth_organizations",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		name: text("name").notNull(),
+		slug: text("slug").notNull().unique(),
+		logo: text("logo"),
+		createdAt: timestamp("created_at").notNull(),
+		metadata: text("metadata"),
+		pendingDeletionAt: timestamp("pending_deletion_at"),
+		pendingDeletionRequestedAt: timestamp("pending_deletion_requested_at"),
+		pendingDeletionRequestedBy: uuid(
+			"pending_deletion_requested_by",
+		).references(() => auth_users.id, { onDelete: "set null" }),
+	},
+	(table) => [
+		index("auth_organizations_pending_deletion_at_idx").on(
+			table.pendingDeletionAt,
+		),
+	],
+);
 
 export const auth_organization_members = pgTable(
 	"auth_organization_members",

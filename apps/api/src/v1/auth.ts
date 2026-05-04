@@ -1,3 +1,4 @@
+import { getOrgDeletionState } from "@kayle-id/auth/organization-deletion";
 import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
@@ -80,6 +81,14 @@ const authenticate = createMiddleware<{
 
 		if (!(organizationId && environment === "live" && enabled)) {
 			return unauthorized(c);
+		}
+
+		// API-key callers are blocked entirely when the org is frozen.
+		// Session callers below stay open so dashboard owners/admins can
+		// still see and cancel the pending deletion.
+		const deletionState = await getOrgDeletionState(organizationId);
+		if (deletionState && deletionState.pendingDeletionAt !== null) {
+			return organizationFrozen(c);
 		}
 
 		const scopes = Array.isArray(permissions)
@@ -204,6 +213,37 @@ export function unauthorized(c: Context) {
 
 export function forbidden(c: Context) {
 	return c.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, 403);
+}
+
+export function organizationFrozen(c: Context) {
+	return c.json(
+		{
+			error: {
+				code: "ORGANIZATION_FROZEN",
+				message:
+					"This organization is scheduled for deletion. API keys and verification flows are disabled until the deletion is canceled.",
+			},
+		},
+		410,
+	);
+}
+
+/**
+ * Returns true (and short-circuits with a 410 response) if the resolved org
+ * for this request has a pending deletion. Call after `organizationId` is set
+ * on the context. Apply to API-key callers and verification-flow callers; the
+ * dashboard owner/admin paths continue to work so they can cancel.
+ */
+export async function denyIfOrgFrozen(c: Context): Promise<Response | null> {
+	const orgId = c.get("organizationId") as string | undefined;
+	if (!orgId) {
+		return null;
+	}
+	const state = await getOrgDeletionState(orgId);
+	if (state && state.pendingDeletionAt !== null) {
+		return organizationFrozen(c);
+	}
+	return null;
 }
 
 export { authenticate, sessionMiddleware };

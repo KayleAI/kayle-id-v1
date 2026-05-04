@@ -14,8 +14,9 @@ import { sendVerifyEmail } from "@kayle-id/emails/send-verify-email";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { customSession, openAPI, organization } from "better-auth/plugins";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { magic } from "./magic";
+import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
 import { findSoleOwnedOrganizations } from "./owned-organizations";
 import type { Organization } from "./types";
 
@@ -77,20 +78,16 @@ const user = {
       });
     },
     // Cascade-delete every organisation where the user is the sole owner.
-    // Deleting an org cascades members, invitations, api_keys, and webhooks
-    // via existing FK rules; orgs with co-owners are left intact.
+    // Routed through `hardDeleteOrganizations` so the delete runs in a single
+    // transaction with active-org reassignment for any sessions whose active
+    // org is among them. FK cascades handle members/invitations/api_keys/
+    // webhooks/verification_sessions. Orgs with co-owners are left intact.
     beforeDelete: async (deletingUser) => {
       const orgs = await findSoleOwnedOrganizations(deletingUser.id);
       if (orgs.length === 0) {
         return;
       }
-
-      await db.delete(auth_organizations).where(
-        inArray(
-          auth_organizations.id,
-          orgs.map((org) => org.id)
-        )
-      );
+      await hardDeleteOrganizations(orgs.map((org) => org.id));
     },
   },
 } satisfies BetterAuthOptions["user"];
@@ -147,18 +144,106 @@ function logDevelopmentMagicOtp(
 const plugins = [
   ...(process.env.NODE_ENV === "production" ? [] : [openAPI()]),
   organization({
+    // We replace better-auth's immediate `/organization/delete` with our own
+    // request/confirm/cancel state machine that runs on a 48h grace period.
+    disableOrganizationDeletion: true,
     schema: {
       invitation: {
         modelName: "auth_invitations",
       },
       organization: {
         modelName: "auth_organizations",
+        additionalFields: {
+          pendingDeletionAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_at",
+          },
+          pendingDeletionRequestedAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_requested_at",
+          },
+          pendingDeletionRequestedBy: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "pending_deletion_requested_by",
+          },
+        },
       },
       member: {
         modelName: "auth_organization_members",
       },
       organizationRole: {
         modelName: "auth_organization_roles",
+      },
+    },
+    organizationHooks: {
+      // Block org-scoped writes once a deletion is scheduled. Without these
+      // hooks an admin/owner could add members, change roles, send invites,
+      // or rename the org during the 48h freeze window.
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeUpdateOrganization: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeAddMember: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeRemoveMember: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeUpdateMemberRole: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeCreateInvitation: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
+      },
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeAcceptInvitation: async ({ organization: org }) => {
+        if (
+          isOrgFrozen(
+            org as unknown as { pendingDeletionAt: Date | null | undefined }
+          )
+        ) {
+          throw new Error("Organization is scheduled for deletion.");
+        }
       },
     },
   }),
@@ -320,12 +405,17 @@ export const auth = betterAuth({
         let activeOrganization: Organization | null = null;
         const activeOrganizationId = getActiveOrganizationId(authSession);
 
-        const organizations: Organization[] = await db
+        const orgRows = await db
           .select({
             id: auth_organizations.id,
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
+            pendingDeletionAt: auth_organizations.pendingDeletionAt,
+            pendingDeletionRequestedAt:
+              auth_organizations.pendingDeletionRequestedAt,
+            pendingDeletionRequestedBy:
+              auth_organizations.pendingDeletionRequestedBy,
           })
           .from(auth_organizations)
           .innerJoin(
@@ -333,6 +423,20 @@ export const auth = betterAuth({
             eq(auth_organizations.id, auth_organization_members.organizationId)
           )
           .where(eq(auth_organization_members.userId, authUser.id));
+
+        const organizations: Organization[] = orgRows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          logo: row.logo,
+          pendingDeletionAt: row.pendingDeletionAt
+            ? row.pendingDeletionAt.toISOString()
+            : null,
+          pendingDeletionRequestedAt: row.pendingDeletionRequestedAt
+            ? row.pendingDeletionRequestedAt.toISOString()
+            : null,
+          pendingDeletionRequestedBy: row.pendingDeletionRequestedBy,
+        }));
 
         if (activeOrganizationId) {
           const foundOrg =

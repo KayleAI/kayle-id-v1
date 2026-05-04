@@ -2,7 +2,11 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
+import { cancelDelete } from "./cancel-delete";
+import { confirmDelete } from "./confirm-delete";
 import createOrganizationRoute from "./create";
+import uploadLogoRoute from "./logo";
+import { requestDelete } from "./request-delete";
 
 const organizations = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -31,5 +35,9 @@ const organizationMiddleware = createMiddleware<{
 organizations.use(organizationMiddleware);
 
 organizations.route("/", createOrganizationRoute);
+organizations.route("/", uploadLogoRoute);
+organizations.route("/", requestDelete);
+organizations.route("/", confirmDelete);
+organizations.route("/", cancelDelete);
 
 export default organizations;

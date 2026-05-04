@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ProfilePage } from "@/app/account/profile";
+import { AccountSettingsPage } from "@/app/account/account-settings";
 
 export const Route = createFileRoute("/_app/account/")({
-	component: ProfilePage,
+	component: AccountSettingsPage,
 });

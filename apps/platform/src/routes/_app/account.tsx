@@ -3,8 +3,7 @@ import { AppHeading } from "@/components/app-shell/heading";
 import { SectionNav } from "@/components/app-shell/section-nav";
 
 const ACCOUNT_NAV_ITEMS = [
-	{ exact: true, label: "Profile", to: "/account" },
-	{ label: "Settings", to: "/account/settings" },
+	{ exact: true, label: "Account Settings", to: "/account" },
 	{ label: "Security", to: "/account/security" },
 ] as const;
 

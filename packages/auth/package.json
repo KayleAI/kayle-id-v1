@@ -6,9 +6,10 @@
     "test": "bun test ./src"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "4.20260504.1",
+    "@types/bun": "latest",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
-    "@types/bun": "latest",
     "dotenv": "17.2.3"
   },
   "peerDependencies": {

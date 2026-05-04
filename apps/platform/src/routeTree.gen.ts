@@ -29,7 +29,6 @@ import { Route as AuthOrganizationsSelectRouteImport } from './routes/_auth/orga
 import { Route as AuthOrganizationsCreateRouteImport } from './routes/_auth/organizations/create'
 import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
-import { Route as AppAccountSettingsRouteImport } from './routes/_app/account/settings'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AuthOrganizationsActiveSettingsRouteImport } from './routes/_auth/organizations/_active/settings'
 import { Route as AuthOrganizationsActiveMembersRouteImport } from './routes/_auth/organizations/_active/members'
@@ -135,11 +134,6 @@ const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   path: '/api-keys/$key',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccountSettingsRoute = AppAccountSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppAccountRoute,
-} as any)
 const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -194,7 +188,6 @@ export interface FileRoutesByFullPath {
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
   '/account/security': typeof AppAccountSecurityRoute
-  '/account/settings': typeof AppAccountSettingsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
@@ -220,7 +213,6 @@ export interface FileRoutesByTo {
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
   '/account/security': typeof AppAccountSecurityRoute
-  '/account/settings': typeof AppAccountSettingsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
@@ -252,7 +244,6 @@ export interface FileRoutesById {
   '/_marketing/demo': typeof MarketingDemoRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
-  '/_app/account/settings': typeof AppAccountSettingsRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
   '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/_auth/organizations/create': typeof AuthOrganizationsCreateRoute
@@ -281,7 +272,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/demo'
     | '/account/security'
-    | '/account/settings'
     | '/api-keys/$key'
     | '/webhooks/$endpoint'
     | '/organizations/create'
@@ -307,7 +297,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/demo'
     | '/account/security'
-    | '/account/settings'
     | '/api-keys/$key'
     | '/webhooks/$endpoint'
     | '/organizations/create'
@@ -338,7 +327,6 @@ export interface FileRouteTypes {
     | '/_marketing/demo'
     | '/_marketing/'
     | '/_app/account/security'
-    | '/_app/account/settings'
     | '/_app/api-keys/$key'
     | '/_app/webhooks/$endpoint'
     | '/_auth/organizations/create'
@@ -508,13 +496,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApiKeysKeyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/account/settings': {
-      id: '/_app/account/settings'
-      path: '/settings'
-      fullPath: '/account/settings'
-      preLoaderRoute: typeof AppAccountSettingsRouteImport
-      parentRoute: typeof AppAccountRoute
-    }
     '/_app/account/security': {
       id: '/_app/account/security'
       path: '/security'
@@ -576,13 +557,11 @@ declare module '@tanstack/react-router' {
 
 interface AppAccountRouteChildren {
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
-  AppAccountSettingsRoute: typeof AppAccountSettingsRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
 }
 
 const AppAccountRouteChildren: AppAccountRouteChildren = {
   AppAccountSecurityRoute: AppAccountSecurityRoute,
-  AppAccountSettingsRoute: AppAccountSettingsRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
 }
 

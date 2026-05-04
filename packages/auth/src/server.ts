@@ -1,3 +1,4 @@
+import { passkey } from "@better-auth/passkey";
 import { TRUSTED_CLIENT_IP_HEADERS } from "@kayle-id/config/client-ip";
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
@@ -122,6 +123,16 @@ const publicGoogleCallbackURL = new URL(
   "/api/auth/callback/google",
   publicAuthBaseURL
 ).toString();
+
+// WebAuthn requires the relying-party ID to be a registrable domain that
+// matches the origin where the credential is created/used. Our public site
+// runs on `kayle.id` in production and `localhost:3000` in development, while
+// the auth server itself may sit on a different host (e.g. 127.0.0.1:8787).
+const isProduction = process.env.NODE_ENV === "production";
+const passkeyRpID = isProduction ? "kayle.id" : "localhost";
+const passkeyOrigin = isProduction
+  ? "https://kayle.id"
+  : ["https://localhost:3000", "https://localhost:8787"];
 
 interface MagicOtpPayload {
   email: string;
@@ -299,6 +310,16 @@ const plugins = [
         type: payload.type,
         url: payload.url,
       });
+    },
+  }),
+  passkey({
+    rpID: passkeyRpID,
+    rpName: "Kayle ID",
+    origin: passkeyOrigin,
+    schema: {
+      passkey: {
+        modelName: "auth_passkeys",
+      },
     },
   }),
 ] satisfies BetterAuthOptions["plugins"];

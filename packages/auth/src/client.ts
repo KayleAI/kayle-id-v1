@@ -1,3 +1,4 @@
+import { passkeyClient } from "@better-auth/passkey/client";
 import {
   customSessionClient,
   inferAdditionalFields,
@@ -15,6 +16,7 @@ const client = createAuthClient({
     inferAdditionalFields<typeof server>(),
     magicClient(),
     organizationClient(),
+    passkeyClient(),
     twoFactorClient({
       // Full-page navigation rather than `useNavigate` so the freshly-cleared
       // session cookie is observed by the next request without a stale

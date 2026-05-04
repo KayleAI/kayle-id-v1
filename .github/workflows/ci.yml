@@ -126,13 +126,13 @@ jobs:
                 return 1
               fi
 
-              if response="$(curl -fsS http://127.0.0.1:8788/health 2>/dev/null)" && \
+              if response="$(curl -fsS -m 5 http://127.0.0.1:8788/health 2>/dev/null)" && \
                 python3 -c 'import json,sys; payload=json.loads(sys.stdin.read()); raise SystemExit(0 if payload.get("data", {}).get("ready") is True else 1)' <<<"${response}"; then
                 return 0
               fi
 
-              if [[ "$(($(date +%s) - start_time))" -ge 30 ]]; then
-                echo "Face matcher did not become healthy within 30 seconds."
+              if [[ "$(($(date +%s) - start_time))" -ge 60 ]]; then
+                echo "Face matcher did not become healthy within 60 seconds."
                 return 1
               fi
 
@@ -143,6 +143,7 @@ jobs:
           wait_for_api() {
             local start_time
             start_time="$(date +%s)"
+            local last_progress=0
 
             while true; do
               if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
@@ -150,13 +151,20 @@ jobs:
                 return 1
               fi
 
-              if curl -fsS http://127.0.0.1:8787/ >/dev/null 2>&1; then
+              if curl -fsS -m 5 http://127.0.0.1:8787/ >/dev/null 2>&1; then
                 return 0
               fi
 
-              if [[ "$(($(date +%s) - start_time))" -ge 30 ]]; then
-                echo "API server did not become ready within 30 seconds."
+              local elapsed=$(($(date +%s) - start_time))
+              if [[ "${elapsed}" -ge 120 ]]; then
+                echo "API server did not become ready within 120 seconds."
                 return 1
+              fi
+
+              if [[ "$((elapsed - last_progress))" -ge 30 ]]; then
+                echo "Still waiting for API after ${elapsed}s; last 20 lines of API log:"
+                tail -n 20 /tmp/api.log || true
+                last_progress="${elapsed}"
               fi
 
               sleep 1

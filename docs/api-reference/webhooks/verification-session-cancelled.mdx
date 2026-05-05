@@ -1,0 +1,64 @@
+---
+title: "verification.session.cancelled"
+description: "Fires when a session is cancelled."
+---
+
+Emitted when a session is explicitly cancelled — either by you (authenticated cancel via your API key) or by the user (public cancel from the verify app).
+
+## When it fires
+
+The two cancel paths:
+
+- **Authenticated.** `POST /v1/sessions/:id/cancel` with an API key that holds `sessions:write`. Idempotent.
+- **Public.** `POST /v1/verify/session/:id/cancel` with the one-shot `cancel_token`. The verify web app and mobile apps use this to abort from the user's side.
+
+Either path emits this event once. In-progress attempts inside a cancelled session are marked `failed` with `failure_code: session_cancelled`.
+
+## Payload
+
+```json
+{
+  "type": "verification.session.cancelled",
+  "metadata": {
+    "contract_version": 1,
+    "event_id": "evt_...",
+    "verification_session_id": "vs_..."
+  },
+  "data": {}
+}
+```
+
+## Fields
+
+<ResponseField name="type" type="string">
+  Always `verification.session.cancelled`.
+</ResponseField>
+
+<ResponseField name="metadata.contract_version" type="number">
+  Contract version the session was created against.
+</ResponseField>
+
+<ResponseField name="metadata.event_id" type="string">
+  Unique event ID. Use as an idempotency key.
+</ResponseField>
+
+<ResponseField name="metadata.verification_session_id" type="string">
+  The session that was cancelled.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Empty object. The webhook does not distinguish authenticated vs public cancel — if you need that distinction, capture it server-side at the moment you call the authenticated cancel endpoint.
+</ResponseField>
+
+## Handler outline
+
+```typescript
+if (event.type === "verification.session.cancelled") {
+  const { verification_session_id, event_id } = event.metadata;
+  if (await alreadyProcessed(event_id)) return;
+
+  await markSessionCancelled({ sessionId: verification_session_id });
+}
+```
+
+A cancelled session is terminal. To re-verify the user, create a new session.

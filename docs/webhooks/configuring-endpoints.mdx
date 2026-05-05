@@ -1,0 +1,93 @@
+---
+title: "Configuring endpoints"
+description: "Create, update, enable, disable, and rotate webhook endpoints."
+icon: "gear"
+---
+
+A webhook endpoint is the URL Kayle delivers events to. You can manage endpoints from the dashboard or via the API. The signing secret returned at creation is what your server uses to verify incoming deliveries.
+
+## Create an endpoint
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/endpoints \
+  -H "Authorization: Bearer kk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production webhook",
+    "url": "https://yourapp.com/webhooks/kayle",
+    "subscribed_event_types": [
+      "verification.attempt.succeeded",
+      "verification.attempt.failed"
+    ]
+  }'
+```
+
+The response includes the endpoint and its signing secret. Note that the endpoint cannot receive deliveries until you also register an [encryption key](/webhooks/encryption).
+
+```json
+{
+  "data": {
+    "endpoint": {
+      "id": "whe_...",
+      "organization_id": "...",
+      "name": "Production webhook",
+      "url": "https://yourapp.com/webhooks/kayle",
+      "enabled": true,
+      "subscribed_event_types": [
+        "verification.attempt.succeeded",
+        "verification.attempt.failed"
+      ],
+      "created_at": "2026-05-05T11:00:00Z",
+      "updated_at": "2026-05-05T11:00:00Z",
+      "disabled_at": null
+    },
+    "signing_secret": "whsec_..."
+  },
+  "error": null
+}
+```
+
+<Warning>
+  The signing secret is shown **once** at creation. Store it in your secret manager immediately. If you lose it, rotate via `POST /v1/webhooks/endpoints/:endpoint_id/signing-secret/rotate`.
+</Warning>
+
+`url` must be `https://`. The `name` field is optional and is only used in the dashboard for display.
+
+## Update an endpoint
+
+`PATCH /v1/webhooks/endpoints/:endpoint_id` accepts any subset of `name`, `url`, `enabled`, `subscribed_event_types`. To temporarily stop deliveries without losing the configuration, set `enabled: false` — disabled endpoints retain history and can be re-enabled later.
+
+## Reveal or rotate the signing secret
+
+Reveal the current secret (admin-only, owner role required):
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/endpoints/whe_.../signing-secret/reveal \
+  -H "Authorization: Bearer kk_..."
+```
+
+Rotate to a new secret:
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/endpoints/whe_.../signing-secret/rotate \
+  -H "Authorization: Bearer kk_..."
+```
+
+After rotation the previous secret stops working immediately. If you can't deploy the new secret atomically, expect a window where in-flight deliveries fail signature verification on your side — Kayle will retry them with the new secret, so the deliveries eventually succeed once your server has the rotated value.
+
+## Delete an endpoint
+
+```bash
+curl -X DELETE https://api.kayle.id/v1/webhooks/endpoints/whe_... \
+  -H "Authorization: Bearer kk_..."
+```
+
+Deletion is permanent. In-flight retries against the deleted endpoint stop. Past delivery rows remain in the database for audit but no longer deliver.
+
+## Encryption keys
+
+Webhook payloads are always JWE-encrypted. A new endpoint cannot receive deliveries until you register an active encryption key on it — the API will record a `failed` delivery row instead of sending the body. Register a key immediately after creation. See [Encrypted payloads](/webhooks/encryption) for the registration flow and decryption guidance.
+
+## Permissions
+
+Managing endpoints requires `webhooks:write` on an API key, or the `admin` / `owner` role on a session-cookie caller. Reading lists endpoints requires `webhooks:read` or any role. See [Scopes](/auth/scopes) for the full mapping.

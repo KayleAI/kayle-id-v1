@@ -1,0 +1,89 @@
+---
+title: "Errors"
+description: "HTTP status codes and error codes returned by the API."
+icon: "circle-exclamation"
+---
+
+Errors use the same envelope as successful responses, with `data: null` and an `error` object describing what went wrong:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNKNOWN_CLAIM_KEY",
+    "message": "Unknown claim key.",
+    "hint": "Use a supported claim key from the share contract allowlist.",
+    "docs": "https://kayle.id/docs/api/sessions#create"
+  }
+}
+```
+
+`code` is stable and safe to match on. `message` and `hint` are human-readable and may evolve. `docs` points to the relevant guide.
+
+For list endpoints, the envelope also includes `pagination` with `limit`, `has_more: false`, and `next_cursor: null` so the response shape stays consistent on error.
+
+## HTTP status codes
+
+| Status | When it's used |
+|---|---|
+| `200` | Success. |
+| `201` | Resource created. |
+| `202` | Accepted; processing continues asynchronously (event replay). |
+| `204` | Success, no body (cancel, delete). |
+| `400` | Validation failure. The body explains which field. |
+| `401` | Missing or invalid `Authorization` header. |
+| `403` | Authenticated but lacking the scope or role. |
+| `404` | Resource not found, or scoped to a different organization. |
+| `409` | State conflict (e.g. cancel token already consumed). |
+| `410` | The owning organization is pending deletion. API keys are disabled until deletion is cancelled. |
+| `426` | The endpoint requires a WebSocket upgrade and got a plain HTTP request. |
+| `500` | Internal error. Safe to retry idempotent operations after backoff. |
+
+## Common error codes
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `UNAUTHORIZED` | 401 | The `Authorization` header is missing, malformed, or refers to a deleted/disabled key. |
+| `FORBIDDEN` | 403 | The key or session is authenticated but lacks the required [scope](/auth/scopes). |
+| `NOT_FOUND` | 404 | The resource does not exist or belongs to another organization. |
+| `BAD_REQUEST` | 400 | The request shape failed validation. The `message` indicates the field. |
+| `INVALID_REQUEST` | 400 | A semantic precondition failed (e.g. starting_after cursor doesn't exist). |
+| `CONFLICT` | 409 | The operation can't proceed in the current state. |
+| `INTERNAL_SERVER_ERROR` | 500 | Something blew up server-side. Retry idempotent calls after backoff. |
+| `ORGANIZATION_FROZEN` | 410 | The owning organization has requested deletion. API keys are disabled until the deletion is cancelled. |
+
+## Resource-specific codes
+
+### Sessions
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `UNKNOWN_CLAIM_KEY` | 400 | A `share_fields` key isn't in the allowlist. See [Share fields](/verifications/share-fields). |
+| `SESSION_NOT_FOUND` | 404 | The session ID doesn't exist or belongs to another organization. |
+| `INVALID_SESSION_ID` | 400 | The session ID is malformed. |
+| `SESSION_EXPIRED` | 409 | Operation rejected because the session is past its 60-minute window. |
+| `SESSION_IN_PROGRESS` | 409 | Operation conflicts with an in-flight attempt (e.g. cancelling a verifying session). |
+
+### Verify (public endpoints)
+
+These appear when the verify web app or a mobile client talks to `/v1/verify/*`. You'll usually only see them in user-facing error states, not in your own server code.
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `CANCEL_TOKEN_INVALID` | 401 | The cancel token in the body doesn't match the session. |
+| `CANCEL_TOKEN_USED` | 409 | The cancel token was already consumed. |
+| `WEBSOCKET_REQUIRED` | 426 | The verify socket endpoint was called without a WebSocket upgrade. |
+| `HANDOFF_TOKEN_INVALID` / `HANDOFF_TOKEN_EXPIRED` / `HANDOFF_TOKEN_CONSUMED` | 401 / 401 / 409 | Mobile handoff token rejected. |
+| `HANDOFF_DEVICE_MISMATCH` | 403 | Different device than the one that first claimed the attempt. |
+
+### Webhooks
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `WEBHOOK_URL_REJECTED` | 400 | The URL fails Kayle's safety checks (must be `https://`, not a private IP). |
+
+## What to retry
+
+`5xx` and transient network failures are safe to retry on idempotent operations (`GET`, `DELETE`, `POST /cancel`). Every `POST /v1/sessions` produces a brand-new session — retrying after a `5xx` may create a duplicate. Use a request-side idempotency check (last response captured before the timeout) before re-issuing creates.
+
+`4xx` responses other than `429` (which the API does not currently emit) are permanent — fix the request shape rather than retrying.

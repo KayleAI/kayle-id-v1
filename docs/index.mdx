@@ -1,133 +1,54 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
-icon: 'star'
+title: "Kayle ID"
+description: "Privacy-first identity verification for the modern web."
+icon: "shield-check"
 ---
 
-## Setting up
+Kayle ID verifies that someone is who they say they are by reading the cryptographic chip in their passport, matching the on-chip portrait against a live selfie, and returning only the claims you asked for. The end user keeps custody of their document data; you receive a verified result and the fields you requested.
 
-Get your documentation site up and running in minutes.
+The product is open source under Apache 2.0. You can self-host the entire stack or use the hosted service at `https://api.kayle.id`.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
+## Start here
 
 <Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+  <Card title="Quickstart" icon="rocket" href="/quickstart" horizontal>
+    Create your first verification session in about ten minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="How it works" icon="diagram-project" href="/concepts/how-it-works" horizontal>
+    Learn about how Kayle ID works and its architecture.
   </Card>
 </Columns>
 
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
+## Build a verification
 
 <Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+  <Card title="Verification sessions" icon="id-card" href="/verifications/sessions">
+    Lifecycle, expiry, attempts, redirect handling.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Share fields" icon="list-check" href="/verifications/share-fields">
+    The catalogue of claims you can request from a verified user.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Document checks" icon="microchip" href="/verifications/document-checks">
+    Learn about the document checks that are run during a verification.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Privacy model" icon="lock" href="/verifications/privacy">
+    What Kayle stores, what it discards, and what reaches your webhook.
   </Card>
 </Columns>
 
-## Make your content agent ready
-
-Make your docs work for humans and AI agents alike.
+## Receive results
 
 <Columns cols={2}>
-  <Card
-    title="Prompt component"
-    icon="robot"
-    href="/agent-ready/prompt"
-  >
-    Embed shareable AI prompts readers can copy or open in Cursor.
+  <Card title="Webhook overview" icon="bolt" href="/webhooks/overview">
+    The four event types and delivery semantics.
   </Card>
-  <Card
-    title="Visibility"
-    icon="eye"
-    href="/agent-ready/visibility"
-  >
-    Show different content to humans and agents reading your docs.
-  </Card>
-  <Card
-    title="Contextual menu"
-    icon="bolt"
-    href="/agent-ready/contextual"
-  >
-    Give readers one-click access to Claude, ChatGPT, Cursor, and more.
-  </Card>
-  <Card
-    title="AI coding tools"
-    icon="wand-magic-sparkles"
-    href="/ai-tools/claude-code"
-  >
-    Set up Claude Code, Cursor, or Windsurf with Mintlify's skill.
+  <Card title="Verifying signatures" icon="signature" href="/webhooks/verifying-signatures">
+    `X-Kayle-Signature` HMAC verification with code samples.
   </Card>
 </Columns>
 
-## Need inspiration?
+## Run your own
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
+<Card title="Self-hosting" icon="server" href="/self-hosting/overview" horizontal>
+  Deploy Kayle ID on your own Cloudflare account.
 </Card>

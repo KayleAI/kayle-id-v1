@@ -1,0 +1,38 @@
+---
+title: "Webhook overview"
+description: "How Kayle ID delivers verification results to your servers."
+icon: "bolt"
+---
+
+When a verification reaches a terminal state, Kayle emits a domain event and delivers it to every webhook endpoint subscribed to that event type. Webhooks are the primary way you learn about verification outcomes — polling the API works for one-off lookups, but a subscribed endpoint is what you should build against.
+
+## Event types
+
+Four event types exist:
+
+| Event | Trigger |
+|---|---|
+| `verification.attempt.succeeded` | An attempt was accepted. The payload includes the consented claims and the list of selected field keys. |
+| `verification.attempt.failed` | An attempt was rejected. The payload includes a `failure_code`. |
+| `verification.session.expired` | A session passed its 60-minute window with no successful attempt. |
+| `verification.session.cancelled` | A session was cancelled by you (authenticated cancel) or by the user (public cancel). |
+
+Each endpoint subscribes to a subset by listing event types when you create or update it. See [Configuring endpoints](/webhooks/configuring-endpoints).
+
+## Delivery semantics
+
+- **At-least-once.** Kayle retries failed deliveries. Build idempotent handlers — key on `metadata.event_id` (one ID per event, never reused) or on `verification_attempt_id` for attempt events.
+- **Per-endpoint.** A single event triggers one delivery per subscribed endpoint. Disabling or deleting an endpoint does not affect other endpoints.
+- **Best-effort ordering.** Within a session you'll usually receive events in the order they happened, but a delivery that retries can land after later events. Don't rely on order; rely on `metadata` and the resource state you can fetch from the API.
+- **Sub-minute latency for the first attempt.** The first delivery is queued immediately when the event fires and processed by a scheduled job. See [Deliveries](/webhooks/deliveries) for the retry schedule.
+
+## What you have to handle
+
+Every endpoint must:
+
+1. Register an [encryption key](/webhooks/encryption) before it can receive deliveries. Webhook payloads are always JWE-encrypted; an endpoint without an active key fails delivery before the body is sent.
+2. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting. See [Verifying signatures](/webhooks/verifying-signatures).
+3. Respond with a `2xx` status code within a few seconds. Anything else is treated as a delivery failure and retried.
+4. Be idempotent on `metadata.event_id` and `metadata.verification_attempt_id`.
+
+Endpoints that don't return `2xx` after three attempts (initial plus two retries) are marked `failed`. You can replay or retry them from the dashboard or via the API; see [Deliveries](/webhooks/deliveries).

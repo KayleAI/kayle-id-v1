@@ -1,81 +1,158 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
-icon: 'rocket'
+description: "Create your first verification session, redirect a user to it, and receive the result over a webhook."
+icon: "rocket"
 ---
 
-## Get started in three steps
+This guide takes you from zero to a working verification in about ten minutes. You'll create an organization, mint an API key, create a session via the API, send a user through the verify flow, and inspect the resulting webhook event.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+- A Kayle ID account at [kayle.id](https://kayle.id), or a self-hosted instance running the platform app
+- A way to expose a local HTTPS endpoint to the internet for webhook testing — [ngrok](https://ngrok.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) both work
+- `curl` and `jq` for poking at the API
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Create an organization">
+    Sign in to the dashboard, follow the onboarding flow, and create an organization. The slug you choose becomes part of the dashboard URL (`/organizations/<slug>`) and is used by the demo flow if you wire it up later.
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Mint an API key">
+    Go to **API keys**, click **Create API key**, give it a name, and select the scopes you need. For this quickstart you need `sessions:write` (to create sessions) and `webhooks:write` (to register an endpoint). Copy the key — it's shown once and starts with `kk_`.
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Warning>
+      The key is only displayed at creation. If you lose it, delete the key and create a new one.
+    </Warning>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Register a webhook endpoint">
+    Either through the dashboard or with the API:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    curl -X POST https://api.kayle.id/v1/webhooks/endpoints \
+      -H "Authorization: Bearer kk_..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "url": "https://example.ngrok.app/webhooks/kayle",
+        "subscribed_event_types": [
+          "verification.attempt.succeeded",
+          "verification.attempt.failed",
+          "verification.session.expired",
+          "verification.session.cancelled"
+        ]
+      }'
+    ```
 
-### Step 3: Go live
+    The response includes the endpoint ID and `signing_secret`. Save the secret — it's also shown only once. You'll use it to verify incoming webhook signatures. See [Verifying signatures](/webhooks/verifying-signatures).
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Register an encryption key">
+    Webhook payloads are always JWE-encrypted. The endpoint cannot receive deliveries until an active encryption key is attached.
 
-## Next steps
+    Generate an RSA key pair, export the public key as a JWK, then register it:
 
-Now that you have your docs running, explore these key features:
+    ```bash
+    curl -X POST https://api.kayle.id/v1/webhooks/endpoints/whe_.../keys \
+      -H "Authorization: Bearer kk_..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "key_id": "k1",
+        "algorithm": "RSA-OAEP-256",
+        "key_type": "RSA",
+        "jwk": { "kty": "RSA", "n": "...", "e": "AQAB", "alg": "RSA-OAEP-256", "use": "enc", "kid": "k1" }
+      }'
+    ```
 
-<CardGroup cols={2}>
+    Store the matching private key in your secret manager. Your server uses it to decrypt incoming JWE bodies. See [Encrypted payloads](/webhooks/encryption) for key generation and decryption code.
+  </Step>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+  <Step title="Create a verification session">
+    A session represents one identity verification you want to perform. You can request specific [share fields](/verifications/share-fields) — claims the user must consent to share before completing the flow.
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+    ```bash
+    curl -X POST https://api.kayle.id/v1/sessions \
+      -H "Authorization: Bearer kk_..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "redirect_url": "https://yourapp.com/verification/done",
+        "share_fields": {
+          "date_of_birth": { "required": true,  "reason": "Verify age eligibility" },
+          "family_name":   { "required": true,  "reason": "Match account name" },
+          "given_names":   { "required": true,  "reason": "Match account name" }
+        }
+      }'
+    ```
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+    The response includes a `verification_url` (where to send the user) and a one-shot `cancel_token` (in case you need to cancel from the browser):
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+    ```json
+    {
+      "data": {
+        "id": "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
+        "status": "created",
+        "verification_url": "https://verify.kayle.id/vs_...?cancel_token=...",
+        "cancel_token": "...",
+        "expires_at": "2026-05-05T12:00:00Z"
+      },
+      "error": null
+    }
+    ```
+  </Step>
 
-</CardGroup>
+  <Step title="Send the user through the flow">
+    Redirect the user to `verification_url`. They'll land on `verify.kayle.id`, see the consent screen for the share fields you requested, and complete the flow on their phone (NFC chip read of their passport plus a selfie).
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+    Sessions expire after 60 minutes. The user gets up to three attempts within that window.
+  </Step>
+
+  <Step title="Receive the webhook">
+    When the user finishes, your webhook endpoint receives a POST with `Content-Type: application/jose`. The body is a compact JWE. Verify `X-Kayle-Signature` against the JWE string, decrypt with your private key, and the cleartext is the event JSON. For a successful verification:
+
+    ```json
+    {
+      "type": "verification.attempt.succeeded",
+      "metadata": {
+        "contract_version": 1,
+        "event_id": "evt_...",
+        "verification_attempt_id": "va_...",
+        "verification_session_id": "vs_..."
+      },
+      "data": {
+        "claims": {
+          "date_of_birth": "1995-04-12",
+          "family_name": "Curie",
+          "given_names": "Marie"
+        },
+        "selected_field_keys": ["date_of_birth", "family_name", "given_names"]
+      }
+    }
+    ```
+
+    See [Verifying signatures](/webhooks/verifying-signatures) and [Encrypted payloads](/webhooks/encryption) for full code samples.
+  </Step>
+
+  <Step title="Pick up the redirect">
+    After the verification finishes, the user is sent to `redirect_url` if you supplied one. The redirect carries the session ID so you can match the browser back to the result you received over the webhook.
+
+    <Note>
+      If you don't supply a redirect URL, the user will be shown a button that closes the page.
+    </Note>
+  </Step>
+</Steps>
+
+## Next
+
+<Columns cols={2}>
+  <Card title="Verification sessions" icon="id-card" href="/verifications/sessions">
+    Statuses, attempts, expiry, and cancellation.
+  </Card>
+  <Card title="Failure codes" icon="triangle-exclamation" href="/verifications/document-checks#failure-codes">
+    What each `failure_code` means and what to do about it.
+  </Card>
+  <Card title="Webhook deliveries" icon="paper-plane" href="/webhooks/deliveries">
+    Retry semantics, delivery inspection, manual replays.
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/introduction">
+    Full endpoint reference, error codes, pagination.
+  </Card>
+</Columns>

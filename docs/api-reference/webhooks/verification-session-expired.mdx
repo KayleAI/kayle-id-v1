@@ -1,0 +1,61 @@
+---
+title: "verification.session.expired"
+description: "Fires when a session passes its 60-minute window without a successful attempt."
+---
+
+Emitted when a session's `expires_at` is reached and no attempt succeeded. A scheduled job sweeps expired sessions, marks them `expired`, and emits this event.
+
+## When it fires
+
+A session expires when 60 minutes have elapsed since `created_at` and it has not reached `completed` (a successful attempt or three failed attempts) or `cancelled`. In-progress attempts inside an expired session are marked `failed` with `failure_code: session_expired`.
+
+This event fires at most once per session.
+
+## Payload
+
+```json
+{
+  "type": "verification.session.expired",
+  "metadata": {
+    "contract_version": 1,
+    "event_id": "evt_...",
+    "verification_session_id": "vs_..."
+  },
+  "data": {}
+}
+```
+
+## Fields
+
+<ResponseField name="type" type="string">
+  Always `verification.session.expired`.
+</ResponseField>
+
+<ResponseField name="metadata.contract_version" type="number">
+  Contract version the session was created against.
+</ResponseField>
+
+<ResponseField name="metadata.event_id" type="string">
+  Unique event ID. Use as an idempotency key.
+</ResponseField>
+
+<ResponseField name="metadata.verification_session_id" type="string">
+  The session that expired.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Empty object. Reserved for future fields.
+</ResponseField>
+
+## Handler outline
+
+```typescript
+if (event.type === "verification.session.expired") {
+  const { verification_session_id, event_id } = event.metadata;
+  if (await alreadyProcessed(event_id)) return;
+
+  await markSessionExpired({ sessionId: verification_session_id });
+}
+```
+
+Treat an expired session as a definitive "user did not finish in time". If you need them to verify, create a fresh session.

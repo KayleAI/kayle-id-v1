@@ -1,0 +1,78 @@
+---
+title: "verification.attempt.failed"
+description: "Fires when a verification attempt is rejected."
+---
+
+Emitted when an attempt finishes with a hard failure on one of the verification gates. The payload carries a `failure_code` you can match on. No claims are shared.
+
+## When it fires
+
+After the verify pipeline rejects an attempt: an authenticity check failed, a chip authentication check failed, or the selfie failed to match the on-chip portrait.
+
+Sessions allow up to three attempts. Each rejected attempt fires this event independently. After the third terminal failure the session moves to `completed` and no further attempts are accepted.
+
+## Payload
+
+```json
+{
+  "type": "verification.attempt.failed",
+  "metadata": {
+    "contract_version": 1,
+    "event_id": "evt_...",
+    "verification_attempt_id": "va_...",
+    "verification_session_id": "vs_..."
+  },
+  "data": {
+    "failure_code": "selfie_face_mismatch"
+  }
+}
+```
+
+## Fields
+
+<ResponseField name="type" type="string">
+  Always `verification.attempt.failed`.
+</ResponseField>
+
+<ResponseField name="metadata.contract_version" type="number">
+  Contract version the session was created against.
+</ResponseField>
+
+<ResponseField name="metadata.event_id" type="string">
+  Unique event ID. Use as an idempotency key.
+</ResponseField>
+
+<ResponseField name="metadata.verification_attempt_id" type="string">
+  The attempt that failed.
+</ResponseField>
+
+<ResponseField name="metadata.verification_session_id" type="string">
+  The session this attempt belongs to. The session may still allow further attempts.
+</ResponseField>
+
+<ResponseField name="data.failure_code" type="string">
+  One of:
+  - `passport_authenticity_failed` — passive auth failed (SOD signature, DSC chain, data-group hash, or CRL revocation).
+  - `passport_active_authentication_failed` — DG15 was present and the chip's signature over the challenge did not verify.
+  - `passport_chip_authentication_failed` — DG14 was present and the authenticated key agreement transcript did not verify.
+  - `selfie_face_mismatch` — the face matcher rejected the selfie against the on-chip portrait.
+</ResponseField>
+
+See [Document checks](/verifications/document-checks) for what each gate is checking.
+
+## Handler outline
+
+```typescript
+if (event.type === "verification.attempt.failed") {
+  const { verification_session_id, verification_attempt_id, event_id } = event.metadata;
+  if (await alreadyProcessed(event_id)) return;
+
+  await recordFailedAttempt({
+    sessionId: verification_session_id,
+    attemptId: verification_attempt_id,
+    failureCode: event.data.failure_code,
+  });
+}
+```
+
+A `verification.attempt.failed` is not a final answer for the session. Wait for `verification.attempt.succeeded`, `verification.session.expired`, or `verification.session.cancelled` before deciding the user can't be verified at all.

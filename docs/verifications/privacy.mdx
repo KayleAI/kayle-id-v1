@@ -1,0 +1,79 @@
+---
+title: "Privacy"
+description: "What Kayle stores, what it discards, and what reaches your webhook."
+icon: "lock"
+---
+
+Kayle ID is built around a single rule: the API stores the **minimum** needed to make verification work, and never more. Document images, MRZ fields, selfies, and chip signatures are processed in memory and discarded the moment the WebSocket closes. The only place verified claims exist outside that pipeline is the webhook payload sent to you, encrypted in flight if you've registered an encryption key.
+
+## What gets stored
+
+The Postgres database holds the metadata required to drive the lifecycle and audit it later:
+
+- **Sessions** — status, requested share fields, `redirect_url`, expiry, hashed `cancel_token`, timestamps.
+- **Attempts** — status, failure code if any, risk score, hashed mobile write token, hashed device ID, app version, current phase, timestamps.
+- **Events** — type, trigger ID, trigger type, timestamps. No PII.
+- **Webhook deliveries** — endpoint ID, status, attempt count, payload (encrypted with the endpoint's registered key when applicable), HTTP status of the last attempt, timestamps.
+
+Tokens are hashed before storage. The plaintext is shown once at creation and never persisted.
+
+## What gets discarded
+
+Every byte of document and biometric data is processed in memory inside the API's verification pipeline and is gone when the WebSocket closes:
+
+- DG1 (MRZ data)
+- DG2 (on-chip portrait)
+- DG14 (chip authentication parameters)
+- DG15 (active authentication public key)
+- SOD (security object)
+- Selfie frames
+- Active authentication challenges and signatures
+- Chip authentication transcripts
+- Face matcher request and response bodies
+- CRL responses
+
+None of these touch the database. None of these are visible in the dashboard. None of these are recoverable after the fact.
+
+## What reaches your webhook
+
+Webhook payloads are always end-to-end encrypted: Kayle wraps every event body as a JWE addressed to a public key you've registered with the endpoint, so Kayle, your CDN, and any intermediary cannot read the cleartext. Endpoints without an active encryption key fail delivery before the body is sent. See [Encrypted payloads](/webhooks/encryption) for the registration flow.
+
+For a successful verification, the cleartext you receive after decryption contains only the claims the user consented to share:
+
+```json
+{
+  "type": "verification.attempt.succeeded",
+  "data": {
+    "claims": { "date_of_birth": "1995-04-12", "kayle_document_id": "kdid_..." },
+    "selected_field_keys": ["date_of_birth", "kayle_document_id"]
+  },
+  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+}
+```
+
+For a failed verification, you receive the failure code, no claims:
+
+```json
+{
+  "type": "verification.attempt.failed",
+  "data": { "failure_code": "selfie_face_mismatch" },
+  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+}
+```
+
+Session-level events (`verification.session.expired`, `verification.session.cancelled`) carry no claim data either.
+
+## Stable identifiers without raw values
+
+If you need to recognise a returning user without storing their document number or birth date, request `kayle_document_id` (one identifier per document, per organization) or `kayle_human_id` (one identifier per human, per organization). Both are derived from the cryptographically attested document and stable across re-verifications.
+
+## Where to look in the code
+
+If you self-host or audit, the relevant entry points are:
+
+- Database schema: `packages/database/src/schema/{core,auth,webhooks}.ts`
+- Webhook payload builders: `apps/api/src/v1/webhooks/deliveries/payloads.ts`
+- Share manifest: `apps/api/src/v1/verify/share-manifest.ts`
+- Verification pipeline: `apps/api/src/v1/verify/`
+
+Nothing in those files writes a DG, an SOD, or a selfie to disk.

@@ -25,7 +25,7 @@ describe("api key api helpers", () => {
 					{
 						createdAt: "2026-03-19T00:00:00.000Z",
 						enabled: true,
-						id: "kk_live_123",
+						id: "kk_123",
 						metadata: {},
 						name: "Primary",
 						permissions: [],
@@ -49,7 +49,7 @@ describe("api key api helpers", () => {
 				{
 					createdAt: "2026-03-19T00:00:00.000Z",
 					enabled: true,
-					id: "kk_live_123",
+					id: "kk_123",
 					metadata: {},
 					name: "Primary",
 					permissions: [],
@@ -77,8 +77,8 @@ describe("api key api helpers", () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			mockJsonResponse({
 				data: {
-					id: "kk_live_123",
-					key: "kk_live_secret",
+					id: "kk_123",
+					key: "kk_secret",
 				},
 				error: null,
 			}),
@@ -87,8 +87,8 @@ describe("api key api helpers", () => {
 		globalThis.fetch = fetchMock as typeof fetch;
 
 		await expect(createApiKey({ name: "Primary" })).resolves.toEqual({
-			id: "kk_live_123",
-			key: "kk_live_secret",
+			id: "kk_123",
+			key: "kk_secret",
 		});
 
 		expect(fetchMock).toHaveBeenCalledWith(
@@ -114,7 +114,7 @@ describe("api key api helpers", () => {
 	test("forwards an explicit permissions list when provided", async () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			mockJsonResponse({
-				data: { id: "kk_live_124", key: "kk_live_secret2" },
+				data: { id: "kk_124", key: "kk_secret2" },
 				error: null,
 			}),
 		);
@@ -153,10 +153,10 @@ describe("api key api helpers", () => {
 
 		globalThis.fetch = fetchMock as typeof fetch;
 
-		await updateApiKey({ enabled: false, id: "kk_live_123" });
+		await updateApiKey({ enabled: false, id: "kk_123" });
 
 		expect(fetchMock).toHaveBeenCalledWith(
-			"/api/auth/api-keys/kk_live_123",
+			"/api/auth/api-keys/kk_123",
 			expect.objectContaining({
 				body: JSON.stringify({ enabled: false }),
 				credentials: "include",
@@ -179,10 +179,10 @@ describe("api key api helpers", () => {
 
 		globalThis.fetch = fetchMock as typeof fetch;
 
-		await deleteApiKey("kk_live_123");
+		await deleteApiKey("kk_123");
 
 		expect(fetchMock).toHaveBeenCalledWith(
-			"/api/auth/api-keys/kk_live_123",
+			"/api/auth/api-keys/kk_123",
 			expect.objectContaining({
 				credentials: "include",
 				method: "DELETE",

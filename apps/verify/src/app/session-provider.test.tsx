@@ -40,7 +40,7 @@ if (typeof document === "undefined") {
 }
 
 const sessionId =
-	"vs_test_phase3provider0000000000000000000000000000000000000000000000000000000000";
+	"vs_phase3provider0000000000000000000000000000000000000000000000000000000000";
 
 function createSessionStatus(
 	overrides: Partial<VerifySessionStatusPayload> = {},
@@ -335,7 +335,7 @@ describe("SessionProvider", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: "selfie_face_mismatch",
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: true,
 					status: "failed",
 				},

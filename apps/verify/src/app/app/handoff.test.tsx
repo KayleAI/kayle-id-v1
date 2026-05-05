@@ -57,7 +57,7 @@ const SELFIE_FAILURE_CLOSE_PAGE_TEXT = `${VERIFY_HANDOFF_COPY.screens.terminal.s
 
 vi.mock("@tanstack/react-router", () => ({
 	useLoaderData: () => ({
-		sessionId: "vs_test_session123",
+		sessionId: "vs_session123",
 	}),
 }));
 
@@ -173,8 +173,8 @@ function createHandoffPayload(
 ): HandoffPayload {
 	return {
 		v: 1,
-		session_id: "vs_test_session123",
-		attempt_id: "va_test_attempt123",
+		session_id: "vs_session123",
+		attempt_id: "va_attempt123",
 		mobile_write_token: "token_123",
 		expires_at: "2099-01-01T00:00:00.000Z",
 		...overrides,
@@ -191,12 +191,12 @@ function createSessionStatus(
 			completed_at: null,
 			failure_code: null,
 			handoff_claimed: false,
-			id: "va_test_attempt123",
+			id: "va_attempt123",
 			retry_allowed: false,
 			status: "in_progress",
 		},
 		redirect_url: null,
-		session_id: "vs_test_session123",
+		session_id: "vs_session123",
 		same_device_only: false,
 		status: "created",
 		...overrides,
@@ -246,7 +246,7 @@ beforeEach(() => {
 	// Default URL search includes the cancel token. Tests that need to
 	// simulate a missing token can call window.history.replaceState with a
 	// different query.
-	window.history.replaceState({}, "", "/?cancel_token=ct_test_cancel_token");
+	window.history.replaceState({}, "", "/?cancel_token=ct_cancel_token");
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 });
@@ -273,17 +273,15 @@ describe("Handoff", () => {
 		expect(view.queryByText("Unsupported Device")).toBeNull();
 
 		await waitFor(() => {
-			expect(requestHandoffPayloadMock).toHaveBeenCalledWith(
-				"vs_test_session123",
-			);
+			expect(requestHandoffPayloadMock).toHaveBeenCalledWith("vs_session123");
 			expect(requestVerifySessionStatusMock).toHaveBeenCalledWith(
-				"vs_test_session123",
+				"vs_session123",
 			);
 		});
 
 		const qr = await view.findByTestId("qr-code");
 		const qrValue = qr.getAttribute("data-value");
-		expect(qrValue).toContain("va_test_attempt123");
+		expect(qrValue).toContain("va_attempt123");
 		expect(qrValue).toContain("token_123");
 
 		const openAppLink = view.getByRole("link", {
@@ -308,7 +306,7 @@ describe("Handoff", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: null,
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: false,
 					status: "succeeded",
 				},
@@ -369,13 +367,13 @@ describe("Handoff", () => {
 		requestHandoffPayloadMock
 			.mockResolvedValueOnce(
 				createHandoffPayload({
-					attempt_id: "va_test_attempt_initial",
+					attempt_id: "va_attempt_initial",
 					mobile_write_token: "token_initial",
 				}),
 			)
 			.mockResolvedValueOnce(
 				createHandoffPayload({
-					attempt_id: "va_test_attempt_refreshed",
+					attempt_id: "va_attempt_refreshed",
 					mobile_write_token: "token_refreshed",
 				}),
 			);
@@ -385,7 +383,7 @@ describe("Handoff", () => {
 
 		await flushUi();
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_test_attempt_initial",
+			"va_attempt_initial",
 		);
 
 		act(() => {
@@ -395,7 +393,7 @@ describe("Handoff", () => {
 
 		expect(requestHandoffPayloadMock).toHaveBeenCalledTimes(2);
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_test_attempt_refreshed",
+			"va_attempt_refreshed",
 		);
 	});
 
@@ -438,7 +436,7 @@ describe("Handoff", () => {
 						completed_at: "2099-01-01T00:00:00.000Z",
 						failure_code: "selfie_face_mismatch",
 						handoff_claimed: true,
-						id: "va_test_attempt123",
+						id: "va_attempt123",
 						retry_allowed: true,
 						status: "failed",
 					},
@@ -492,7 +490,7 @@ describe("Handoff", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: "selfie_face_mismatch",
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: true,
 					status: "failed",
 				},
@@ -541,8 +539,8 @@ describe("Handoff", () => {
 			VERIFY_HANDOFF_COPY.actions.cancelConfirmation,
 		);
 		expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
-			"vs_test_session123",
-			"ct_test_cancel_token",
+			"vs_session123",
+			"ct_cancel_token",
 		);
 		expect(view.queryByTestId("qr-code")).toBeNull();
 		expect(
@@ -562,7 +560,7 @@ describe("Handoff", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: "selfie_face_mismatch",
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: true,
 					status: "failed",
 				},
@@ -629,7 +627,7 @@ describe("Handoff", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: null,
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: false,
 					status: "succeeded",
 				},
@@ -659,7 +657,7 @@ describe("Handoff", () => {
 		await flushUi();
 
 		expect(assignLocationSpy).toHaveBeenCalledWith(
-			"https://example.com/return?foo=bar&session_id=vs_test_session123",
+			"https://example.com/return?foo=bar&session_id=vs_session123",
 		);
 	});
 
@@ -683,7 +681,7 @@ describe("Handoff", () => {
 					completed_at: "2099-01-01T00:00:00.000Z",
 					failure_code: "selfie_face_mismatch",
 					handoff_claimed: true,
-					id: "va_test_attempt123",
+					id: "va_attempt123",
 					retry_allowed: false,
 					status: "failed",
 				},

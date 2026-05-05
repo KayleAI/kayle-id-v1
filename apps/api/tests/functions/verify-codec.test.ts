@@ -16,14 +16,14 @@ import {
 describe("verify codec", () => {
 	test("round-trips hello payload", () => {
 		const bytes = encodeClientHello({
-			attemptId: "va_test_123",
+			attemptId: "va_123",
 			mobileWriteToken: "token_123",
 			deviceId: "device_123",
 			appVersion: "verify-web",
 		});
 
 		const decoded = decodeClientMessage(bytes);
-		expect(decoded?.hello?.attemptId).toBe("va_test_123");
+		expect(decoded?.hello?.attemptId).toBe("va_123");
 		expect(decoded?.hello?.mobileWriteToken).toBe("token_123");
 		expect(decoded?.hello?.deviceId).toBe("device_123");
 		expect(decoded?.hello?.appVersion).toBe("verify-web");
@@ -50,12 +50,12 @@ describe("verify codec", () => {
 		expect(Array.from(decodedData?.data?.raw ?? [])).toEqual([1, 2, 3]);
 
 		const shareSelectionBytes = encodeClientShareSelection({
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			selectedFieldKeys: ["kayle_document_id", "nationality_code"],
 		});
 		const decodedShareSelection = decodeClientMessage(shareSelectionBytes);
 		expect(decodedShareSelection?.shareSelection).toEqual({
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			selectedFieldKeys: ["kayle_document_id", "nationality_code"],
 		});
 	});
@@ -91,7 +91,7 @@ describe("verify codec", () => {
 
 		const shareRequestBytes = encodeServerShareRequest({
 			contractVersion: 1,
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			fields: [
 				{
 					key: "kayle_document_id",
@@ -108,7 +108,7 @@ describe("verify codec", () => {
 		const decodedShareRequest = decodeServerMessage(shareRequestBytes);
 		expect(decodedShareRequest?.shareRequest).toEqual({
 			contractVersion: 1,
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			fields: [
 				{
 					key: "kayle_document_id",
@@ -124,7 +124,7 @@ describe("verify codec", () => {
 		});
 
 		const shareReadyBytes = encodeServerShareReady({
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			selectedFieldKeys: [
 				"nationality_code",
 				"kayle_document_id",
@@ -133,7 +133,7 @@ describe("verify codec", () => {
 		});
 		const decodedShareReady = decodeServerMessage(shareReadyBytes);
 		expect(decodedShareReady?.shareReady).toEqual({
-			sessionId: "vs_test_123",
+			sessionId: "vs_123",
 			selectedFieldKeys: [
 				"nationality_code",
 				"kayle_document_id",

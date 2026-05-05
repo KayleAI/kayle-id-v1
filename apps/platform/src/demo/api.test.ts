@@ -115,12 +115,12 @@ test("getPublicDemoSessionStatus returns null for missing public sessions", asyn
 					fetch: fetchMock,
 				},
 			},
-			sessionId: "vs_live_missing",
+			sessionId: "vs_missing",
 		}),
 	).resolves.toBeNull();
 
 	expect(fetchMock).toHaveBeenCalledWith(
-		"http://api/v1/verify/session/vs_live_missing/status",
+		"http://api/v1/verify/session/vs_missing/status",
 	);
 });
 
@@ -146,7 +146,7 @@ test("getPublicDemoSessionStatus throws the upstream API error message", async (
 					fetch: fetchMock,
 				},
 			},
-			sessionId: "vs_live_expired",
+			sessionId: "vs_expired",
 		}),
 	).rejects.toMatchObject({
 		code: "SESSION_EXPIRED",

@@ -50,7 +50,7 @@ function createMockLogger(): MockLogger {
 
 test("createSafeRequestLogger strips query strings and does not include extra request metadata", () => {
 	const request = new Request(
-		"https://api.kayle.id/v1/verify/session/vs_test_123?token=secret-value",
+		"https://api.kayle.id/v1/verify/session/vs_123?token=secret-value",
 	);
 
 	Reflect.set(request, "cf", {
@@ -72,7 +72,7 @@ test("createSafeRequestLogger strips query strings and does not include extra re
 	expect(logger.getContext()).toEqual(
 		expect.objectContaining({
 			method: "GET",
-			path: "/v1/verify/session/vs_test_123",
+			path: "/v1/verify/session/vs_123",
 			request_id: "ray-123",
 		}),
 	);
@@ -85,7 +85,7 @@ test("createSafeRequestLogger strips query strings and does not include extra re
 
 test("createSafeRequestLogger accepts a Request instance", () => {
 	const request = new Request(
-		"https://api.kayle.id/v1/verify/session/vs_test_456?token=secret-value",
+		"https://api.kayle.id/v1/verify/session/vs_456?token=secret-value",
 		{
 			headers: {
 				"x-request-id": "req-456",
@@ -99,7 +99,7 @@ test("createSafeRequestLogger accepts a Request instance", () => {
 	expect(logger.getContext()).toEqual(
 		expect.objectContaining({
 			method: "POST",
-			path: "/v1/verify/session/vs_test_456",
+			path: "/v1/verify/session/vs_456",
 			request_id: "req-456",
 		}),
 	);

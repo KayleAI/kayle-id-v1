@@ -66,7 +66,7 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	const [endpoint] = await db
 		.insert(webhook_endpoints)
 		.values({
-			id: "whe_test_delivery_pending",
+			id: "whe_delivery_pending",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.succeeded"],
@@ -77,7 +77,7 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	const [key] = await db
 		.insert(webhook_encryption_keys)
 		.values({
-			id: "whk_test_delivery_pending",
+			id: "whk_delivery_pending",
 			webhookEndpointId: endpoint.id,
 			keyId: "rsa-key-1",
 			algorithm: "RSA-OAEP-256",
@@ -89,16 +89,16 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	const [event] = await db
 		.insert(events)
 		.values({
-			id: "evt_test_delivery_pending",
+			id: "evt_delivery_pending",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			type: "verification.attempt.succeeded",
-			triggerId: "va_test_delivery_pending",
+			triggerId: "va_delivery_pending",
 			triggerType: "verification_attempt",
 		})
 		.returning();
 
 	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
-		attemptId: "va_test_delivery_pending",
+		attemptId: "va_delivery_pending",
 		eventId: event.id,
 		manifest: {
 			claims: {
@@ -107,13 +107,13 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 			},
 			contractVersion: 1,
 			selectedFieldKeys: ["family_name"],
-			sessionId: "vs_test_delivery_pending",
+			sessionId: "vs_delivery_pending",
 		},
 		organizationId: TEST_DATA?.organizationId ?? "",
 	});
 
 	expect(deliveryIds).toHaveLength(1);
-	expect(deliveryIds[0]?.startsWith("whd_test_")).toBeTrue();
+	expect(deliveryIds[0]?.startsWith("whd_")).toBeTrue();
 
 	const [delivery] = await db
 		.select()
@@ -156,10 +156,10 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	expect(decodedPayload.metadata.contract_version).toBe(1);
 	expect(decodedPayload.metadata.event_id).toBe(event.id);
 	expect(decodedPayload.metadata.verification_attempt_id).toBe(
-		"va_test_delivery_pending",
+		"va_delivery_pending",
 	);
 	expect(decodedPayload.metadata.verification_session_id).toBe(
-		"vs_test_delivery_pending",
+		"vs_delivery_pending",
 	);
 });
 
@@ -178,7 +178,7 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 	const [endpoint] = await db
 		.insert(webhook_endpoints)
 		.values({
-			id: "whe_test_delivery_failed",
+			id: "whe_delivery_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.failed"],
@@ -189,7 +189,7 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 	const [key] = await db
 		.insert(webhook_encryption_keys)
 		.values({
-			id: "whk_test_delivery_failed",
+			id: "whk_delivery_failed",
 			webhookEndpointId: endpoint.id,
 			keyId: "rsa-key-3",
 			algorithm: "RSA-OAEP-256",
@@ -201,22 +201,22 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 	const [event] = await db
 		.insert(events)
 		.values({
-			id: "evt_test_delivery_failed",
+			id: "evt_delivery_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			type: "verification.attempt.failed",
-			triggerId: "va_test_delivery_failed",
+			triggerId: "va_delivery_failed",
 			triggerType: "verification_attempt",
 		})
 		.returning();
 
 	const [deliveryId] =
 		await createWebhookDeliveriesForVerificationAttemptFailed({
-			attemptId: "va_test_delivery_failed",
+			attemptId: "va_delivery_failed",
 			contractVersion: 1,
 			eventId: event.id,
 			failureCode: "selfie_face_mismatch",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			sessionId: "vs_test_delivery_failed",
+			sessionId: "vs_delivery_failed",
 		});
 
 	expect(deliveryId?.startsWith("whd_")).toBeTrue();
@@ -256,10 +256,10 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 	expect(decodedPayload.metadata.contract_version).toBe(1);
 	expect(decodedPayload.metadata.event_id).toBe(event.id);
 	expect(decodedPayload.metadata.verification_attempt_id).toBe(
-		"va_test_delivery_failed",
+		"va_delivery_failed",
 	);
 	expect(decodedPayload.metadata.verification_session_id).toBe(
-		"vs_test_delivery_failed",
+		"vs_delivery_failed",
 	);
 });
 
@@ -278,7 +278,7 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 	const [endpoint] = await db
 		.insert(webhook_endpoints)
 		.values({
-			id: "whe_test_delivery_cancelled",
+			id: "whe_delivery_cancelled",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.session.cancelled"],
@@ -289,7 +289,7 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 	const [key] = await db
 		.insert(webhook_encryption_keys)
 		.values({
-			id: "whk_test_delivery_cancelled",
+			id: "whk_delivery_cancelled",
 			webhookEndpointId: endpoint.id,
 			keyId: "rsa-key-4",
 			algorithm: "RSA-OAEP-256",
@@ -301,10 +301,10 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 	const [event] = await db
 		.insert(events)
 		.values({
-			id: "evt_test_delivery_cancelled",
+			id: "evt_delivery_cancelled",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			type: "verification.session.cancelled",
-			triggerId: "vs_test_delivery_cancelled",
+			triggerId: "vs_delivery_cancelled",
 			triggerType: "verification_session",
 		})
 		.returning();
@@ -314,7 +314,7 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 			contractVersion: 1,
 			eventId: event.id,
 			organizationId: TEST_DATA?.organizationId ?? "",
-			sessionId: "vs_test_delivery_cancelled",
+			sessionId: "vs_delivery_cancelled",
 		});
 
 	expect(deliveryId?.startsWith("whd_")).toBeTrue();
@@ -351,7 +351,7 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 	expect(decodedPayload.metadata.contract_version).toBe(1);
 	expect(decodedPayload.metadata.event_id).toBe(event.id);
 	expect(decodedPayload.metadata.verification_session_id).toBe(
-		"vs_test_delivery_cancelled",
+		"vs_delivery_cancelled",
 	);
 });
 
@@ -370,7 +370,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 	const [endpoint] = await db
 		.insert(webhook_endpoints)
 		.values({
-			id: "whe_test_delivery_send",
+			id: "whe_delivery_send",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.failed"],
@@ -378,7 +378,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 		})
 		.returning();
 	await db.insert(webhook_encryption_keys).values({
-		id: "whk_test_delivery_send",
+		id: "whk_delivery_send",
 		webhookEndpointId: endpoint.id,
 		keyId: "rsa-key-2",
 		algorithm: "RSA-OAEP-256",
@@ -388,22 +388,22 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 	const [event] = await db
 		.insert(events)
 		.values({
-			id: "evt_test_delivery_send",
+			id: "evt_delivery_send",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			type: "verification.attempt.failed",
-			triggerId: "va_test_delivery_send",
+			triggerId: "va_delivery_send",
 			triggerType: "verification_attempt",
 		})
 		.returning();
 
 	const [deliveryId] =
 		await createWebhookDeliveriesForVerificationAttemptFailed({
-			attemptId: "va_test_delivery_send",
+			attemptId: "va_delivery_send",
 			contractVersion: 1,
 			eventId: event.id,
 			failureCode: "passport_authenticity_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			sessionId: "vs_test_delivery_send",
+			sessionId: "vs_delivery_send",
 		});
 
 	let capturedSignature: string | null = null;
@@ -456,7 +456,5 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 
 	expect(updatedDelivery?.status).toBe("succeeded");
 	expect(updatedDelivery?.lastStatusCode).toBe(202);
-	expect(updatedDelivery?.webhookEncryptionKeyId).toBe(
-		"whk_test_delivery_send",
-	);
+	expect(updatedDelivery?.webhookEncryptionKeyId).toBe("whk_delivery_send");
 });

@@ -102,6 +102,7 @@ export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 											render={
 												<Button
 													className="flex w-full items-center justify-start"
+													nativeButton={false}
 													render={
 														<Link
 															params={{ key: key.id }}
@@ -117,6 +118,7 @@ export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 										</DropdownMenuItem>
 
 										<DropdownMenuItem
+											nativeButton
 											onClick={() => {
 												toast.promise(
 													updateMutation.mutateAsync({
@@ -142,6 +144,7 @@ export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
+											nativeButton
 											render={
 												<Button
 													className="flex w-full items-center justify-start"

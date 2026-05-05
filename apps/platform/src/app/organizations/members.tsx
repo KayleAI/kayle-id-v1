@@ -179,6 +179,7 @@ function MemberRow({
 							))}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
+								nativeButton
 								render={
 									<Button
 										className="flex w-full items-center justify-start"

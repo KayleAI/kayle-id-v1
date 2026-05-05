@@ -98,6 +98,7 @@ export function EndpointActionsMenu({
 						render={
 							<Button
 								className="flex w-full items-center justify-start"
+								nativeButton={false}
 								render={
 									<Link
 										params={{ endpoint: endpoint.id }}
@@ -114,6 +115,7 @@ export function EndpointActionsMenu({
 				) : null}
 				<DropdownMenuItem
 					disabled={isMutating}
+					nativeButton
 					onClick={() => {
 						toast.promise(onToggleEndpointEnabled(endpoint), {
 							loading: endpoint.enabled
@@ -144,6 +146,7 @@ export function EndpointActionsMenu({
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					disabled={isMutating}
+					nativeButton
 					onClick={() => {
 						toast.promise(onDeleteEndpoint(endpoint), {
 							loading: "Deleting destination...",

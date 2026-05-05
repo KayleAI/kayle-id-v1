@@ -280,6 +280,7 @@ export function AppSidebar() {
 									{organizations.map((organization: Organization) => (
 										<DropdownMenuItem
 											key={organization.id}
+											nativeButton
 											render={
 												<Button
 													className="flex w-full items-center justify-start pl-1.5!"

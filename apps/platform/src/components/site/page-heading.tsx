@@ -43,6 +43,7 @@ export function PageHeading({
 						{actions.map((action) => (
 							<Button
 								key={action.to}
+								nativeButton={false}
 								render={<Link to={action.to}>{action.label}</Link>}
 								variant={action.variant ?? "default"}
 							/>

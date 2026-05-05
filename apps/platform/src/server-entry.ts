@@ -4,7 +4,7 @@ import { DemoRunMailbox as WorkerDemoRunMailbox } from "@/demo/run-mailbox";
 export const DemoRunMailbox = WorkerDemoRunMailbox;
 
 const CUSTOM_HOST = "kayle.id";
-const MINTLIFY_HOST = "https://kayleinc.mintlify.app";
+const MINTLIFY_HOST = "kayleinc.mintlify.app";
 
 export default {
 	async fetch(

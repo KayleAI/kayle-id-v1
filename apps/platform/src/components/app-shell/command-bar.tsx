@@ -176,7 +176,7 @@ export function AppCommandBar() {
 
 				{open ? (
 					<div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl ring-1 ring-foreground/5">
-						<CommandList className="max-h-[min(60vh,420px)] [&_[cmdk-group-items]]:space-y-0.5">
+						<CommandList className="max-h-[min(60vh,420px)] **:[[cmdk-group-items]]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent">
 							<CommandEmpty>No results found.</CommandEmpty>
 							<CommandGroup heading="Pages">
 								{PAGES.map((page) => (

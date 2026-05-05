@@ -263,10 +263,10 @@ export function AppCommandBar() {
 											navigate({ to: "/account" });
 										})
 									}
-									value="account-settings"
+									value="my-account"
 								>
 									<SettingsIcon />
-									Account settings
+									My Account
 								</CommandItem>
 								<CommandItem
 									keywords={["sign out", "logout", "log out"]}

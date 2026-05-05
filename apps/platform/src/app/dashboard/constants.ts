@@ -19,8 +19,7 @@ export const BREAKDOWN_METRICS: BreakdownMetricKey[] = [
 	"cancelled",
 ];
 
-export const ANALYTICS_CARD_CLASS =
-	"overflow-hidden rounded-2xl border border-border/70 bg-background shadow-none";
+export const ANALYTICS_CARD_CLASS = "overflow-hidden rounded-4xl bg-background";
 export const CHART_ACCENT_STROKE = "#635bff";
 export const CHART_VIEWBOX_WIDTH = 336;
 export const CHART_VIEWBOX_HEIGHT = 184;

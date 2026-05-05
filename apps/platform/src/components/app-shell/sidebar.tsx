@@ -36,6 +36,7 @@ import {
 	LogOutIcon,
 	PlusIcon,
 	SettingsIcon,
+	UserIcon,
 	UsersIcon,
 	WebhookIcon,
 } from "lucide-react";
@@ -278,8 +279,8 @@ export function AppSidebar() {
 								sideOffset={6}
 							>
 								<DropdownMenuItem render={<Link to="/account" />}>
-									<SettingsIcon />
-									Account settings
+									<UserIcon />
+									My Account
 								</DropdownMenuItem>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem

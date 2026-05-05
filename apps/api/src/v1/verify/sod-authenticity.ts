@@ -24,6 +24,7 @@ import type {
 	AuthenticityValidationResult,
 	PassiveAuthCrlStatus,
 	PassiveAuthFailureReason,
+	PassiveAuthRevocationOutcome,
 	PassiveAuthSignerSource,
 } from "./validation-types";
 
@@ -245,11 +246,13 @@ function failureResult({
 	crlStatus = "not_checked",
 	detail = null,
 	reason,
+	revocationOutcome = null,
 	signerSource = null,
 }: {
 	crlStatus?: PassiveAuthCrlStatus;
 	detail?: string | null;
 	reason: PassiveAuthFailureReason;
+	revocationOutcome?: PassiveAuthRevocationOutcome | null;
 	signerSource?: PassiveAuthSignerSource | null;
 }): AuthenticityValidationResult {
 	return {
@@ -257,9 +260,27 @@ function failureResult({
 		detail,
 		ok: false,
 		reason,
+		revocationOutcome,
 		signerSource,
 	};
 }
+
+type SignerCandidateEvaluation =
+	| {
+			crlStatus: Extract<
+				PassiveAuthCrlStatus,
+				"verified_not_revoked" | "missing" | "stale"
+			>;
+			revocationOutcome: Extract<
+				PassiveAuthRevocationOutcome,
+				"verified_not_revoked" | "revocation_unknown"
+			>;
+			ok: true;
+	  }
+	| {
+			failure: AuthenticityValidationResult;
+			ok: false;
+	  };
 
 async function validateSignerCandidate({
 	bundle,
@@ -271,16 +292,7 @@ async function validateSignerCandidate({
 	checkDate: Date;
 	signedData: SignedData;
 	signer: ResolvedSignerCertificate;
-}): Promise<
-	| {
-			crlStatus: "verified_not_revoked";
-			ok: true;
-	  }
-	| {
-			failure: AuthenticityValidationResult;
-			ok: false;
-	  }
-> {
+}): Promise<SignerCandidateEvaluation> {
 	const validityFailureReason = signerValidityFailureReason(
 		signer.cert,
 		checkDate,
@@ -334,45 +346,33 @@ async function validateSignerCandidate({
 	});
 
 	if (crlStatus === "revoked") {
+		// Confirmed revocation is the only CRL state that fails authenticity.
 		return {
 			failure: failureResult({
 				crlStatus,
 				reason: "crl_revoked",
+				revocationOutcome: "revoked",
 				signerSource: signer.signerSource,
 			}),
 			ok: false,
 		};
 	}
 
-	if (crlStatus === "missing") {
-		// CRL coverage is required — no soft-fail. The signer can't be checked
-		// against revocation, so the document doesn't pass passive auth.
+	// Missing or stale CRL coverage means revocation cannot be authoritatively
+	// determined. The document is otherwise valid, so passive auth succeeds
+	// with a separate "revocation_unknown" outcome surfaced for telemetry.
+	if (crlStatus === "missing" || crlStatus === "stale") {
 		return {
-			failure: failureResult({
-				crlStatus,
-				reason: "crl_missing",
-				signerSource: signer.signerSource,
-			}),
-			ok: false,
-		};
-	}
-
-	if (crlStatus === "stale") {
-		// CRL is past nextUpdate. Treat as authoritative-coverage-missing —
-		// fresh issuance status is unknown.
-		return {
-			failure: failureResult({
-				crlStatus,
-				reason: "crl_stale",
-				signerSource: signer.signerSource,
-			}),
-			ok: false,
+			crlStatus,
+			ok: true,
+			revocationOutcome: "revocation_unknown",
 		};
 	}
 
 	return {
 		crlStatus,
 		ok: true,
+		revocationOutcome: "verified_not_revoked",
 	};
 }
 
@@ -587,6 +587,7 @@ export async function validateAuthenticity({
 			algorithm: parsed.algorithm,
 			crlStatus: evaluation.crlStatus,
 			ok: true,
+			revocationOutcome: evaluation.revocationOutcome,
 			signerSource: signer.signerSource,
 			sodDeclares: {
 				dg14: parsed.dgHashes.has(14),

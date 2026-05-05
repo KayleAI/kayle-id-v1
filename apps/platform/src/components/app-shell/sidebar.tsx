@@ -27,12 +27,15 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+	ArrowUpRightIcon,
+	BookOpenIcon,
 	BuildingIcon,
 	ChevronsUpDownIcon,
 	ChevronUpIcon,
 	GlobeIcon,
 	Key,
 	LayoutDashboard,
+	LifeBuoyIcon,
 	LogOutIcon,
 	PlusIcon,
 	SettingsIcon,
@@ -241,7 +244,39 @@ export function AppSidebar() {
 				</SidebarGroup>
 			</SidebarContent>
 
-			<SidebarFooter className="border-secondary-foreground/10 border-t">
+			<SidebarFooter>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground"
+							render={
+								<a
+									href="https://kayle.id/docs"
+									rel="noopener noreferrer"
+									target="_blank"
+								>
+									<BookOpenIcon />
+									<span>Docs</span>
+									<ArrowUpRightIcon className="ml-auto shrink-0 group-data-[collapsible=icon]:hidden" />
+								</a>
+							}
+						/>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground"
+							render={
+								<a href="mailto:help@kayle.id">
+									<LifeBuoyIcon />
+									<span>Contact support</span>
+								</a>
+							}
+						/>
+					</SidebarMenuItem>
+				</SidebarMenu>
+
+				<div className="mx-2 w-[calc(100%-6px)] h-px bg-sidebar-border"></div>
+
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<DropdownMenu>

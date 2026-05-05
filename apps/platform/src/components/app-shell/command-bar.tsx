@@ -1,7 +1,3 @@
-import { client } from "@kayle-id/auth/client";
-import { useAuth } from "@kayle-id/auth/client/provider";
-import type { Organization } from "@kayle-id/auth/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
 import {
 	CommandEmpty,
 	CommandGroup,
@@ -11,15 +7,16 @@ import {
 	CommandShortcut,
 } from "@kayleai/ui/command";
 import { Kbd, KbdGroup } from "@kayleai/ui/kbd";
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Command as CommandPrimitive } from "cmdk";
 import {
+	ArrowUpRightIcon,
+	BookOpenIcon,
 	BuildingIcon,
 	Key,
 	LayoutDashboard,
+	LifeBuoyIcon,
 	LogOutIcon,
-	PlusIcon,
 	SearchIcon,
 	SettingsIcon,
 	WebhookIcon,
@@ -35,7 +32,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { toast } from "sonner";
 
 type AppCommandContextValue = {
 	open: boolean;
@@ -90,14 +86,11 @@ const PAGES = [
 	{ title: "API Keys", url: "/api-keys", icon: Key },
 	{ title: "Webhooks", url: "/webhooks", icon: WebhookIcon },
 	{ title: "Organization", url: "/organizations", icon: BuildingIcon },
-	{ title: "Account", url: "/account", icon: SettingsIcon },
 ] as const;
 
 export function AppCommandBar() {
 	const { open, setOpen, inputRef } = useAppCommand();
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const { organizations, activeOrganization } = useAuth();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [query, setQuery] = useState("");
 
@@ -127,21 +120,6 @@ export function AppCommandBar() {
 			action();
 		},
 		[close],
-	);
-
-	const switchOrganization = useCallback(
-		async (id: string, slug: string) => {
-			try {
-				await client.organization.setActive({
-					organizationId: id,
-					organizationSlug: slug,
-				});
-			} finally {
-				queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-				queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-			}
-		},
-		[queryClient],
 	);
 
 	return (
@@ -176,7 +154,7 @@ export function AppCommandBar() {
 
 				{open ? (
 					<div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl ring-1 ring-foreground/5">
-						<CommandList className="max-h-[min(60vh,420px)] **:[[cmdk-group-items]]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent">
+						<CommandList className="max-h-[min(60vh,440px)] **:[[cmdk-group-items]]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent">
 							<CommandEmpty>No results found.</CommandEmpty>
 							<CommandGroup heading="Pages">
 								{PAGES.map((page) => (
@@ -195,65 +173,41 @@ export function AppCommandBar() {
 									</CommandItem>
 								))}
 							</CommandGroup>
-							{organizations.length > 0 ? (
-								<>
-									<CommandSeparator />
-									<CommandGroup heading="Organizations">
-										{organizations.map((org: Organization) => {
-											const isActive = org.id === activeOrganization?.id;
-											return (
-												<CommandItem
-													key={org.id}
-													keywords={[org.name, org.slug]}
-													onSelect={() =>
-														runCommand(() => {
-															if (isActive) {
-																navigate({ to: "/organizations" });
-																return;
-															}
-															toast.promise(
-																switchOrganization(org.id, org.slug),
-																{
-																	loading: "Switching organization…",
-																	success: "Organization switched",
-																	error: "Failed to switch organization",
-																},
-															);
-														})
-													}
-													value={`org-${org.id}`}
-												>
-													<Avatar className="size-5 rounded-md">
-														<AvatarImage
-															alt={org.name}
-															src={org.logo ?? undefined}
-														/>
-														<AvatarFallback className="rounded-md text-[10px]">
-															{org.name.charAt(0).toUpperCase()}
-														</AvatarFallback>
-													</Avatar>
-													<span className="truncate">{org.name}</span>
-													{isActive ? (
-														<CommandShortcut>Current</CommandShortcut>
-													) : null}
-												</CommandItem>
+							<CommandSeparator />
+							<CommandGroup heading="Help">
+								<CommandItem
+									keywords={["docs", "documentation", "guide"]}
+									onSelect={() =>
+										runCommand(() => {
+											window.open(
+												"https://kayle.id/docs",
+												"_blank",
+												"noopener,noreferrer",
 											);
-										})}
-										<CommandItem
-											keywords={["create", "new", "organization"]}
-											onSelect={() =>
-												runCommand(() => {
-													navigate({ to: "/organizations/create" });
-												})
-											}
-											value="org-create"
-										>
-											<PlusIcon />
-											Create organization
-										</CommandItem>
-									</CommandGroup>
-								</>
-							) : null}
+										})
+									}
+									value="docs"
+								>
+									<BookOpenIcon />
+									Docs
+									<CommandShortcut>
+										<ArrowUpRightIcon className="size-3.5" />
+									</CommandShortcut>
+								</CommandItem>
+								<CommandItem
+									keywords={["support", "contact", "email", "help"]}
+									onSelect={() =>
+										runCommand(() => {
+											window.location.href = "mailto:help@kayle.id";
+										})
+									}
+									value="support"
+								>
+									<LifeBuoyIcon />
+									Contact support
+									<CommandShortcut>help@kayle.id</CommandShortcut>
+								</CommandItem>
+							</CommandGroup>
 							<CommandSeparator />
 							<CommandGroup heading="Account">
 								<CommandItem

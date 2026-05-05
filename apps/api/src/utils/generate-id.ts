@@ -20,7 +20,6 @@ export function generateRandomString(length: number): string {
  */
 export function generateId({
 	type,
-	environment,
 	length = 64,
 }: {
 	/**
@@ -28,13 +27,9 @@ export function generateId({
 	 */
 	type: string;
 	/**
-	 * The environment to generate the ID for. For example, live or test.
-	 */
-	environment: "live" | "test";
-	/**
 	 * The length of the ID to generate. For example, 32 for a 32 character ID.
 	 */
 	length?: number;
 }): string {
-	return `${type}_${environment}_${generateRandomString(length)}`;
+	return `${type}_${generateRandomString(length)}`;
 }

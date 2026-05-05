@@ -23,15 +23,12 @@ export const webhook_endpoints = pgTable(
 		/**
 		 * The ID of the webhook endpoint.
 		 *
-		 * Always prefixed with `whe_{live|test}_...`
+		 * Always prefixed with `whe_...`
 		 */
 		id: text("id").primaryKey(),
 		organizationId: uuid("organization_id")
 			.notNull()
 			.references(() => auth_organizations.id, { onDelete: "cascade" }),
-		environment: text({ enum: ["live", "test"] })
-			.default("live")
-			.notNull(),
 		name: text("name"),
 		url: text("url").notNull(),
 		enabled: boolean("enabled").default(true).notNull(),
@@ -47,10 +44,7 @@ export const webhook_endpoints = pgTable(
 		disabledAt: timestamp("disabled_at"),
 	},
 	(table) => [
-		index("wh_endpoints_org_env_idx").on(
-			table.organizationId,
-			table.environment,
-		),
+		index("wh_endpoints_org_idx").on(table.organizationId),
 		index("wh_endpoints_enabled_idx").on(table.enabled),
 	],
 );
@@ -64,7 +58,7 @@ export const webhook_encryption_keys = pgTable(
 		/**
 		 * The ID of the encryption key.
 		 *
-		 * Always prefixed with `whk_{live|test}_...`
+		 * Always prefixed with `whk_...`
 		 */
 		id: text("id").primaryKey(),
 		webhookEndpointId: text("webhook_endpoint_id")
@@ -100,7 +94,7 @@ export const webhook_deliveries = pgTable(
 		/**
 		 * The ID of the webhook delivery.
 		 *
-		 * Always prefixed with `whd_{live|test}_...`
+		 * Always prefixed with `whd_...`
 		 */
 		id: text("id").primaryKey(),
 
@@ -204,7 +198,7 @@ export const webhook_delivery_attempts = pgTable(
 		/**
 		 * The ID of the delivery attempt.
 		 *
-		 * Always prefixed with `wha_{live|test}_...`
+		 * Always prefixed with `wha_...`
 		 */
 		id: text("id").primaryKey(),
 

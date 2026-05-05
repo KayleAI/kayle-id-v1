@@ -41,11 +41,7 @@ export async function getWebhookEventForOrganization({
 		})
 		.from(events)
 		.where(
-			and(
-				eq(events.id, eventId),
-				eq(events.organizationId, organizationId),
-				eq(events.environment, "live"),
-			),
+			and(eq(events.id, eventId), eq(events.organizationId, organizationId)),
 		)
 		.limit(1);
 

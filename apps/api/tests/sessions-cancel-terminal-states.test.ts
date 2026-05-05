@@ -102,7 +102,7 @@ describe("/v1/sessions cancel terminal states", () => {
 			expect(createResponse.status).toBe(200);
 
 			const created = (await createResponse.json()) as { data: { id: string } };
-			const attemptId = generateId({ type: "va", environment: "live" });
+			const attemptId = generateId({ type: "va" });
 
 			await db.insert(verification_attempts).values({
 				id: attemptId,
@@ -139,14 +139,13 @@ describe("/v1/sessions cancel terminal states", () => {
 				throw new Error("Test data not initialized");
 			}
 
-			const sessionId = generateId({ type: "vs", environment: "live" });
-			const attemptId = generateId({ type: "va", environment: "live" });
+			const sessionId = generateId({ type: "vs" });
+			const attemptId = generateId({ type: "va" });
 			const completedAt = new Date("2026-01-01T00:00:00.000Z");
 
 			await db.insert(verification_sessions).values({
 				id: sessionId,
 				organizationId: TEST_DATA.organizationId,
-				environment: "live",
 				status,
 				contractVersion: 1,
 				shareFields: {},

@@ -11,7 +11,7 @@ export const createWebhookEncryptionKey = createRoute({
 			endpoint_id: z
 				.string()
 				.describe(
-					"The ID of the webhook endpoint to create the encryption key for (e.g. whe_live_...).",
+					"The ID of the webhook endpoint to create the encryption key for (e.g. whe_...).",
 				),
 		}),
 		body: {

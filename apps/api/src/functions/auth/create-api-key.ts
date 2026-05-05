@@ -22,8 +22,7 @@ export async function createApiKey({
 	permissions: ApiKeyScope[];
 	metadata?: Record<string, string | number | boolean>;
 }): Promise<{ id: string; apiKey: string }> {
-	const environment = "live";
-	const apiKey = generateId({ type: "kk", environment, length: 32 });
+	const apiKey = generateId({ type: "kk", length: 32 });
 
 	const keyHash = await createHMAC(apiKey, {
 		algorithm: "SHA256",
@@ -35,7 +34,6 @@ export async function createApiKey({
 		.values({
 			name,
 			organizationId,
-			environment,
 			keyHash,
 			permissions,
 			metadata,

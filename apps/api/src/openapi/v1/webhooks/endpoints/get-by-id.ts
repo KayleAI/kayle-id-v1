@@ -10,9 +10,7 @@ export const getWebhookEndpoint = createRoute({
 		params: z.object({
 			endpoint_id: z
 				.string()
-				.describe(
-					"The ID of the webhook endpoint to retrieve (e.g. whe_live_...).",
-				),
+				.describe("The ID of the webhook endpoint to retrieve (e.g. whe_...)."),
 		}),
 	},
 	tags: ["Webhooks"],

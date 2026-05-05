@@ -10,9 +10,7 @@ export const retryWebhookDelivery = createRoute({
 		params: z.object({
 			delivery_id: z
 				.string()
-				.describe(
-					"The ID of the webhook delivery to retry (e.g. whd_live_...).",
-				),
+				.describe("The ID of the webhook delivery to retry (e.g. whd_...)."),
 		}),
 	},
 	tags: ["Webhooks"],

@@ -21,7 +21,6 @@ listEvents.openapi(listWebhookEvents, async (c) => {
 
 	const where = and(
 		eq(events.organizationId, organizationId),
-		eq(events.environment, "live"),
 		...(query.type ? [eq(events.type, query.type)] : []),
 		...(query.created_from
 			? [gte(events.createdAt, new Date(query.created_from))]

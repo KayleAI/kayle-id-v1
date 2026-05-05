@@ -11,7 +11,7 @@ export const deactivateWebhookEncryptionKey = createRoute({
 			key_id: z
 				.string()
 				.describe(
-					"The ID of the webhook encryption key to deactivate (e.g. whk_live_...).",
+					"The ID of the webhook encryption key to deactivate (e.g. whk_...).",
 				),
 		}),
 	},

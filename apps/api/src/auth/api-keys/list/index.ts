@@ -41,7 +41,6 @@ listApiKeys.openapi(internalListApiKeys, async (c) => {
 	try {
 		const where = and(
 			eq(api_keys.organizationId, organizationId),
-			eq(api_keys.environment, "live"),
 			...(query.starting_after ? [gt(api_keys.id, query.starting_after)] : []),
 		);
 

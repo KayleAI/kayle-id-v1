@@ -137,7 +137,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 
 	test.serial("Returns 404 for unknown session", async () => {
 		const unknownSessionId =
-			"vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+			"vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
 
 		const response = await app.request(
 			`/v1/verify/session/${unknownSessionId}/handoff`,
@@ -475,7 +475,7 @@ describe("/v1/verify/session/:id/status", () => {
 		"Returns 404 when cancelling an unknown verification session",
 		async () => {
 			const response = await app.request(
-				"/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
+				"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
 				{
 					body: JSON.stringify({ cancel_token: "ct_anything" }),
 					headers: { "Content-Type": "application/json" },
@@ -504,7 +504,7 @@ describe("/v1/verify/session/:id/status", () => {
 
 	test.serial("Returns 404 for unknown session", async () => {
 		const response = await app.request(
-			"/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/status",
+			"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/status",
 			{
 				method: "GET",
 			},
@@ -532,7 +532,7 @@ describe("/v1/verify/session/:id/status", () => {
 				.where(eq(verification_sessions.id, sessionId));
 
 			await db.insert(verification_attempts).values({
-				id: "va_test_status_completed",
+				id: "va_status_completed",
 				verificationSessionId: sessionId,
 				status: "succeeded",
 				completedAt,
@@ -558,7 +558,7 @@ describe("/v1/verify/session/:id/status", () => {
 					completed_at: completedAt.toISOString(),
 					failure_code: null,
 					handoff_claimed: true,
-					id: "va_test_status_completed",
+					id: "va_status_completed",
 					retry_allowed: false,
 					status: "succeeded",
 				},
@@ -577,7 +577,7 @@ describe("/v1/verify/session/:id/status", () => {
 			const sessionId = await createSession();
 
 			await db.insert(verification_attempts).values({
-				id: "va_test_status_retryable_failed",
+				id: "va_status_retryable_failed",
 				verificationSessionId: sessionId,
 				status: "failed",
 				failureCode: "selfie_face_mismatch",
@@ -604,7 +604,7 @@ describe("/v1/verify/session/:id/status", () => {
 					completed_at: completedAt.toISOString(),
 					failure_code: "selfie_face_mismatch",
 					handoff_claimed: true,
-					id: "va_test_status_retryable_failed",
+					id: "va_status_retryable_failed",
 					retry_allowed: true,
 					status: "failed",
 				},
@@ -630,7 +630,7 @@ describe("/v1/verify/session/:id/status", () => {
 				.where(eq(verification_sessions.id, sessionId));
 
 			await db.insert(verification_attempts).values({
-				id: "va_test_status_expired",
+				id: "va_status_expired",
 				verificationSessionId: sessionId,
 				status: "in_progress",
 			});
@@ -650,7 +650,7 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(payload.data?.status).toBe("expired");
 			expect(payload.data?.is_terminal).toBeTrue();
 			expect(payload.data?.same_device_only).toBeFalse();
-			expect(payload.data?.latest_attempt?.id).toBe("va_test_status_expired");
+			expect(payload.data?.latest_attempt?.id).toBe("va_status_expired");
 			expect(payload.data?.latest_attempt?.status).toBe("failed");
 			expect(payload.data?.latest_attempt?.failure_code).toBe(
 				"session_expired",
@@ -674,7 +674,7 @@ describe("/v1/verify/session/:id/status", () => {
 					status: verification_attempts.status,
 				})
 				.from(verification_attempts)
-				.where(eq(verification_attempts.id, "va_test_status_expired"))
+				.where(eq(verification_attempts.id, "va_status_expired"))
 				.limit(1);
 
 			expect(session?.status).toBe("expired");

@@ -10,7 +10,7 @@ export const getSession = createRoute({
 	request: {
 		params: z.object({
 			id: sessionIdSchema.describe(
-				"The ID of the verification session to retrieve (e.g. vs_live_...).",
+				"The ID of the verification session to retrieve (e.g. vs_...).",
 			),
 		}),
 		query: z.object({

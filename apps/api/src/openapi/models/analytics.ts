@@ -42,7 +42,7 @@ export const SessionAnalyticsTimelinePoint = z
 export const SessionAnalyticsOverview = z
 	.object({
 		summary: SessionAnalyticsSummary.describe(
-			"Overall session counts for the organization in the selected environment.",
+			"Overall session counts for the organization.",
 		),
 		trend: z
 			.array(SessionAnalyticsTrendPoint)

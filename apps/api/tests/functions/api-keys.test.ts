@@ -7,7 +7,7 @@ import { setup, type TestData, teardown } from "../setup";
 
 let TEST_DATA: TestData | undefined;
 
-const API_KEY_PREFIX_PATTERN = /^kk_live_/;
+const API_KEY_PREFIX_PATTERN = /^kk_/;
 
 beforeAll(async () => {
 	TEST_DATA = await setup();
@@ -32,11 +32,11 @@ describe("Handling API Keys", () => {
 		// Assert that the API key is created
 		expect(apiKey).toBeString();
 
-		// Assert that the API key starts with the live prefix
+		// Assert that the API key starts with the kk_ prefix
 		expect(apiKey).toMatch(API_KEY_PREFIX_PATTERN);
 
-		// Assert that the API key is 32 + 8 (kk_live_) = 40 characters long
-		expect(apiKey.length).toBe(40);
+		// Assert that the API key is 32 + 3 (kk_) = 35 characters long
+		expect(apiKey.length).toBe(35);
 	});
 
 	/**

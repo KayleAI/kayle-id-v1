@@ -880,7 +880,7 @@ describe("Verification Flows", () => {
 				await awaitSocketOpen(socket);
 				socket.send(
 					encodeHelloMessage({
-						attemptId: "va_test_unknown_attempt_id",
+						attemptId: "va_unknown_attempt_id",
 						mobileWriteToken: handoff.mobile_write_token,
 						deviceId: "ios-device-a",
 						appVersion: "1.0.0",

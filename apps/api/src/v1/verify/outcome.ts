@@ -14,7 +14,6 @@ type SessionContext = {
 	contractVersion: number;
 	id: string;
 	organizationId: string;
-	environment: "live" | "test";
 	status: string;
 	completedAt: Date | null;
 };
@@ -51,7 +50,6 @@ export async function markAttemptFailed({
 	const result = await db.transaction(async (tx) => {
 		const attemptFailedEventId = generateId({
 			type: "evt",
-			environment: session.environment,
 		});
 
 		await tx
@@ -67,7 +65,6 @@ export async function markAttemptFailed({
 		await tx.insert(events).values({
 			id: attemptFailedEventId,
 			organizationId: session.organizationId,
-			environment: session.environment,
 			type: "verification.attempt.failed",
 			triggerId: attemptId,
 			triggerType: "verification_attempt",
@@ -97,9 +94,8 @@ export async function markAttemptFailed({
 
 		if (exhaustedRetryLimit) {
 			await tx.insert(events).values({
-				id: generateId({ type: "evt", environment: session.environment }),
+				id: generateId({ type: "evt" }),
 				organizationId: session.organizationId,
-				environment: session.environment,
 				type: "verification.session.completed",
 				triggerId: session.id,
 				triggerType: "verification_session",
@@ -120,7 +116,6 @@ export async function markAttemptFailed({
 		{
 			attemptId,
 			contractVersion: session.contractVersion,
-			environment: session.environment,
 			eventId: result.attemptFailedEventId,
 			failureCode,
 			organizationId: session.organizationId,
@@ -174,13 +169,11 @@ export async function markAttemptSucceeded({
 
 		const attemptSucceededEventId = generateId({
 			type: "evt",
-			environment: session.environment,
 		});
 
 		await tx.insert(events).values({
 			id: attemptSucceededEventId,
 			organizationId: session.organizationId,
-			environment: session.environment,
 			type: "verification.attempt.succeeded",
 			triggerId: attemptId,
 			triggerType: "verification_attempt",
@@ -196,13 +189,11 @@ export async function markAttemptSucceeded({
 
 		const sessionCompletedEventId = generateId({
 			type: "evt",
-			environment: session.environment,
 		});
 
 		await tx.insert(events).values({
 			id: sessionCompletedEventId,
 			organizationId: session.organizationId,
-			environment: session.environment,
 			type: "verification.session.completed",
 			triggerId: session.id,
 			triggerType: "verification_session",

@@ -8,7 +8,6 @@ import { createWebhookEndpoint } from "@/openapi/v1/webhooks/endpoints/create";
 import { listWebhookEndpoints } from "@/openapi/v1/webhooks/endpoints/list";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
 import {
-	type Environment,
 	generateEndpointId,
 	generateSigningSecret,
 	mapEndpointRowToResponse,
@@ -30,7 +29,6 @@ listAndCreateEndpoints.openapi(listWebhookEndpoints, async (c) => {
 
 	const where = and(
 		eq(webhook_endpoints.organizationId, organizationId),
-		eq(webhook_endpoints.environment, "live"),
 		...(typeof query.enabled === "boolean"
 			? [eq(webhook_endpoints.enabled, query.enabled)]
 			: []),
@@ -72,13 +70,12 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
 	const body = c.req.valid("json");
 
-	const environment: Environment = "live";
 	const enabled = body.enabled ?? true;
 	const subscribedEventTypes = body.subscribed_event_types ?? [
 		...SUPPORTED_WEBHOOK_EVENT_TYPES,
 	];
 
-	const id = generateEndpointId(environment);
+	const id = generateEndpointId();
 	const signingSecret = generateSigningSecret();
 	const authSecret = c.env?.AUTH_SECRET ?? env.AUTH_SECRET;
 	const signingSecretCiphertext = await encryptWebhookSigningSecret({
@@ -91,7 +88,6 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 		.values({
 			id,
 			organizationId,
-			environment,
 			name: body.name?.trim() ?? null,
 			url: body.url,
 			enabled,

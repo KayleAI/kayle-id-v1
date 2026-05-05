@@ -51,7 +51,6 @@ async function findWebhookKeyByIdForOrganization({
 			and(
 				eq(webhook_encryption_keys.id, keyId),
 				eq(webhook_endpoints.organizationId, organizationId),
-				eq(webhook_endpoints.environment, "live"),
 			),
 		)
 		.limit(1);

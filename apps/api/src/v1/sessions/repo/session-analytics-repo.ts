@@ -41,11 +41,9 @@ type SessionAnalyticsTerminalCounts = Omit<
 >;
 
 function createSessionAnalyticsCte({
-	environment,
 	now,
 	organizationId,
 }: {
-	environment: "live" | "test";
 	now: Date;
 	organizationId: string;
 }) {
@@ -89,7 +87,6 @@ function createSessionAnalyticsCte({
       left join attempt_rollup
         on attempt_rollup.verification_session_id = verification_sessions.id
       where verification_sessions.organization_id = ${organizationId}
-        and verification_sessions.environment = ${environment}
     )
   `;
 }
@@ -238,11 +235,9 @@ function applyTimelineCounts({
 }
 
 export async function getVerificationSessionAnalyticsOverview({
-	environment,
 	now = new Date(),
 	organizationId,
 }: {
-	environment: "live" | "test";
 	now?: Date;
 	organizationId: string;
 }): Promise<SessionAnalyticsOverview> {
@@ -261,7 +256,6 @@ export async function getVerificationSessionAnalyticsOverview({
 	const trendEndExclusive = addUtcDays(getUtcStartOfDay(now), 1);
 	const trendByDate = indexBy(trend, "date");
 	const analyticsCte = createSessionAnalyticsCte({
-		environment,
 		now,
 		organizationId,
 	});

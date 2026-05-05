@@ -9,9 +9,7 @@ export const deleteWebhookEndpoint = createRoute({
 		params: z.object({
 			endpoint_id: z
 				.string()
-				.describe(
-					"The ID of the webhook endpoint to delete (e.g. whe_live_...).",
-				),
+				.describe("The ID of the webhook endpoint to delete (e.g. whe_...)."),
 		}),
 	},
 	tags: ["Webhooks"],

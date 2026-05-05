@@ -16,7 +16,6 @@ export const getSessionHandler: RouteHandler<
 	const query = c.req.valid("query") ?? {};
 
 	const row = await getVerificationSessionById({
-		environment: "live",
 		id: params.id,
 		organizationId,
 	});

@@ -20,7 +20,6 @@ export { getVerificationSessionAnalyticsOverview } from "./session-analytics-rep
 
 export function listVerificationSessions({
 	organizationId,
-	environment,
 	status,
 	createdFrom,
 	createdTo,
@@ -28,7 +27,6 @@ export function listVerificationSessions({
 	limit,
 }: {
 	organizationId: string;
-	environment: "live" | "test" | "either";
 	status?: "created" | "in_progress" | "completed" | "expired" | "cancelled";
 	createdFrom?: string;
 	createdTo?: string;
@@ -37,9 +35,6 @@ export function listVerificationSessions({
 }) {
 	const where = and(
 		eq(verification_sessions.organizationId, organizationId),
-		...(environment !== "either"
-			? [eq(verification_sessions.environment, environment)]
-			: []),
 		...(status ? [eq(verification_sessions.status, status)] : []),
 		...(createdFrom
 			? [gte(verification_sessions.createdAt, new Date(createdFrom))]
@@ -59,11 +54,9 @@ export function listVerificationSessions({
 }
 
 export async function getVerificationSessionById({
-	environment,
 	id,
 	organizationId,
 }: {
-	environment: "live" | "test";
 	id: string;
 	organizationId: string;
 }) {
@@ -74,7 +67,6 @@ export async function getVerificationSessionById({
 			and(
 				eq(verification_sessions.id, id),
 				eq(verification_sessions.organizationId, organizationId),
-				eq(verification_sessions.environment, environment),
 			),
 		)
 		.limit(1);
@@ -108,14 +100,12 @@ export type CreatedVerificationSession = {
 export async function createVerificationSession({
 	id,
 	organizationId,
-	environment,
 	redirectUrl,
 	shareFields,
 	contractVersion,
 }: {
 	id: string;
 	organizationId: string;
-	environment: "live" | "test";
 	redirectUrl: string | null;
 	shareFields: ShareFields;
 	contractVersion: number;
@@ -129,7 +119,6 @@ export async function createVerificationSession({
 			.values({
 				id,
 				organizationId,
-				environment,
 				status: "created",
 				redirectUrl,
 				shareFields,
@@ -163,7 +152,6 @@ export async function cancelVerificationSession({
 	const result = await db.transaction(async (tx) => {
 		const sessionCancelledEventId = generateId({
 			type: "evt",
-			environment: row.environment,
 		});
 
 		await tx
@@ -191,7 +179,6 @@ export async function cancelVerificationSession({
 		await tx.insert(events).values({
 			id: sessionCancelledEventId,
 			organizationId,
-			environment: row.environment,
 			type: "verification.session.cancelled",
 			triggerId: row.id,
 			triggerType: "verification_session",
@@ -204,7 +191,6 @@ export async function cancelVerificationSession({
 
 	await createWebhookDeliveriesForVerificationSessionCancelled({
 		contractVersion: row.contractVersion,
-		environment: row.environment,
 		eventId: result.sessionCancelledEventId,
 		organizationId,
 		sessionId: row.id,
@@ -230,7 +216,6 @@ export async function expireVerificationSessionIfNeeded({
 	const result = await db.transaction(async (tx) => {
 		const sessionExpiredEventId = generateId({
 			type: "evt",
-			environment: row.environment,
 		});
 
 		await tx
@@ -258,7 +243,6 @@ export async function expireVerificationSessionIfNeeded({
 		await tx.insert(events).values({
 			id: sessionExpiredEventId,
 			organizationId: row.organizationId,
-			environment: row.environment,
 			type: "verification.session.expired",
 			triggerId: row.id,
 			triggerType: "verification_session",
@@ -271,7 +255,6 @@ export async function expireVerificationSessionIfNeeded({
 
 	await createWebhookDeliveriesForVerificationSessionExpired({
 		contractVersion: row.contractVersion,
-		environment: row.environment,
 		eventId: result.sessionExpiredEventId,
 		organizationId: row.organizationId,
 		sessionId: row.id,

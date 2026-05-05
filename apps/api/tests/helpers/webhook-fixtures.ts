@@ -50,9 +50,8 @@ export async function seedWebhookEndpoint({
 	const [endpoint] = await db
 		.insert(webhook_endpoints)
 		.values({
-			id: `whe_live_${context}_${crypto.randomUUID()}`,
+			id: `whe_${context}_${crypto.randomUUID()}`,
 			organizationId,
-			environment: "live",
 			signingSecretCiphertext,
 			subscribedEventTypes: [...eventTypes],
 			url,
@@ -76,7 +75,7 @@ export async function seedWebhookEncryptionKey({
 	jwk: JsonWebKey;
 }): Promise<void> {
 	await db.insert(webhook_encryption_keys).values({
-		id: `whk_live_${context}_${crypto.randomUUID()}`,
+		id: `whk_${context}_${crypto.randomUUID()}`,
 		webhookEndpointId: endpointId,
 		keyId: `rsa-key-${context}`,
 		algorithm: "RSA-OAEP-256",
@@ -97,11 +96,10 @@ export async function seedCoreEvent({
 	const [event] = await db
 		.insert(coreEvents)
 		.values({
-			id: `evt_live_${context}_${crypto.randomUUID()}`,
+			id: `evt_${context}_${crypto.randomUUID()}`,
 			organizationId,
-			environment: "live",
 			type,
-			triggerId: `va_live_${context}_${crypto.randomUUID()}`,
+			triggerId: `va_${context}_${crypto.randomUUID()}`,
 			triggerType: "verification_attempt",
 		})
 		.returning();
@@ -154,8 +152,7 @@ export async function seedWebhookEventWithDelivery({
 	const deliveryIds =
 		eventType === "verification.attempt.succeeded"
 			? await createWebhookDeliveriesForVerificationSucceeded({
-					attemptId: `va_live_${context}_${crypto.randomUUID()}`,
-					environment: "live",
+					attemptId: `va_${context}_${crypto.randomUUID()}`,
 					eventId: event.id,
 					manifest: {
 						claims: {
@@ -163,18 +160,17 @@ export async function seedWebhookEventWithDelivery({
 						},
 						contractVersion: 1,
 						selectedFieldKeys: ["family_name"],
-						sessionId: `vs_live_${context}_${crypto.randomUUID()}`,
+						sessionId: `vs_${context}_${crypto.randomUUID()}`,
 					},
 					organizationId,
 				})
 			: await createWebhookDeliveriesForVerificationAttemptFailed({
-					attemptId: `va_live_${context}_${crypto.randomUUID()}`,
+					attemptId: `va_${context}_${crypto.randomUUID()}`,
 					contractVersion: 1,
-					environment: "live",
 					eventId: event.id,
 					failureCode: "selfie_face_mismatch",
 					organizationId,
-					sessionId: `vs_live_${context}_${crypto.randomUUID()}`,
+					sessionId: `vs_${context}_${crypto.randomUUID()}`,
 				});
 
 	const [deliveryId] = deliveryIds;

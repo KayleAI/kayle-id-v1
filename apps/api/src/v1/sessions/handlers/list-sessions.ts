@@ -14,12 +14,10 @@ export const listSessionsHandler: RouteHandler<
 > = async (c) => {
 	const organizationId = c.get("organizationId");
 	const query = c.req.valid("query");
-	const environment = c.get("environment");
 	const limit = query.limit ?? 10;
 
 	const rows = await listVerificationSessions({
 		organizationId,
-		environment,
 		status: query.status,
 		createdFrom: query.created_from,
 		createdTo: query.created_to,

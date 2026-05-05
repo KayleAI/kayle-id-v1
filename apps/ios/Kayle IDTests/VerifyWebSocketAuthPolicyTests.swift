@@ -200,7 +200,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testDefaultSelectedShareFieldKeysIncludeSecurityAndRequiredDetails() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -229,7 +229,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testDefaultSelectedShareFieldKeysAlwaysIncludeKayleHumanId() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_human_id",
@@ -297,7 +297,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testShareRequestFieldsAreGroupedIntoKayleRequiredAndOptionalSections() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -339,7 +339,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testVisibleKayleShareRequestFieldsHideKayleHumanIdByDefault() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -444,7 +444,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testOrderedSelectedShareFieldKeysFollowShareRequestOrder() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -476,7 +476,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testHasUnselectedOptionalShareFieldsOnlyTracksOptionalDetails() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -518,7 +518,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testSelectedShareFieldKeysIncludingAllOptionalFieldsAddsOnlyOptionalDetails() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
@@ -560,7 +560,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
   func testShareSelectionIsOnlySubmittableWhenRequiredDetailFieldsAreSelected() {
     let shareRequest = VerifyShareRequest(
       contractVersion: 1,
-      sessionId: "vs_test_123",
+      sessionId: "vs_123",
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",

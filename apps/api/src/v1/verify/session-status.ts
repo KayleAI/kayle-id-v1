@@ -36,12 +36,7 @@ export async function getPublicVerifySessionStatus({
 	const [rawSession] = await db
 		.select()
 		.from(verification_sessions)
-		.where(
-			and(
-				eq(verification_sessions.id, sessionId),
-				eq(verification_sessions.environment, "live"),
-			),
-		)
+		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
 	if (!rawSession) {

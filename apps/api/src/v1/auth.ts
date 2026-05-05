@@ -15,7 +15,6 @@ import { checkPermission } from "@/functions/auth/check-permission";
 import { createHMAC } from "@/functions/hmac";
 
 type AuthVariables = {
-	environment: "live";
 	type: "api" | "session";
 	organizationId?: string;
 	userId?: string;
@@ -62,16 +61,14 @@ const authenticate = createMiddleware<{
 			secret: env.AUTH_SECRET,
 		});
 		const [
-			{ organizationId, environment, enabled, permissions } = {
+			{ organizationId, enabled, permissions } = {
 				organizationId: null,
-				environment: "live",
 				enabled: false,
 				permissions: [] as string[],
 			},
 		] = await db
 			.select({
 				organizationId: api_keys.organizationId,
-				environment: api_keys.environment,
 				enabled: api_keys.enabled,
 				permissions: api_keys.permissions,
 			})
@@ -79,7 +76,7 @@ const authenticate = createMiddleware<{
 			.where(eq(api_keys.keyHash, keyHash))
 			.limit(1);
 
-		if (!(organizationId && environment === "live" && enabled)) {
+		if (!(organizationId && enabled)) {
 			return unauthorized(c);
 		}
 
@@ -96,7 +93,6 @@ const authenticate = createMiddleware<{
 			: [];
 
 		c.set("type", "api");
-		c.set("environment", "live");
 		c.set("organizationId", organizationId);
 		c.set("permissions", scopes);
 
@@ -117,7 +113,6 @@ const authenticate = createMiddleware<{
 	}
 
 	c.set("type", "session");
-	c.set("environment", "live");
 	c.set("organizationId", activeOrganizationId);
 	c.set("userId", response.session.userId);
 	await next();

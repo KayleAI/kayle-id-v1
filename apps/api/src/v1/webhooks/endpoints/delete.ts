@@ -22,7 +22,6 @@ deleteEndpoint.openapi(deleteWebhookEndpoint, async (c) => {
 			and(
 				eq(webhook_endpoints.id, params.endpoint_id),
 				eq(webhook_endpoints.organizationId, organizationId),
-				eq(webhook_endpoints.environment, "live"),
 			),
 		)
 		.returning({

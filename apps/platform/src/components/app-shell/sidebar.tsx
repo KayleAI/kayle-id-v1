@@ -11,7 +11,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@kayleai/ui/dropdown-menu";
-import { Logo } from "@kayleai/ui/logo";
+import { Logomark } from "@kayleai/ui/logo";
 import {
 	Sidebar,
 	SidebarContent,
@@ -22,7 +22,6 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-	SidebarSeparator,
 } from "@kayleai/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -80,15 +79,18 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar className="border-r-0!" collapsible="icon" variant="sidebar">
-			<SidebarHeader className="h-14! flex items-center justify-center">
+			<SidebarHeader className="h-14! flex items-center justify-center pr-0!">
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
 							className="h-10"
 							render={
 								<Link to="/">
-									<span className="flex h-7 items-center w-full">
-										<Logo className="flex" title="Kayle ID" />
+									<span className="flex h-7 items-center w-full gap-2">
+										<Logomark className="flex pl-1 size-6!" />
+										<span className="select-none font-medium tracking-tight text-xl">
+											Kayle ID
+										</span>
 									</span>
 								</Link>
 							}
@@ -97,7 +99,7 @@ export function AppSidebar() {
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<SidebarSeparator className="ml-0!" />
+			<div className="w-[calc(100%+18px)] h-px bg-sidebar-border"></div>
 
 			<SidebarHeader className="pr-0!">
 				<SidebarMenu>

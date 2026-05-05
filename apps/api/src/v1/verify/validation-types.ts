@@ -13,11 +13,19 @@ export type PassiveAuthCrlStatus =
 	| "stale"
 	| "verified_not_revoked";
 
+/**
+ * Revocation outcome derived from the observed CRL status. Surfaced separately
+ * from authenticity so that valid passports under incomplete or stale CRL
+ * coverage are not treated as cryptographic failures.
+ */
+export type PassiveAuthRevocationOutcome =
+	| "verified_not_revoked"
+	| "revocation_unknown"
+	| "revoked";
+
 export type PassiveAuthFailureReason =
 	| "chain_untrusted"
-	| "crl_missing"
 	| "crl_revoked"
-	| "crl_stale"
 	| "cms_signature_invalid"
 	| "dg_hash_mismatch"
 	| "missing_required_artifacts"
@@ -116,7 +124,14 @@ export type Dg14Declares = {
 
 export type AuthenticityValidationResult =
 	| {
-			crlStatus: "verified_not_revoked";
+			crlStatus: Extract<
+				PassiveAuthCrlStatus,
+				"verified_not_revoked" | "missing" | "stale"
+			>;
+			revocationOutcome: Extract<
+				PassiveAuthRevocationOutcome,
+				"verified_not_revoked" | "revocation_unknown"
+			>;
 			ok: true;
 			algorithm: SupportedHashAlgorithm;
 			signerSource: PassiveAuthSignerSource;
@@ -125,6 +140,7 @@ export type AuthenticityValidationResult =
 	  }
 	| {
 			crlStatus: PassiveAuthCrlStatus;
+			revocationOutcome: PassiveAuthRevocationOutcome | null;
 			ok: false;
 			reason: PassiveAuthFailureReason;
 			detail?: string | null;

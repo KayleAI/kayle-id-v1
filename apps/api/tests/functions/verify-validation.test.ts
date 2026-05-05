@@ -262,6 +262,7 @@ describe("verify validation engine", () => {
 		if (result.ok) {
 			expect(result.algorithm).toBe("SHA-256");
 			expect(result.crlStatus).toBe("verified_not_revoked");
+			expect(result.revocationOutcome).toBe("verified_not_revoked");
 			expect(result.signerSource).toBe("sod");
 			expect(result.source).toBe("cms_signed_data");
 		}
@@ -294,6 +295,7 @@ describe("verify validation engine", () => {
 		if (result.ok) {
 			expect(result.algorithm).toBe("SHA-512");
 			expect(result.crlStatus).toBe("verified_not_revoked");
+			expect(result.revocationOutcome).toBe("verified_not_revoked");
 			expect(result.signerSource).toBe("sod");
 			expect(result.source).toBe("cms_signed_data");
 		}
@@ -315,6 +317,7 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.reason).toBe("chain_untrusted");
 			expect(result.crlStatus).toBe("not_checked");
+			expect(result.revocationOutcome).toBeNull();
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -342,6 +345,7 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.reason).toBe("signer_certificate_expired");
 			expect(result.crlStatus).toBe("not_checked");
+			expect(result.revocationOutcome).toBeNull();
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -369,6 +373,7 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.reason).toBe("signer_certificate_invalid");
 			expect(result.crlStatus).toBe("not_checked");
+			expect(result.revocationOutcome).toBeNull();
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -394,6 +399,7 @@ describe("verify validation engine", () => {
 		expect(result.ok).toBeTrue();
 		if (result.ok) {
 			expect(result.crlStatus).toBe("verified_not_revoked");
+			expect(result.revocationOutcome).toBe("verified_not_revoked");
 			expect(result.signerSource).toBe("bundle");
 		}
 	});
@@ -420,6 +426,7 @@ describe("verify validation engine", () => {
 		expect(result.ok).toBeTrue();
 		if (result.ok) {
 			expect(result.crlStatus).toBe("verified_not_revoked");
+			expect(result.revocationOutcome).toBe("verified_not_revoked");
 			expect(result.signerSource).toBe("bundle");
 		}
 	});
@@ -720,11 +727,12 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.crlStatus).toBe("revoked");
 			expect(result.reason).toBe("crl_revoked");
+			expect(result.revocationOutcome).toBe("revoked");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
 
-	test("fails passive authentication when CRL coverage is missing", async () => {
+	test("passes passive authentication with revocation_unknown when CRL coverage is missing", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const noCrlChain = await createPassiveAuthTestChain({
 			includeCrl: false,
@@ -743,15 +751,16 @@ describe("verify validation engine", () => {
 			trustBundle: noCrlChain.trustBundle,
 		});
 
-		expect(result.ok).toBeFalse();
-		if (!result.ok) {
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
 			expect(result.crlStatus).toBe("missing");
-			expect(result.reason).toBe("crl_missing");
+			expect(result.revocationOutcome).toBe("revocation_unknown");
 			expect(result.signerSource).toBe("sod");
+			expect(result.source).toBe("cms_signed_data");
 		}
 	});
 
-	test("fails passive authentication when CRL coverage is stale", async () => {
+	test("passes passive authentication with revocation_unknown when CRL coverage is stale", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const staleCrlChain = await createPassiveAuthTestChain({
 			staleCrl: true,
@@ -770,11 +779,12 @@ describe("verify validation engine", () => {
 			trustBundle: staleCrlChain.trustBundle,
 		});
 
-		expect(result.ok).toBeFalse();
-		if (!result.ok) {
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
 			expect(result.crlStatus).toBe("stale");
-			expect(result.reason).toBe("crl_stale");
+			expect(result.revocationOutcome).toBe("revocation_unknown");
 			expect(result.signerSource).toBe("sod");
+			expect(result.source).toBe("cms_signed_data");
 		}
 	});
 
@@ -818,6 +828,7 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.crlStatus).toBe("revoked");
 			expect(result.reason).toBe("crl_revoked");
+			expect(result.revocationOutcome).toBe("revoked");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -862,6 +873,7 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.crlStatus).toBe("revoked");
 			expect(result.reason).toBe("crl_revoked");
+			expect(result.revocationOutcome).toBe("revoked");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -907,11 +919,12 @@ describe("verify validation engine", () => {
 		if (!result.ok) {
 			expect(result.crlStatus).toBe("revoked");
 			expect(result.reason).toBe("crl_revoked");
+			expect(result.revocationOutcome).toBe("revoked");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
 
-	test("fails passive authentication when only stale verified CRLs are available", async () => {
+	test("passes passive authentication with revocation_unknown when only stale verified CRLs are available", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const chain = await createPassiveAuthTestChain();
 		const trustBundle = await createTrustBundleWithCrlRecords({
@@ -940,15 +953,15 @@ describe("verify validation engine", () => {
 			trustBundle,
 		});
 
-		expect(result.ok).toBeFalse();
-		if (!result.ok) {
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
 			expect(result.crlStatus).toBe("stale");
-			expect(result.reason).toBe("crl_stale");
+			expect(result.revocationOutcome).toBe("revocation_unknown");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
 
-	test("fails passive authentication when only missing or unverifiable CRLs are available", async () => {
+	test("passes passive authentication with revocation_unknown when only missing or unverifiable CRLs are available", async () => {
 		const artifacts = await createValidNfcArtifacts();
 		const chain = await createPassiveAuthTestChain();
 		const invalidSignerChain = await createPassiveAuthTestChain();
@@ -978,10 +991,10 @@ describe("verify validation engine", () => {
 			trustBundle,
 		});
 
-		expect(result.ok).toBeFalse();
-		if (!result.ok) {
+		expect(result.ok).toBeTrue();
+		if (result.ok) {
 			expect(result.crlStatus).toBe("missing");
-			expect(result.reason).toBe("crl_missing");
+			expect(result.revocationOutcome).toBe("revocation_unknown");
 			expect(result.signerSource).toBe("sod");
 		}
 	});
@@ -1175,6 +1188,7 @@ describe("verify validation engine", () => {
 		if (result.ok) {
 			expect(result.algorithm).toBe("SHA-256");
 			expect(result.crlStatus).toBe("verified_not_revoked");
+			expect(result.revocationOutcome).toBe("verified_not_revoked");
 			expect(result.signerSource).toBe("sod");
 			expect(result.source).toBe("cms_signed_data");
 		}

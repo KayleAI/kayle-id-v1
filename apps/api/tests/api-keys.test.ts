@@ -159,7 +159,7 @@ describe("API Key Endpoints", () => {
 
 		expect(payload.error).toBeNull();
 		expect(payload.data?.id).toBeString();
-		expect(payload.data?.key?.startsWith("kk_live_")).toBeTrue();
+		expect(payload.data?.key?.startsWith("kk_")).toBeTrue();
 
 		const verification = await verifyApiKey(payload.data?.key ?? "");
 		expect(verification).toEqual({

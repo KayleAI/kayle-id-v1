@@ -1,33 +1,104 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API introduction"
+description: "Base URL, authentication, response envelope, errors, and pagination."
+icon: "circle-info"
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
-
-## Welcome
-
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+The Kayle ID API is a REST API with JSON request and response bodies. The hosted base URL is `https://api.kayle.id`. If you're self-hosting, substitute your own host. All endpoints documented in this reference live under `/v1/`.
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+Authenticate every request with an API key in the `Authorization` header:
+
+```http
+Authorization: Bearer kk_...
+```
+
+API keys are minted in the dashboard under **API keys**. Each key is scoped to one organization and one or more [scopes](/auth/scopes) (`sessions:read`, `sessions:write`, `webhooks:read`, `webhooks:write`, `analytics:read`). Keys are hashed at rest with HMAC-SHA256 and shown in plaintext only at creation — losing a key means rotating it.
+
+The dashboard itself authenticates with session cookies. Those routes aren't part of the public API surface and aren't documented here.
+
+## Response envelope
+
+Every response uses the same shape:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+{
+  "data": { /* operation-specific object, or null on error */ },
+  "error": null
+}
 ```
+
+Errors replace `data` with `null` and populate `error`:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNKNOWN_CLAIM_KEY",
+    "message": "Unknown claim key.",
+    "hint": "Use a supported claim key from the share contract allowlist.",
+    "docs": "https://kayle.id/docs/api/sessions#create"
+  }
+}
+```
+
+See the [error reference](/api-reference/errors) for the full list of codes and HTTP status mappings.
+
+## Pagination
+
+List endpoints return a `pagination` field alongside `data`:
+
+```json
+{
+  "data": [ /* up to `limit` items */ ],
+  "pagination": {
+    "limit": 25,
+    "has_more": true,
+    "next_cursor": "vs_..."
+  },
+  "error": null
+}
+```
+
+To fetch the next page, pass `starting_after=<next_cursor>` on the next request. `limit` is bounded between 1 and 100 (default 10). When `has_more` is `false`, `next_cursor` is `null` and you've reached the end of the list.
+
+```bash
+curl "https://api.kayle.id/v1/sessions?limit=50&starting_after=vs_..."  \
+  -H "Authorization: Bearer kk_..."
+```
+
+## Identifiers
+
+Resources use prefixed IDs so they're self-describing in logs:
+
+| Prefix    | Resource                  |
+|-----------|---------------------------|
+| `vs_`     | Verification session      |
+| `va_`     | Verification attempt      |
+| `whe_`    | Webhook endpoint          |
+| `whk_`    | Webhook encryption key    |
+| `whd_`    | Webhook delivery          |
+| `wha_`    | Webhook delivery attempt  |
+| `evt_`    | Event                     |
+| `kk_`     | API key (only the secret; the key record uses a UUID) |
+
+## Versioning
+
+The API is versioned in the URL path (`/v1/`). Breaking changes ship under a new version path. Backwards-compatible additions — new optional fields, new event types, new endpoints — happen in place under `/v1/`.
+
+The OpenAPI document for the version you're calling is available at `GET /openapi`, and an interactive Scalar UI lives at `GET /reference`. The OpenAPI snapshot in this docs site is regenerated from a running API. From the repo root with the local API running:
+
+```bash
+bun ./apps/api/scripts/dump-openapi.ts > docs/api-reference/openapi.json
+```
+
+The script normalises a couple of `@hono/zod-openapi` output quirks (bumps the spec to OpenAPI 3.1, rewrites Hono path parameters into `{param}` form, gives the response envelope's nullable `error` field an explicit type) so Mintlify can validate it.
+
+## What's not documented here
+
+The `/v1/verify/*` endpoints used by the verify web app and mobile clients (WebSocket plus a few public REST helpers) are part of the user-facing flow, not the partner integration surface. You don't call them directly — see [How it works](/concepts/how-it-works) for the role they play and [Mobile handoff](/verifications/handoff) for the protocol details.
+
+## SDKs
+
+REST only for now. Server-side SDKs are planned; until then, generate a client from the OpenAPI document if you want a typed wrapper.

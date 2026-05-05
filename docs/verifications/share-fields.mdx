@@ -1,0 +1,97 @@
+---
+title: "Share fields"
+description: "The catalogue of claims you can request from a verified user."
+icon: "list-check"
+---
+
+When you create a session you tell Kayle which claims you need. The user sees those claims and the reasons you supplied during the consent step, then either consents and continues or aborts. Only the consented claims are returned in the `verification.attempt.succeeded` webhook.
+
+## The request shape
+
+```json
+{
+  "share_fields": {
+    "date_of_birth": {
+      "required": true,
+      "reason": "Verify age eligibility for this product"
+    },
+    "given_names": {
+      "required": false,
+      "reason": "Personalise your account profile"
+    }
+  }
+}
+```
+
+Each entry is keyed by the claim's identifier and contains:
+
+<ParamField path="required" type="boolean" required>
+  When `true`, the user must consent to share this claim or the verification cannot proceed. When `false`, the user can decline this claim individually and still finish the flow.
+</ParamField>
+
+<ParamField path="reason" type="string" required>
+  Human-readable reason shown to the user during consent. 1 to 200 characters. Write it for the user, not your engineers.
+</ParamField>
+
+A session can request at most **32** share fields. Unknown claim keys reject with `UNKNOWN_CLAIM_KEY`.
+
+## Static claims
+
+These are the claim keys Kayle understands by default:
+
+| Key | Source | What it is |
+|---|---|---|
+| `document_type_code` | MRZ (DG1) | ISO 7501-1 document type, e.g. `P` for passport. |
+| `issuing_country_code` | MRZ (DG1) | Three-letter ICAO state code of the issuer. |
+| `family_name` | MRZ (DG1) | Surname as printed in the MRZ. |
+| `given_names` | MRZ (DG1) | Given names as printed in the MRZ. |
+| `document_number` | MRZ (DG1) | The document's serial number. |
+| `nationality_code` | MRZ (DG1) | Three-letter ICAO state code for nationality. |
+| `date_of_birth` | MRZ (DG1) | ISO 8601 date (`YYYY-MM-DD`). Centuries are inferred from expiry where the MRZ is ambiguous. |
+| `sex_marker` | MRZ (DG1) | `M`, `F`, or `X`. |
+| `document_expiry_date` | MRZ (DG1) | ISO 8601 date. |
+| `mrz_optional_data` | MRZ (DG1) | The optional data field of the MRZ, raw. Most documents leave this blank. |
+| `document_photo` | DG2 | The on-chip portrait, base64-encoded JPEG or JPEG2000. |
+| `kayle_document_id` | Derived | Stable identifier for this document for this organization. Lets you recognise the same document on a future verification without storing the document number. |
+| `kayle_human_id` | Derived | Stable identifier for the human, derived from the cryptographically attested document. Lets you recognise the same person across re-issued documents within your organization. |
+
+## Age-over derived claims
+
+You can request `age_over_N` for any integer **N** between 12 and 130. The returned value is a boolean computed from `date_of_birth`. Use these instead of `date_of_birth` when you only need a threshold check, since the user will see "Age Over 18" in consent rather than "Date of Birth" — less information disclosed.
+
+```json
+{
+  "share_fields": {
+    "age_over_18": { "required": true, "reason": "Verify legal age for our service" }
+  }
+}
+```
+
+## Defaults
+
+If you create a session without `share_fields`, Kayle applies a default contract that includes `kayle_document_id`. The session response normalises everything into `share_fields` with a `source` field per entry:
+
+- `source: "rc"` — requested by you (the relying client).
+- `source: "default"` — added by Kayle's default contract.
+
+## Receiving the values
+
+The `verification.attempt.succeeded` webhook returns the consented claims:
+
+```json
+{
+  "type": "verification.attempt.succeeded",
+  "data": {
+    "claims": {
+      "date_of_birth": "1995-04-12",
+      "family_name": "Curie",
+      "given_names": "Marie",
+      "kayle_document_id": "kdid_..."
+    },
+    "selected_field_keys": ["date_of_birth", "family_name", "given_names", "kayle_document_id"]
+  },
+  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+}
+```
+
+`selected_field_keys` is the canonical list of keys the user actually consented to share. Optional fields the user declined will be missing from `claims` even though you requested them — code defensively.

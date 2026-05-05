@@ -1,0 +1,58 @@
+---
+title: "API keys"
+description: "Mint, scope, rotate, and revoke API keys."
+icon: "key"
+---
+
+API keys authenticate server-to-server calls to the Kayle API. Each key belongs to one organization and carries one or more scopes that decide which endpoints it can hit.
+
+## Format and storage
+
+Plaintext keys are 35 characters, prefixed with `kk_`:
+
+```text
+kk_abcdef0123456789abcdef0123456789ab
+```
+
+Keys are hashed at rest with HMAC-SHA256 using a secret stored in the API's environment. Only the hash is persisted. A lost key cannot be recovered — rotate by deleting the old key and minting a new one.
+
+## Create a key
+
+Open **API keys** in the dashboard, click **Create API key**, choose a name and the scopes the key should hold. The platform shows the plaintext exactly once; store it in your secret manager before closing the dialog.
+
+If you prefer the API, the same operation lives at `POST /v1/auth/api-keys` and is part of the dashboard surface — it requires a session cookie, not another API key.
+
+## Authenticate a request
+
+Send the key in the `Authorization` header:
+
+```http
+Authorization: Bearer kk_...
+```
+
+The middleware hashes the supplied key and looks for a matching, enabled `api_keys` row. Disabled keys, keys whose owning organization is pending deletion, or keys without the scope the endpoint requires all reject with the appropriate error code.
+
+## Rotate a key
+
+Treat a key as compromised the moment it might have leaked (debug log, screenshot, accidental commit). Rotation is two steps:
+
+1. Mint a new key with the same scopes.
+2. Deploy your service with the new key.
+3. Delete the old key from the dashboard or via `DELETE /v1/auth/api-keys/:id`.
+
+Deleting is immediate and irreversible. There's no grace window — once the row is gone, the next request with that key returns `UNAUTHORIZED`.
+
+## Revoke without deleting
+
+Set `enabled: false` via `PATCH /v1/auth/api-keys/:id` if you want to disable a key without losing the audit trail (request count, creation time, name). Re-enable later by setting `enabled: true`.
+
+## Conventions
+
+- One key per service or environment. Don't share keys across staging and production.
+- Name keys after where they run: `payments-prod`, `support-tooling`, `staging-bff`. The dashboard uses the name to pick which key to revoke during incident response.
+- Avoid embedding keys in source-controlled files. Store them in your secret manager and inject at deploy time.
+- Don't use API keys in browser code. They have organization-wide scope and should never reach an end user.
+
+## Scopes
+
+A key without scopes can only hit unauthenticated endpoints (none of which exist on the partner-integration surface). Pick the smallest set of scopes that covers the work the key needs to do. See [Scopes](/auth/scopes) for the full list and the role mapping for session-cookie callers.

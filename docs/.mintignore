@@ -5,3 +5,12 @@
 # Draft content
 drafts/
 *.draft.mdx
+
+# Mintlify starter scaffolding kept on disk for future doc contributors
+# but not part of the Kayle ID documentation surface.
+development.mdx
+essentials/
+agent-ready/
+ai-tools/
+snippets/snippet-intro.mdx
+api-reference/endpoint/

@@ -1,0 +1,98 @@
+---
+title: "Deliveries"
+description: "Retry schedule, delivery inspection, and manual replays."
+icon: "paper-plane"
+---
+
+Each event triggers one delivery row per subscribed endpoint. The delivery row tracks attempts, the most recent HTTP status, and the next scheduled retry. You can inspect deliveries from the dashboard or via the API.
+
+## Statuses
+
+| Status | Meaning |
+|---|---|
+| `pending` | Queued. The next scheduled attempt is in `next_attempt_at`. |
+| `delivering` | An attempt is in progress. |
+| `succeeded` | An attempt returned `2xx`. Terminal. |
+| `failed` | All attempts exhausted without a `2xx`. Terminal until you replay. |
+
+## Retry schedule
+
+A failed delivery is retried up to two times after the initial attempt — three total. Backoff is exponential with a 60-second base:
+
+| Attempt | Delay before this attempt |
+|---|---|
+| 1 | 0 (immediate) |
+| 2 | 60 seconds |
+| 3 | 120 seconds |
+
+A delivery that finishes attempt 3 with a non-`2xx` response is marked `failed` and stops retrying. The whole envelope from first attempt to terminal `failed` is therefore around three minutes in the worst case.
+
+A delivery is treated as failed if:
+
+- The HTTP request fails to connect or times out.
+- The endpoint returns a non-`2xx` status.
+- The endpoint returns no response within the request timeout.
+
+Slow endpoints are the most common cause of unintended retries. Acknowledge with `2xx` first and process asynchronously if your handler is heavy.
+
+## Inspecting deliveries
+
+```bash
+curl "https://api.kayle.id/v1/webhooks/deliveries?status=failed&limit=50" \
+  -H "Authorization: Bearer kk_..."
+```
+
+Filter by `status`, `endpoint_id`, or `event_id`. The response is the standard cursor-paginated list:
+
+```json
+{
+  "data": [
+    {
+      "id": "whd_...",
+      "event_id": "evt_...",
+      "webhook_endpoint_id": "whe_...",
+      "webhook_encryption_key_id": null,
+      "status": "failed",
+      "attempt_count": 3,
+      "next_attempt_at": null,
+      "last_status_code": 502,
+      "last_attempt_at": "2026-05-05T11:03:30Z",
+      "created_at": "2026-05-05T11:00:00Z",
+      "updated_at": "2026-05-05T11:03:30Z"
+    }
+  ],
+  "pagination": { "limit": 50, "has_more": false, "next_cursor": null },
+  "error": null
+}
+```
+
+## Manual retry
+
+Replay a single failed delivery:
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/deliveries/whd_.../retry \
+  -H "Authorization: Bearer kk_..."
+```
+
+The delivery moves back to `pending` and runs through up to three fresh attempts. The signature is regenerated, so don't expect the captured headers from the previous attempts to match.
+
+## Replaying an event
+
+If multiple deliveries (one per subscribed endpoint) failed because of a downstream outage, replay the whole event rather than each delivery:
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/events/evt_.../replay \
+  -H "Authorization: Bearer kk_..."
+```
+
+Replay creates a new pending delivery for every endpoint subscribed to the event type at replay time — including endpoints that were created or enabled after the original event fired. Use this to backfill a new endpoint with recent events without re-running verifications.
+
+## Listing events
+
+```bash
+curl "https://api.kayle.id/v1/webhooks/events?type=verification.attempt.succeeded" \
+  -H "Authorization: Bearer kk_..."
+```
+
+`/v1/events` is an alias for the same resource, kept for older integrations. Use the `/v1/webhooks/events` path in new code.

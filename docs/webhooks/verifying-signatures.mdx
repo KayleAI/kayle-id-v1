@@ -1,0 +1,185 @@
+---
+title: "Verifying signatures"
+description: "Validate the X-Kayle-Signature header before trusting a webhook payload."
+icon: "signature"
+---
+
+Every webhook delivery carries an `X-Kayle-Signature` header. Verify it before processing the body. An attacker who knows your endpoint URL but not the signing secret cannot forge a valid signature.
+
+## The header
+
+```http
+X-Kayle-Signature: t=1714914000,v1=8a7b...
+X-Kayle-Delivery-Id: whd_...
+X-Kayle-Event: verification.attempt.succeeded
+Content-Type: application/json
+```
+
+`t` is a Unix timestamp (seconds). `v1` is `HMAC-SHA256(t + "." + raw_body, signing_secret)` rendered as lowercase hex.
+
+## The verification algorithm
+
+<Steps>
+  <Step title="Capture the raw body">
+    Hash exactly the bytes Kayle sent. If your framework parses JSON before you can read the raw body, capture the buffer first — re-serialising parsed JSON does not produce the same bytes.
+  </Step>
+  <Step title="Recompute the signature">
+    Build `<t>.<raw_body>` and HMAC-SHA256 with your signing secret.
+  </Step>
+  <Step title="Compare in constant time">
+    Use a constant-time comparison (`crypto.timingSafeEqual` in Node, `hmac.compare_digest` in Python). Don't use `==`.
+  </Step>
+  <Step title="Check the timestamp">
+    Reject deliveries where `|now - t|` is more than five minutes. This prevents replay attacks if the signing secret leaks transiently.
+  </Step>
+</Steps>
+
+If any step fails, return `400` and don't process the body. Kayle treats non-`2xx` responses as delivery failures and retries.
+
+## Code samples
+
+<CodeGroup>
+
+```typescript Node.js
+import crypto from "node:crypto";
+import express from "express";
+
+const app = express();
+
+app.post(
+  "/webhooks/kayle",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const header = req.header("X-Kayle-Signature") ?? "";
+    const parts = Object.fromEntries(
+      header.split(",").map((part) => part.split("=")),
+    ) as { t?: string; v1?: string };
+    if (!parts.t || !parts.v1) return res.sendStatus(400);
+
+    const timestamp = Number.parseInt(parts.t, 10);
+    if (Math.abs(Date.now() / 1000 - timestamp) > 300) {
+      return res.sendStatus(400);
+    }
+
+    const expected = crypto
+      .createHmac("sha256", process.env.KAYLE_SIGNING_SECRET!)
+      .update(`${parts.t}.${req.body.toString("utf8")}`)
+      .digest("hex");
+
+    const ok = crypto.timingSafeEqual(
+      Buffer.from(expected, "hex"),
+      Buffer.from(parts.v1, "hex"),
+    );
+    if (!ok) return res.sendStatus(400);
+
+    const event = JSON.parse(req.body.toString("utf8"));
+    // process `event` here
+    res.sendStatus(200);
+  },
+);
+```
+
+```python Python
+import hmac
+import hashlib
+import time
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+SIGNING_SECRET = "whsec_..."
+
+@app.post("/webhooks/kayle")
+def kayle_webhook():
+    header = request.headers.get("X-Kayle-Signature", "")
+    parts = dict(part.split("=", 1) for part in header.split(","))
+    timestamp, signature = parts.get("t"), parts.get("v1")
+    if not timestamp or not signature:
+        abort(400)
+
+    if abs(time.time() - int(timestamp)) > 300:
+        abort(400)
+
+    raw_body = request.get_data()
+    expected = hmac.new(
+        SIGNING_SECRET.encode(),
+        f"{timestamp}.{raw_body.decode()}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        abort(400)
+
+    event = request.get_json()
+    # process `event` here
+    return "", 200
+```
+
+```go Go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "io"
+    "net/http"
+    "strconv"
+    "strings"
+    "time"
+)
+
+const SigningSecret = "whsec_..."
+
+func KayleWebhook(w http.ResponseWriter, r *http.Request) {
+    header := r.Header.Get("X-Kayle-Signature")
+    parts := map[string]string{}
+    for _, kv := range strings.Split(header, ",") {
+        if i := strings.Index(kv, "="); i > 0 {
+            parts[kv[:i]] = kv[i+1:]
+        }
+    }
+    ts, sig := parts["t"], parts["v1"]
+    tsInt, err := strconv.ParseInt(ts, 10, 64)
+    if err != nil || sig == "" {
+        http.Error(w, "bad signature", http.StatusBadRequest)
+        return
+    }
+
+    if abs(time.Now().Unix()-tsInt) > 300 {
+        http.Error(w, "stale signature", http.StatusBadRequest)
+        return
+    }
+
+    body, _ := io.ReadAll(r.Body)
+    mac := hmac.New(sha256.New, []byte(SigningSecret))
+    mac.Write([]byte(ts + "." + string(body)))
+    expected := hex.EncodeToString(mac.Sum(nil))
+
+    sigBytes, _ := hex.DecodeString(sig)
+    expectedBytes, _ := hex.DecodeString(expected)
+    if !hmac.Equal(expectedBytes, sigBytes) {
+        http.Error(w, "bad signature", http.StatusBadRequest)
+        return
+    }
+
+    // process the event here
+    w.WriteHeader(http.StatusOK)
+}
+
+func abs(n int64) int64 {
+    if n < 0 {
+        return -n
+    }
+    return n
+}
+```
+
+</CodeGroup>
+
+<Tip>
+  Test signature verification locally by calling your endpoint with a delivery replayed from the dashboard or via `POST /v1/webhooks/events/:event_id/replay`. The signature is regenerated on each delivery, so a stale capture won't pass.
+</Tip>
+
+## Where the secret comes from
+
+The signing secret is returned exactly once when you create an endpoint, and again on rotation. It can be revealed by an `owner`-role user via `POST /v1/webhooks/endpoints/:endpoint_id/signing-secret/reveal`. Store it as you would any high-value credential.

@@ -15,32 +15,35 @@
         "groups": [
           {
             "group": "Getting started",
-            "pages": ["index", "quickstart", "development"]
+            "pages": ["index", "quickstart", "concepts/how-it-works"]
           },
           {
-            "group": "Customization",
-            "pages": ["essentials/settings", "essentials/navigation"]
-          },
-          {
-            "group": "Writing content",
+            "group": "Verifications",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/components",
-              "essentials/reusable-snippets"
+              "verifications/sessions",
+              "verifications/share-fields",
+              "verifications/document-checks",
+              "verifications/handoff",
+              "verifications/privacy"
             ]
           },
           {
-            "group": "Agent ready",
+            "group": "Webhooks",
             "pages": [
-              "agent-ready/prompt",
-              "agent-ready/visibility",
-              "agent-ready/contextual",
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "webhooks/overview",
+              "webhooks/configuring-endpoints",
+              "webhooks/verifying-signatures",
+              "webhooks/encryption",
+              "webhooks/deliveries"
             ]
+          },
+          {
+            "group": "Authentication",
+            "pages": ["auth/api-keys", "auth/scopes"]
+          },
+          {
+            "group": "Self-hosting",
+            "pages": ["self-hosting/overview"]
           }
         ]
       },
@@ -48,35 +51,25 @@
         "tab": "API reference",
         "groups": [
           {
-            "group": "API documentation",
-            "pages": ["api-reference/introduction"]
+            "group": "Introduction",
+            "pages": ["api-reference/introduction", "api-reference/errors"]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Endpoints",
+            "openapi": "/api-reference/openapi.json"
+          },
+          {
+            "group": "Webhook events",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/webhooks/verification-attempt-succeeded",
+              "api-reference/webhooks/verification-attempt-failed",
+              "api-reference/webhooks/verification-session-expired",
+              "api-reference/webhooks/verification-session-cancelled"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",
@@ -86,13 +79,17 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:help@kayle.id"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/KayleAI/kayle-id"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://kayle.id"
     }
   },
   "contextual": {
@@ -110,7 +107,7 @@
   "footer": {
     "socials": {
       "x": "https://x.com/kaylehq",
-      "github": "https://github.com/kayle-id",
+      "github": "https://github.com/KayleAI",
       "linkedin": "https://linkedin.com/company/kayleai"
     }
   }

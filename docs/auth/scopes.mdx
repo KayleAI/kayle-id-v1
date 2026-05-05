@@ -1,0 +1,41 @@
+---
+title: "Scopes"
+description: "What each API-key scope grants, and how dashboard sessions map to scopes."
+icon: "shield-halved"
+---
+
+Every protected endpoint is gated by a scope. API keys carry the scopes you select at creation. Dashboard users authenticate with session cookies; their organization role is mapped to the same scopes so the same middleware can gate both call paths.
+
+## The scopes
+
+| Scope | Grants |
+|---|---|
+| `sessions:read` | List and fetch verification sessions and their attempts. |
+| `sessions:write` | Create and cancel verification sessions. |
+| `webhooks:read` | List endpoints, events, deliveries, and encryption keys. |
+| `webhooks:write` | Create, update, and delete endpoints and encryption keys; reveal and rotate signing secrets; replay events; retry deliveries. |
+| `analytics:read` | Read aggregated analytics overviews. |
+
+These are the only scopes today. The middleware rejects any request whose key doesn't carry the required scope with `FORBIDDEN`.
+
+## Pick the smallest set
+
+A key that only creates sessions needs `sessions:write` — it does **not** need `sessions:read` to create. A backend that processes webhooks needs nothing if it only verifies and stores deliveries; webhook events arrive at your endpoint without any scope check on your side. A reporting tool that lists past sessions needs only `sessions:read`.
+
+Don't grant `webhooks:write` to a process that only verifies signatures. Treat scopes the way you'd treat IAM permissions.
+
+## Dashboard session mapping
+
+Session-cookie callers (the dashboard) inherit scopes from the user's role on the active organization:
+
+| Role | Scopes granted |
+|---|---|
+| `member` | `sessions:read`, `webhooks:read`, `analytics:read` |
+| `admin` | All read scopes plus `sessions:write` and `webhooks:write` |
+| `owner` | Same as admin, plus organization-management endpoints (create/delete org, reveal signing secrets, manage encryption keys). |
+
+Reads need any role. Writes need at least `admin`. This mirrors what the dashboard UI exposes: `member`-role users see resources but can't change them.
+
+## Where the mapping lives
+
+In the codebase, the canonical mapping is `packages/auth/src/permissions.ts`. The middleware that enforces it on every `/v1/*` request is in `apps/api/src/v1/auth.ts`. If you're self-hosting and need to change either, those are the two files to read together.

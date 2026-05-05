@@ -1,0 +1,56 @@
+---
+title: "Document checks"
+description: "What runs against the chip and the image, and what each failure code means."
+icon: "microchip"
+---
+
+Every accepted verification has passed every applicable check. Kayle treats document authenticity, chip authenticity, and biometric match as independent gates: any single failure is a hard reject.
+
+## The checks
+
+<Steps>
+  <Step title="MRZ parse (DG1)">
+    The Machine-Readable Zone is parsed from DG1 of the chip. Date-of-birth centuries are inferred against the document's expiry where the two-digit year is ambiguous, so children with long-dated passports are handled correctly.
+  </Step>
+
+  <Step title="Passive authentication (SOD)">
+    The Security Object Document is a CMS `SignedData` structure containing the SHA-256 hash of every data group on the chip. Kayle verifies the CMS signature against the Document Signer Certificate (DSC) embedded in the SOD, then walks the chain to a Country Signing CA (CSCA) trusted by the [ICAO PKD](https://pkddownload.icao.int) snapshot in the trust store. Each data group's hash must match what the SOD declares.
+  </Step>
+
+  <Step title="CRL revocation">
+    The DSC is checked against the Certificate Revocation Lists for its issuing CSCA. The status is one of:
+
+    - `verified_not_revoked` — fresh CRL coverage, certificate not on the list.
+    - `revoked` — the certificate is on a CRL. Hard reject.
+    - `revocation_unknown` — CRL coverage is missing or stale. Treated conservatively in production.
+  </Step>
+
+  <Step title="Active authentication (DG15)">
+    If the document carries a DG15, the chip signs a freshly derived challenge with its private key. The challenge is bound to the attempt ID so the same signature can't be replayed. A successful signature proves the chip is the same one personalised at issuance — a clone holding only the public data groups would fail this step.
+  </Step>
+
+  <Step title="Chip authentication (DG14)">
+    If the document carries a DG14, the chip and reader run an authenticated key agreement (CA-v1 or CA-v2). The transcript binds the rest of the session to the genuine chip.
+  </Step>
+
+  <Step title="Face match">
+    The on-chip portrait (DG2) is sent to the face matcher service alongside the user's selfie frames. The threshold is derived from the document holder's age — children, who change quickly, are matched more leniently than adults. The face matcher is fail-closed: an unavailable matcher rejects, and a fallback decision is rejected in production even if the score looks fine.
+  </Step>
+</Steps>
+
+The entire pipeline runs while the WebSocket is open. The chip data is processed in memory and dropped on connection close. See [Privacy](/verifications/privacy) for the storage model.
+
+## Failure codes
+
+When an attempt is rejected, the webhook payload's `data.failure_code` tells you which gate failed:
+
+| Code | Meaning |
+|---|---|
+| `passport_authenticity_failed` | Passive auth failed — the SOD signature, the DSC chain, a data-group hash, or CRL revocation rejected the document. |
+| `passport_active_authentication_failed` | DG15 was present and the chip's signature over the challenge did not verify. |
+| `passport_chip_authentication_failed` | DG14 was present and the authenticated key agreement transcript did not verify. |
+| `selfie_face_mismatch` | The face matcher rejected the selfie against the on-chip portrait. |
+| `session_expired` | The session ran past its 60-minute window before this attempt could finish. |
+| `session_cancelled` | The session was cancelled while this attempt was in progress. |
+
+The first four codes appear on `verification.attempt.failed`. The last two surface on attempts inside expired or cancelled sessions; you'll usually receive the corresponding session-level event (`verification.session.expired` / `verification.session.cancelled`) at the same time.

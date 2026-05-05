@@ -1,0 +1,67 @@
+---
+title: "Self-hosting"
+description: "Run Kayle ID on your own Cloudflare account."
+icon: "server"
+---
+
+Kayle ID is open source under Apache 2.0. The repository at [KayleAI/kayle-id](https://github.com/KayleAI/kayle-id) contains every component of the hosted service, plus scripts to seed the trust store and run the stack locally.
+
+This page is a high-level pointer. The authoritative local-development guide is `CODE_INSTRUCTIONS.md` in the repo, which is kept in sync with the code.
+
+## What you'll deploy
+
+A complete deployment runs:
+
+- **`apps/api`** — the public Cloudflare Worker. Bindings: Postgres (Hyperdrive), Cloudflare D1 (trust store), R2 (storage), the face matcher Worker. Cron-scheduled tasks for session expiry, organization deletion, and webhook delivery.
+- **`apps/platform`** — the dashboard. Cloudflare Workers + Vite + React.
+- **`apps/verify`** — the user-facing verification web app. Cloudflare Workers + Vite + React.
+- **`infra/face-matcher`** — a Worker that fronts a container running the face-matching model. The container ships with OpenCV ONNX models downloaded on first boot.
+- **Postgres** — the application database. The repository ships a Drizzle schema and migrations.
+- **Cloudflare D1** — the ICAO PKD trust store, seeded from the published LDIF files.
+- **Email provider** — Resend or any provider compatible with the `SEND_EMAIL` Workers binding for sign-in OTPs and account emails.
+- **Mobile apps** — `apps/ios` and `apps/android`. Required for NFC chip read; the web fallback alone is not a complete deployment.
+
+## What you need
+
+- A Cloudflare account with Workers, D1, R2, and Hyperdrive enabled.
+- A managed Postgres database (Neon, Supabase, RDS — anything Hyperdrive can talk to).
+- An Apple developer account if you intend to ship the iOS app, plus a physical iPhone for chip reads. The simulator does not have NFC.
+- Storage for ICAO PKD downloads. The trust store is rebuilt from `icaopkd-001-complete-XXXXX.ldif` (Defects List + objects) and `icaopkd-002-complete-XXX.ldif` (Master List). [Download](https://pkddownload.icao.int/downloads) requires registration.
+- An Infisical account if you want the same secret-management flow the maintainers use (optional).
+
+## Local setup
+
+The repository's [`CODE_INSTRUCTIONS.md`](https://github.com/KayleAI/kayle-id/blob/main/CODE_INSTRUCTIONS.md) walks through the local stack end to end:
+
+- Prerequisites (Bun, Docker, Xcode toolchain, Cap'n Proto compiler)
+- `bun run env:setup` to write a `.env` with random local secrets and dummy third-party credentials
+- `bun run db:start` and `bun run db:setup` for Postgres
+- `bun run dev:seed` to import the ICAO PKD into D1
+- `bun run dev` to launch all four Workers
+- iOS device build via `apps/ios/scripts/run-on-connected-device.sh`
+
+Don't duplicate that file's setup instructions in your own runbook. Link to it from your team docs and let it be the source of truth.
+
+## Snapshotting the OpenAPI spec
+
+The API generates its OpenAPI document at runtime. Snapshot it whenever the surface changes:
+
+```bash
+bun run dev
+bun ./apps/api/scripts/dump-openapi.ts > docs/api-reference/openapi.json
+```
+
+The script wraps the `GET /openapi` response with a few adjustments Mintlify expects: declares OpenAPI 3.1, rewrites Hono path parameters (`:event_id` → `{event_id}`), and gives the envelope's nullable `error` field an explicit object type. If you regenerate the spec by hand, you'll need to apply the same fixes.
+
+## Production considerations
+
+A short list of things that catch teams new to Cloudflare Workers:
+
+- **Compute time limits.** Workers have CPU-time budgets per request. The verify WebSocket holds the connection but offloads heavy work to the face matcher container, which is what makes the budget tractable. Don't add synchronous heavy work to the API path.
+- **Hyperdrive connection pooling.** Use Hyperdrive in front of Postgres. Long-lived connections from a Workers context are not the right shape for most managed Postgres providers.
+- **D1 trust-store size.** The PKD compiles to tens of megabytes once unpacked. D1 holds it without trouble; planning capacity is more about the SQL bundle generation step than about runtime size.
+- **Webhook retries are CRON-driven.** The `scheduled` handler in `apps/api/src/index.ts` runs the delivery queue. Make sure your Wrangler config has the cron trigger enabled for the deployed environment.
+
+## Customising the trust store
+
+The default seed comes from the ICAO PKD. If you operate against a more restricted set of CSCAs (e.g. you only care about a handful of countries), regenerate the SQL bundle from a filtered LDIF and use the same `bun run dev:seed` script with the trimmed input. Failing closed on missing CRL coverage is the right default — see `apps/api/src/v1/verify/sod-authenticity.ts` for how `revocation_unknown` is handled.

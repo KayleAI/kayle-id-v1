@@ -1,0 +1,114 @@
+---
+title: "Encrypted payloads"
+description: "Required end-to-end JWE encryption of webhook bodies."
+icon: "key"
+---
+
+Webhook payloads are always end-to-end encrypted. Kayle wraps every event body as a JWE addressed to a public key you've registered with the endpoint. Without an active encryption key, deliveries fail closed — the body is never sent. This is part of Kayle ID's privacy guarantee: Kayle, your CDN, your reverse proxy, and any intermediate logs cannot see the cleartext claims.
+
+<Warning>
+  An endpoint with no active encryption key cannot receive deliveries. The delivery row is created with `status: failed` and no payload. You must register a key before enabling the endpoint, or you'll lose the events that fire in the gap.
+</Warning>
+
+## Algorithms
+
+Kayle encrypts with **`RSA-OAEP-256`**. Register an RSA public JWK; Kayle generates a fresh content-encryption key per delivery, wraps it with your public key, and emits a compact JWE. The HTTP request carries `Content-Type: application/jose`.
+
+## Register a key
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/endpoints/whe_.../keys \
+  -H "Authorization: Bearer kk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_id": "k1",
+    "algorithm": "RSA-OAEP-256",
+    "key_type": "RSA",
+    "jwk": {
+      "kty": "RSA",
+      "n":   "...base64url...",
+      "e":   "AQAB",
+      "alg": "RSA-OAEP-256",
+      "use": "enc",
+      "kid": "k1"
+    }
+  }'
+```
+
+The response includes the registered key with a Kayle-generated `id` (`whk_...`). The `key_id` you supplied is what appears in the delivered JWE's `kid` header so your server can pick the matching private key when more than one is in rotation.
+
+A new key is created with `is_active: true` and is used immediately for new deliveries.
+
+## Generate a key pair
+
+You need a 2048-bit (or larger) RSA key pair with the public key encoded as a JWK:
+
+```bash
+# Generate a 4096-bit RSA private key
+openssl genrsa -out webhook-private.pem 4096
+
+# Extract the public key
+openssl rsa -in webhook-private.pem -pubout -out webhook-public.pem
+```
+
+Convert the public key to JWK format (using a small Node script, the [`jose`](https://github.com/panva/jose) CLI, or any JWK utility you prefer). Submit the JWK with `alg: "RSA-OAEP-256"`, `use: "enc"`, and a `kid` you choose.
+
+Store the private key in your secret manager. Kayle never sees it.
+
+## Decrypting
+
+Use any JWE library that supports compact serialization and `RSA-OAEP-256`. Verify `X-Kayle-Signature` against the JWE string Kayle sent **before** decrypting — the signature covers the encrypted body. See [Verifying signatures](/webhooks/verifying-signatures).
+
+```typescript Node.js
+import { compactDecrypt, importPKCS8 } from "jose";
+
+const privateKey = await importPKCS8(
+  process.env.WEBHOOK_PRIVATE_KEY_PEM!,
+  "RSA-OAEP-256",
+);
+
+app.post(
+  "/webhooks/kayle",
+  express.text({ type: "application/jose" }),
+  async (req, res) => {
+    // 1. Verify X-Kayle-Signature against req.body (the raw JWE string).
+    if (!verifySignature(req)) return res.sendStatus(400);
+
+    // 2. Decrypt.
+    const { plaintext } = await compactDecrypt(req.body, privateKey);
+    const event = JSON.parse(new TextDecoder().decode(plaintext));
+
+    // 3. Process.
+    res.sendStatus(200);
+  },
+);
+```
+
+## Rotating keys
+
+Register the new key with `is_active: true`. New deliveries use it immediately. To preserve the ability to decrypt deliveries that fired against the previous key, leave the previous key registered and call `POST /v1/webhooks/keys/:key_id/deactivate` to mark it inactive — Kayle won't encrypt new payloads to it, but you can still hold its private key to decrypt history.
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/keys/whk_.../deactivate \
+  -H "Authorization: Bearer kk_..."
+```
+
+To bring a previously deactivated key back as the active one (rare — usually you'd register a new key instead):
+
+```bash
+curl -X POST https://api.kayle.id/v1/webhooks/keys/whk_.../reactivate \
+  -H "Authorization: Bearer kk_..."
+```
+
+<Note>
+  Only one key per endpoint should be active at a time. If you reactivate an old key while another is also active, the active key picked for a given delivery is undefined.
+</Note>
+
+## Listing keys
+
+```bash
+curl https://api.kayle.id/v1/webhooks/endpoints/whe_.../keys \
+  -H "Authorization: Bearer kk_..."
+```
+
+Use this after a rotation to verify the right key is active.

@@ -707,7 +707,6 @@ export async function getWebhookDeliveryForOrganization({
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				eq(events.organizationId, organizationId),
-				eq(events.environment, "live"),
 			),
 		)
 		.limit(1);

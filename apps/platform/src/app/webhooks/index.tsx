@@ -103,6 +103,7 @@ export function WebhooksPage({
 	): Promise<CreateEndpointSubmissionResult> {
 		const result = await createEndpointMutation.mutateAsync({
 			enabled: input.enabled,
+			environment: input.environment,
 			name: input.name,
 			subscribedEventTypes: input.subscribedEventTypes,
 			url: input.url,

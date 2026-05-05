@@ -13,16 +13,17 @@ import { generateId } from "@/utils/generate-id";
  */
 export async function createApiKey({
 	name,
+	environment = "live",
 	organizationId,
 	metadata = {},
 	permissions,
 }: {
 	name: string;
+	environment?: "live" | "test";
 	organizationId: string;
 	permissions: ApiKeyScope[];
 	metadata?: Record<string, string | number | boolean>;
 }): Promise<{ id: string; apiKey: string }> {
-	const environment = "live";
 	const apiKey = generateId({ type: "kk", environment, length: 32 });
 
 	const keyHash = await createHMAC(apiKey, {

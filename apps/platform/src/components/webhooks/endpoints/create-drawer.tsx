@@ -14,6 +14,7 @@ import { cn } from "@kayleai/ui/utils/cn";
 import { ChevronDownIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Environment } from "@/app/webhooks/api";
 import {
 	type CreateEndpointSubmission,
 	type CreateEndpointSubmissionResult,
@@ -33,6 +34,7 @@ export function CreateEndpointDrawer({
 	const [isOpen, setIsOpen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+	const [environment, setEnvironment] = useState<Environment>("live");
 	const [enabled, setEnabled] = useState(true);
 	const [name, setName] = useState("");
 	const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([
@@ -48,6 +50,7 @@ export function CreateEndpointDrawer({
 	function resetState() {
 		setIsSubmitting(false);
 		setIsMoreOptionsOpen(false);
+		setEnvironment("live");
 		setEnabled(true);
 		setName("");
 		setSelectedEventTypes([...SUPPORTED_WEBHOOK_EVENT_TYPES]);
@@ -73,6 +76,7 @@ export function CreateEndpointDrawer({
 			setIsSubmitting(true);
 			const result = await onSubmit({
 				enabled,
+				environment,
 				initialPublicKey: await getCreateEndpointInitialPublicKey({
 					publicKeyId,
 					publicKeyInput,
@@ -203,6 +207,28 @@ export function CreateEndpointDrawer({
 								className="space-y-4 border-border/70 border-t px-4 py-4"
 								id="create-endpoint-more-options"
 							>
+								<div className="flex items-center justify-between gap-6">
+									<div className="space-y-0.5">
+										<Label>Environment</Label>
+										<p className="text-muted-foreground text-sm">
+											Test endpoints only receive events from test API keys.
+										</p>
+									</div>
+									<div className="flex flex-wrap gap-2">
+										{(["live", "test"] as Environment[]).map((option) => (
+											<Button
+												className="capitalize"
+												key={option}
+												onClick={() => setEnvironment(option)}
+												type="button"
+												variant={environment === option ? "default" : "outline"}
+											>
+												{option}
+											</Button>
+										))}
+									</div>
+								</div>
+
 								<div className="flex items-center justify-between gap-6">
 									<div className="space-y-0.5">
 										<Label htmlFor="create-endpoint-enabled">Enabled</Label>

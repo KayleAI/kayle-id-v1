@@ -15,11 +15,7 @@ export async function deleteApiKey(
 	const [deleted] = await db
 		.delete(api_keys)
 		.where(
-			and(
-				eq(api_keys.id, id),
-				eq(api_keys.organizationId, organizationId),
-				eq(api_keys.environment, "live"),
-			),
+			and(eq(api_keys.id, id), eq(api_keys.organizationId, organizationId)),
 		)
 		.returning({
 			deletedId: api_keys.id,

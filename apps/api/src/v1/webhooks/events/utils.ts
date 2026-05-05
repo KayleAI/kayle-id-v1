@@ -34,6 +34,7 @@ export async function getWebhookEventForOrganization({
 	const [event] = await db
 		.select({
 			created_at: events.createdAt,
+			environment: events.environment,
 			id: events.id,
 			trigger_id: events.triggerId,
 			trigger_type: events.triggerType,
@@ -41,11 +42,7 @@ export async function getWebhookEventForOrganization({
 		})
 		.from(events)
 		.where(
-			and(
-				eq(events.id, eventId),
-				eq(events.organizationId, organizationId),
-				eq(events.environment, "live"),
-			),
+			and(eq(events.id, eventId), eq(events.organizationId, organizationId)),
 		)
 		.limit(1);
 
@@ -68,6 +65,7 @@ export async function getWebhookEventForOrganization({
 	return {
 		created_at: event.created_at.toISOString(),
 		deliveries: deliveries.map(mapWebhookEventDelivery),
+		environment: event.environment as WebhookEventResponse["environment"],
 		id: event.id,
 		trigger_id: event.trigger_id,
 		trigger_type: event.trigger_type as WebhookEventResponse["trigger_type"],

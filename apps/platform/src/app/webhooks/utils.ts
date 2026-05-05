@@ -2,6 +2,7 @@ import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
 import { formatDate } from "@/utils/format-date";
 import {
 	type DeliveryStatus,
+	type Environment,
 	parsePublicKeyInput,
 	type WebhookDelivery,
 	type WebhookEncryptionKey,
@@ -36,6 +37,7 @@ export interface CreateEndpointInitialPublicKey {
 
 export interface CreateEndpointSubmission {
 	enabled: boolean;
+	environment: Environment;
 	initialPublicKey: CreateEndpointInitialPublicKey | null;
 	name: string | null;
 	subscribedEventTypes: string[];

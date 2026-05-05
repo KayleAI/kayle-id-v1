@@ -47,14 +47,16 @@ export function listApiKeys(): Promise<ListApiKeysResult> {
 
 export function createApiKey({
 	name,
+	environment,
 	permissions = DEFAULT_API_KEY_PERMISSIONS,
 }: {
 	name: string;
+	environment: "live" | "test";
 	permissions?: readonly ApiKeyScope[];
 }): Promise<CreateApiKeyResult> {
 	return requestApiResource<CreateApiKeyResult>({
 		basePath: API_KEYS_PATH,
-		body: { name, permissions },
+		body: { name, environment, permissions },
 		method: "POST",
 		unexpectedMessage: UNEXPECTED_API_KEY_RESPONSE,
 	});

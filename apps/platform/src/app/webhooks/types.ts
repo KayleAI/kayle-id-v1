@@ -1,11 +1,14 @@
 export type { ApiError, Pagination } from "@/utils/api-client";
 
+export type Environment = "live" | "test";
+
 export type DeliveryStatus = "pending" | "delivering" | "succeeded" | "failed";
 
 export interface WebhookEndpoint {
 	created_at: string;
 	disabled_at: string | null;
 	enabled: boolean;
+	environment: Environment;
 	id: string;
 	name: string | null;
 	organization_id: string;
@@ -54,6 +57,7 @@ export interface WebhookEventDelivery {
 export interface WebhookEvent {
 	created_at: string;
 	deliveries: WebhookEventDelivery[];
+	environment: Environment;
 	id: string;
 	trigger_id: string;
 	trigger_type: "verification_session" | "verification_attempt";

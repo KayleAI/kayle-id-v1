@@ -223,6 +223,7 @@ describe("webhook api helpers", () => {
 
 		await createWebhookEndpoint({
 			enabled: true,
+			environment: "live",
 			name: "Primary production webhook",
 			subscribedEventTypes: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 			url: "https://example.com/webhooks/kayle",
@@ -240,6 +241,7 @@ describe("webhook api helpers", () => {
 		const [, requestOptions] = fetchMock.mock.calls[0] ?? [];
 		expect(JSON.parse(String(requestOptions?.body))).toEqual({
 			enabled: true,
+			environment: "live",
 			name: "Primary production webhook",
 			subscribed_event_types: SUPPORTED_WEBHOOK_EVENT_TYPES,
 			url: "https://example.com/webhooks/kayle",

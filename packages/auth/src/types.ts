@@ -16,6 +16,7 @@ export interface Organization {
 export interface ApiKey {
   createdAt: string;
   enabled: boolean;
+  environment: "live" | "test";
   id: string;
   metadata: Record<string, unknown>;
   name: string;

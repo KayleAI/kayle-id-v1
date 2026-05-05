@@ -16,7 +16,7 @@ const createApiKeyRoute = new OpenAPIHono<{
 createApiKeyRoute.openapi(internalCreateApiKey, async (c) => {
 	const organizationId = c.get("organizationId");
 
-	const { name, metadata, permissions } = c.req.valid("json");
+	const { name, environment, metadata, permissions } = c.req.valid("json");
 
 	try {
 		// ensure the user has permission to create API keys
@@ -35,6 +35,7 @@ createApiKeyRoute.openapi(internalCreateApiKey, async (c) => {
 
 		const { id, apiKey } = await createApiKey({
 			name,
+			environment,
 			organizationId,
 			metadata,
 			permissions,

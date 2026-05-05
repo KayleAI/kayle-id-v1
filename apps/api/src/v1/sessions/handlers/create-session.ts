@@ -19,7 +19,8 @@ export const createSessionHandler: RouteHandler<
 	const query = c.req.valid("query") ?? {};
 	const body = c.req.valid("json");
 
-	const environment = c.get("environment");
+	const baseEnvironment = c.get("environment");
+	const environment = baseEnvironment === "either" ? "live" : baseEnvironment;
 	const redirectUrl = body?.redirect_url ?? null;
 
 	const normalized = normalizeShareFields(body?.share_fields);

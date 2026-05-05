@@ -13,6 +13,7 @@ const ApiKeyScopeArray = z.array(z.enum(API_KEY_SCOPES));
 
 export const ApiKeyCreateRequest = z.object({
 	name: z.string().min(1),
+	environment: z.enum(["live", "test"]).optional(),
 	permissions: ApiKeyScopeArray.min(1),
 	metadata: ApiKeyMetadata.optional(),
 });
@@ -44,6 +45,7 @@ export const ApiKeyListItem = z.object({
 	id: z.string(),
 	name: z.string(),
 	enabled: z.boolean(),
+	environment: z.enum(["live", "test"]),
 	permissions: z.array(z.string()),
 	metadata: ApiKeyMetadata,
 	createdAt: z.date(),

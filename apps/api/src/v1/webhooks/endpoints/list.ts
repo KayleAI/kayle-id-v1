@@ -18,6 +18,7 @@ const listAndCreateEndpoints = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
 		organizationId: string;
+		environment: "live" | "test" | "either";
 		type: "api" | "session";
 	};
 }>();
@@ -30,7 +31,9 @@ listAndCreateEndpoints.openapi(listWebhookEndpoints, async (c) => {
 
 	const where = and(
 		eq(webhook_endpoints.organizationId, organizationId),
-		eq(webhook_endpoints.environment, "live"),
+		...(query.environment
+			? [eq(webhook_endpoints.environment, query.environment)]
+			: []),
 		...(typeof query.enabled === "boolean"
 			? [eq(webhook_endpoints.enabled, query.enabled)]
 			: []),
@@ -72,7 +75,12 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
 	const body = c.req.valid("json");
 
-	const environment: Environment = "live";
+	const callerEnvironment = c.get("environment");
+	const requestedEnvironment = body.environment as Environment | undefined;
+	const environment: Environment =
+		callerEnvironment === "either"
+			? (requestedEnvironment ?? "live")
+			: callerEnvironment;
 	const enabled = body.enabled ?? true;
 	const subscribedEventTypes = body.subscribed_event_types ?? [
 		...SUPPORTED_WEBHOOK_EVENT_TYPES,

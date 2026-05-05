@@ -35,11 +35,7 @@ export async function updateApiKey(
 			metadata,
 		})
 		.where(
-			and(
-				eq(api_keys.id, id),
-				eq(api_keys.organizationId, organizationId),
-				eq(api_keys.environment, "live"),
-			),
+			and(eq(api_keys.id, id), eq(api_keys.organizationId, organizationId)),
 		)
 		.returning({
 			updatedId: api_keys.id,

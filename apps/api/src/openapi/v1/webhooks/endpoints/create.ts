@@ -28,6 +28,12 @@ export const createWebhookEndpoint = createRoute({
 									"The URL of the webhook endpoint. Must use https:// (http:// is only accepted for localhost in development).",
 								)
 								.openapi({ example: "https://example.com/webhooks/kayle" }),
+							environment: z
+								.enum(["live", "test"])
+								.optional()
+								.describe(
+									'The environment for the endpoint. Defaults to "live".',
+								),
 							enabled: z
 								.boolean()
 								.optional()

@@ -5,6 +5,7 @@ import {
 } from "@/utils/api-client";
 import type {
 	DeliveryStatus,
+	Environment,
 	WebhookDeleteResult,
 	WebhookDelivery,
 	WebhookEncryptionKey,
@@ -18,6 +19,7 @@ export { parseJwkInput, parsePublicKeyInput } from "./jwk";
 export type {
 	ApiError,
 	DeliveryStatus,
+	Environment,
 	Pagination,
 	WebhookDeleteResult,
 	WebhookDelivery,
@@ -34,10 +36,12 @@ const UNEXPECTED_WEBHOOK_RESPONSE = "Unexpected webhook response.";
 
 export function listWebhookEndpoints({
 	enabled,
+	environment,
 	limit = 20,
 	startingAfter,
 }: {
 	enabled?: boolean;
+	environment?: Environment;
 	limit?: number;
 	startingAfter?: string | null;
 } = {}): Promise<{ data: WebhookEndpoint[]; pagination: Pagination }> {
@@ -46,6 +50,7 @@ export function listWebhookEndpoints({
 		path: "/endpoints",
 		query: {
 			enabled,
+			environment,
 			limit,
 			starting_after: startingAfter,
 		},
@@ -55,11 +60,13 @@ export function listWebhookEndpoints({
 
 export function createWebhookEndpoint({
 	enabled,
+	environment,
 	name,
 	subscribedEventTypes,
 	url,
 }: {
 	enabled: boolean;
+	environment: Environment;
 	name?: string | null;
 	subscribedEventTypes: string[];
 	url: string;
@@ -71,6 +78,7 @@ export function createWebhookEndpoint({
 		body: {
 			name,
 			url,
+			environment,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
 		},
@@ -207,9 +215,11 @@ export function reactivateWebhookKey(
 }
 
 export function listWebhookEvents({
+	environment,
 	limit = 20,
 	startingAfter,
 }: {
+	environment?: Environment;
 	limit?: number;
 	startingAfter?: string | null;
 } = {}): Promise<{ data: WebhookEvent[]; pagination: Pagination }> {
@@ -217,6 +227,7 @@ export function listWebhookEvents({
 		basePath: WEBHOOKS_PATH,
 		path: "/events",
 		query: {
+			environment,
 			limit,
 			starting_after: startingAfter,
 		},
@@ -235,11 +246,13 @@ export function replayWebhookEvent(eventId: string): Promise<WebhookEvent> {
 
 export function listWebhookDeliveries({
 	endpointId,
+	environment,
 	limit = 20,
 	startingAfter,
 	status,
 }: {
 	endpointId?: string;
+	environment?: Environment;
 	limit?: number;
 	startingAfter?: string | null;
 	status?: DeliveryStatus;
@@ -249,6 +262,7 @@ export function listWebhookDeliveries({
 		path: "/deliveries",
 		query: {
 			endpoint_id: endpointId,
+			environment,
 			limit,
 			starting_after: startingAfter,
 			status,

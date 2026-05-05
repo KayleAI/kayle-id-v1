@@ -11,13 +11,17 @@ import {
 import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
 import { Textarea } from "@kayleai/ui/textarea";
+import { cn } from "@kayleai/ui/utils/cn";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import { API_KEYS_QUERY_KEY, createApiKey } from "./api";
 
+type Environment = "live" | "test";
+
 interface FormState {
 	apiKey: string | null;
+	environment: Environment;
 	errorMessage: string;
 	name: string;
 	status: "idle" | "loading" | "success" | "error";
@@ -25,6 +29,7 @@ interface FormState {
 
 type FormAction =
 	| { type: "SET_NAME"; name: string }
+	| { type: "SET_ENVIRONMENT"; environment: Environment }
 	| { type: "SUBMIT" }
 	| { type: "SUCCESS"; apiKey: string }
 	| { type: "ERROR"; message: string }
@@ -34,6 +39,7 @@ type FormAction =
 const initialFormState: FormState = {
 	status: "idle",
 	name: "",
+	environment: "live",
 	errorMessage: "",
 	apiKey: null,
 };
@@ -47,6 +53,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
 				status: state.status === "error" ? "idle" : state.status,
 				errorMessage: state.status === "error" ? "" : state.errorMessage,
 			};
+		case "SET_ENVIRONMENT":
+			return { ...state, environment: action.environment };
 		case "SUBMIT":
 			return { ...state, status: "loading", errorMessage: "" };
 		case "SUCCESS":
@@ -148,6 +156,42 @@ function ApiKeyFormView({
 						value={state.name}
 					/>
 				</div>
+				<div className="space-y-2">
+					<Label htmlFor="environment">Environment</Label>
+					<fieldset className="inline-flex rounded-full border">
+						<Button
+							className={cn(
+								"rounded-r-none border-r",
+								state.environment === "live"
+									? "bg-primary text-primary-foreground"
+									: "bg-background hover:bg-muted",
+							)}
+							id="environment"
+							onClick={() =>
+								dispatch({ type: "SET_ENVIRONMENT", environment: "live" })
+							}
+							type="button"
+							variant={state.environment === "live" ? "default" : "ghost"}
+						>
+							Live
+						</Button>
+						<Button
+							className={cn(
+								"rounded-l-none",
+								state.environment === "test"
+									? "bg-primary text-primary-foreground"
+									: "bg-background hover:bg-muted",
+							)}
+							onClick={() =>
+								dispatch({ type: "SET_ENVIRONMENT", environment: "test" })
+							}
+							type="button"
+							variant={state.environment === "test" ? "default" : "ghost"}
+						>
+							Test
+						</Button>
+					</fieldset>
+				</div>
 			</div>
 			<DialogFooter>
 				<Button disabled={isLoading || !state.name.trim()} onClick={onSubmit}>
@@ -175,7 +219,10 @@ export function CreateApiKey() {
 		dispatch({ type: "SUBMIT" });
 
 		try {
-			const { key } = await createApiKey({ name: state.name.trim() });
+			const { key } = await createApiKey({
+				name: state.name.trim(),
+				environment: state.environment,
+			});
 
 			if (!key) {
 				dispatch({

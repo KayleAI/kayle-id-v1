@@ -30,7 +30,6 @@ replayEvent.openapi(replayWebhookEvent, async (c) => {
 			and(
 				eq(events.id, params.event_id),
 				eq(events.organizationId, organizationId),
-				eq(events.environment, "live"),
 			),
 		)
 		.limit(1);

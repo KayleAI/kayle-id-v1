@@ -15,7 +15,7 @@ export const listWebhookEncryptionKeys = createRoute({
 			endpoint_id: z
 				.string()
 				.describe(
-					"The ID of the webhook endpoint whose keys should be listed (e.g. whe_live_...).",
+					"The ID of the webhook endpoint whose keys should be listed (e.g. whe_...).",
 				),
 		}),
 		query: z.object({

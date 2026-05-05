@@ -7,7 +7,7 @@ import {
 import { and, eq, gt } from "drizzle-orm";
 import { createWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/create";
 import { listWebhookEncryptionKeys } from "@/openapi/v1/webhooks/keys/list";
-import { type Environment, generateKeyId, mapKeyRowToResponse } from "./utils";
+import { generateKeyId, mapKeyRowToResponse } from "./utils";
 
 const endpointKeys = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
@@ -29,7 +29,6 @@ endpointKeys.openapi(createWebhookEncryptionKey, async (c) => {
 			and(
 				eq(webhook_endpoints.id, params.endpoint_id),
 				eq(webhook_endpoints.organizationId, organizationId),
-				eq(webhook_endpoints.environment, "live"),
 			),
 		)
 		.limit(1);
@@ -49,8 +48,7 @@ endpointKeys.openapi(createWebhookEncryptionKey, async (c) => {
 		);
 	}
 
-	const environment = endpoint.environment as Environment;
-	const id = generateKeyId(environment);
+	const id = generateKeyId();
 	const now = new Date();
 
 	await db
@@ -98,7 +96,6 @@ endpointKeys.openapi(listWebhookEncryptionKeys, async (c) => {
 			and(
 				eq(webhook_endpoints.id, params.endpoint_id),
 				eq(webhook_endpoints.organizationId, organizationId),
-				eq(webhook_endpoints.environment, "live"),
 			),
 		)
 		.limit(1);

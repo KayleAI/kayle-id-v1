@@ -103,9 +103,8 @@ describe("/v1/analytics/sessions/overview", () => {
 
 			await db.insert(verification_sessions).values([
 				{
-					id: "vs_live_analytics_active",
+					id: "vs_analytics_active",
 					organizationId,
-					environment: "live",
 					status: "created",
 					contractVersion: 1,
 					shareFields: {},
@@ -113,9 +112,8 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: getUtcDateOffset(2, 12),
 				},
 				{
-					id: "vs_live_analytics_success",
+					id: "vs_analytics_success",
 					organizationId,
-					environment: "live",
 					status: "completed",
 					contractVersion: 1,
 					shareFields: {},
@@ -124,9 +122,8 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: getUtcDateOffset(3, 12),
 				},
 				{
-					id: "vs_live_analytics_success_before_window",
+					id: "vs_analytics_success_before_window",
 					organizationId,
-					environment: "live",
 					status: "completed",
 					contractVersion: 1,
 					shareFields: {},
@@ -135,9 +132,8 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: getUtcDateOffset(-18, 12),
 				},
 				{
-					id: "vs_live_analytics_failure",
+					id: "vs_analytics_failure",
 					organizationId,
-					environment: "live",
 					status: "completed",
 					contractVersion: 1,
 					shareFields: {},
@@ -146,9 +142,8 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: getUtcDateOffset(3, 12),
 				},
 				{
-					id: "vs_live_analytics_expired",
+					id: "vs_analytics_expired",
 					organizationId,
-					environment: "live",
 					status: "expired",
 					contractVersion: 1,
 					shareFields: {},
@@ -157,9 +152,8 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: expiredCompletedAt,
 				},
 				{
-					id: "vs_live_analytics_cancelled",
+					id: "vs_analytics_cancelled",
 					organizationId,
-					environment: "live",
 					status: "cancelled",
 					contractVersion: 1,
 					shareFields: {},
@@ -168,60 +162,42 @@ describe("/v1/analytics/sessions/overview", () => {
 					expiresAt: getUtcDateOffset(2, 12),
 				},
 				{
-					id: "vs_live_analytics_derived_expired",
+					id: "vs_analytics_derived_expired",
 					organizationId,
-					environment: "live",
 					status: "created",
 					contractVersion: 1,
 					shareFields: {},
 					createdAt: derivedExpiredCreatedAt,
 					expiresAt: derivedExpiredAt,
 				},
-				{
-					id: "vs_test_analytics_ignored",
-					organizationId,
-					environment: "test",
-					status: "completed",
-					contractVersion: 1,
-					shareFields: {},
-					completedAt: successCompletedAt,
-					createdAt: successCreatedAt,
-					expiresAt: getUtcDateOffset(1, 12),
-				},
 			]);
 
 			await db.insert(verification_attempts).values([
 				{
-					id: "va_live_analytics_success_failed",
-					verificationSessionId: "vs_live_analytics_success",
+					id: "va_analytics_success_failed",
+					verificationSessionId: "vs_analytics_success",
 					status: "failed",
 					failureCode: "selfie_face_mismatch",
 					completedAt: getUtcDateOffset(-1, 8),
 				},
 				{
-					id: "va_live_analytics_success_succeeded",
-					verificationSessionId: "vs_live_analytics_success",
+					id: "va_analytics_success_succeeded",
+					verificationSessionId: "vs_analytics_success",
 					status: "succeeded",
 					completedAt: successCompletedAt,
 				},
 				{
-					id: "va_live_analytics_success_before_window_succeeded",
-					verificationSessionId: "vs_live_analytics_success_before_window",
+					id: "va_analytics_success_before_window_succeeded",
+					verificationSessionId: "vs_analytics_success_before_window",
 					status: "succeeded",
 					completedAt: earlierSuccessCompletedAt,
 				},
 				{
-					id: "va_live_analytics_failure_failed",
-					verificationSessionId: "vs_live_analytics_failure",
+					id: "va_analytics_failure_failed",
+					verificationSessionId: "vs_analytics_failure",
 					status: "failed",
 					failureCode: "passport_authenticity_failed",
 					completedAt: failureCompletedAt,
-				},
-				{
-					id: "va_test_analytics_ignored",
-					verificationSessionId: "vs_test_analytics_ignored",
-					status: "succeeded",
-					completedAt: successCompletedAt,
 				},
 			]);
 
@@ -354,36 +330,32 @@ describe("normalizeExpiredVerificationSessions", () => {
 
 		await db.insert(verification_sessions).values([
 			{
-				id: "vs_live_normalize_due",
+				id: "vs_normalize_due_one",
 				organizationId,
-				environment: "live",
 				status: "created",
 				contractVersion: 1,
 				shareFields: {},
 				expiresAt: getUtcDateOffset(-1, 12),
 			},
 			{
-				id: "vs_test_normalize_due",
+				id: "vs_normalize_due_two",
 				organizationId,
-				environment: "test",
 				status: "in_progress",
 				contractVersion: 1,
 				shareFields: {},
 				expiresAt: getUtcDateOffset(-2, 12),
 			},
 			{
-				id: "vs_live_normalize_future",
+				id: "vs_normalize_future",
 				organizationId,
-				environment: "live",
 				status: "created",
 				contractVersion: 1,
 				shareFields: {},
 				expiresAt: getUtcDateOffset(1, 12),
 			},
 			{
-				id: "vs_live_normalize_done",
+				id: "vs_normalize_done",
 				organizationId,
-				environment: "live",
 				status: "completed",
 				contractVersion: 1,
 				shareFields: {},
@@ -403,16 +375,12 @@ describe("normalizeExpiredVerificationSessions", () => {
 		);
 
 		expect(processed).toBe(2);
-		expect(sessionsById.get("vs_live_normalize_due")?.status).toBe("expired");
+		expect(sessionsById.get("vs_normalize_due_one")?.status).toBe("expired");
 		expect(
-			sessionsById.get("vs_live_normalize_due")?.completedAt,
+			sessionsById.get("vs_normalize_due_one")?.completedAt,
 		).not.toBeNull();
-		expect(sessionsById.get("vs_test_normalize_due")?.status).toBe("expired");
-		expect(sessionsById.get("vs_live_normalize_future")?.status).toBe(
-			"created",
-		);
-		expect(sessionsById.get("vs_live_normalize_done")?.status).toBe(
-			"completed",
-		);
+		expect(sessionsById.get("vs_normalize_due_two")?.status).toBe("expired");
+		expect(sessionsById.get("vs_normalize_future")?.status).toBe("created");
+		expect(sessionsById.get("vs_normalize_done")?.status).toBe("completed");
 	});
 });

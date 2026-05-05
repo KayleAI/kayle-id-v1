@@ -45,9 +45,6 @@ export const api_keys = pgTable(
 		organizationId: uuid("organization_id")
 			.notNull()
 			.references(() => auth_organizations.id, { onDelete: "cascade" }),
-		environment: text({ enum: ["live", "test"] })
-			.default("live")
-			.notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()
@@ -80,15 +77,12 @@ export const verification_sessions = pgTable(
 		/**
 		 * The ID of the verification session.
 		 *
-		 * Always prefixed with `vs_{live|test}_...`
+		 * Always prefixed with `vs_...`
 		 */
 		id: text("id").primaryKey(),
 		organizationId: uuid("organization_id")
 			.notNull()
 			.references(() => auth_organizations.id, { onDelete: "cascade" }),
-		environment: text({ enum: ["live", "test"] })
-			.default("live")
-			.notNull(),
 		status: text({
 			enum: verificationSessionStatuses,
 		})
@@ -136,11 +130,8 @@ export const verification_sessions = pgTable(
 			.notNull(),
 	},
 	(table) => [
-		// List sessions for an org/env
-		index("verif_sessions_org_env_idx").on(
-			table.organizationId,
-			table.environment,
-		),
+		// List sessions for an org
+		index("verif_sessions_org_idx").on(table.organizationId),
 		// Expiry-based GC
 		index("verif_sessions_expires_at_idx").on(table.expiresAt),
 		index("verif_sessions_status_idx").on(table.status),
@@ -153,7 +144,7 @@ export const verification_attempts = pgTable(
 		/**
 		 * The ID of the verification attempt.
 		 *
-		 * Always prefixed with `va_{live|test}_...`
+		 * Always prefixed with `va_...`
 		 */
 		id: text("id").primaryKey(),
 		/**
@@ -273,17 +264,13 @@ export const events = pgTable(
 		/**
 		 * The ID of the event.
 		 *
-		 * Always prefixed with `evt_{live|test}_...`
+		 * Always prefixed with `evt_...`
 		 */
 		id: text("id").primaryKey(),
 
 		organizationId: uuid("organization_id")
 			.notNull()
 			.references(() => auth_organizations.id, { onDelete: "cascade" }),
-
-		environment: text({ enum: ["live", "test"] })
-			.default("live")
-			.notNull(),
 
 		/**
 		 * The type of the event.
@@ -300,8 +287,8 @@ export const events = pgTable(
 		 *
 		 * This is a generic reference and is not a foreign key.
 		 * For example:
-		 * - a verification session ID (`vs_live_...`)
-		 * - a verification attempt ID (`va_live_...`)
+		 * - a verification session ID (`vs_...`)
+		 * - a verification attempt ID (`va_...`)
 		 */
 		triggerId: text("trigger_id").notNull(),
 
@@ -317,12 +304,8 @@ export const events = pgTable(
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 	},
 	(table) => [
-		// Events per org/env ordered by time
-		index("events_org_env_created_idx").on(
-			table.organizationId,
-			table.environment,
-			table.createdAt,
-		),
+		// Events per org ordered by time
+		index("events_org_created_idx").on(table.organizationId, table.createdAt),
 		// Filter by type
 		index("events_type_idx").on(table.type),
 	],

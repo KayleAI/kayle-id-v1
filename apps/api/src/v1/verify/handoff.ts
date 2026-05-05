@@ -3,7 +3,7 @@ import {
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
 import { isTerminalSessionStatus } from "./status";
@@ -47,7 +47,6 @@ export async function issueHandoffPayload(
 	const [session] = await db
 		.select({
 			id: verification_sessions.id,
-			environment: verification_sessions.environment,
 			organizationId: verification_sessions.organizationId,
 			status: verification_sessions.status,
 			completedAt: verification_sessions.completedAt,
@@ -61,12 +60,7 @@ export async function issueHandoffPayload(
 			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
 		})
 		.from(verification_sessions)
-		.where(
-			and(
-				eq(verification_sessions.id, sessionId),
-				eq(verification_sessions.environment, "live"),
-			),
-		)
+		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
 	if (!session) {
@@ -155,7 +149,6 @@ export async function issueHandoffPayload(
 	} else {
 		attemptId = generateId({
 			type: "va",
-			environment: normalizedSession.environment,
 		});
 		issuedAt = now;
 		expiresAt = new Date(now.getTime() + HANDOFF_TOKEN_TTL_MS);

@@ -83,24 +83,9 @@ async function insertAttempt({
 	status: "failed" | "succeeded";
 	statusCode: number | null;
 }): Promise<void> {
-	const [delivery] = await db
-		.select({
-			environment: events.environment,
-			organizationId: events.organizationId,
-		})
-		.from(webhook_deliveries)
-		.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
-		.where(eq(webhook_deliveries.id, deliveryId))
-		.limit(1);
-
-	if (!delivery) {
-		throw new Error("webhook_delivery_missing_for_attempt");
-	}
-
 	await db.insert(webhook_delivery_attempts).values({
 		id: generateId({
 			type: "wha",
-			environment: delivery.environment,
 		}),
 		status,
 		statusCode,
@@ -344,13 +329,11 @@ async function persistWebhookDeliveryAttemptResult({
 }
 
 async function createWebhookDeliveriesForEvent({
-	environment,
 	eventId,
 	eventType,
 	organizationId,
 	payload,
 }: {
-	environment: "live" | "test";
 	eventId: string;
 	eventType: SupportedWebhookEventType;
 	organizationId: string;
@@ -363,7 +346,6 @@ async function createWebhookDeliveriesForEvent({
 		.where(
 			and(
 				eq(webhook_endpoints.organizationId, organizationId),
-				eq(webhook_endpoints.environment, environment),
 				eq(webhook_endpoints.enabled, true),
 			),
 		);
@@ -396,7 +378,6 @@ async function createWebhookDeliveriesForEvent({
 		const key = keysByEndpointId.get(endpoint.id) ?? null;
 		const deliveryId = generateId({
 			type: "whd",
-			environment: endpoint.environment,
 		});
 		createdDeliveryIds.push(deliveryId);
 
@@ -459,19 +440,16 @@ async function createWebhookDeliveriesForEvent({
 
 export function createWebhookDeliveriesForVerificationSucceeded({
 	attemptId,
-	environment,
 	eventId,
 	manifest,
 	organizationId,
 }: {
 	attemptId: string;
-	environment: "live" | "test";
 	eventId: string;
 	manifest: VerifyShareManifest;
 	organizationId: string;
 }): Promise<string[]> {
 	return createWebhookDeliveriesForEvent({
-		environment,
 		eventId,
 		eventType: "verification.attempt.succeeded",
 		organizationId,
@@ -486,7 +464,6 @@ export function createWebhookDeliveriesForVerificationSucceeded({
 export function createWebhookDeliveriesForVerificationAttemptFailed({
 	attemptId,
 	contractVersion,
-	environment,
 	eventId,
 	failureCode,
 	organizationId,
@@ -494,14 +471,12 @@ export function createWebhookDeliveriesForVerificationAttemptFailed({
 }: {
 	attemptId: string;
 	contractVersion: number;
-	environment: "live" | "test";
 	eventId: string;
 	failureCode: VerificationAttemptFailedCode;
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
 	return createWebhookDeliveriesForEvent({
-		environment,
 		eventId,
 		eventType: "verification.attempt.failed",
 		organizationId,
@@ -517,19 +492,16 @@ export function createWebhookDeliveriesForVerificationAttemptFailed({
 
 export function createWebhookDeliveriesForVerificationSessionExpired({
 	contractVersion,
-	environment,
 	eventId,
 	organizationId,
 	sessionId,
 }: {
 	contractVersion: number;
-	environment: "live" | "test";
 	eventId: string;
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
 	return createWebhookDeliveriesForEvent({
-		environment,
 		eventId,
 		eventType: "verification.session.expired",
 		organizationId,
@@ -543,19 +515,16 @@ export function createWebhookDeliveriesForVerificationSessionExpired({
 
 export function createWebhookDeliveriesForVerificationSessionCancelled({
 	contractVersion,
-	environment,
 	eventId,
 	organizationId,
 	sessionId,
 }: {
 	contractVersion: number;
-	environment: "live" | "test";
 	eventId: string;
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
 	return createWebhookDeliveriesForEvent({
-		environment,
 		eventId,
 		eventType: "verification.session.cancelled",
 		organizationId,
@@ -707,7 +676,6 @@ export async function getWebhookDeliveryForOrganization({
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				eq(events.organizationId, organizationId),
-				eq(events.environment, "live"),
 			),
 		)
 		.limit(1);

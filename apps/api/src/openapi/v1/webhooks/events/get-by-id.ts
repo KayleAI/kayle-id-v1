@@ -10,9 +10,7 @@ export const getWebhookEvent = createRoute({
 		params: z.object({
 			event_id: z
 				.string()
-				.describe(
-					"The ID of the webhook event to retrieve (e.g. evt_live_...).",
-				),
+				.describe("The ID of the webhook event to retrieve (e.g. evt_...)."),
 		}),
 	},
 	tags: ["Webhooks"],

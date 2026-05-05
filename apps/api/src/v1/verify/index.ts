@@ -1,6 +1,6 @@
 import { db } from "@kayle-id/database/drizzle";
 import { verification_sessions } from "@kayle-id/database/schema/core";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -197,12 +197,7 @@ verify.post(
 		const [rawSession] = await db
 			.select()
 			.from(verification_sessions)
-			.where(
-				and(
-					eq(verification_sessions.id, id),
-					eq(verification_sessions.environment, "live"),
-				),
-			)
+			.where(eq(verification_sessions.id, id))
 			.limit(1);
 
 		if (!rawSession) {

@@ -137,7 +137,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 
 	test.serial("Returns 404 for unknown session", async () => {
 		const unknownSessionId =
-			"vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+			"vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
 
 		const response = await app.request(
 			`/v1/verify/session/${unknownSessionId}/handoff`,
@@ -475,7 +475,7 @@ describe("/v1/verify/session/:id/status", () => {
 		"Returns 404 when cancelling an unknown verification session",
 		async () => {
 			const response = await app.request(
-				"/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
+				"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
 				{
 					body: JSON.stringify({ cancel_token: "ct_anything" }),
 					headers: { "Content-Type": "application/json" },
@@ -504,7 +504,7 @@ describe("/v1/verify/session/:id/status", () => {
 
 	test.serial("Returns 404 for unknown session", async () => {
 		const response = await app.request(
-			"/v1/verify/session/vs_test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/status",
+			"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/status",
 			{
 				method: "GET",
 			},

@@ -29,13 +29,12 @@ async function createSessionAndAttempt(): Promise<{
 	attemptId: string;
 }> {
 	const organizationId = TEST_DATA?.organizationId as string;
-	const sessionId = `vs_live_${crypto.randomUUID()}`;
-	const attemptId = `va_live_${crypto.randomUUID()}`;
+	const sessionId = `vs_${crypto.randomUUID()}`;
+	const attemptId = `va_${crypto.randomUUID()}`;
 
 	await db.insert(verification_sessions).values({
 		id: sessionId,
 		organizationId,
-		environment: "live",
 	});
 	await db.insert(verification_attempts).values({
 		id: attemptId,

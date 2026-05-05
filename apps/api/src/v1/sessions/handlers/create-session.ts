@@ -19,7 +19,6 @@ export const createSessionHandler: RouteHandler<
 	const query = c.req.valid("query") ?? {};
 	const body = c.req.valid("json");
 
-	const environment = c.get("environment");
 	const redirectUrl = body?.redirect_url ?? null;
 
 	const normalized = normalizeShareFields(body?.share_fields);
@@ -48,11 +47,10 @@ export const createSessionHandler: RouteHandler<
 		);
 	}
 
-	const id = generateId({ type: "vs", environment });
+	const id = generateId({ type: "vs" });
 	const { row: created, cancelToken } = await createVerificationSession({
 		id,
 		organizationId,
-		environment,
 		redirectUrl,
 		shareFields: normalized.shareFields,
 		contractVersion,
@@ -62,7 +60,6 @@ export const createSessionHandler: RouteHandler<
 		event: "sessions.create.created",
 		organization_id: organizationId,
 		session_id: created.id,
-		session_environment: created.environment,
 		share_field_count: Object.keys(normalized.shareFields).length,
 	});
 

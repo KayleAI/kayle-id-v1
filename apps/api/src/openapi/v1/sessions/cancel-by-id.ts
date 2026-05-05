@@ -9,7 +9,7 @@ export const cancelSession = createRoute({
 	request: {
 		params: z.object({
 			id: sessionIdSchema.describe(
-				"The ID of the verification session to cancel (e.g. vs_live_...).",
+				"The ID of the verification session to cancel (e.g. vs_...).",
 			),
 		}),
 	},

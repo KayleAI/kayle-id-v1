@@ -68,7 +68,6 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 		.values({
 			id: "whe_test_delivery_pending",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.succeeded"],
 			url: "https://example.com/webhooks/kayle",
@@ -92,7 +91,6 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 		.values({
 			id: "evt_test_delivery_pending",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			type: "verification.attempt.succeeded",
 			triggerId: "va_test_delivery_pending",
 			triggerType: "verification_attempt",
@@ -101,7 +99,6 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 
 	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
 		attemptId: "va_test_delivery_pending",
-		environment: "test",
 		eventId: event.id,
 		manifest: {
 			claims: {
@@ -183,7 +180,6 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 		.values({
 			id: "whe_test_delivery_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.failed"],
 			url: "https://example.com/webhooks/kayle/failed",
@@ -207,7 +203,6 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 		.values({
 			id: "evt_test_delivery_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			type: "verification.attempt.failed",
 			triggerId: "va_test_delivery_failed",
 			triggerType: "verification_attempt",
@@ -218,14 +213,13 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 		await createWebhookDeliveriesForVerificationAttemptFailed({
 			attemptId: "va_test_delivery_failed",
 			contractVersion: 1,
-			environment: "test",
 			eventId: event.id,
 			failureCode: "selfie_face_mismatch",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			sessionId: "vs_test_delivery_failed",
 		});
 
-	expect(deliveryId?.startsWith("whd_test_")).toBeTrue();
+	expect(deliveryId?.startsWith("whd_")).toBeTrue();
 
 	const [delivery] = await db
 		.select()
@@ -286,7 +280,6 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 		.values({
 			id: "whe_test_delivery_cancelled",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.session.cancelled"],
 			url: "https://example.com/webhooks/kayle/cancelled",
@@ -310,7 +303,6 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 		.values({
 			id: "evt_test_delivery_cancelled",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			type: "verification.session.cancelled",
 			triggerId: "vs_test_delivery_cancelled",
 			triggerType: "verification_session",
@@ -320,13 +312,12 @@ test("createWebhookDeliveriesForVerificationSessionCancelled creates a pending e
 	const [deliveryId] =
 		await createWebhookDeliveriesForVerificationSessionCancelled({
 			contractVersion: 1,
-			environment: "test",
 			eventId: event.id,
 			organizationId: TEST_DATA?.organizationId ?? "",
 			sessionId: "vs_test_delivery_cancelled",
 		});
 
-	expect(deliveryId?.startsWith("whd_test_")).toBeTrue();
+	expect(deliveryId?.startsWith("whd_")).toBeTrue();
 
 	const [delivery] = await db
 		.select()
@@ -381,7 +372,6 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 		.values({
 			id: "whe_test_delivery_send",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			signingSecretCiphertext,
 			subscribedEventTypes: ["verification.attempt.failed"],
 			url: "https://example.com/webhooks/send",
@@ -400,7 +390,6 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 		.values({
 			id: "evt_test_delivery_send",
 			organizationId: TEST_DATA?.organizationId ?? "",
-			environment: "test",
 			type: "verification.attempt.failed",
 			triggerId: "va_test_delivery_send",
 			triggerType: "verification_attempt",
@@ -411,7 +400,6 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 		await createWebhookDeliveriesForVerificationAttemptFailed({
 			attemptId: "va_test_delivery_send",
 			contractVersion: 1,
-			environment: "test",
 			eventId: event.id,
 			failureCode: "passport_authenticity_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",

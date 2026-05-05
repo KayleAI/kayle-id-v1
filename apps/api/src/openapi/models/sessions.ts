@@ -113,7 +113,7 @@ export const Session = z
 	.openapi({
 		examples: [
 			{
-				id: "vs_live_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
+				id: "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
 				status: "created",
 				contract_version: 1,
 				share_fields: {
@@ -135,7 +135,7 @@ export const Session = z
 				},
 				redirect_url: "https://example.com/redirect",
 				verification_url:
-					"https://verify.kayle.id/vs_live_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
+					"https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
 				expires_at: "2025-01-01T00:00:00Z",
 				completed_at: null,
 				created_at: "2025-01-01T00:00:00Z",

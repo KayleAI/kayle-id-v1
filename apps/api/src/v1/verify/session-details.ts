@@ -1,7 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export type PublicVerifySessionDetails = {
 	organization_name: string;
@@ -23,12 +23,7 @@ export async function getPublicVerifySessionDetails({
 			auth_organizations,
 			eq(auth_organizations.id, verification_sessions.organizationId),
 		)
-		.where(
-			and(
-				eq(verification_sessions.id, sessionId),
-				eq(verification_sessions.environment, "live"),
-			),
-		)
+		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
 	if (!session) {

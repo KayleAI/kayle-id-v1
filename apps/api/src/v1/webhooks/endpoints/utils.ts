@@ -8,16 +8,14 @@ import type {
 } from "@kayle-id/database/schema/webhooks";
 import { generateId, generateRandomString } from "@/utils/generate-id";
 
-export type Environment = "live" | "test";
-
 const SIGNING_SECRET_RANDOM_LENGTH = 32;
 
-export function generateEndpointId(environment: Environment): string {
-	return generateId({ type: "whe", environment, length: 32 });
+export function generateEndpointId(): string {
+	return generateId({ type: "whe", length: 32 });
 }
 
-export function generateKeyId(environment: Environment): string {
-	return generateId({ type: "whk", environment, length: 32 });
+export function generateKeyId(): string {
+	return generateId({ type: "whk", length: 32 });
 }
 
 export function generateSigningSecret(): string {

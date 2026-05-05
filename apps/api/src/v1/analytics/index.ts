@@ -5,14 +5,12 @@ import { getVerificationSessionAnalyticsOverview } from "@/v1/sessions/repo/sess
 const analytics = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
-		environment: "live";
 		organizationId: string;
 	};
 }>();
 
 analytics.openapi(getSessionsOverview, async (c) => {
 	const data = await getVerificationSessionAnalyticsOverview({
-		environment: c.get("environment"),
 		organizationId: c.get("organizationId"),
 	});
 

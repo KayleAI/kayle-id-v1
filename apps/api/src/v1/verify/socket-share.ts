@@ -77,7 +77,6 @@ export async function handleShareSelectionMessage(
 	state.shareManifest = result.manifest;
 	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
 		attemptId: state.attemptId,
-		environment: session.environment,
 		eventId: successResult.attemptSucceededEventId,
 		manifest: result.manifest,
 		organizationId: session.organizationId,

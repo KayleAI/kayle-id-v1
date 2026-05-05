@@ -104,7 +104,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 	};
 
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading
 				button={
 					<Badge
@@ -163,7 +163,6 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 										<Button
 											disabled={updateMutation.isPending}
 											onClick={handleSaveName}
-											size="sm"
 											type="button"
 										>
 											Save
@@ -171,7 +170,6 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 										<Button
 											disabled={updateMutation.isPending}
 											onClick={handleCancelEdit}
-											size="sm"
 											type="button"
 											variant="outline"
 										>
@@ -181,7 +179,6 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 								) : (
 									<Button
 										onClick={() => setIsEditingName(true)}
-										size="sm"
 										type="button"
 										variant="outline"
 									>

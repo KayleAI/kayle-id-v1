@@ -174,7 +174,7 @@ export function WebhooksPage({
 	}
 
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading
 				button={<CreateEndpointDrawer onSubmit={handleCreateEndpoint} />}
 				title="Webhooks"

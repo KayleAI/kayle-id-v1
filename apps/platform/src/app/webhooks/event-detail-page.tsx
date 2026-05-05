@@ -141,7 +141,7 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 	}
 
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<div className="mb-4">
 				<Button
 					nativeButton={false}

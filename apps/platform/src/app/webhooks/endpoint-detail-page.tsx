@@ -314,7 +314,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		updateEndpointMutation.isPending || deleteEndpointMutation.isPending;
 
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<div className="space-y-6">
 				<Link
 					className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"

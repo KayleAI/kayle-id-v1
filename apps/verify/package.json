@@ -15,7 +15,7 @@
 		"@cloudflare/vite-plugin": "1.32.3",
 		"@kayle-id/config": "*",
 		"@kayle-id/ui": "*",
-		"@kayleai/ui": "0.1.0",
+		"@kayleai/ui": "0.1.1",
 		"@t3-oss/env-core": "0.13.10",
 		"@tailwindcss/vite": "4.1.17",
 		"@tanstack/react-router": "1.168.22",

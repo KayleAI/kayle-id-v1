@@ -130,6 +130,9 @@ const config = defineConfig({
 			: []),
 	],
 	envPrefix: ["PUBLIC_", "VITE_"],
+	resolve: {
+		dedupe: ["cmdk"],
+	},
 	server: {
 		port: 3000,
 	},

@@ -115,6 +115,7 @@ export function EndpointActionsMenu({
 				) : null}
 				<DropdownMenuItem
 					disabled={isMutating}
+					nativeButton
 					onClick={() => {
 						toast.promise(onToggleEndpointEnabled(endpoint), {
 							loading: endpoint.enabled
@@ -145,6 +146,7 @@ export function EndpointActionsMenu({
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					disabled={isMutating}
+					nativeButton
 					onClick={() => {
 						toast.promise(onDeleteEndpoint(endpoint), {
 							loading: "Deleting destination...",

@@ -40,7 +40,7 @@ export function OrganizationPageLayout({
 	const pendingDeletionAt = activeOrganization?.pendingDeletionAt ?? null;
 
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			{pendingDeletionAt ? (
 				<PendingDeletionBanner pendingDeletionAt={pendingDeletionAt} />
 			) : null}

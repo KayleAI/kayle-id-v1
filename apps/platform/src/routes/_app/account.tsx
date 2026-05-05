@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/account")({
 
 function AccountLayoutRoute() {
 	return (
-		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col">
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading
 				description="Manage your profile, preferences, and security."
 				title="Account"

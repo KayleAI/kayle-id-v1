@@ -2,7 +2,6 @@ import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { Organization } from "@kayle-id/auth/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
-import { Button } from "@kayleai/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -12,63 +11,41 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@kayleai/ui/dropdown-menu";
-import { Logo, Logomark } from "@kayleai/ui/logo";
+import { Logo } from "@kayleai/ui/logo";
 import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
-	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarSeparator,
-	useSidebar,
 } from "@kayleai/ui/sidebar";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@kayleai/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
 	BuildingIcon,
 	ChevronsUpDownIcon,
-	EllipsisVerticalIcon,
+	ChevronUpIcon,
 	GlobeIcon,
 	Key,
 	LayoutDashboard,
 	LogOutIcon,
-	PanelLeftIcon,
 	PlusIcon,
 	SettingsIcon,
 	UsersIcon,
 	WebhookIcon,
 } from "lucide-react";
-import { useMemo } from "react";
 import { toast } from "sonner";
 
-const navItems = [
-	{
-		title: "Dashboard",
-		url: "/dashboard",
-		icon: LayoutDashboard,
-	},
-	{
-		title: "API Keys",
-		url: "/api-keys",
-		icon: Key,
-	},
-	{
-		title: "Webhooks",
-		url: "/webhooks",
-		icon: WebhookIcon,
-	},
-];
+const NAV_ITEMS = [
+	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+	{ title: "API Keys", url: "/api-keys", icon: Key },
+	{ title: "Webhooks", url: "/webhooks", icon: WebhookIcon },
+] as const;
 
 export function AppSidebar() {
 	const { user, activeOrganization, organizations } = useAuth();
@@ -86,168 +63,77 @@ export function AppSidebar() {
 				organizationSlug,
 			});
 		} finally {
-			// Invalidate any queries that depend on the organization
 			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
 			queryClient.invalidateQueries({ queryKey: ["webhooks"] });
 		}
 	};
 
+	const userName = user?.name || user?.email?.split("@")[0] || "User";
+	const userInitial = user?.email?.charAt(0).toUpperCase() ?? "U";
+	const orgName = activeOrganization?.name ?? "Organization";
+	const orgSlug = activeOrganization?.slug ?? "";
+	const orgInitial = orgName.charAt(0).toUpperCase();
+
 	return (
 		<Sidebar className="border-r-0!" collapsible="icon" variant="sidebar">
-			<SidebarLogo />
-
-			<SidebarSeparator className="mx-0!" />
-
-			<SidebarContent>
-				<SidebarGroup>
-					<SidebarGroupLabel>Platform</SidebarGroupLabel>
-					<SidebarGroupContent>
-						<TooltipProvider>
-							<SidebarMenu>
-								{navItems.map((item) => (
-									<SidebarMenuItem key={item.title}>
-										<Tooltip>
-											<TooltipTrigger
-												render={
-													<SidebarMenuButton
-														className="hover:bg-secondary-foreground/2.5 active:bg-secondary-foreground/5 data-active:bg-secondary-foreground/2.5 data-active:font-semibold"
-														isActive={currentPath.startsWith(item.url)}
-														render={
-															<Link to={item.url}>
-																<item.icon />
-																<span>{item.title}</span>
-															</Link>
-														}
-													/>
-												}
-											/>
-											<TooltipContent side="right">{item.title}</TooltipContent>
-										</Tooltip>
-									</SidebarMenuItem>
-								))}
-							</SidebarMenu>
-						</TooltipProvider>
-					</SidebarGroupContent>
-				</SidebarGroup>
-			</SidebarContent>
-
-			<SidebarFooter className="gap-0 p-0!">
-				{/* User Section */}
-				<SidebarMenu className="border-secondary-foreground/10 border-t p-2">
+			<SidebarHeader className="h-14! flex items-center justify-center">
+				<SidebarMenu>
 					<SidebarMenuItem>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<SidebarMenuButton
-										className="data-[state=open]:bg-sidebar-secondary data-[state=open]:text-sidebar-secondary-foreground"
-										size="lg"
-									>
-										<Avatar className="size-8 rounded-lg grayscale">
-											<AvatarImage
-												alt={user?.name}
-												src={user?.image ?? undefined}
-											/>
-											<AvatarFallback className="rounded-lg">
-												{user?.email?.charAt(0).toUpperCase() ?? "U"}
-											</AvatarFallback>
-										</Avatar>
-										<div className="grid flex-1 text-left text-sm leading-tight">
-											<span className="truncate font-medium">
-												{(user?.name || user?.email?.split("@")[0]) ?? "User"}
-											</span>
-											<span className="truncate text-muted-foreground text-xs">
-												{user?.email}
-											</span>
-										</div>
-										<EllipsisVerticalIcon className="ml-auto size-4" />
-									</SidebarMenuButton>
-								}
-							/>
-							<DropdownMenuContent
-								align="end"
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-								side="right"
-								sideOffset={4}
-							>
-								<DropdownMenuGroup>
-									<DropdownMenuLabel className="p-0 font-normal">
-										<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-											<Avatar className="size-8 rounded-lg">
-												<AvatarImage
-													alt={user?.name}
-													src={user?.image ?? undefined}
-												/>
-												<AvatarFallback className="rounded-lg">
-													{user?.email?.charAt(0).toUpperCase() ?? "U"}
-												</AvatarFallback>
-											</Avatar>
-											<div className="grid flex-1 text-left text-sm leading-tight">
-												<span className="truncate font-medium">
-													{(user?.name || user?.email?.split("@")[0]) ?? "User"}
-												</span>
-												<span className="truncate text-muted-foreground text-xs">
-													{user?.email}
-												</span>
-											</div>
-										</div>
-									</DropdownMenuLabel>
-								</DropdownMenuGroup>
-								<DropdownMenuSeparator />
-								<DropdownMenuGroup>
-									<DropdownMenuItem render={<Link to="/account" />}>
-										<SettingsIcon />
-										Account Settings
-									</DropdownMenuItem>
-								</DropdownMenuGroup>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem render={<Link to="/sign-out" />}>
-									<LogOutIcon />
-									Log out
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<SidebarMenuButton
+							className="h-10"
+							render={
+								<Link to="/">
+									<span className="flex h-7 items-center w-full">
+										<Logo className="flex" title="Kayle ID" />
+									</span>
+								</Link>
+							}
+						/>
 					</SidebarMenuItem>
 				</SidebarMenu>
+			</SidebarHeader>
 
-				{/* Organization Section */}
-				<SidebarMenu className="border-secondary-foreground/10 border-t p-2">
+			<SidebarSeparator className="ml-0!" />
+
+			<SidebarHeader className="pr-0!">
+				<SidebarMenu>
 					<SidebarMenuItem>
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={
-									<SidebarMenuButton
-										className="data-[state=open]:bg-sidebar-secondary data-[state=open]:text-sidebar-secondary-foreground"
-										size="lg"
-									>
-										<Avatar className="size-8">
+									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5">
+										<Avatar className="size-7 rounded-md">
 											<AvatarImage
+												alt={orgName}
 												src={activeOrganization?.logo ?? undefined}
 											/>
-											<AvatarFallback className="rounded-lg">
-												{activeOrganization?.name.charAt(0).toUpperCase()}
+											<AvatarFallback className="rounded-md text-[11px]">
+												{orgInitial}
 											</AvatarFallback>
 										</Avatar>
-										<div className="grid flex-1 text-left text-sm leading-tight">
-											<span className="truncate font-semibold">
-												{activeOrganization?.name ?? "My Organization"}
+										<div className="grid flex-1 text-left leading-tight">
+											<span className="truncate font-medium text-sm">
+												{orgName}
 											</span>
-											<span className="truncate text-muted-foreground text-xs">
-												{activeOrganization?.slug ?? "organization"}
-											</span>
+											{orgSlug ? (
+												<span className="truncate text-muted-foreground text-xs">
+													{orgSlug}
+												</span>
+											) : null}
 										</div>
-										<ChevronsUpDownIcon className="ml-auto size-4" />
+										<ChevronsUpDownIcon className="ml-auto size-4 shrink-0 text-muted-foreground" />
 									</SidebarMenuButton>
 								}
 							/>
 							<DropdownMenuContent
-								align="end"
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-								side="right"
-								sideOffset={4}
+								align="start"
+								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg"
+								side="bottom"
+								sideOffset={6}
 							>
 								<DropdownMenuGroup>
 									<DropdownMenuLabel className="text-muted-foreground text-xs">
-										{activeOrganization?.name ?? "My Organization"}
+										{orgName}
 									</DropdownMenuLabel>
 									<DropdownMenuItem render={<Link to="/organizations" />}>
 										<BuildingIcon />
@@ -272,93 +158,142 @@ export function AppSidebar() {
 										Settings
 									</DropdownMenuItem>
 								</DropdownMenuGroup>
+								{organizations.length > 1 ? (
+									<>
+										<DropdownMenuSeparator />
+										<DropdownMenuGroup>
+											<DropdownMenuLabel className="text-muted-foreground text-xs">
+												Switch organization
+											</DropdownMenuLabel>
+											{organizations
+												.filter(
+													(org: Organization) =>
+														org.id !== activeOrganization?.id,
+												)
+												.map((org: Organization) => (
+													<DropdownMenuItem
+														key={org.id}
+														onClick={() => {
+															toast.promise(
+																handleSelectOrganization(org.id, org.slug),
+																{
+																	loading: "Switching organization…",
+																	success: "Organization switched",
+																	error: "Failed to switch organization",
+																},
+															);
+														}}
+													>
+														<Avatar className="size-5 rounded-md">
+															<AvatarImage
+																alt={org.name}
+																src={org.logo ?? undefined}
+															/>
+															<AvatarFallback className="rounded-md text-[10px]">
+																{org.name.charAt(0).toUpperCase()}
+															</AvatarFallback>
+														</Avatar>
+														<span className="truncate">{org.name}</span>
+														{org.pendingDeletionAt ? (
+															<span className="ml-auto rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-medium text-[10px] text-destructive uppercase tracking-wide">
+																Pending
+															</span>
+														) : null}
+													</DropdownMenuItem>
+												))}
+										</DropdownMenuGroup>
+									</>
+								) : null}
 								<DropdownMenuSeparator />
-								<DropdownMenuGroup>
-									<DropdownMenuLabel className="text-muted-foreground text-xs">
-										Organizations
-									</DropdownMenuLabel>
-									{organizations.map((organization: Organization) => (
-										<DropdownMenuItem
-											key={organization.id}
-											nativeButton
-											render={
-												<Button
-													className="flex w-full items-center justify-start pl-1.5!"
-													onClick={() => {
-														toast.promise(
-															handleSelectOrganization(
-																organization.id,
-																organization.slug,
-															),
-															{
-																loading: "Switching organization...",
-																success: "Organization switched successfully",
-																error: "Failed to switch organization",
-															},
-														);
-													}}
-													variant="ghost"
-												/>
-											}
-										>
-											<Avatar className="size-5.5 rounded-lg">
-												<AvatarImage src={organization.logo ?? undefined} />
-												<AvatarFallback className="rounded-lg">
-													{organization.name.charAt(0).toUpperCase()}
-												</AvatarFallback>
-											</Avatar>
-											<span className="truncate">{organization.name}</span>
-											{organization.pendingDeletionAt ? (
-												<span className="ml-auto rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-medium text-[10px] text-destructive uppercase tracking-wide">
-													Pending
-												</span>
-											) : null}
-										</DropdownMenuItem>
-									))}
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										render={<Link to="/organizations/create" />}
+								<DropdownMenuItem render={<Link to="/organizations/create" />}>
+									<PlusIcon />
+									Create organization
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarHeader>
+
+			<div className="mx-3 w-[calc(100%-18px)] h-px bg-sidebar-border"></div>
+
+			<SidebarContent>
+				<SidebarGroup className="pr-0!">
+					<SidebarGroupContent>
+						<SidebarMenu>
+							{NAV_ITEMS.map((item) => (
+								<SidebarMenuItem key={item.title}>
+									<SidebarMenuButton
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										isActive={currentPath.startsWith(item.url)}
+										render={
+											<Link to={item.url}>
+												<item.icon />
+												<span>{item.title}</span>
+											</Link>
+										}
+									/>
+								</SidebarMenuItem>
+							))}
+						</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
+			</SidebarContent>
+
+			<SidebarFooter className="border-secondary-foreground/10 border-t">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<SidebarMenuButton
+										className="h-12 data-open:bg-secondary-foreground/5"
+										tooltip={userName}
 									>
-										<PlusIcon />
-										Create Organization
-									</DropdownMenuItem>
-								</DropdownMenuGroup>
+										<Avatar className="size-7 rounded-md">
+											<AvatarImage
+												alt={user?.name}
+												src={user?.image ?? undefined}
+											/>
+											<AvatarFallback className="rounded-md text-[11px]">
+												{userInitial}
+											</AvatarFallback>
+										</Avatar>
+										<div className="grid flex-1 text-left leading-tight">
+											<span className="truncate font-medium text-sm">
+												{userName}
+											</span>
+											<span className="truncate text-muted-foreground text-xs">
+												{user?.email}
+											</span>
+										</div>
+										<ChevronUpIcon className="ml-auto size-4 shrink-0 text-muted-foreground" />
+									</SidebarMenuButton>
+								}
+							/>
+							<DropdownMenuContent
+								align="end"
+								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg"
+								side="top"
+								sideOffset={6}
+							>
+								<DropdownMenuItem render={<Link to="/account" />}>
+									<SettingsIcon />
+									Account settings
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									render={<Link to="/sign-out" />}
+									variant="destructive"
+								>
+									<LogOutIcon />
+									Sign out
+								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
-	);
-}
-
-function SidebarLogo() {
-	const { toggleSidebar, state } = useSidebar();
-
-	const isCollapsed = useMemo(() => state === "collapsed", [state]);
-
-	return (
-		<SidebarHeader>
-			<SidebarMenu>
-				<SidebarMenuItem>
-					<SidebarMenuButton
-						className="group/logo flex"
-						onClick={toggleSidebar}
-					>
-						<div className="flex h-8 w-auto min-w-8 items-center justify-start">
-							{isCollapsed ? (
-								<Logomark className="group-hover/logo:hidden" />
-							) : (
-								<Logo className="group-hover/logo:hidden" title="Kayle ID" />
-							)}
-							<span className="hidden flex-row items-center justify-center gap-2 font-medium text-sm group-hover/logo:flex">
-								<PanelLeftIcon className="size-4" />
-								Close&nbsp;Sidebar
-							</span>
-						</div>
-					</SidebarMenuButton>
-				</SidebarMenuItem>
-			</SidebarMenu>
-		</SidebarHeader>
 	);
 }

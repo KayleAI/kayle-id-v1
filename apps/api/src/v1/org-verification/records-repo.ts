@@ -1,7 +1,6 @@
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { org_verification_records } from "@kayle-id/database/schema/core";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import {
 	computeDedupHash,
 	type DedupHashInput,
@@ -87,36 +86,6 @@ export async function findRecordsByDocument(
 		.select()
 		.from(org_verification_records)
 		.where(inArray(org_verification_records.dedupHash, candidateHashes));
-}
-
-/**
- * Mark an organization as verified after its owner completed an ID check,
- * recording the user that accepted the verification terms. Idempotent: calling
- * this for an already-verified org leaves the existing `verifiedAt` and ToS
- * acceptance in place.
- */
-export async function markOrganizationVerified({
-	organizationId,
-	acceptedByUserId,
-	acceptedAt = new Date(),
-}: {
-	organizationId: string;
-	acceptedByUserId: string;
-	acceptedAt?: Date;
-}): Promise<void> {
-	await db
-		.update(auth_organizations)
-		.set({
-			verifiedAt: acceptedAt,
-			verificationTermsAcceptedAt: acceptedAt,
-			verificationTermsAcceptedBy: acceptedByUserId,
-		})
-		.where(
-			and(
-				eq(auth_organizations.id, organizationId),
-				isNull(auth_organizations.verifiedAt),
-			),
-		);
 }
 
 function toHashInput(input: RecordVerificationInput): DedupHashInput {

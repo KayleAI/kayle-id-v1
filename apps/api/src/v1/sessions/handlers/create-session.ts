@@ -3,13 +3,10 @@ import { logEvent } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
 import type { createSession } from "@/openapi/v1/sessions/create";
 import { generateId } from "@/utils/generate-id";
-import {
-	checkUnverifiedOrgSessionLimit,
-	isAgeOnlyShareFields,
-} from "@/v1/org-verification/rate-limit";
+import { isAgeOnlyShareFields } from "@/v1/org-verification/rate-limit";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
-import { createVerificationSession } from "@/v1/sessions/repo/session-repo";
+import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 
 const contractVersion = 1;
@@ -54,18 +51,23 @@ export const createSessionHandler: RouteHandler<
 
 	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
 
-	const limitDecision = await checkUnverifiedOrgSessionLimit({
+	const id = generateId({ type: "vs" });
+	const result = await createVerificationSessionWithUnverifiedOrgLimit({
+		id,
 		organizationId,
+		redirectUrl,
 		shareFields: normalized.shareFields,
+		contractVersion,
+		isAgeOnly,
 	});
 
-	if (limitDecision.kind === "rejected") {
+	if (!result.ok) {
 		logEvent(log, {
 			details: {
 				organization_id: organizationId,
-				current: limitDecision.current,
-				limit: limitDecision.limit,
-				reset_at: limitDecision.resetAt.toISOString(),
+				current: result.rejected.current,
+				limit: result.rejected.limit,
+				reset_at: result.rejected.resetAt.toISOString(),
 			},
 			event: "sessions.create.unverified_org_limit_exceeded",
 			level: "warn",
@@ -86,15 +88,7 @@ export const createSessionHandler: RouteHandler<
 		);
 	}
 
-	const id = generateId({ type: "vs" });
-	const { row: created, cancelToken } = await createVerificationSession({
-		id,
-		organizationId,
-		redirectUrl,
-		shareFields: normalized.shareFields,
-		contractVersion,
-		isAgeOnly,
-	});
+	const { row: created, cancelToken } = result;
 
 	log.set({
 		event: "sessions.create.created",

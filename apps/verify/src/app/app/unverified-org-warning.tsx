@@ -1,3 +1,4 @@
+import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
 import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
 import { useVerificationStore } from "../../stores/session";
@@ -19,6 +20,20 @@ export function UnverifiedOrgWarning({
 	const goToExplain = useVerificationStore((state) => state.goToExplain);
 	const platformName = getPlatformNameLabel(organizationName);
 
+	const cancel = () => {
+		// `history.length` is at least 1 for the current entry; >1 means the
+		// user navigated here from somewhere else and "back" is meaningful.
+		// Otherwise the tab was opened directly (deep link, QR scan) and we
+		// fall through to closing it. `window.close()` is a no-op when the
+		// browser refuses to close a tab the script didn't open — there is no
+		// portable better option from a static page.
+		if (window.history.length > 1) {
+			window.history.back();
+			return;
+		}
+		window.close();
+	};
+
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
@@ -33,43 +48,47 @@ export function UnverifiedOrgWarning({
 						<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
 							{platformName}
 						</span>{" "}
-						has not completed Kayle ID's organization verification check. Only
-						proceed if you trust this organization with your identity.
+						has not completed Kayle ID's organization verification check. <br />{" "}
+						Unless you trust this request, don't continue.
 					</p>
 				</div>
 
-				<div>
-					<h3 className="mb-2 font-medium text-base text-foreground">
-						What this means:
-					</h3>
-					<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-						<li>
-							Kayle ID has not independently verified the people running this
-							organization.
-						</li>
-						<li>
-							If you don't recognise{" "}
-							<span className="font-medium text-foreground">
-								{platformName}
-							</span>{" "}
-							or didn't expect this verification request, cancel below.
-						</li>
-						<li>
-							Verified organizations display a checkmark on this screen instead
-							of this warning.
-						</li>
-					</ul>
+				<div className="rounded-lg border border-red-200 bg-red-50 p-4">
+					<div className="flex items-start">
+						<div className="mt-0.5 shrink-0">
+							<OctagonWarning className="size-5 text-red-400" />
+						</div>
+						<div className="ml-3">
+							<h3 className="font-medium text-red-800 text-sm">
+								What this means
+							</h3>
+							<ul className="mt-2 list-disc space-y-1 pl-4 text-red-700 text-sm">
+								<li>
+									Kayle ID has not independently verified the people running
+									this organization.
+								</li>
+								<li>
+									If you don't recognise{" "}
+									<span className="font-medium underline decoration-dashed underline-offset-2">
+										{platformName}
+									</span>{" "}
+									or didn't expect this verification request, cancel below.
+								</li>
+								<li>
+									You'll only see this warning if you're about to perform an ID
+									check for an organization that has not completed Kayle ID's
+									organization verification check.
+								</li>
+							</ul>
+						</div>
+					</div>
 				</div>
 
 				<div className="flex flex-col space-y-4">
 					<Button onClick={goToExplain} type="button">
 						I trust this organization — continue
 					</Button>
-					<Button
-						onClick={() => window.history.back()}
-						type="button"
-						variant="outline"
-					>
+					<Button onClick={cancel} type="button" variant="outline">
 						Cancel
 					</Button>
 				</div>

@@ -92,6 +92,8 @@ orgVerification.openapi(createOrgVerificationSession, async (c) => {
 			verifiedAt: auth_organizations.verifiedAt,
 			verificationTermsAcceptedAt:
 				auth_organizations.verificationTermsAcceptedAt,
+			verificationTermsAcceptedBy:
+				auth_organizations.verificationTermsAcceptedBy,
 		})
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, targetOrgId))
@@ -127,14 +129,17 @@ orgVerification.openapi(createOrgVerificationSession, async (c) => {
 		);
 	}
 
-	if (!target.verificationTermsAcceptedAt) {
+	if (
+		!target.verificationTermsAcceptedAt ||
+		!target.verificationTermsAcceptedBy
+	) {
 		return c.json(
 			{
 				data: null,
 				error: {
 					code: "VERIFICATION_TERMS_NOT_ACCEPTED",
 					message: "Owner has not yet accepted the verification terms.",
-					hint: "Capture the business details and terms acceptance before initiating the owner ID check.",
+					hint: "Capture the business details and terms acceptance (timestamp and accepting user) before initiating the owner ID check.",
 					docs,
 				},
 			},

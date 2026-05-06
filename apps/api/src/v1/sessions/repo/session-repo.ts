@@ -4,8 +4,9 @@ import {
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { and, asc, eq, gt, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
+import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/org-verification/rate-limit";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
 	generateSessionCancelToken,
@@ -15,6 +16,8 @@ import {
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSessionExpired,
 } from "@/v1/webhooks/deliveries/service";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export { getVerificationSessionAnalyticsOverview } from "./session-analytics-repo";
 
@@ -97,15 +100,7 @@ export type CreatedVerificationSession = {
 	cancelToken: string;
 };
 
-export async function createVerificationSession({
-	id,
-	organizationId,
-	redirectUrl,
-	shareFields,
-	contractVersion,
-	isAgeOnly,
-	ownerVerificationOrgId,
-}: {
+export type CreateVerificationSessionInput = {
 	id: string;
 	organizationId: string;
 	redirectUrl: string | null;
@@ -113,37 +108,102 @@ export async function createVerificationSession({
 	contractVersion: number;
 	isAgeOnly: boolean;
 	ownerVerificationOrgId?: string | null;
-}): Promise<CreatedVerificationSession> {
+};
+
+async function insertVerificationSessionRow(
+	tx: Tx,
+	input: CreateVerificationSessionInput,
+): Promise<CreatedVerificationSession> {
 	const cancelToken = generateSessionCancelToken();
 	const cancelTokenHash = await hashSessionCancelToken(cancelToken);
 
-	const row = await db.transaction(async (tx) => {
-		const [created] = await tx
-			.insert(verification_sessions)
-			.values({
-				id,
-				organizationId,
-				status: "created",
-				redirectUrl,
-				shareFields,
-				contractVersion,
-				cancelTokenHash,
-				isAgeOnly,
-				ownerVerificationOrgId: ownerVerificationOrgId ?? null,
-			})
-			.returning();
+	const [created] = await tx
+		.insert(verification_sessions)
+		.values({
+			id: input.id,
+			organizationId: input.organizationId,
+			status: "created",
+			redirectUrl: input.redirectUrl,
+			shareFields: input.shareFields,
+			contractVersion: input.contractVersion,
+			cancelTokenHash,
+			isAgeOnly: input.isAgeOnly,
+			ownerVerificationOrgId: input.ownerVerificationOrgId ?? null,
+		})
+		.returning();
 
-		return created;
-	});
-
-	if (!row) {
+	if (!created) {
 		throw new Error("verification_session_create_returned_no_row");
 	}
 
-	return {
-		row,
-		cancelToken,
-	};
+	return { row: created, cancelToken };
+}
+
+export async function createVerificationSession(
+	input: CreateVerificationSessionInput,
+): Promise<CreatedVerificationSession> {
+	return db.transaction((tx) => insertVerificationSessionRow(tx, input));
+}
+
+export type CreateVerificationSessionWithLimitResult =
+	| {
+			ok: true;
+			row: typeof verification_sessions.$inferSelect;
+			cancelToken: string;
+	  }
+	| {
+			ok: false;
+			rejected: { current: number; limit: number; resetAt: Date };
+	  };
+
+/**
+ * Create a verification session with the unverified-org rolling-window limit
+ * enforced strictly: the per-org `pg_advisory_xact_lock` and the count + insert
+ * all run inside the same transaction, so two concurrent identity-session
+ * creates can't both observe count=4 and both insert.
+ *
+ * Age-only and verified-org cases skip the lock entirely (they're exempt by
+ * design and we don't want to serialize unrelated traffic on the same key).
+ */
+export async function createVerificationSessionWithUnverifiedOrgLimit(
+	input: CreateVerificationSessionInput,
+): Promise<CreateVerificationSessionWithLimitResult> {
+	if (input.isAgeOnly) {
+		const result = await createVerificationSession(input);
+		return { ok: true, row: result.row, cancelToken: result.cancelToken };
+	}
+
+	return db.transaction(async (tx) => {
+		// Per-org advisory lock; held only for this transaction. `hashtextextended`
+		// folds the UUID into a bigint key — collisions across orgs would only
+		// cause needless serialization, never incorrect counting.
+		await tx.execute(
+			sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.organizationId}::text, 0))`,
+		);
+
+		const decision = await applyUnverifiedOrgSessionLimitInTx(tx, {
+			organizationId: input.organizationId,
+			isAgeOnly: input.isAgeOnly,
+		});
+
+		if (decision.kind === "rejected") {
+			return {
+				ok: false,
+				rejected: {
+					current: decision.current,
+					limit: decision.limit,
+					resetAt: decision.resetAt,
+				},
+			} satisfies CreateVerificationSessionWithLimitResult;
+		}
+
+		const result = await insertVerificationSessionRow(tx, input);
+		return {
+			ok: true,
+			row: result.row,
+			cancelToken: result.cancelToken,
+		} satisfies CreateVerificationSessionWithLimitResult;
+	});
 }
 
 export async function cancelVerificationSession({

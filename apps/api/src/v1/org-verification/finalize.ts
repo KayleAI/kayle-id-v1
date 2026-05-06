@@ -1,7 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organizations } from "@kayle-id/database/schema/auth";
 import type { verification_sessions } from "@kayle-id/database/schema/core";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Dg1Claims } from "@/v1/verify/dg1-claims";
 import { mapMrzDocumentTypeToEnum } from "./document-type";
 import { recordOrgVerification } from "./records-repo";
@@ -35,13 +35,7 @@ export async function finalizeOrgVerificationIfApplicable({
 	}
 
 	const [org] = await db
-		.select({
-			verifiedAt: auth_organizations.verifiedAt,
-			verificationTermsAcceptedAt:
-				auth_organizations.verificationTermsAcceptedAt,
-			verificationTermsAcceptedBy:
-				auth_organizations.verificationTermsAcceptedBy,
-		})
+		.select({ verifiedAt: auth_organizations.verifiedAt })
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, targetOrgId))
 		.limit(1);
@@ -68,18 +62,19 @@ export async function finalizeOrgVerificationIfApplicable({
 		env,
 	);
 
-	const now = new Date();
+	// Terms acceptance (`_at`/`_by`) was already captured by the platform and
+	// enforced by `POST /v1/org-verifications` before this session existed, so
+	// only flip `verifiedAt` here. The `isNull(verifiedAt)` guard makes the
+	// update idempotent if a successful share is replayed.
 	await db
 		.update(auth_organizations)
-		.set({
-			verifiedAt: now,
-			// Terms-accepted timestamps were captured by the platform when the
-			// owner submitted the business-details + ToS form. We only fall back
-			// to writing them here if the platform skipped that step (e.g. legacy
-			// data) so the org always has a defensible acceptance trail.
-			verificationTermsAcceptedAt: org.verificationTermsAcceptedAt ?? now,
-		})
-		.where(eq(auth_organizations.id, targetOrgId));
+		.set({ verifiedAt: new Date() })
+		.where(
+			and(
+				eq(auth_organizations.id, targetOrgId),
+				isNull(auth_organizations.verifiedAt),
+			),
+		);
 
 	return {
 		kind: "verified",

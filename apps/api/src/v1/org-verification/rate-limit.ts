@@ -1,4 +1,4 @@
-import { db } from "@kayle-id/database/drizzle";
+import type { db } from "@kayle-id/database/drizzle";
 import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
 import { and, eq, gte, sql } from "drizzle-orm";
@@ -15,7 +15,9 @@ import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
  * full-fields session does, so the abuse vector is much smaller.
  */
 export const UNVERIFIED_ORG_SESSION_LIMIT = 5;
-const ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const UNVERIFIED_ORG_ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * A session is "age-only" when its share fields contain exactly one age-gate
@@ -52,25 +54,32 @@ export type UnverifiedLimitDecision =
 	| { kind: "rejected"; current: number; limit: number; resetAt: Date };
 
 /**
- * Decide whether the given org may create another non-age-only session right
- * now. Verified orgs are unconditionally exempt. Age-only sessions are
+ * Decide whether the given org may create another non-age-only session, using
+ * the supplied Drizzle transaction. Callers MUST acquire a per-org advisory
+ * lock on the same `tx` before calling this so the count and the subsequent
+ * session insert serialize against concurrent identity-session creates.
+ *
+ * Verified orgs are unconditionally exempt. Age-only sessions are
  * unconditionally exempt. Everything else counts against the rolling 24h
  * window.
  */
-export async function checkUnverifiedOrgSessionLimit({
-	organizationId,
-	shareFields,
-	now = new Date(),
-}: {
-	organizationId: string;
-	shareFields: ShareFields;
-	now?: Date;
-}): Promise<UnverifiedLimitDecision> {
-	if (isAgeOnlyShareFields(shareFields)) {
+export async function applyUnverifiedOrgSessionLimitInTx(
+	tx: Tx,
+	{
+		organizationId,
+		isAgeOnly,
+		now = new Date(),
+	}: {
+		organizationId: string;
+		isAgeOnly: boolean;
+		now?: Date;
+	},
+): Promise<UnverifiedLimitDecision> {
+	if (isAgeOnly) {
 		return { kind: "exempt_age_only" };
 	}
 
-	const [org] = await db
+	const [org] = await tx
 		.select({ verifiedAt: auth_organizations.verifiedAt })
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, organizationId))
@@ -80,8 +89,10 @@ export async function checkUnverifiedOrgSessionLimit({
 		return { kind: "exempt_verified" };
 	}
 
-	const windowStart = new Date(now.getTime() - ROLLING_WINDOW_MS);
-	const [row] = await db
+	const windowStart = new Date(
+		now.getTime() - UNVERIFIED_ORG_ROLLING_WINDOW_MS,
+	);
+	const [row] = await tx
 		.select({ count: sql<number>`count(*)::int` })
 		.from(verification_sessions)
 		.where(
@@ -98,7 +109,9 @@ export async function checkUnverifiedOrgSessionLimit({
 			kind: "rejected",
 			current,
 			limit: UNVERIFIED_ORG_SESSION_LIMIT,
-			resetAt: new Date(windowStart.getTime() + ROLLING_WINDOW_MS),
+			resetAt: new Date(
+				windowStart.getTime() + UNVERIFIED_ORG_ROLLING_WINDOW_MS,
+			),
 		};
 	}
 

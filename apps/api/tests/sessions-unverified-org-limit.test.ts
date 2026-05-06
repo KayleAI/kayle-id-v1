@@ -35,11 +35,14 @@ async function setOrgVerified(
 }
 
 async function createIdentitySession(apiKey: string): Promise<Response> {
+	// No body — `share_fields` is optional and defaults to the identity-revealing
+	// set. Don't send `Content-Type: application/json` either: Hono's JSON
+	// validator parses the body when that header is present, and an empty body
+	// trips a 400 before the handler runs.
 	return v1.request("/sessions", {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${apiKey}`,
-			"Content-Type": "application/json",
 		},
 	});
 }

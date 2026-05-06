@@ -26,6 +26,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:6432/kayle-id
 AUTH_SECRET=${generateSecret()}
 KAYLE_INTERNAL_TOKEN=${generateSecret()}
 FACE_MATCHER_SECRET=${generateSecret()}
+ORG_VERIFICATION_PEPPER=${generateSecret()}
 
 # Public auth URL — the platform app proxies auth through localhost:3000.
 PUBLIC_AUTH_URL=https://localhost:3000
@@ -52,7 +53,7 @@ const main = async (): Promise<void> => {
   process.stdout.write(
     [
       `Created ${relativeEnvPath}.`,
-      "Random hex was used for AUTH_SECRET, KAYLE_INTERNAL_TOKEN, and FACE_MATCHER_SECRET.",
+      "Random hex was used for AUTH_SECRET, KAYLE_INTERNAL_TOKEN, FACE_MATCHER_SECRET, and ORG_VERIFICATION_PEPPER.",
       "Google and Resend credentials are dummies — the dev API logs the magic OTP and email body instead of calling those services.",
       "",
       "Next steps:",

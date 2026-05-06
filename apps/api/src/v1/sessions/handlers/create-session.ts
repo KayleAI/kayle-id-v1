@@ -3,12 +3,17 @@ import { logEvent } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
 import type { createSession } from "@/openapi/v1/sessions/create";
 import { generateId } from "@/utils/generate-id";
+import {
+	checkUnverifiedOrgSessionLimit,
+	isAgeOnlyShareFields,
+} from "@/v1/org-verification/rate-limit";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
 import { createVerificationSession } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 
 const contractVersion = 1;
+const docs = "https://kayle.id/docs/api/sessions#create";
 
 export const createSessionHandler: RouteHandler<
 	typeof createSession,
@@ -47,6 +52,40 @@ export const createSessionHandler: RouteHandler<
 		);
 	}
 
+	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
+
+	const limitDecision = await checkUnverifiedOrgSessionLimit({
+		organizationId,
+		shareFields: normalized.shareFields,
+	});
+
+	if (limitDecision.kind === "rejected") {
+		logEvent(log, {
+			details: {
+				organization_id: organizationId,
+				current: limitDecision.current,
+				limit: limitDecision.limit,
+				reset_at: limitDecision.resetAt.toISOString(),
+			},
+			event: "sessions.create.unverified_org_limit_exceeded",
+			level: "warn",
+		});
+
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ORG_NOT_VERIFIED_LIMIT_EXCEEDED",
+					message:
+						"Unverified organizations are limited to 5 identity-revealing sessions per 24 hours.",
+					hint: "Verify the organization in the platform settings, or wait until the rolling window resets. Age-gate-only sessions remain available.",
+					docs,
+				},
+			},
+			429,
+		);
+	}
+
 	const id = generateId({ type: "vs" });
 	const { row: created, cancelToken } = await createVerificationSession({
 		id,
@@ -54,6 +93,7 @@ export const createSessionHandler: RouteHandler<
 		redirectUrl,
 		shareFields: normalized.shareFields,
 		contractVersion,
+		isAgeOnly,
 	});
 
 	log.set({

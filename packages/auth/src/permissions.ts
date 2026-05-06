@@ -24,6 +24,11 @@ export const API_KEY_SCOPES = [
   "sessions:read",
   "sessions:write",
   "analytics:read",
+  // Reserved for the platform's own API key. Lets the platform create
+  // verification sessions tagged with `owner_verification_org_id` so the
+  // share-completion path can flip another org's `verified_at`. Customer-
+  // facing API keys must never carry this scope.
+  "org_verifications:write",
 ] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
@@ -46,4 +51,8 @@ export const SCOPE_REQUIRED_ROLE: Record<ApiKeyScope, OrgRole> = {
   "sessions:read": "member",
   "sessions:write": "admin",
   "analytics:read": "member",
+  // Owner-only on the dashboard side; the scope itself only makes sense for
+  // the platform's internal API key, but if a session caller ever exercises
+  // it, require the strongest org role.
+  "org_verifications:write": "owner",
 };

@@ -27,6 +27,8 @@ import {
 type SessionContextType = {
 	isSessionDetailsReady: boolean;
 	organizationName: string | null;
+	organizationVerified: boolean;
+	isAgeOnly: boolean;
 	sessionStatus: VerifySessionStatusPayload | null;
 	session: VerifySession | null;
 	error: SessionError | null;
@@ -44,6 +46,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	const { supported: deviceSupported } = useDevice();
 	const [isSessionDetailsReady, setIsSessionDetailsReady] = useState(false);
 	const [organizationName, setOrganizationName] = useState<string | null>(null);
+	const [organizationVerified, setOrganizationVerified] = useState(false);
+	const [isAgeOnly, setIsAgeOnly] = useState(false);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(null);
 	const [isSessionReady, setIsSessionReady] = useState(false);
@@ -87,6 +91,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 
 		setIsSessionDetailsReady(false);
 		setOrganizationName(null);
+		setOrganizationVerified(false);
+		setIsAgeOnly(false);
 		setSessionStatus(null);
 
 		Promise.all([
@@ -99,9 +105,17 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				}
 
 				setOrganizationName(details.organization_name);
+				setOrganizationVerified(details.organization_verified);
+				setIsAgeOnly(details.is_age_only);
 				setSessionStatus(nextSessionStatus);
+				const showUnverifiedWarning =
+					!details.organization_verified && !details.is_age_only;
 				useVerificationStore.setState({
-					step: shouldStartInHandoff(nextSessionStatus) ? "handoff" : "explain",
+					step: shouldStartInHandoff(nextSessionStatus)
+						? "handoff"
+						: showUnverifiedWarning
+							? "unverified_org_warning"
+							: "explain",
 				});
 				setIsSessionDetailsReady(true);
 			})
@@ -154,6 +168,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		() => ({
 			isSessionDetailsReady,
 			organizationName,
+			organizationVerified,
+			isAgeOnly,
 			sessionStatus,
 			session: isSessionReady ? sessionStubRef.current : null,
 			error,
@@ -162,6 +178,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		[
 			isSessionDetailsReady,
 			organizationName,
+			organizationVerified,
+			isAgeOnly,
 			sessionStatus,
 			isSessionReady,
 			error,

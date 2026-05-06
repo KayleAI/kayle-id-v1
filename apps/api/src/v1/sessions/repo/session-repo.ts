@@ -103,12 +103,16 @@ export async function createVerificationSession({
 	redirectUrl,
 	shareFields,
 	contractVersion,
+	isAgeOnly,
+	ownerVerificationOrgId,
 }: {
 	id: string;
 	organizationId: string;
 	redirectUrl: string | null;
 	shareFields: ShareFields;
 	contractVersion: number;
+	isAgeOnly: boolean;
+	ownerVerificationOrgId?: string | null;
 }): Promise<CreatedVerificationSession> {
 	const cancelToken = generateSessionCancelToken();
 	const cancelTokenHash = await hashSessionCancelToken(cancelToken);
@@ -124,6 +128,8 @@ export async function createVerificationSession({
 				shareFields,
 				contractVersion,
 				cancelTokenHash,
+				isAgeOnly,
+				ownerVerificationOrgId: ownerVerificationOrgId ?? null,
 			})
 			.returning();
 

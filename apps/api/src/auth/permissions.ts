@@ -1,10 +1,16 @@
 export {
 	API_KEY_SCOPES,
 	type ApiKeyScope,
+	CUSTOMER_API_KEY_SCOPES,
+	type CustomerApiKeyScope,
 	hasOrgRole,
 	isApiKeyScope,
+	isCustomerApiKeyScope,
 	isOrgRole,
+	isPlatformOnlyScope,
 	ORG_ROLES,
 	type OrgRole,
+	PLATFORM_ONLY_SCOPES,
+	type PlatformOnlyScope,
 	SCOPE_REQUIRED_ROLE,
 } from "@kayle-id/auth/permissions";

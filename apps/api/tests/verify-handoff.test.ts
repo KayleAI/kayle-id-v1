@@ -62,7 +62,9 @@ type VerifySessionStatusResponse = {
 type VerifySessionDetailsResponse = {
 	data: {
 		organization_name: string;
+		organization_verified: boolean;
 		session_id: string;
+		is_age_only: boolean;
 	} | null;
 	error: {
 		code: string;
@@ -356,7 +358,9 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(payload.error).toBeNull();
 			expect(payload.data).toEqual({
 				organization_name: "Test Organization",
+				organization_verified: true,
 				session_id: sessionId,
+				is_age_only: false,
 			});
 		},
 	);

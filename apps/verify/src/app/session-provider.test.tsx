@@ -179,6 +179,8 @@ describe("SessionProvider", () => {
 			.spyOn(handoffModule, "requestVerifySessionDetails")
 			.mockResolvedValue({
 				organization_name: "Test Organization",
+				organization_verified: true,
+				is_age_only: false,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -211,6 +213,8 @@ describe("SessionProvider", () => {
 			.spyOn(handoffModule, "requestVerifySessionDetails")
 			.mockResolvedValue({
 				organization_name: "Test Organization",
+				organization_verified: true,
+				is_age_only: false,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -243,6 +247,8 @@ describe("SessionProvider", () => {
 			.spyOn(handoffModule, "requestVerifySessionDetails")
 			.mockResolvedValue({
 				organization_name: "Test Organization",
+				organization_verified: true,
+				is_age_only: false,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -273,6 +279,8 @@ describe("SessionProvider", () => {
 		const handoffModule = await import("@/config/handoff");
 		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue({
 			organization_name: "Test Organization",
+			organization_verified: true,
+			is_age_only: false,
 			session_id: sessionId,
 		});
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(
@@ -327,6 +335,8 @@ describe("SessionProvider", () => {
 		const handoffModule = await import("@/config/handoff");
 		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue({
 			organization_name: "Test Organization",
+			organization_verified: true,
+			is_age_only: false,
 			session_id: sessionId,
 		});
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(

@@ -77,6 +77,26 @@ export const createSession = createRoute({
 			},
 			description: "Bad request.",
 		},
+		429: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse.openapi({
+						example: {
+							data: null,
+							error: {
+								code: "ORG_NOT_VERIFIED_LIMIT_EXCEEDED",
+								message:
+									"Unverified organizations are limited to 5 identity-revealing sessions per 24 hours.",
+								hint: "Verify the organization in the platform settings, or wait until the rolling window resets. Age-gate-only sessions remain available.",
+								docs: "https://kayle.id/docs/api/sessions#create",
+							},
+						},
+					}),
+				},
+			},
+			description:
+				"Unverified organization has exceeded the rolling 24h session limit.",
+		},
 		500: {
 			content: {
 				"application/json": {

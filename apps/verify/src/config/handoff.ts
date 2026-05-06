@@ -25,7 +25,9 @@ export type VerifySessionStatusPayload = {
 
 export type VerifySessionDetailsPayload = {
 	organization_name: string;
+	organization_verified: boolean;
 	session_id: string;
+	is_age_only: boolean;
 };
 
 type VerifyApiError = {

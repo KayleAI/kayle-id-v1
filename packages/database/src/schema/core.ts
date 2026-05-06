@@ -36,6 +36,20 @@ export const verificationAttemptFailureCodes = [
 	"selfie_face_mismatch",
 ] as const;
 
+/**
+ * Document type families recorded on the dedup hash row produced when an org
+ * owner completes their identity check. Sourced from the MRZ document type
+ * code in DG1; we collapse the various TD3/TD2/TD1 variants into a small
+ * stable enum so reason codes / per-type rules can branch without parsing
+ * raw MRZ values at query time.
+ */
+export const orgVerificationDocumentTypes = [
+	"passport",
+	"national_id",
+	"residence_permit",
+	"other",
+] as const;
+
 export const api_keys = pgTable(
 	"api_keys",
 	{
@@ -112,6 +126,28 @@ export const verification_sessions = pgTable(
 		 */
 		cancelTokenConsumedAt: timestamp("cancel_token_consumed_at"),
 		/**
+		 * When non-null, this session was created on behalf of an organization to
+		 * verify the identity of its owner (i.e. the platform calling Kayle ID's
+		 * own API to onboard a customer org). On a successful share, the API
+		 * derives a dedup hash from the document and records it in
+		 * `org_verification_records`, then flips `verified_at` on the target org.
+		 *
+		 * The `organization_id` column above still names the org the session
+		 * *belongs to* (the platform's internal org). This column names the org
+		 * being verified.
+		 */
+		ownerVerificationOrgId: uuid("owner_verification_org_id"),
+		/**
+		 * True when this session's share fields are limited to age-gate claims
+		 * (`age_over_xx`) plus `kayle_document_id`. Such sessions are exempt
+		 * from the unverified-org rate limit and warning UI because they reveal
+		 * no identity-bearing attributes.
+		 *
+		 * Computed once at session creation from the normalized share fields so
+		 * the rate-limit query can stay a cheap indexed count.
+		 */
+		isAgeOnly: boolean("is_age_only").default(false).notNull(),
+		/**
 		 * The expiration time of the verification session.
 		 *
 		 * @default 60 minutes after creation
@@ -135,6 +171,53 @@ export const verification_sessions = pgTable(
 		// Expiry-based GC
 		index("verif_sessions_expires_at_idx").on(table.expiresAt),
 		index("verif_sessions_status_idx").on(table.status),
+		// Quickly count non-age-only sessions for an org in a rolling window —
+		// used by the unverified-org rate limit on session creation.
+		index("verif_sessions_org_age_only_created_at_idx").on(
+			table.organizationId,
+			table.isAgeOnly,
+			table.createdAt,
+		),
+		// Recover sessions that target a specific owner-verification org so we
+		// can finalize the org once the share completes.
+		index("verif_sessions_owner_verification_org_idx").on(
+			table.ownerVerificationOrgId,
+		),
+	],
+);
+
+/**
+ * Dedup hash row written when an organization owner completes a Kayle ID
+ * identity check. Stores only the document type family, issuing country, and
+ * a peppered hash of the document number — never the raw document number.
+ *
+ * `dedupHash` carries a global uniqueness intent across all organizations: a
+ * single document should be able to verify a single owner across the
+ * platform. Per-org reuse policy is enforced higher up by inspecting rows
+ * with the same hash; the table itself does not enforce uniqueness so older
+ * pepper versions and migrations remain representable.
+ */
+export const org_verification_records = pgTable(
+	"org_verification_records",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		dedupHash: text("dedup_hash").notNull(),
+		pepperVersion: integer("pepper_version").default(1).notNull(),
+		documentType: text("document_type", {
+			enum: orgVerificationDocumentTypes,
+		}).notNull(),
+		issuingCountry: text("issuing_country").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		index("org_verification_records_dedup_hash_idx").on(table.dedupHash),
+		index("org_verification_records_org_created_at_idx").on(
+			table.organizationId,
+			table.createdAt,
+		),
 	],
 );
 

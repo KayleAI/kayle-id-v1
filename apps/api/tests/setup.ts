@@ -6,7 +6,7 @@ import {
 } from "@kayle-id/database/schema/auth";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
-import { API_KEY_SCOPES } from "@/auth/permissions";
+import { CUSTOMER_API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 
 type TestData = {
@@ -42,6 +42,13 @@ const setup = async (): Promise<TestData> => {
 			name: "Test Organization",
 			slug: `test-${crypto.randomUUID()}`,
 			createdAt: new Date(),
+			// Seed the test org as verified so the unverified-org rate limit
+			// doesn't cap test fixtures at 5 identity sessions per file. Tests
+			// that explicitly exercise the unverified path (see
+			// `sessions-unverified-org-limit.test.ts`) toggle this back to null.
+			verifiedAt: new Date(),
+			verificationTermsAcceptedAt: new Date(),
+			verificationTermsAcceptedBy: userId,
 		})
 		.returning({
 			id: auth_organizations.id,
@@ -63,7 +70,7 @@ const setup = async (): Promise<TestData> => {
 	const { apiKey, id: apiKeyId } = await createApiKey({
 		name: "Test API Key",
 		organizationId,
-		permissions: [...API_KEY_SCOPES],
+		permissions: [...CUSTOMER_API_KEY_SCOPES],
 	});
 
 	return { userId, organizationId, apiKey, apiKeyId };

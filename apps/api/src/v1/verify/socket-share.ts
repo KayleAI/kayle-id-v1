@@ -1,3 +1,4 @@
+import { finalizeOrgVerificationIfApplicable } from "@/v1/org-verification/finalize";
 import {
 	attemptWebhookDelivery,
 	createWebhookDeliveriesForVerificationSucceeded,
@@ -73,6 +74,20 @@ export async function handleShareSelectionMessage(
 		attemptId: state.attemptId,
 		faceScore: state.acceptedFaceScore,
 	});
+
+	const finalizeResult = await finalizeOrgVerificationIfApplicable({
+		session,
+		dg1Claims: result.dg1Claims,
+		env: context.env as unknown as Record<string, string | undefined>,
+	});
+
+	if (finalizeResult.kind === "verified") {
+		context.log.set({
+			event: "verify.ws.org_owner_verified",
+			organization_id: session.ownerVerificationOrgId,
+			record_id: finalizeResult.recordId,
+		});
+	}
 
 	state.shareManifest = result.manifest;
 	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({

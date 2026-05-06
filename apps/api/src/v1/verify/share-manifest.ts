@@ -266,6 +266,7 @@ export async function validateAndBuildShareManifest({
 			manifest: VerifyShareManifest;
 			ok: true;
 			shareReady: VerifyShareReady;
+			dg1Claims: Dg1Claims;
 	  }
 	| {
 			code: ShareSelectionValidationCode;
@@ -328,5 +329,6 @@ export async function validateAndBuildShareManifest({
 			selectedFieldKeys: selection.selectedFieldKeys,
 			sessionId,
 		},
+		dg1Claims,
 	};
 }

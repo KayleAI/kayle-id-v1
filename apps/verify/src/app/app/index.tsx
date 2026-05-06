@@ -7,6 +7,7 @@ import { useSession } from "../session-provider";
 import { SessionConsent } from "./consent";
 import { SessionExplain } from "./explain";
 import { Handoff } from "./handoff";
+import { UnverifiedOrgWarning } from "./unverified-org-warning";
 
 export function SessionApp() {
 	const { error, isSessionDetailsReady, organizationName, session } =
@@ -26,6 +27,8 @@ export function SessionApp() {
 	}
 
 	switch (step) {
+		case "unverified_org_warning":
+			return <UnverifiedOrgWarning organizationName={organizationName} />;
 		case "explain":
 			return <SessionExplain organizationName={organizationName} />;
 		case "consent":

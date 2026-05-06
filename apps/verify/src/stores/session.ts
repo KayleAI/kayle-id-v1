@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type VerificationStep =
+	| "unverified_org_warning"
 	| "explain"
 	| "consent"
 	| "handoff"
@@ -8,6 +9,7 @@ export type VerificationStep =
 	| "teardown";
 
 const SESSION_OPTIONAL_STEPS = new Set<VerificationStep>([
+	"unverified_org_warning",
 	"explain",
 	"consent",
 	"handoff",
@@ -19,6 +21,7 @@ export function canRenderWithoutSession(step: VerificationStep): boolean {
 
 type VerificationStore = {
 	step: VerificationStep;
+	goToUnverifiedOrgWarning: () => void;
 	goToExplain: () => void;
 	goToConsent: () => void;
 	goToHandoff: () => void;
@@ -28,6 +31,10 @@ type VerificationStore = {
 
 export const useVerificationStore = create<VerificationStore>((set) => ({
 	step: "explain",
+	/**
+	 * Warn the user that the organization is not verified before continuing.
+	 */
+	goToUnverifiedOrgWarning: () => set({ step: "unverified_org_warning" }),
 	/**
 	 * Explain the verification process.
 	 */

@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { API_KEY_SCOPES } from "@/auth/permissions";
+import { CUSTOMER_API_KEY_SCOPES } from "@/auth/permissions";
 
 const ApiKeyMetadataValue = z.union([z.string(), z.number(), z.boolean()]);
 
@@ -9,7 +9,10 @@ export const ApiKeyIdParam = z.object({
 	id: z.string().min(1),
 });
 
-const ApiKeyScopeArray = z.array(z.enum(API_KEY_SCOPES));
+// Customer-facing endpoints (`/api/auth/api-keys`) only accept customer scopes.
+// `org_verifications:write` is platform-internal and is never grantable from
+// outside; the platform's own key is provisioned out-of-band.
+const ApiKeyScopeArray = z.array(z.enum(CUSTOMER_API_KEY_SCOPES));
 
 export const ApiKeyCreateRequest = z.object({
 	name: z.string().min(1),

@@ -3,12 +3,14 @@ import { logEvent } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
 import type { createSession } from "@/openapi/v1/sessions/create";
 import { generateId } from "@/utils/generate-id";
+import { isAgeOnlyShareFields } from "@/v1/org-verification/rate-limit";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
-import { createVerificationSession } from "@/v1/sessions/repo/session-repo";
+import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 
 const contractVersion = 1;
+const docs = "https://kayle.id/docs/api/sessions#create";
 
 export const createSessionHandler: RouteHandler<
 	typeof createSession,
@@ -47,14 +49,46 @@ export const createSessionHandler: RouteHandler<
 		);
 	}
 
+	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
+
 	const id = generateId({ type: "vs" });
-	const { row: created, cancelToken } = await createVerificationSession({
+	const result = await createVerificationSessionWithUnverifiedOrgLimit({
 		id,
 		organizationId,
 		redirectUrl,
 		shareFields: normalized.shareFields,
 		contractVersion,
+		isAgeOnly,
 	});
+
+	if (!result.ok) {
+		logEvent(log, {
+			details: {
+				organization_id: organizationId,
+				current: result.rejected.current,
+				limit: result.rejected.limit,
+				reset_at: result.rejected.resetAt.toISOString(),
+			},
+			event: "sessions.create.unverified_org_limit_exceeded",
+			level: "warn",
+		});
+
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ORG_NOT_VERIFIED_LIMIT_EXCEEDED",
+					message:
+						"Unverified organizations are limited to 5 identity-revealing sessions per 24 hours.",
+					hint: "Verify the organization in the platform settings, or wait until the rolling window resets. Age-gate-only sessions remain available.",
+					docs,
+				},
+			},
+			429,
+		);
+	}
+
+	const { row: created, cancelToken } = result;
 
 	log.set({
 		event: "sessions.create.created",

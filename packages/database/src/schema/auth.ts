@@ -102,6 +102,8 @@ export const auth_verifications = pgTable(
 	(table) => [index("auth_verifications_identifier_idx").on(table.identifier)],
 );
 
+export const organizationBusinessTypes = ["sole", "business"] as const;
+
 export const auth_organizations = pgTable(
 	"auth_organizations",
 	{
@@ -116,11 +118,29 @@ export const auth_organizations = pgTable(
 		pendingDeletionRequestedBy: uuid(
 			"pending_deletion_requested_by",
 		).references(() => auth_users.id, { onDelete: "set null" }),
+		/**
+		 * When non-null, the organization owner has completed a Kayle ID identity
+		 * check and the org is exempt from the unverified-org limits enforced by
+		 * the sessions API. See `verification_records` for the dedup hash row that
+		 * was written at verification time.
+		 */
+		verifiedAt: timestamp("verified_at"),
+		businessType: text("business_type", {
+			enum: organizationBusinessTypes,
+		}),
+		businessJurisdiction: text("business_jurisdiction"),
+		businessName: text("business_name"),
+		businessRegistrationNumber: text("business_registration_number"),
+		verificationTermsAcceptedAt: timestamp("verification_terms_accepted_at"),
+		verificationTermsAcceptedBy: uuid(
+			"verification_terms_accepted_by",
+		).references(() => auth_users.id, { onDelete: "set null" }),
 	},
 	(table) => [
 		index("auth_organizations_pending_deletion_at_idx").on(
 			table.pendingDeletionAt,
 		),
+		index("auth_organizations_verified_at_idx").on(table.verifiedAt),
 	],
 );
 

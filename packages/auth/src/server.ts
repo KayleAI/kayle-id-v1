@@ -205,6 +205,48 @@ const plugins = [
             input: false,
             fieldName: "pending_deletion_requested_by",
           },
+          verifiedAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "verified_at",
+          },
+          businessType: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "business_type",
+          },
+          businessJurisdiction: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "business_jurisdiction",
+          },
+          businessName: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "business_name",
+          },
+          businessRegistrationNumber: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "business_registration_number",
+          },
+          verificationTermsAcceptedAt: {
+            type: "date",
+            required: false,
+            input: false,
+            fieldName: "verification_terms_accepted_at",
+          },
+          verificationTermsAcceptedBy: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "verification_terms_accepted_by",
+          },
         },
       },
       member: {

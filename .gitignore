@@ -60,3 +60,6 @@ apps/ios/.derived-data-device/
 # Python
 *.pyc
 tmp/icao-pkd-trust-store.sql
+
+# Claude Code local settings
+.claude/settings.local.json

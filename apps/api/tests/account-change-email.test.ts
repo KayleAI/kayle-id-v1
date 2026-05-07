@@ -67,11 +67,7 @@ function captureNextVerificationCall(): Promise<CapturedVerificationCall> {
 
 beforeAll(async () => {
 	UNVERIFIED_CALLER = await setupSessionAuth();
-	VERIFIED_CALLER = await setupSessionAuth();
-	await db
-		.update(auth_users)
-		.set({ emailVerified: true })
-		.where(eq(auth_users.id, VERIFIED_CALLER.userId));
+	VERIFIED_CALLER = await setupSessionAuth({ emailVerified: true });
 });
 
 afterEach(() => {

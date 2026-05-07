@@ -18,7 +18,7 @@ export async function getPublicVerifySessionDetails({
 	const [session] = await db
 		.select({
 			organizationName: auth_organizations.name,
-			organizationVerifiedAt: auth_organizations.verifiedAt,
+			organizationVerifiedAt: auth_organizations.verified_at,
 			sessionId: verification_sessions.id,
 			isAgeOnly: verification_sessions.isAgeOnly,
 		})

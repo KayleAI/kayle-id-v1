@@ -3,6 +3,7 @@ import { TRUSTED_CLIENT_IP_HEADERS } from "@kayle-id/config/client-ip";
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
+import { redis } from "@kayle-id/database/redis";
 import { auth as authSchema } from "@kayle-id/database/schema";
 import {
   auth_organization_members,
@@ -432,7 +433,11 @@ export const auth = betterAuth({
   }),
   basePath: "/v1/auth",
   experimental: {
-    // Eventually we'll want to enable joins but for now we're facing an issue with them not.
+    // Better Auth's drizzle adapter passes raw `eq(col, val)` operators to
+    // `db.query.x.findFirst({ where })`, but drizzle-orm 1.0-beta's relational
+    // query builder expects a filter callback there — the SQL operator gets
+    // walked as a filter object and explodes on its internal `decoder`
+    // property. Keep this off until better-auth ships a compatible adapter.
     joins: false,
   },
   hooks: {
@@ -472,7 +477,6 @@ export const auth = betterAuth({
     modelName: "auth_accounts",
   },
   session: {
-    modelName: "auth_sessions",
     updateAge: 60 * 1000, // 60 seconds
     freshAge: 60 * 60 * 1000, // 1 hour
   },
@@ -528,24 +532,19 @@ export const auth = betterAuth({
       redirectURI: publicGoogleCallbackURL,
     },
   },
-  /*...(process.env.NODE_ENV === "production"
-    ? // Only enable secondary storage in production
-      {
-        secondaryStorage: {
-          get: async (key) => await redis.get(key),
-          set: async (key, value, ttl) => {
-            if (ttl) {
-              await redis.set(key, value, { ex: ttl });
-            } else {
-              await redis.set(key, value);
-            }
-          },
-          delete: async (key) => {
-            await redis.del(key);
-          },
-        },
+  secondaryStorage: {
+    get: async (key) => (await redis.get<string>(key)) ?? null,
+    set: async (key, value, ttl) => {
+      if (ttl) {
+        await redis.set(key, value, { ex: ttl });
+      } else {
+        await redis.set(key, value);
       }
-    : {}),*/
+    },
+    delete: async (key) => {
+      await redis.del(key);
+    },
+  },
   plugins: [
     ...plugins,
     customSession(
@@ -560,11 +559,11 @@ export const auth = betterAuth({
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
-            pendingDeletionAt: auth_organizations.pendingDeletionAt,
+            pendingDeletionAt: auth_organizations.pending_deletion_at,
             pendingDeletionRequestedAt:
-              auth_organizations.pendingDeletionRequestedAt,
+              auth_organizations.pending_deletion_requested_at,
             pendingDeletionRequestedBy:
-              auth_organizations.pendingDeletionRequestedBy,
+              auth_organizations.pending_deletion_requested_by,
           })
           .from(auth_organizations)
           .innerJoin(

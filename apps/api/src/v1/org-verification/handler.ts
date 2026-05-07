@@ -89,11 +89,11 @@ orgVerification.openapi(createOrgVerificationSession, async (c) => {
 	const [target] = await db
 		.select({
 			id: auth_organizations.id,
-			verifiedAt: auth_organizations.verifiedAt,
+			verifiedAt: auth_organizations.verified_at,
 			verificationTermsAcceptedAt:
-				auth_organizations.verificationTermsAcceptedAt,
+				auth_organizations.verification_terms_accepted_at,
 			verificationTermsAcceptedBy:
-				auth_organizations.verificationTermsAcceptedBy,
+				auth_organizations.verification_terms_accepted_by,
 		})
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, targetOrgId))

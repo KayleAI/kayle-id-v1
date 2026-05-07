@@ -7,10 +7,9 @@ import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
 	auth_organizations,
-	auth_sessions,
 	auth_verifications,
 } from "@kayle-id/database/schema/auth";
-import { and, eq, inArray, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import app from "@/index";
 import {
 	type SessionAuthTestData,
@@ -187,7 +186,7 @@ describe("Organization deletion — request", () => {
 		expect(verification?.value).toMatch(/^[A-Z0-9]{8}$/u);
 
 		const org = await getOrg(orgId);
-		expect(org?.pendingDeletionAt).toBeNull();
+		expect(org?.pending_deletion_at).toBeNull();
 	});
 
 	test("re-requesting replaces the existing code", async () => {
@@ -236,7 +235,7 @@ describe("Organization deletion — confirm", () => {
 		});
 		expect(response.status).toBe(400);
 		const org = await getOrg(orgId);
-		expect(org?.pendingDeletionAt).toBeNull();
+		expect(org?.pending_deletion_at).toBeNull();
 	});
 
 	test("correct code schedules deletion ~48h out and removes the verification row", async () => {
@@ -270,12 +269,12 @@ describe("Organization deletion — confirm", () => {
 		expect(response.status).toBe(200);
 
 		const org = await getOrg(orgId);
-		expect(org?.pendingDeletionAt).not.toBeNull();
-		const deltaMs = (org?.pendingDeletionAt?.getTime() ?? 0) - before;
+		expect(org?.pending_deletion_at).not.toBeNull();
+		const deltaMs = (org?.pending_deletion_at?.getTime() ?? 0) - before;
 		// Allow a generous window for slow CI.
 		expect(deltaMs).toBeGreaterThan(47 * 60 * 60 * 1000);
 		expect(deltaMs).toBeLessThan(49 * 60 * 60 * 1000);
-		expect(org?.pendingDeletionRequestedBy).toBe(requireOwner().userId);
+		expect(org?.pending_deletion_requested_by).toBe(requireOwner().userId);
 
 		const stillThere = await getVerificationForOrg(
 			orgId,
@@ -355,8 +354,8 @@ describe("Organization deletion — cancel", () => {
 		});
 		expect(response.status).toBe(200);
 		const org = await getOrg(orgId);
-		expect(org?.pendingDeletionAt).toBeNull();
-		expect(org?.pendingDeletionRequestedBy).toBeNull();
+		expect(org?.pending_deletion_at).toBeNull();
+		expect(org?.pending_deletion_requested_by).toBeNull();
 	});
 
 	test("member cannot cancel — 403", async () => {
@@ -372,7 +371,7 @@ describe("Organization deletion — cancel", () => {
 		});
 		expect(response.status).toBe(403);
 		const org = await getOrg(orgId);
-		expect(org?.pendingDeletionAt).not.toBeNull();
+		expect(org?.pending_deletion_at).not.toBeNull();
 	});
 
 	test("cancel on an org with no pending deletion → 404", async () => {
@@ -389,83 +388,37 @@ describe("Organization deletion — cancel", () => {
 	});
 });
 
-describe("Organization deletion — hard delete + active-org reassignment", () => {
-	test("processDueOrganizationDeletions deletes due orgs and reassigns active sessions", async () => {
-		// Make a doomed org and a fallback org for the owner.
+describe("Organization deletion — hard delete", () => {
+	test("processDueOrganizationDeletions deletes due orgs", async () => {
 		const doomedOrgId = await createOrgWithMembers();
-		const fallbackOrgId = await createOrgWithMembers();
 
-		// Mark the doomed org as overdue.
 		await db
 			.update(auth_organizations)
 			.set({
-				pendingDeletionAt: new Date(Date.now() - 1000),
-				pendingDeletionRequestedAt: new Date(),
-				pendingDeletionRequestedBy: requireOwner().userId,
+				pending_deletion_at: new Date(Date.now() - 1000),
+				pending_deletion_requested_at: new Date(),
+				pending_deletion_requested_by: requireOwner().userId,
 			})
 			.where(eq(auth_organizations.id, doomedOrgId));
-
-		// Point one of the owner's sessions at the doomed org.
-		await db
-			.update(auth_sessions)
-			.set({ activeOrganizationId: doomedOrgId })
-			.where(eq(auth_sessions.userId, requireOwner().userId));
 
 		const result = await processDueOrganizationDeletions({
 			now: new Date(),
 		});
 		expect(result.deleted).toContain(doomedOrgId);
 
-		// Doomed org gone
 		const doomed = await getOrg(doomedOrgId);
 		expect(doomed).toBeNull();
 		createdOrganizationIds.delete(doomedOrgId);
-
-		// Affected sessions should now point at the fallback (or null) — never at
-		// the deleted org.
-		const sessions = await db
-			.select({ activeOrganizationId: auth_sessions.activeOrganizationId })
-			.from(auth_sessions)
-			.where(
-				and(
-					eq(auth_sessions.userId, requireOwner().userId),
-					// We don't assert all sessions match — just that none point at the
-					// deleted id.
-				),
-			);
-		for (const s of sessions) {
-			expect(s.activeOrganizationId).not.toBe(doomedOrgId);
-		}
-		// At least one should now be on the fallback org.
-		const onFallback = sessions.some(
-			(s) => s.activeOrganizationId === fallbackOrgId,
-		);
-		expect(onFallback).toBe(true);
 	});
 
-	test("hardDeleteOrganizations on a never-frozen org cascades and reassigns", async () => {
+	test("hardDeleteOrganizations on a never-frozen org cascades", async () => {
 		const orgId = await createOrgWithMembers();
-		const fallbackId = await createOrgWithMembers();
-
-		await db
-			.update(auth_sessions)
-			.set({ activeOrganizationId: orgId })
-			.where(eq(auth_sessions.userId, requireOwner().userId));
 
 		await hardDeleteOrganizations([orgId]);
 		createdOrganizationIds.delete(orgId);
 
 		const stillThere = await getOrg(orgId);
 		expect(stillThere).toBeNull();
-
-		const sessions = await db
-			.select({ activeOrganizationId: auth_sessions.activeOrganizationId })
-			.from(auth_sessions)
-			.where(eq(auth_sessions.userId, requireOwner().userId));
-		const reassignedToFallback = sessions.some(
-			(s) => s.activeOrganizationId === fallbackId,
-		);
-		expect(reassignedToFallback).toBe(true);
 	});
 });
 
@@ -475,9 +428,9 @@ describe("Organization deletion — re-request blocked while scheduled", () => {
 		await db
 			.update(auth_organizations)
 			.set({
-				pendingDeletionAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-				pendingDeletionRequestedAt: new Date(),
-				pendingDeletionRequestedBy: requireOwner().userId,
+				pending_deletion_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+				pending_deletion_requested_at: new Date(),
+				pending_deletion_requested_by: requireOwner().userId,
 			})
 			.where(eq(auth_organizations.id, orgId));
 

@@ -35,7 +35,7 @@ export async function finalizeOrgVerificationIfApplicable({
 	}
 
 	const [org] = await db
-		.select({ verifiedAt: auth_organizations.verifiedAt })
+		.select({ verifiedAt: auth_organizations.verified_at })
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, targetOrgId))
 		.limit(1);
@@ -68,11 +68,11 @@ export async function finalizeOrgVerificationIfApplicable({
 	// update idempotent if a successful share is replayed.
 	await db
 		.update(auth_organizations)
-		.set({ verifiedAt: new Date() })
+		.set({ verified_at: new Date() })
 		.where(
 			and(
 				eq(auth_organizations.id, targetOrgId),
-				isNull(auth_organizations.verifiedAt),
+				isNull(auth_organizations.verified_at),
 			),
 		);
 

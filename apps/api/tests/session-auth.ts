@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 
 type SessionAuthSetupOptions = {
 	withActiveOrganization?: boolean;
+	emailVerified?: boolean;
 };
 
 type SessionAuthTestData = {
@@ -70,6 +71,7 @@ function mergeCookieHeader(
 
 export async function setupSessionAuth({
 	withActiveOrganization = false,
+	emailVerified = false,
 }: SessionAuthSetupOptions = {}): Promise<SessionAuthTestData> {
 	const credentials = {
 		email: `${crypto.randomUUID()}@test.kayle.id`,
@@ -93,6 +95,27 @@ export async function setupSessionAuth({
 		null,
 		getSetCookieHeader(signUpResponse),
 	);
+
+	// Sign-up auto-issues a session cached in secondary storage with the
+	// freshly created user, who is `emailVerified: false`. Tests that need a
+	// verified caller must update the DB *and* refresh that cached session,
+	// otherwise routes that read `session.user.emailVerified` (e.g.
+	// `change-email`) will see the stale value.
+	if (emailVerified) {
+		await db
+			.update(auth_users)
+			.set({ emailVerified: true })
+			.where(eq(auth_users.id, signUpPayload.user.id));
+
+		const signInResponse = await auth.api.signInEmail({
+			asResponse: true,
+			body: { email: credentials.email, password: credentials.password },
+		});
+		if (!signInResponse.ok) {
+			throw new Error(`auth_sign_in_failed:${signInResponse.status}`);
+		}
+		sessionCookie = mergeCookieHeader(null, getSetCookieHeader(signInResponse));
+	}
 
 	if (withActiveOrganization) {
 		organizationId = crypto.randomUUID();

@@ -5,7 +5,6 @@ import {
 	auth_organization_members,
 	auth_organizations,
 	auth_passkeys,
-	auth_sessions,
 	auth_two_factors,
 	auth_users,
 	auth_verifications,
@@ -17,7 +16,6 @@ const schema = {
 	auth_organization_members,
 	auth_organizations,
 	auth_passkeys,
-	auth_sessions,
 	auth_two_factors,
 	auth_users,
 	auth_verifications,
@@ -25,10 +23,6 @@ const schema = {
 
 export const relations = defineRelations(schema, (r) => ({
 	auth_users: {
-		auth_sessionss: r.many.auth_sessions({
-			from: r.auth_users.id,
-			to: r.auth_sessions.userId,
-		}),
 		auth_accountss: r.many.auth_accounts({
 			from: r.auth_users.id,
 			to: r.auth_accounts.userId,
@@ -59,12 +53,6 @@ export const relations = defineRelations(schema, (r) => ({
 	auth_two_factors: {
 		auth_users: r.one.auth_users({
 			from: r.auth_two_factors.userId,
-			to: r.auth_users.id,
-		}),
-	},
-	auth_sessions: {
-		auth_users: r.one.auth_users({
-			from: r.auth_sessions.userId,
 			to: r.auth_users.id,
 		}),
 	},

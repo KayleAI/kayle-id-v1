@@ -56,7 +56,7 @@ verify.post(
 	validator("param", sessionParamJsonValidator),
 	async (c) => {
 		const { id } = c.req.valid("param");
-		const handoff = await issueHandoffPayload(id);
+		const handoff = await issueHandoffPayload(id, { env: c.env });
 
 		if (!handoff.ok) {
 			const response = createVerifyJsonErrorResponse({
@@ -123,6 +123,7 @@ verify.get(
 	async (c) => {
 		const { id } = c.req.valid("param");
 		const status = await getPublicVerifySessionStatus({
+			env: c.env,
 			sessionId: id,
 		});
 
@@ -253,6 +254,7 @@ verify.post(
 		}
 
 		const session = await expireVerificationSessionIfNeeded({
+			env: c.env,
 			row: rawSession,
 		});
 
@@ -289,6 +291,7 @@ verify.post(
 
 		if (!isTerminal) {
 			await cancelVerificationSession({
+				env: c.env,
 				row: session,
 				organizationId: session.organizationId,
 			});
@@ -329,6 +332,7 @@ verify.get(
 
 		const activeSession = await loadActiveVerifySession(
 			c.req.valid("param").id,
+			{ env: c.env },
 		);
 
 		if (!activeSession.ok) {

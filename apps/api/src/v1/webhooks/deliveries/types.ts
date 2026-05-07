@@ -2,7 +2,6 @@ import type { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
 
 export const MAX_DELIVERY_ATTEMPTS = 3;
-export const INITIAL_RETRY_DELAY_MS = 60_000;
 
 export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
 

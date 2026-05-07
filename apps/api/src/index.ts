@@ -9,8 +9,9 @@ import v1 from "@/v1";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
 import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import verify from "@/v1/verify";
-import { processDueWebhookDeliveries } from "@/v1/webhooks/deliveries/service";
 import auth from "./auth";
+
+export { WebhookDeliveryWorkflow } from "@/v1/webhooks/deliveries/workflow";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -122,16 +123,13 @@ const worker = Object.assign(app, {
 	) => {
 		if (shouldRunExpiredSessionNormalization(controller.scheduledTime)) {
 			await normalizeExpiredVerificationSessions({
+				env,
 				now: new Date(controller.scheduledTime),
 			});
 		}
 
 		await processDueOrganizationDeletions({
 			now: new Date(controller.scheduledTime),
-		});
-
-		await processDueWebhookDeliveries({
-			authSecret: env.AUTH_SECRET,
 		});
 	},
 });

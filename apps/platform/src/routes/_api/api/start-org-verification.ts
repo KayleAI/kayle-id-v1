@@ -125,6 +125,10 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 				// is owned by the platform — the verify app surfaces "Kayle Inc." as
 				// the relying party, and the unverified-org UI on the customer org is
 				// untouched by this session because the customer is not the caller.
+				//
+				// Only the three claims that feed the dedup hash are requested, all
+				// `required: true`. The owner can't decline them, and we don't ask
+				// for identity fields we won't use (name, DOB, etc.).
 				const redirectUrl = new URL(
 					"/organizations",
 					getPublicHost(),
@@ -135,7 +139,23 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 						Authorization: `Bearer ${env.KAYLE_INTERNAL_API_KEY}`,
 						"Content-Type": "application/json",
 					},
-					body: JSON.stringify({ redirect_url: redirectUrl }),
+					body: JSON.stringify({
+						redirect_url: redirectUrl,
+						share_fields: {
+							document_type_code: {
+								required: true,
+								reason: "Used for anti-abuse hash computation.",
+							},
+							document_number: {
+								required: true,
+								reason: "Used for anti-abuse hash computation.",
+							},
+							issuing_country_code: {
+								required: true,
+								reason: "Used for anti-abuse hash computation.",
+							},
+						},
+					}),
 				});
 
 				if (!sessionResponse.ok) {

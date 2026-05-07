@@ -6,8 +6,8 @@ import {
 } from "@kayle-id/database/schema/core";
 import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
-import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/org-verification/rate-limit";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
+import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/sessions/unverified-org-limit";
 import {
 	generateSessionCancelToken,
 	hashSessionCancelToken,
@@ -15,6 +15,7 @@ import {
 import {
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSessionExpired,
+	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -107,7 +108,6 @@ export type CreateVerificationSessionInput = {
 	shareFields: ShareFields;
 	contractVersion: number;
 	isAgeOnly: boolean;
-	ownerVerificationOrgId?: string | null;
 };
 
 async function insertVerificationSessionRow(
@@ -128,7 +128,6 @@ async function insertVerificationSessionRow(
 			contractVersion: input.contractVersion,
 			cancelTokenHash,
 			isAgeOnly: input.isAgeOnly,
-			ownerVerificationOrgId: input.ownerVerificationOrgId ?? null,
 		})
 		.returning();
 
@@ -207,9 +206,11 @@ export async function createVerificationSessionWithUnverifiedOrgLimit(
 }
 
 export async function cancelVerificationSession({
+	env,
 	row,
 	organizationId,
 }: {
+	env?: CloudflareBindings;
 	row: typeof verification_sessions.$inferSelect;
 	organizationId: string;
 }) {
@@ -255,18 +256,23 @@ export async function cancelVerificationSession({
 		};
 	});
 
-	await createWebhookDeliveriesForVerificationSessionCancelled({
-		contractVersion: row.contractVersion,
-		eventId: result.sessionCancelledEventId,
-		organizationId,
-		sessionId: row.id,
-	});
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionCancelled({
+			contractVersion: row.contractVersion,
+			eventId: result.sessionCancelledEventId,
+			organizationId,
+			sessionId: row.id,
+		});
+
+	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
 }
 
 export async function expireVerificationSessionIfNeeded({
+	env,
 	now = new Date(),
 	row,
 }: {
+	env?: CloudflareBindings;
 	now?: Date;
 	row: typeof verification_sessions.$inferSelect;
 }) {
@@ -319,12 +325,15 @@ export async function expireVerificationSessionIfNeeded({
 		};
 	});
 
-	await createWebhookDeliveriesForVerificationSessionExpired({
-		contractVersion: row.contractVersion,
-		eventId: result.sessionExpiredEventId,
-		organizationId: row.organizationId,
-		sessionId: row.id,
-	});
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionExpired({
+			contractVersion: row.contractVersion,
+			eventId: result.sessionExpiredEventId,
+			organizationId: row.organizationId,
+			sessionId: row.id,
+		});
+
+	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
 
 	return {
 		...row,
@@ -339,10 +348,12 @@ const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
 
 export async function normalizeExpiredVerificationSessions({
 	batchSize = EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE,
+	env,
 	maxBatches = EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES,
 	now = new Date(),
 }: {
 	batchSize?: number;
+	env?: CloudflareBindings;
 	maxBatches?: number;
 	now?: Date;
 } = {}): Promise<number> {
@@ -367,6 +378,7 @@ export async function normalizeExpiredVerificationSessions({
 
 		for (const row of rows) {
 			await expireVerificationSessionIfNeeded({
+				env,
 				now,
 				row,
 			});

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mapMrzDocumentTypeToEnum } from "@/v1/org-verification/document-type";
+import { mapMrzDocumentTypeToEnum } from "@/internal/org-verification/document-type";
 
 describe("mapMrzDocumentTypeToEnum", () => {
 	test("maps the TD3 passport code to passport", () => {

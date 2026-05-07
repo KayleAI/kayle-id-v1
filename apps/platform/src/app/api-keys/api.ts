@@ -17,8 +17,7 @@ const UNEXPECTED_API_KEY_RESPONSE = "Unexpected API key response.";
 
 // TODO: surface scope selection in the create modal so users can issue
 // least-privilege keys. Until then, the dashboard issues fully-scoped keys
-// limited to customer-permitted scopes — `org_verifications:write` is
-// platform-internal and must never appear on a customer key.
+// limited to customer-permitted scopes.
 const DEFAULT_API_KEY_PERMISSIONS: readonly CustomerApiKeyScope[] =
 	CUSTOMER_API_KEY_SCOPES;
 

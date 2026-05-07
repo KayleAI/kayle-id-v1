@@ -27,9 +27,11 @@ export type PublicVerifySessionStatus = {
 };
 
 export async function getPublicVerifySessionStatus({
+	env,
 	now = new Date(),
 	sessionId,
 }: {
+	env?: CloudflareBindings;
 	now?: Date;
 	sessionId: string;
 }): Promise<PublicVerifySessionStatus | null> {
@@ -44,6 +46,7 @@ export async function getPublicVerifySessionStatus({
 	}
 
 	const session = await expireVerificationSessionIfNeeded({
+		env,
 		now,
 		row: rawSession,
 	});

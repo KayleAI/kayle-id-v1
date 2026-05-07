@@ -55,6 +55,13 @@
 			"migrations_dir": "../../database/trust-store"
 		}
 	],
+	"workflows": [
+		{
+			"name": "kayle-id-webhook-delivery",
+			"binding": "WEBHOOK_DELIVERY_WORKFLOW",
+			"class_name": "WebhookDeliveryWorkflow"
+		}
+	],
 	"routes": [
 		{
 			"pattern": "api.kayle.id",
@@ -112,6 +119,13 @@
 					"migrations_dir": "../../database/trust-store"
 				}
 			],
+			"workflows": [
+				{
+					"name": "kayle-id-webhook-delivery",
+					"binding": "WEBHOOK_DELIVERY_WORKFLOW",
+					"class_name": "WebhookDeliveryWorkflow"
+				}
+			],
 			"secrets": {
 				"required": [
 					"KAYLE_INTERNAL_TOKEN",
@@ -154,6 +168,13 @@
 					"database_name": "kayle-id-trust-store",
 					"database_id": "268b1f9b-d31b-452e-8b2a-567e45fd3f05",
 					"migrations_dir": "../../database/trust-store"
+				}
+			],
+			"workflows": [
+				{
+					"name": "kayle-id-webhook-delivery",
+					"binding": "WEBHOOK_DELIVERY_WORKFLOW",
+					"class_name": "WebhookDeliveryWorkflow"
 				}
 			],
 			"secrets": {

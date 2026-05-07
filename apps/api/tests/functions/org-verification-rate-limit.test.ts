@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { isAgeOnlyShareFields } from "@/v1/org-verification/rate-limit";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
+import { isAgeOnlyShareFields } from "@/v1/sessions/unverified-org-limit";
 
 function buildShareFields(input: unknown): ShareFields {
 	const normalized = normalizeShareFields(input);

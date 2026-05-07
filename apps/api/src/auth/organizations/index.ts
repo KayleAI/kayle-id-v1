@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
+import { acceptVerificationTerms } from "./accept-verification-terms";
 import { cancelDelete } from "./cancel-delete";
 import { confirmDelete } from "./confirm-delete";
 import createOrganizationRoute from "./create";
@@ -39,5 +40,6 @@ organizations.route("/", uploadLogoRoute);
 organizations.route("/", requestDelete);
 organizations.route("/", confirmDelete);
 organizations.route("/", cancelDelete);
+organizations.route("/", acceptVerificationTerms);
 
 export default organizations;

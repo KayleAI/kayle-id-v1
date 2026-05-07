@@ -4,7 +4,7 @@ import {
 	type DedupHashInput,
 	normalizeDocumentNumber,
 	normalizeIssuingCountry,
-} from "@/v1/org-verification/dedup";
+} from "@/internal/org-verification/dedup";
 
 const FIXED_PEPPER = "pepper-for-tests-do-not-use-in-prod";
 

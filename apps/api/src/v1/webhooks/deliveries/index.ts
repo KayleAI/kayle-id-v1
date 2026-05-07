@@ -1,5 +1,4 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
 import { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
@@ -8,10 +7,10 @@ import { listWebhookDeliveries } from "@/openapi/v1/webhooks/deliveries/list";
 import { retryWebhookDelivery } from "@/openapi/v1/webhooks/deliveries/retry";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import {
-	attemptWebhookDelivery,
 	getWebhookDeliveryForOrganization,
 	mapWebhookDeliveryRowToResponse,
 	requeueWebhookDelivery,
+	triggerWebhookDeliveryWorkflows,
 } from "./service";
 
 const webhookDeliveries = new OpenAPIHono<{
@@ -116,9 +115,9 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 
 	waitUntilIfAvailable({
 		createTask: () =>
-			attemptWebhookDelivery({
-				authSecret: c.env?.AUTH_SECRET ?? env.AUTH_SECRET,
-				deliveryId: requeued.id,
+			triggerWebhookDeliveryWorkflows({
+				env: c.env,
+				deliveryIds: [requeued.id],
 			}),
 		getExecutionCtx: () => c.executionCtx,
 	});

@@ -37,6 +37,7 @@ import {
 	updateOrganization,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { StartVerificationDialog } from "./start-verification-dialog";
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -231,6 +232,69 @@ function formatDeadline(iso: string): string {
 	} catch {
 		return iso;
 	}
+}
+
+function formatVerifiedAt(iso: string): string {
+	try {
+		return new Date(iso).toLocaleDateString(undefined, {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		});
+	} catch {
+		return iso;
+	}
+}
+
+function VerificationCard({
+	canStartVerification,
+	organization,
+}: {
+	canStartVerification: boolean;
+	organization: FullOrganization;
+}) {
+	const [dialogOpen, setDialogOpen] = useState(false);
+	const isVerified = organization.verifiedAt !== null;
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Verification</CardTitle>
+				<CardDescription>
+					{isVerified
+						? "An owner has completed an identity check and this organization is verified."
+						: "Verifying lifts the unverified-org rate limit and removes the warning shown to your end-users."}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div className="flex items-center justify-between gap-4">
+					{isVerified ? (
+						<p className="text-muted-foreground text-sm">
+							Verified on {formatVerifiedAt(organization.verifiedAt as string)}.
+						</p>
+					) : (
+						<p className="text-muted-foreground text-sm">
+							{canStartVerification
+								? "You'll be redirected to complete a one-time identity check."
+								: "Only an owner can start the verification flow."}
+						</p>
+					)}
+					{!isVerified && canStartVerification ? (
+						<Button onClick={() => setDialogOpen(true)} type="button">
+							Start verification
+						</Button>
+					) : null}
+				</div>
+			</CardContent>
+			{!isVerified && canStartVerification ? (
+				<StartVerificationDialog
+					onOpenChange={setDialogOpen}
+					open={dialogOpen}
+					organization={organization}
+				/>
+			) : null}
+		</Card>
+	);
 }
 
 function PendingDeletionCard({
@@ -432,12 +496,14 @@ function SettingsBody({
 	canCancelDeletion,
 	canEditSlug,
 	canScheduleDeletion,
+	canStartVerification,
 	isLastOwner,
 	organization,
 }: {
 	canCancelDeletion: boolean;
 	canEditSlug: boolean;
 	canScheduleDeletion: boolean;
+	canStartVerification: boolean;
 	isLastOwner: boolean;
 	organization: FullOrganization;
 }) {
@@ -447,6 +513,12 @@ function SettingsBody({
 			{canEditSlug && !isPendingDeletion ? (
 				<SlugCard organization={organization} />
 			) : null}
+			{isPendingDeletion ? null : (
+				<VerificationCard
+					canStartVerification={canStartVerification}
+					organization={organization}
+				/>
+			)}
 			{isPendingDeletion ? null : (
 				<LeaveCard isLastOwner={isLastOwner} organization={organization} />
 			)}
@@ -477,6 +549,7 @@ export function OrganizationSettingsPage() {
 	const canEditSlug = currentRole === "owner" || currentRole === "admin";
 	const canScheduleDeletion = currentRole === "owner";
 	const canCancelDeletion = currentRole === "owner" || currentRole === "admin";
+	const canStartVerification = hasOwnerRole(currentRole);
 	const isCurrentUserOwner = hasOwnerRole(currentRole);
 	const ownerCount =
 		data?.members.filter((member) => hasOwnerRole(member.role)).length ?? 0;
@@ -503,6 +576,7 @@ export function OrganizationSettingsPage() {
 					canCancelDeletion={canCancelDeletion}
 					canEditSlug={canEditSlug}
 					canScheduleDeletion={canScheduleDeletion}
+					canStartVerification={canStartVerification}
 					isLastOwner={isLastOwner}
 					organization={data}
 				/>

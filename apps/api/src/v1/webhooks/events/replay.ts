@@ -1,13 +1,12 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
 import { replayWebhookEvent } from "@/openapi/v1/webhooks/events/replay";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import {
-	attemptWebhookDelivery,
 	requeueWebhookDeliveriesForEvent,
+	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 import { getWebhookEventForOrganization } from "./utils";
 
@@ -70,14 +69,10 @@ replayEvent.openapi(replayWebhookEvent, async (c) => {
 
 	waitUntilIfAvailable({
 		createTask: () =>
-			Promise.allSettled(
-				requeuedDeliveries.map((delivery) =>
-					attemptWebhookDelivery({
-						authSecret: c.env?.AUTH_SECRET ?? env.AUTH_SECRET,
-						deliveryId: delivery.id,
-					}),
-				),
-			),
+			triggerWebhookDeliveryWorkflows({
+				env: c.env,
+				deliveryIds: requeuedDeliveries.map((delivery) => delivery.id),
+			}),
 		getExecutionCtx: () => c.executionCtx,
 	});
 

@@ -126,18 +126,6 @@ export const verification_sessions = pgTable(
 		 */
 		cancelTokenConsumedAt: timestamp("cancel_token_consumed_at"),
 		/**
-		 * When non-null, this session was created on behalf of an organization to
-		 * verify the identity of its owner (i.e. the platform calling Kayle ID's
-		 * own API to onboard a customer org). On a successful share, the API
-		 * derives a dedup hash from the document and records it in
-		 * `org_verification_records`, then flips `verified_at` on the target org.
-		 *
-		 * The `organization_id` column above still names the org the session
-		 * *belongs to* (the platform's internal org). This column names the org
-		 * being verified.
-		 */
-		ownerVerificationOrgId: uuid("owner_verification_org_id"),
-		/**
 		 * True when this session's share fields are limited to age-gate claims
 		 * (`age_over_xx`) plus `kayle_document_id`. Such sessions are exempt
 		 * from the unverified-org rate limit and warning UI because they reveal
@@ -177,11 +165,6 @@ export const verification_sessions = pgTable(
 			table.organizationId,
 			table.isAgeOnly,
 			table.createdAt,
-		),
-		// Recover sessions that target a specific owner-verification org so we
-		// can finalize the org once the share completes.
-		index("verif_sessions_owner_verification_org_idx").on(
-			table.ownerVerificationOrgId,
 		),
 	],
 );

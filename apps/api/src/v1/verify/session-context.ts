@@ -14,7 +14,10 @@ export type ActiveVerifySessionContext = {
 	shareRequestPayload: VerifyShareRequest;
 };
 
-export async function loadActiveVerifySession(sessionId: string): Promise<
+export async function loadActiveVerifySession(
+	sessionId: string,
+	{ env }: { env?: CloudflareBindings } = {},
+): Promise<
 	| {
 			ok: false;
 			code: "SESSION_EXPIRED" | "SESSION_NOT_FOUND";
@@ -49,6 +52,7 @@ export async function loadActiveVerifySession(sessionId: string): Promise<
 	}
 
 	const session = await expireVerificationSessionIfNeeded({
+		env,
 		row: sessionRow,
 	});
 

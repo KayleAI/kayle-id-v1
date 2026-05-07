@@ -1,13 +1,20 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import { auth } from "@kayle-id/auth/server";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
 	auth_organizations,
 	auth_users,
-	auth_verifications,
 } from "@kayle-id/database/schema/auth";
 import { api_keys } from "@kayle-id/database/schema/core";
-import { and, eq, inArray, like } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 import app from "@/index";
@@ -58,31 +65,35 @@ async function trackSession(
 	return session;
 }
 
-async function getDeleteAccountToken(userId: string): Promise<string> {
-	const rows = await db
-		.select({
-			identifier: auth_verifications.identifier,
-			value: auth_verifications.value,
-		})
-		.from(auth_verifications)
-		.where(
-			and(
-				eq(auth_verifications.value, userId),
-				like(auth_verifications.identifier, "delete-account-%"),
-			),
-		);
-
-	if (rows.length === 0) {
-		throw new Error("delete_account_token_missing");
+// Verification tokens are written to the secondary storage (Redis) when one is
+// configured, with no DB fallback unless `verification.storeInDatabase` is on,
+// so we can't look the token up in `auth_verifications`. Instead, we monkey-
+// patch `sendDeleteAccountVerification` per-test to capture the URL the route
+// hands to the email sender.
+const deleteUserConfig = (() => {
+	const config = auth.options.user?.deleteUser;
+	if (!config) {
+		throw new Error("delete_user_config_missing");
 	}
+	return config;
+})();
+const originalSendDeleteAccountVerification =
+	deleteUserConfig.sendDeleteAccountVerification;
 
-	const latest = rows.at(-1);
-	if (!latest) {
-		throw new Error("delete_account_token_missing");
-	}
-
-	return latest.identifier.replace(/^delete-account-/, "");
+function captureNextDeleteAccountVerification(): Promise<{ token: string }> {
+	return new Promise((resolve) => {
+		deleteUserConfig.sendDeleteAccountVerification = async ({ token }) => {
+			resolve({ token });
+		};
+	});
 }
+
+afterEach(() => {
+	if (originalSendDeleteAccountVerification) {
+		deleteUserConfig.sendDeleteAccountVerification =
+			originalSendDeleteAccountVerification;
+	}
+});
 
 afterAll(async () => {
 	if (trackedApiKeyIds.size > 0) {
@@ -156,6 +167,8 @@ describe("Account — delete-user", () => {
 	});
 
 	test("cascades sole-owned org (with api keys) and leaves co-owned org intact", async () => {
+		const captured = captureNextDeleteAccountVerification();
+
 		const triggerResponse = await app.request("/v1/auth/delete-user", {
 			body: JSON.stringify({}),
 			headers: {
@@ -171,7 +184,7 @@ describe("Account — delete-user", () => {
 			message: "Verification email sent",
 		});
 
-		const token = await getDeleteAccountToken(SOLE_OWNER.userId);
+		const { token } = await captured;
 
 		const callbackResponse = await app.request(
 			`/v1/auth/delete-user/callback?token=${token}`,

@@ -6,6 +6,7 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	uuid,
 } from "drizzle-orm/pg-core";
 
@@ -39,27 +40,10 @@ export const auth_two_factors = pgTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("auth_two_factors_userId_idx").on(table.userId)],
-);
-
-export const auth_sessions = pgTable(
-	"auth_sessions",
-	{
-		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
-		expiresAt: timestamp("expires_at").notNull(),
-		token: text("token").notNull().unique(),
-		createdAt: timestamp("created_at").defaultNow().notNull(),
-		updatedAt: timestamp("updated_at")
-			.$onUpdate(() => /* @__PURE__ */ new Date())
-			.notNull(),
-		ipAddress: text("ip_address"),
-		userAgent: text("user_agent"),
-		userId: uuid("user_id")
-			.notNull()
-			.references(() => auth_users.id, { onDelete: "cascade" }),
-		activeOrganizationId: text("active_organization_id"),
-	},
-	(table) => [index("auth_sessions_userId_idx").on(table.userId)],
+	(table) => [
+		index("auth_two_factors_secret_idx").on(table.secret),
+		index("auth_two_factors_userId_idx").on(table.userId),
+	],
 );
 
 export const auth_accounts = pgTable(
@@ -113,9 +97,9 @@ export const auth_organizations = pgTable(
 		logo: text("logo"),
 		createdAt: timestamp("created_at").notNull(),
 		metadata: text("metadata"),
-		pendingDeletionAt: timestamp("pending_deletion_at"),
-		pendingDeletionRequestedAt: timestamp("pending_deletion_requested_at"),
-		pendingDeletionRequestedBy: uuid(
+		pending_deletion_at: timestamp("pending_deletion_at"),
+		pending_deletion_requested_at: timestamp("pending_deletion_requested_at"),
+		pending_deletion_requested_by: uuid(
 			"pending_deletion_requested_by",
 		).references(() => auth_users.id, { onDelete: "set null" }),
 		/**
@@ -124,23 +108,24 @@ export const auth_organizations = pgTable(
 		 * the sessions API. See `verification_records` for the dedup hash row that
 		 * was written at verification time.
 		 */
-		verifiedAt: timestamp("verified_at"),
+		verified_at: timestamp("verified_at"),
 		businessType: text("business_type", {
 			enum: organizationBusinessTypes,
 		}),
-		businessJurisdiction: text("business_jurisdiction"),
-		businessName: text("business_name"),
-		businessRegistrationNumber: text("business_registration_number"),
-		verificationTermsAcceptedAt: timestamp("verification_terms_accepted_at"),
-		verificationTermsAcceptedBy: uuid(
+		business_jurisdiction: text("business_jurisdiction"),
+		business_name: text("business_name"),
+		business_registration_number: text("business_registration_number"),
+		verification_terms_accepted_at: timestamp("verification_terms_accepted_at"),
+		verification_terms_accepted_by: uuid(
 			"verification_terms_accepted_by",
 		).references(() => auth_users.id, { onDelete: "set null" }),
 	},
 	(table) => [
+		uniqueIndex("auth_organizations_slug_uidx").on(table.slug),
 		index("auth_organizations_pending_deletion_at_idx").on(
-			table.pendingDeletionAt,
+			table.pending_deletion_at,
 		),
-		index("auth_organizations_verified_at_idx").on(table.verifiedAt),
+		index("auth_organizations_verified_at_idx").on(table.verified_at),
 	],
 );
 

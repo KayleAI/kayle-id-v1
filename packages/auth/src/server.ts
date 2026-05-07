@@ -3,6 +3,7 @@ import { TRUSTED_CLIENT_IP_HEADERS } from "@kayle-id/config/client-ip";
 import { env } from "@kayle-id/config/env";
 import { createSafeRequestLogger, logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
+import { redis } from "@kayle-id/database/redis";
 import { auth as authSchema } from "@kayle-id/database/schema";
 import {
   auth_organization_members,
@@ -432,8 +433,7 @@ export const auth = betterAuth({
   }),
   basePath: "/v1/auth",
   experimental: {
-    // Eventually we'll want to enable joins but for now we're facing an issue with them not.
-    joins: false,
+    joins: true,
   },
   hooks: {
     after: enforceTwoFactorOnNonStandardSignIns,
@@ -528,24 +528,19 @@ export const auth = betterAuth({
       redirectURI: publicGoogleCallbackURL,
     },
   },
-  /*...(process.env.NODE_ENV === "production"
-    ? // Only enable secondary storage in production
-      {
-        secondaryStorage: {
-          get: async (key) => await redis.get(key),
-          set: async (key, value, ttl) => {
-            if (ttl) {
-              await redis.set(key, value, { ex: ttl });
-            } else {
-              await redis.set(key, value);
-            }
-          },
-          delete: async (key) => {
-            await redis.del(key);
-          },
-        },
+  secondaryStorage: {
+    get: async (key) => await redis?.get(key),
+    set: async (key, value, ttl) => {
+      if (ttl) {
+        await redis?.set(key, value, { ex: ttl });
+      } else {
+        await redis?.set(key, value);
       }
-    : {}),*/
+    },
+    delete: async (key) => {
+      await redis?.del(key);
+    },
+  },
   plugins: [
     ...plugins,
     customSession(
@@ -560,11 +555,11 @@ export const auth = betterAuth({
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
-            pendingDeletionAt: auth_organizations.pendingDeletionAt,
+            pendingDeletionAt: auth_organizations.pending_deletion_at,
             pendingDeletionRequestedAt:
-              auth_organizations.pendingDeletionRequestedAt,
+              auth_organizations.pending_deletion_requested_at,
             pendingDeletionRequestedBy:
-              auth_organizations.pendingDeletionRequestedBy,
+              auth_organizations.pending_deletion_requested_by,
           })
           .from(auth_organizations)
           .innerJoin(

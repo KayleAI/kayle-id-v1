@@ -30,6 +30,13 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
+  'Redis':
+    command: ./infra/redis/launch.sh
+    working_dir: null
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   iOS (Local):
     command: infisical run --env=dev -- bash ./apps/ios/scripts/run-on-connected-device.sh
     working_dir: ./

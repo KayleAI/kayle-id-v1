@@ -433,7 +433,12 @@ export const auth = betterAuth({
   }),
   basePath: "/v1/auth",
   experimental: {
-    joins: true,
+    // Better Auth's drizzle adapter passes raw `eq(col, val)` operators to
+    // `db.query.x.findFirst({ where })`, but drizzle-orm 1.0-beta's relational
+    // query builder expects a filter callback there — the SQL operator gets
+    // walked as a filter object and explodes on its internal `decoder`
+    // property. Keep this off until better-auth ships a compatible adapter.
+    joins: false,
   },
   hooks: {
     after: enforceTwoFactorOnNonStandardSignIns,
@@ -472,7 +477,6 @@ export const auth = betterAuth({
     modelName: "auth_accounts",
   },
   session: {
-    modelName: "auth_sessions",
     updateAge: 60 * 1000, // 60 seconds
     freshAge: 60 * 60 * 1000, // 1 hour
   },
@@ -529,16 +533,16 @@ export const auth = betterAuth({
     },
   },
   secondaryStorage: {
-    get: async (key) => await redis?.get(key),
+    get: async (key) => (await redis.get<string>(key)) ?? null,
     set: async (key, value, ttl) => {
       if (ttl) {
-        await redis?.set(key, value, { ex: ttl });
+        await redis.set(key, value, { ex: ttl });
       } else {
-        await redis?.set(key, value);
+        await redis.set(key, value);
       }
     },
     delete: async (key) => {
-      await redis?.del(key);
+      await redis.del(key);
     },
   },
   plugins: [

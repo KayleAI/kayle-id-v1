@@ -64,6 +64,18 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      # Upstash-compatible HTTP shim. The auth/Redis client (`@upstash/redis`)
+      # speaks REST, not the Redis wire protocol, so tests need this in front
+      # of the redis service. Token + port mirror `.env.test.example`.
+      srh:
+        image: hiett/serverless-redis-http:latest
+        ports:
+          - 8079:80
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: a-super-secret-token
+          SRH_CONNECTION_STRING: redis://redis:6379
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v5

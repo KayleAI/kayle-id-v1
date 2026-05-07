@@ -8,7 +8,6 @@ import { db } from "@kayle-id/database/drizzle";
 import {
   auth_organization_members,
   auth_organizations,
-  auth_sessions,
   auth_users,
   auth_verifications,
 } from "@kayle-id/database/schema/auth";
@@ -16,7 +15,7 @@ import { sendOrgDeletionCanceled } from "@kayle-id/emails/send-org-deletion-canc
 import { sendOrgDeletionCode } from "@kayle-id/emails/send-org-deletion-code";
 import { sendOrgDeletionScheduled } from "@kayle-id/emails/send-org-deletion-scheduled";
 import { generateRandomString } from "better-auth/crypto";
-import { and, desc, eq, inArray, isNull, lte, notInArray } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 
 const CONFIRMATION_CODE_TTL_MS = 24 * 60 * 60 * 1000;
 const GRACE_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -90,9 +89,11 @@ async function getOrgRowOrThrow(orgId: string): Promise<OrgRow> {
       id: auth_organizations.id,
       name: auth_organizations.name,
       slug: auth_organizations.slug,
-      pendingDeletionAt: auth_organizations.pendingDeletionAt,
-      pendingDeletionRequestedAt: auth_organizations.pendingDeletionRequestedAt,
-      pendingDeletionRequestedBy: auth_organizations.pendingDeletionRequestedBy,
+      pendingDeletionAt: auth_organizations.pending_deletion_at,
+      pendingDeletionRequestedAt:
+        auth_organizations.pending_deletion_requested_at,
+      pendingDeletionRequestedBy:
+        auth_organizations.pending_deletion_requested_by,
     })
     .from(auth_organizations)
     .where(eq(auth_organizations.id, orgId))
@@ -119,9 +120,11 @@ export async function getOrgDeletionState(
 ): Promise<OrgDeletionState | null> {
   const [row] = await db
     .select({
-      pendingDeletionAt: auth_organizations.pendingDeletionAt,
-      pendingDeletionRequestedAt: auth_organizations.pendingDeletionRequestedAt,
-      pendingDeletionRequestedBy: auth_organizations.pendingDeletionRequestedBy,
+      pendingDeletionAt: auth_organizations.pending_deletion_at,
+      pendingDeletionRequestedAt:
+        auth_organizations.pending_deletion_requested_at,
+      pendingDeletionRequestedBy:
+        auth_organizations.pending_deletion_requested_by,
     })
     .from(auth_organizations)
     .where(eq(auth_organizations.id, orgId))
@@ -352,9 +355,9 @@ export async function confirmOrgDeletion({
     await tx
       .update(auth_organizations)
       .set({
-        pendingDeletionAt,
-        pendingDeletionRequestedAt: now,
-        pendingDeletionRequestedBy: userId,
+        pending_deletion_at: pendingDeletionAt,
+        pending_deletion_requested_at: now,
+        pending_deletion_requested_by: userId,
       })
       .where(eq(auth_organizations.id, organizationId));
   });
@@ -443,9 +446,9 @@ export async function cancelOrgDeletion({
   await db
     .update(auth_organizations)
     .set({
-      pendingDeletionAt: null,
-      pendingDeletionRequestedAt: null,
-      pendingDeletionRequestedBy: null,
+      pending_deletion_at: null,
+      pending_deletion_requested_at: null,
+      pending_deletion_requested_by: null,
     })
     .where(eq(auth_organizations.id, organizationId));
 
@@ -493,10 +496,15 @@ export async function cancelOrgDeletion({
 }
 
 /**
- * Hard-delete the given orgs in a single transaction with active-org
- * reassignment for any sessions whose `active_organization_id` pointed at one
- * of them. FK cascades take care of members, invitations, api_keys, webhooks,
- * verification_sessions, etc.
+ * Hard-delete the given orgs. FK cascades take care of members, invitations,
+ * api_keys, webhooks, verification_sessions, etc.
+ *
+ * Sessions live in Redis (Better Auth secondary storage) and are not indexed
+ * by `activeOrganizationId`, so we don't enumerate them here. The
+ * `customSession` callback in `server.ts` derives the active organization
+ * from the user's current memberships at read time, so a session whose
+ * stored `activeOrganizationId` references a now-deleted org transparently
+ * falls back to the first remaining membership (or null).
  *
  * Used by both the deletion cron and the user-deletion `beforeDelete` hook.
  * Caller is responsible for whatever pre-checks are appropriate for the path.
@@ -508,68 +516,9 @@ export async function hardDeleteOrganizations(
     return { deleted: [] };
   }
 
-  await db.transaction(async (tx) => {
-    // Find sessions whose active org is in the to-delete set.
-    const affected = await tx
-      .select({
-        id: auth_sessions.id,
-        userId: auth_sessions.userId,
-      })
-      .from(auth_sessions)
-      .where(inArray(auth_sessions.activeOrganizationId, orgIds));
-
-    // For each affected user, pick the most recent membership in another
-    // org that isn't itself frozen and isn't in the to-delete batch.
-    // (The cron path passes only frozen orgs, but the user-deletion path
-    // can pass non-frozen sole-owned orgs, so we filter both.)
-    const userIds = Array.from(new Set(affected.map((s) => s.userId)));
-    const fallbacks = new Map<string, string | null>();
-
-    for (const uid of userIds) {
-      const [pick] = await tx
-        .select({ orgId: auth_organization_members.organizationId })
-        .from(auth_organization_members)
-        .innerJoin(
-          auth_organizations,
-          eq(auth_organizations.id, auth_organization_members.organizationId)
-        )
-        .where(
-          and(
-            eq(auth_organization_members.userId, uid),
-            isNull(auth_organizations.pendingDeletionAt),
-            notInArray(auth_organizations.id, orgIds)
-          )
-        )
-        .orderBy(desc(auth_organization_members.createdAt))
-        .limit(1);
-
-      fallbacks.set(uid, pick?.orgId ?? null);
-    }
-
-    // Bulk-update sessions in groups by their target fallback.
-    const groupBySession = new Map<string | null, string[]>();
-    for (const session of affected) {
-      const target = fallbacks.get(session.userId) ?? null;
-      const group = groupBySession.get(target) ?? [];
-      group.push(session.id);
-      groupBySession.set(target, group);
-    }
-    for (const [target, sessionIds] of groupBySession) {
-      if (sessionIds.length === 0) {
-        continue;
-      }
-      await tx
-        .update(auth_sessions)
-        .set({ activeOrganizationId: target })
-        .where(inArray(auth_sessions.id, sessionIds));
-    }
-
-    // Delete the org rows. FK cascades wipe members, invitations, api_keys,
-    // webhooks, verification_sessions, verification_attempts (via session FK).
-    await tx
-      .delete(auth_organizations)
-      .where(inArray(auth_organizations.id, orgIds));
-  });
+  await db
+    .delete(auth_organizations)
+    .where(inArray(auth_organizations.id, orgIds));
 
   return { deleted: orgIds };
 }
@@ -590,7 +539,7 @@ export async function processDueOrganizationDeletions({
   const due = await db
     .select({ id: auth_organizations.id })
     .from(auth_organizations)
-    .where(lte(auth_organizations.pendingDeletionAt, now))
+    .where(lte(auth_organizations.pending_deletion_at, now))
     .limit(limit);
 
   if (due.length === 0) {

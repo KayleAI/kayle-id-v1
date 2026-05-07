@@ -39,9 +39,10 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
 
-    // For Redis
-    REDIS_URL: z.string().min(1).optional(),
-    REDIS_TOKEN: z.string().min(1).optional(),
+    // Better Auth stores sessions and other ephemeral state in Redis via the
+    // Upstash REST client, so both must be set in every environment.
+    REDIS_URL: z.string().min(1),
+    REDIS_TOKEN: z.string().min(1),
 
     // Email
     EMAIL_FROM_ADDRESS: z.string().min(1),

@@ -635,7 +635,7 @@ export async function processDueWebhookDeliveries({
 					isNull(webhook_deliveries.nextAttemptAt),
 					lte(webhook_deliveries.nextAttemptAt, new Date()),
 				),
-				isNull(auth_organizations.pendingDeletionAt),
+				isNull(auth_organizations.pending_deletion_at),
 			),
 		)
 		.orderBy(asc(webhook_deliveries.createdAt))

@@ -1,5 +1,5 @@
 import { logEvent } from "@kayle-id/config/logging";
-import { attemptWebhookDelivery } from "@/v1/webhooks/deliveries/service";
+import { triggerWebhookDeliveryWorkflows } from "@/v1/webhooks/deliveries/service";
 import { getNfcTransferStatus, getSelfieTransferStatus } from "./data-payload";
 import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
 import { parseDg14 } from "./dg14-parser";
@@ -105,14 +105,10 @@ async function rejectAttemptWithVerdict({
 
 	if (result.deliveryIds.length > 0) {
 		context.scheduleTask(
-			(async () => {
-				for (const deliveryId of result.deliveryIds) {
-					await attemptWebhookDelivery({
-						authSecret: context.env.AUTH_SECRET as string,
-						deliveryId,
-					});
-				}
-			})(),
+			triggerWebhookDeliveryWorkflows({
+				env: context.env,
+				deliveryIds: result.deliveryIds,
+			}),
 		);
 	}
 

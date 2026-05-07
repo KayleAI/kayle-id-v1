@@ -34,7 +34,7 @@ export const cancelSessionHandler: RouteHandler<
 	}
 
 	if (!["completed", "expired", "cancelled"].includes(row.status)) {
-		await cancelVerificationSession({ row, organizationId });
+		await cancelVerificationSession({ env: c.env, row, organizationId });
 	}
 
 	return c.body(null, 204);

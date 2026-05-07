@@ -6,7 +6,6 @@ import {
 import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { events } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
@@ -14,7 +13,7 @@ import {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { and, asc, eq, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
@@ -28,23 +27,11 @@ import {
 	buildVerificationSessionExpiredPayload,
 	buildVerificationSucceededPayload,
 } from "./payloads";
-import {
-	type DeliveryRowResponse,
-	INITIAL_RETRY_DELAY_MS,
-	MAX_DELIVERY_ATTEMPTS,
-	type VerificationAttemptFailedCode,
-	type WebhookPayload,
+import type {
+	DeliveryRowResponse,
+	VerificationAttemptFailedCode,
+	WebhookPayload,
 } from "./types";
-
-function computeNextAttemptAt(attemptCount: number): Date | null {
-	if (attemptCount >= MAX_DELIVERY_ATTEMPTS) {
-		return null;
-	}
-
-	return new Date(
-		Date.now() + INITIAL_RETRY_DELAY_MS * 2 ** (attemptCount - 1),
-	);
-}
 
 function isSubscribedToEventType(
 	subscribedEventTypes: unknown,
@@ -93,43 +80,6 @@ async function insertAttempt({
 	});
 }
 
-async function markDeliveryFailedWithoutSend({
-	deliveryId,
-}: {
-	deliveryId: string;
-}): Promise<void> {
-	const [delivery] = await db
-		.select()
-		.from(webhook_deliveries)
-		.where(eq(webhook_deliveries.id, deliveryId))
-		.limit(1);
-
-	if (!delivery) {
-		return;
-	}
-
-	const nextAttemptCount = delivery.attemptCount + 1;
-	const nextAttemptAt = computeNextAttemptAt(nextAttemptCount);
-	const now = new Date();
-
-	await insertAttempt({
-		deliveryId,
-		status: "failed",
-		statusCode: null,
-	});
-
-	await db
-		.update(webhook_deliveries)
-		.set({
-			attemptCount: nextAttemptCount,
-			lastAttemptAt: now,
-			lastStatusCode: null,
-			nextAttemptAt,
-			status: nextAttemptAt ? "pending" : "failed",
-		})
-		.where(eq(webhook_deliveries.id, deliveryId));
-}
-
 async function getWebhookDeliveryById(
 	deliveryId: string,
 ): Promise<typeof webhook_deliveries.$inferSelect | null> {
@@ -148,16 +98,6 @@ async function getMappedWebhookDelivery(
 	const delivery = await getWebhookDeliveryById(deliveryId);
 
 	return delivery ? mapWebhookDeliveryRowToResponse(delivery) : null;
-}
-
-async function markWebhookDeliveryFailedAndReload(
-	deliveryId: string,
-): Promise<DeliveryRowResponse | null> {
-	await markDeliveryFailedWithoutSend({
-		deliveryId,
-	});
-
-	return getMappedWebhookDelivery(deliveryId);
 }
 
 type DeliveryAttemptContext = {
@@ -299,33 +239,49 @@ async function persistWebhookDeliveryAttemptResult({
 		statusCode: response.status,
 	});
 
-	if (response.ok) {
-		await db
-			.update(webhook_deliveries)
-			.set({
-				attemptCount: nextAttemptCount,
-				lastAttemptAt: attemptedAt,
-				lastStatusCode: response.status,
-				nextAttemptAt: null,
-				status: "succeeded",
-			})
-			.where(eq(webhook_deliveries.id, delivery.id));
-
-		return;
-	}
-
-	const nextAttemptAt = computeNextAttemptAt(nextAttemptCount);
-
 	await db
 		.update(webhook_deliveries)
 		.set({
 			attemptCount: nextAttemptCount,
 			lastAttemptAt: attemptedAt,
 			lastStatusCode: response.status,
-			nextAttemptAt,
-			status: nextAttemptAt ? "pending" : "failed",
+			// Cloudflare Workflows owns retry scheduling now; keep this field
+			// nulled out so nothing else interprets it as a queue cursor.
+			nextAttemptAt: null,
+			status: response.ok ? "succeeded" : "pending",
 		})
 		.where(eq(webhook_deliveries.id, delivery.id));
+}
+
+async function recordPreflightFailure({
+	deliveryId,
+}: {
+	deliveryId: string;
+}): Promise<void> {
+	const delivery = await getWebhookDeliveryById(deliveryId);
+
+	if (!delivery) {
+		return;
+	}
+
+	const nextAttemptCount = delivery.attemptCount + 1;
+
+	await insertAttempt({
+		deliveryId,
+		status: "failed",
+		statusCode: null,
+	});
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			attemptCount: nextAttemptCount,
+			lastAttemptAt: new Date(),
+			lastStatusCode: null,
+			nextAttemptAt: null,
+			status: "pending",
+		})
+		.where(eq(webhook_deliveries.id, deliveryId));
 }
 
 async function createWebhookDeliveriesForEvent({
@@ -536,21 +492,42 @@ export function createWebhookDeliveriesForVerificationSessionCancelled({
 	});
 }
 
-export async function attemptWebhookDelivery({
+class WebhookDeliveryAttemptError extends Error {
+	readonly statusCode: number | null;
+
+	constructor(message: string, statusCode: number | null) {
+		super(message);
+		this.name = "WebhookDeliveryAttemptError";
+		this.statusCode = statusCode;
+	}
+}
+
+/**
+ * Run a single webhook delivery attempt. Persists the attempt and updates the
+ * delivery row, then either resolves on success or throws on failure so the
+ * Cloudflare Workflow step retry policy can drive exponential backoff.
+ */
+export async function runWebhookDeliveryAttempt({
 	authSecret,
 	deliveryId,
 }: {
 	authSecret: string;
 	deliveryId: string;
-}): Promise<DeliveryRowResponse | null> {
+}): Promise<void> {
 	const context = await getDeliveryAttemptContext(deliveryId);
 
 	if (!context) {
-		return null;
+		// The row was deleted (e.g. org hard-delete cascade). Nothing to do —
+		// resolve so the workflow ends cleanly without a retry.
+		return;
 	}
 
 	if (!(context.endpoint.enabled && context.delivery.payload)) {
-		return markWebhookDeliveryFailedAndReload(deliveryId);
+		await recordPreflightFailure({ deliveryId });
+		throw new WebhookDeliveryAttemptError(
+			"webhook_delivery_endpoint_disabled_or_payload_missing",
+			null,
+		);
 	}
 
 	const signingSecret = await resolveEndpointSigningSecret({
@@ -559,7 +536,11 @@ export async function attemptWebhookDelivery({
 	});
 
 	if (!signingSecret) {
-		return markWebhookDeliveryFailedAndReload(deliveryId);
+		await recordPreflightFailure({ deliveryId });
+		throw new WebhookDeliveryAttemptError(
+			"webhook_delivery_signing_secret_unavailable",
+			null,
+		);
 	}
 
 	const now = new Date();
@@ -570,17 +551,13 @@ export async function attemptWebhookDelivery({
 		})
 		.where(eq(webhook_deliveries.id, deliveryId));
 
+	let response: Response;
 	try {
-		const response = await sendWebhookDeliveryRequest({
+		response = await sendWebhookDeliveryRequest({
 			delivery: context.delivery,
 			endpoint: context.endpoint,
 			eventType: context.eventType,
 			signingSecret,
-		});
-		await persistWebhookDeliveryAttemptResult({
-			attemptedAt: now,
-			delivery: context.delivery,
-			response,
 		});
 	} catch (error) {
 		// The DB row only records `status_code = NULL` for thrown deliveries,
@@ -604,59 +581,104 @@ export async function attemptWebhookDelivery({
 			message: "Webhook delivery attempt threw before persisting a result.",
 		});
 		logger.emit({ _forceKeep: true });
-		return markWebhookDeliveryFailedAndReload(deliveryId);
+		await recordPreflightFailure({ deliveryId });
+		throw error instanceof Error
+			? error
+			: new WebhookDeliveryAttemptError("webhook_delivery_threw", null);
 	}
 
+	await persistWebhookDeliveryAttemptResult({
+		attemptedAt: now,
+		delivery: context.delivery,
+		response,
+	});
+
+	if (!response.ok) {
+		throw new WebhookDeliveryAttemptError(
+			`webhook_delivery_failed_${response.status}`,
+			response.status,
+		);
+	}
+}
+
+/**
+ * Mark a delivery as terminally failed. Called by the Workflow after retries
+ * are exhausted. Idempotent: succeeded deliveries are left alone.
+ */
+export async function finalizeWebhookDeliveryFailure({
+	deliveryId,
+}: {
+	deliveryId: string;
+}): Promise<void> {
+	const delivery = await getWebhookDeliveryById(deliveryId);
+
+	if (!delivery) {
+		return;
+	}
+
+	if (delivery.status === "succeeded" || delivery.status === "failed") {
+		return;
+	}
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			status: "failed",
+			nextAttemptAt: null,
+		})
+		.where(eq(webhook_deliveries.id, deliveryId));
+}
+
+/**
+ * Convenience wrapper used by the API retry endpoint and tests. Runs a single
+ * attempt without throwing on a failed HTTP response — the row state already
+ * captures the outcome — and returns the post-attempt row for the response.
+ */
+export async function attemptWebhookDelivery({
+	authSecret,
+	deliveryId,
+}: {
+	authSecret: string;
+	deliveryId: string;
+}): Promise<DeliveryRowResponse | null> {
+	try {
+		await runWebhookDeliveryAttempt({ authSecret, deliveryId });
+	} catch {
+		// The row already records the failure; the caller asks for the row.
+	}
 	return getMappedWebhookDelivery(deliveryId);
 }
 
-export async function processDueWebhookDeliveries({
-	authSecret,
-	limit = 20,
+type WebhookWorkflowEnv = {
+	WEBHOOK_DELIVERY_WORKFLOW?: Workflow<{ deliveryId: string }>;
+};
+
+/**
+ * Trigger one Workflow instance per delivery so the Workflow runtime drives
+ * exponential-backoff retries. Safe to call from environments without the
+ * binding (e.g. unit tests) — it no-ops when the binding is absent.
+ */
+export async function triggerWebhookDeliveryWorkflows({
+	env,
+	deliveryIds,
 }: {
-	authSecret: string;
-	limit?: number;
-}): Promise<DeliveryRowResponse[]> {
-	// Skip deliveries belonging to orgs that are scheduled for deletion. The
-	// deliveries themselves are FK-cascaded once the org is hard-deleted, so
-	// they don't need to be cleaned up here — just paused.
-	const dueRows = await db
-		.select({ delivery: webhook_deliveries })
-		.from(webhook_deliveries)
-		.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
-		.innerJoin(
-			auth_organizations,
-			eq(auth_organizations.id, events.organizationId),
-		)
-		.where(
-			and(
-				eq(webhook_deliveries.status, "pending"),
-				or(
-					isNull(webhook_deliveries.nextAttemptAt),
-					lte(webhook_deliveries.nextAttemptAt, new Date()),
-				),
-				isNull(auth_organizations.pending_deletion_at),
-			),
-		)
-		.orderBy(asc(webhook_deliveries.createdAt))
-		.limit(limit);
-
-	const dueDeliveries = dueRows.map((row) => row.delivery);
-
-	const processed: DeliveryRowResponse[] = [];
-
-	for (const delivery of dueDeliveries) {
-		const result = await attemptWebhookDelivery({
-			authSecret,
-			deliveryId: delivery.id,
-		});
-
-		if (result) {
-			processed.push(result);
-		}
+	env: WebhookWorkflowEnv | undefined;
+	deliveryIds: readonly string[];
+}): Promise<void> {
+	if (deliveryIds.length === 0) {
+		return;
 	}
 
-	return processed;
+	const binding = env?.WEBHOOK_DELIVERY_WORKFLOW;
+	if (!binding) {
+		return;
+	}
+
+	await binding.createBatch(
+		deliveryIds.map((deliveryId) => ({
+			params: { deliveryId },
+		})),
+	);
 }
 
 export async function getWebhookDeliveryForOrganization({

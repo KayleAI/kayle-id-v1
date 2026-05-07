@@ -15,6 +15,7 @@ import {
 import {
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSessionExpired,
+	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -205,9 +206,11 @@ export async function createVerificationSessionWithUnverifiedOrgLimit(
 }
 
 export async function cancelVerificationSession({
+	env,
 	row,
 	organizationId,
 }: {
+	env?: CloudflareBindings;
 	row: typeof verification_sessions.$inferSelect;
 	organizationId: string;
 }) {
@@ -253,18 +256,23 @@ export async function cancelVerificationSession({
 		};
 	});
 
-	await createWebhookDeliveriesForVerificationSessionCancelled({
-		contractVersion: row.contractVersion,
-		eventId: result.sessionCancelledEventId,
-		organizationId,
-		sessionId: row.id,
-	});
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionCancelled({
+			contractVersion: row.contractVersion,
+			eventId: result.sessionCancelledEventId,
+			organizationId,
+			sessionId: row.id,
+		});
+
+	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
 }
 
 export async function expireVerificationSessionIfNeeded({
+	env,
 	now = new Date(),
 	row,
 }: {
+	env?: CloudflareBindings;
 	now?: Date;
 	row: typeof verification_sessions.$inferSelect;
 }) {
@@ -317,12 +325,15 @@ export async function expireVerificationSessionIfNeeded({
 		};
 	});
 
-	await createWebhookDeliveriesForVerificationSessionExpired({
-		contractVersion: row.contractVersion,
-		eventId: result.sessionExpiredEventId,
-		organizationId: row.organizationId,
-		sessionId: row.id,
-	});
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionExpired({
+			contractVersion: row.contractVersion,
+			eventId: result.sessionExpiredEventId,
+			organizationId: row.organizationId,
+			sessionId: row.id,
+		});
+
+	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
 
 	return {
 		...row,
@@ -337,10 +348,12 @@ const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
 
 export async function normalizeExpiredVerificationSessions({
 	batchSize = EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE,
+	env,
 	maxBatches = EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES,
 	now = new Date(),
 }: {
 	batchSize?: number;
+	env?: CloudflareBindings;
 	maxBatches?: number;
 	now?: Date;
 } = {}): Promise<number> {
@@ -365,6 +378,7 @@ export async function normalizeExpiredVerificationSessions({
 
 		for (const row of rows) {
 			await expireVerificationSessionIfNeeded({
+				env,
 				now,
 				row,
 			});

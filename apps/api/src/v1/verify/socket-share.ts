@@ -1,6 +1,6 @@
 import {
-	attemptWebhookDelivery,
 	createWebhookDeliveriesForVerificationSucceeded,
+	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 import { resolveVerifyErrorMessage } from "./error-response";
 import { markAttemptSucceeded } from "./outcome";
@@ -90,13 +90,9 @@ export async function handleShareSelectionMessage(
 	});
 
 	context.scheduleTask(
-		(async () => {
-			for (const deliveryId of deliveryIds) {
-				await attemptWebhookDelivery({
-					authSecret: context.env.AUTH_SECRET,
-					deliveryId,
-				});
-			}
-		})(),
+		triggerWebhookDeliveryWorkflows({
+			env: context.env,
+			deliveryIds,
+		}),
 	);
 }

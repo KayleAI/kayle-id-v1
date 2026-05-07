@@ -42,7 +42,13 @@ export type IssueHandoffResult =
 
 export async function issueHandoffPayload(
 	sessionId: string,
-	now: Date = new Date(),
+	{
+		env,
+		now = new Date(),
+	}: {
+		env?: CloudflareBindings;
+		now?: Date;
+	} = {},
 ): Promise<IssueHandoffResult> {
 	const [session] = await db
 		.select({
@@ -75,6 +81,7 @@ export async function issueHandoffPayload(
 	}
 
 	const normalizedSession = await expireVerificationSessionIfNeeded({
+		env,
 		now,
 		row: session,
 	});

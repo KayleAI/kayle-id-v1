@@ -129,7 +129,7 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 					"/organizations",
 					getPublicHost(),
 				).toString();
-				const sessionResponse = await env.API.fetch("http://api/v1/sessions/", {
+				const sessionResponse = await env.API.fetch("http://api/v1/sessions", {
 					method: "POST",
 					headers: {
 						Authorization: `Bearer ${env.KAYLE_INTERNAL_API_KEY}`,

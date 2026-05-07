@@ -11,6 +11,9 @@ export interface Organization {
   pendingDeletionRequestedAt: string | null;
   pendingDeletionRequestedBy: string | null;
   slug: string;
+  verificationTermsAcceptedAt: string | null;
+  verificationTermsAcceptedBy: string | null;
+  verifiedAt: string | null;
 }
 
 export interface ApiKey {

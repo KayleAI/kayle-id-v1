@@ -43,6 +43,7 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SidebarVerificationWarning } from "./sidebar-verification-warning";
 
 const NAV_ITEMS = [
 	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -247,6 +248,7 @@ export function AppSidebar() {
 			</SidebarContent>
 
 			<SidebarFooter>
+				<SidebarVerificationWarning />
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton

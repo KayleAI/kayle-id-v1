@@ -564,6 +564,11 @@ export const auth = betterAuth({
               auth_organizations.pending_deletion_requested_at,
             pendingDeletionRequestedBy:
               auth_organizations.pending_deletion_requested_by,
+            verifiedAt: auth_organizations.verified_at,
+            verificationTermsAcceptedAt:
+              auth_organizations.verification_terms_accepted_at,
+            verificationTermsAcceptedBy:
+              auth_organizations.verification_terms_accepted_by,
           })
           .from(auth_organizations)
           .innerJoin(
@@ -584,6 +589,11 @@ export const auth = betterAuth({
             ? row.pendingDeletionRequestedAt.toISOString()
             : null,
           pendingDeletionRequestedBy: row.pendingDeletionRequestedBy,
+          verifiedAt: row.verifiedAt ? row.verifiedAt.toISOString() : null,
+          verificationTermsAcceptedAt: row.verificationTermsAcceptedAt
+            ? row.verificationTermsAcceptedAt.toISOString()
+            : null,
+          verificationTermsAcceptedBy: row.verificationTermsAcceptedBy,
         }));
 
         if (activeOrganizationId) {

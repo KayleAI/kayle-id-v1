@@ -4,6 +4,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
 import { PendingDeletionBanner } from "./pending-deletion-banner";
+import { UnverifiedOrgBanner } from "./unverified-org-banner";
 
 interface TabDefinition {
 	href:
@@ -43,7 +44,9 @@ export function OrganizationPageLayout({
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			{pendingDeletionAt ? (
 				<PendingDeletionBanner pendingDeletionAt={pendingDeletionAt} />
-			) : null}
+			) : (
+				<UnverifiedOrgBanner />
+			)}
 			<AppHeading button={button} description={description} title={title} />
 
 			<nav

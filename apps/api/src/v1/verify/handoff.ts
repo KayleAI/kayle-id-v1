@@ -58,7 +58,6 @@ export async function issueHandoffPayload(
 			updatedAt: verification_sessions.updatedAt,
 			cancelTokenHash: verification_sessions.cancelTokenHash,
 			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
-			ownerVerificationOrgId: verification_sessions.ownerVerificationOrgId,
 			isAgeOnly: verification_sessions.isAgeOnly,
 		})
 		.from(verification_sessions)

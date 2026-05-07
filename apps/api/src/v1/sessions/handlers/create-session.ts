@@ -3,11 +3,11 @@ import { logEvent } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
 import type { createSession } from "@/openapi/v1/sessions/create";
 import { generateId } from "@/utils/generate-id";
-import { isAgeOnlyShareFields } from "@/v1/org-verification/rate-limit";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
 import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
+import { isAgeOnlyShareFields } from "@/v1/sessions/unverified-org-limit";
 
 const contractVersion = 1;
 const docs = "https://kayle.id/docs/api/sessions#create";

@@ -30,6 +30,12 @@
 			"service": "kayle-id-api"
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "ORG_VERIFICATIONS_KV",
+			"id": "3cacbcba5de84a1395b328d04f2e9376"
+		}
+	],
 	"routes": [
 		{
 			"pattern": "kayle.id",
@@ -43,6 +49,12 @@
 		}
 	],
 	"secrets": {
-		"required": ["KAYLE_INTERNAL_TOKEN", "KAYLE_DEMO_API_KEY"]
+		"required": [
+			"KAYLE_INTERNAL_TOKEN",
+			"KAYLE_INTERNAL_API_KEY",
+			"KAYLE_PLATFORM_WEBHOOK_SECRET",
+			"KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY",
+			"KAYLE_DEMO_API_KEY"
+		]
 	}
 }

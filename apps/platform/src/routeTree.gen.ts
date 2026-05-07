@@ -35,8 +35,10 @@ import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organi
 import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
+import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
 import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
+import { Route as ApiApiInternalWebhookReceiverRouteImport } from './routes/_api/api/internal/webhook-receiver'
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
 import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
 import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
@@ -168,6 +170,12 @@ const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   path: '/security',
   getParentRoute: () => AppAccountRoute,
 } as any)
+const ApiApiStartOrgVerificationRoute =
+  ApiApiStartOrgVerificationRouteImport.update({
+    id: '/_api/api/start-org-verification',
+    path: '/api/start-org-verification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppWebhooksEventsEventRoute = AppWebhooksEventsEventRouteImport.update({
   id: '/webhooks/events/$event',
   path: '/webhooks/events/$event',
@@ -178,6 +186,12 @@ const ApiApiWebhooksSplatRoute = ApiApiWebhooksSplatRouteImport.update({
   path: '/api/webhooks/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApiInternalWebhookReceiverRoute =
+  ApiApiInternalWebhookReceiverRouteImport.update({
+    id: '/_api/api/internal/webhook-receiver',
+    path: '/api/internal/webhook-receiver',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiApiDemoSplatRoute = ApiApiDemoSplatRouteImport.update({
   id: '/_api/api/demo/$',
   path: '/api/demo/$',
@@ -205,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
+  '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
@@ -220,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -233,6 +249,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
   '/demo': typeof MarketingDemoRoute
+  '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
@@ -248,6 +265,7 @@ export interface FileRoutesByTo {
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -267,6 +285,7 @@ export interface FileRoutesById {
   '/_legal/terms': typeof LegalTermsRoute
   '/_marketing/demo': typeof MarketingDemoRoute
   '/_marketing/': typeof MarketingIndexRoute
+  '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
   '/_app/organizations/members': typeof AppOrganizationsMembersRoute
@@ -282,6 +301,7 @@ export interface FileRoutesById {
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/_api/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
   '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -298,6 +318,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/demo'
+    | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
     | '/organizations/members'
@@ -313,6 +334,7 @@ export interface FileRouteTypes {
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
+    | '/api/internal/webhook-receiver'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
   fileRoutesByTo: FileRoutesByTo
@@ -326,6 +348,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/demo'
+    | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
     | '/organizations/members'
@@ -341,6 +364,7 @@ export interface FileRouteTypes {
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
+    | '/api/internal/webhook-receiver'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
   id:
@@ -359,6 +383,7 @@ export interface FileRouteTypes {
     | '/_legal/terms'
     | '/_marketing/demo'
     | '/_marketing/'
+    | '/_api/api/start-org-verification'
     | '/_app/account/security'
     | '/_app/api-keys/$key'
     | '/_app/organizations/members'
@@ -374,6 +399,7 @@ export interface FileRouteTypes {
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
+    | '/_api/api/internal/webhook-receiver'
     | '/_api/api/webhooks/$'
     | '/_app/webhooks/events/$event'
   fileRoutesById: FileRoutesById
@@ -383,9 +409,11 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
   ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
+  ApiApiInternalWebhookReceiverRoute: typeof ApiApiInternalWebhookReceiverRoute
   ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute
 }
 
@@ -573,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppAccountRoute
     }
+    '/_api/api/start-org-verification': {
+      id: '/_api/api/start-org-verification'
+      path: '/api/start-org-verification'
+      fullPath: '/api/start-org-verification'
+      preLoaderRoute: typeof ApiApiStartOrgVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/webhooks/events/$event': {
       id: '/_app/webhooks/events/$event'
       path: '/webhooks/events/$event'
@@ -585,6 +620,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/$'
       fullPath: '/api/webhooks/$'
       preLoaderRoute: typeof ApiApiWebhooksSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_api/api/internal/webhook-receiver': {
+      id: '/_api/api/internal/webhook-receiver'
+      path: '/api/internal/webhook-receiver'
+      fullPath: '/api/internal/webhook-receiver'
+      preLoaderRoute: typeof ApiApiInternalWebhookReceiverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_api/api/demo/$': {
@@ -706,9 +748,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
   ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,
+  ApiApiInternalWebhookReceiverRoute: ApiApiInternalWebhookReceiverRoute,
   ApiApiWebhooksSplatRoute: ApiApiWebhooksSplatRoute,
 }
 export const routeTree = rootRouteImport

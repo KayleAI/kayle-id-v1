@@ -3,6 +3,7 @@ import { processDueOrganizationDeletions } from "@kayle-id/auth/organization-del
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { config } from "@/config";
+import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import v1 from "@/v1";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
@@ -46,6 +47,9 @@ app.route("/v1/auth", auth);
 // v1
 app.route("/v1/verify", verify);
 app.route("/v1", v1);
+
+// Platform-only internal endpoints (gated by KAYLE_INTERNAL_TOKEN)
+app.route("/internal", internal);
 
 // R2 Emulation — Only for development & testing
 if (process.env.NODE_ENV !== "production") {

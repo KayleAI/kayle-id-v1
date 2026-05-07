@@ -4,7 +4,7 @@ import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import v1 from "@/v1";
-import { UNVERIFIED_ORG_SESSION_LIMIT } from "@/v1/org-verification/rate-limit";
+import { UNVERIFIED_ORG_SESSION_LIMIT } from "@/v1/sessions/unverified-org-limit";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;

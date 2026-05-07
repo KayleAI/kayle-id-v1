@@ -252,24 +252,19 @@ export async function acceptVerificationTerms(organizationId: string): Promise<{
 	});
 }
 
-interface VerificationSessionResponse {
-	expires_at: string;
-	id: string;
+interface StartOrgVerificationResponse {
+	session_id: string;
 	verification_url: string;
 }
 
 export async function createOwnerVerificationSession(input: {
 	organizationId: string;
-	redirectUrl: string;
-}): Promise<VerificationSessionResponse> {
-	return await requestApiResource<VerificationSessionResponse>({
-		basePath: "/api/org-verifications",
-		body: {
-			organization_id: input.organizationId,
-			redirect_url: input.redirectUrl,
-		},
+}): Promise<StartOrgVerificationResponse> {
+	return await requestApiResource<StartOrgVerificationResponse>({
+		basePath: "/api",
+		body: { organizationId: input.organizationId },
 		method: "POST",
-		path: "/",
+		path: "/start-org-verification",
 		unexpectedMessage: "Failed to start owner verification.",
 	});
 }

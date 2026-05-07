@@ -10,8 +10,6 @@ export const ApiKeyIdParam = z.object({
 });
 
 // Customer-facing endpoints (`/api/auth/api-keys`) only accept customer scopes.
-// `org_verifications:write` is platform-internal and is never grantable from
-// outside; the platform's own key is provisioned out-of-band.
 const ApiKeyScopeArray = z.array(z.enum(CUSTOMER_API_KEY_SCOPES));
 
 export const ApiKeyCreateRequest = z.object({

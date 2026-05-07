@@ -24,11 +24,14 @@ export const env = createEnv({
 	server: {
 		KAYLE_INTERNAL_TOKEN: z.string().min(1),
 		KAYLE_INTERNAL_API_KEY: z.string().min(1),
+		KAYLE_PLATFORM_WEBHOOK_SECRET: z.string().min(1),
+		KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY: z.string().min(1),
 		KAYLE_DEMO_API_KEY: z.string().min(1).optional(),
 		KAYLE_DEMO_ORG_SLUG: z.string().min(1).optional(),
 
 		// Cloudflare Specific Variables
 		API: z.custom<Fetcher>(),
+		ORG_VERIFICATIONS_KV: z.custom<KVNamespace>(),
 		DEMO_RUNS: z.custom<DurableObjectNamespace>().optional(),
 	},
 

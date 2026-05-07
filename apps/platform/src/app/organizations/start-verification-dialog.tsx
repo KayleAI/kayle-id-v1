@@ -82,13 +82,8 @@ export function StartVerificationDialog({
 			if (!organization.verificationTermsAcceptedAt) {
 				await acceptVerificationTerms(organization.id);
 			}
-			const redirectUrl = new URL(
-				"/organizations",
-				window.location.origin,
-			).toString();
 			return await createOwnerVerificationSession({
 				organizationId: organization.id,
-				redirectUrl,
 			});
 		},
 		onSuccess: (session) => {

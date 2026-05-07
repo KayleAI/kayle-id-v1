@@ -7,10 +7,7 @@ export {
 	isApiKeyScope,
 	isCustomerApiKeyScope,
 	isOrgRole,
-	isPlatformOnlyScope,
 	ORG_ROLES,
 	type OrgRole,
-	PLATFORM_ONLY_SCOPES,
-	type PlatformOnlyScope,
 	SCOPE_REQUIRED_ROLE,
 } from "@kayle-id/auth/permissions";

@@ -6,8 +6,8 @@ import {
 } from "@kayle-id/database/schema/core";
 import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
-import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/org-verification/rate-limit";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
+import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/sessions/unverified-org-limit";
 import {
 	generateSessionCancelToken,
 	hashSessionCancelToken,
@@ -107,7 +107,6 @@ export type CreateVerificationSessionInput = {
 	shareFields: ShareFields;
 	contractVersion: number;
 	isAgeOnly: boolean;
-	ownerVerificationOrgId?: string | null;
 };
 
 async function insertVerificationSessionRow(
@@ -128,7 +127,6 @@ async function insertVerificationSessionRow(
 			contractVersion: input.contractVersion,
 			cancelTokenHash,
 			isAgeOnly: input.isAgeOnly,
-			ownerVerificationOrgId: input.ownerVerificationOrgId ?? null,
 		})
 		.returning();
 

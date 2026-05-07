@@ -31,21 +31,9 @@ export const CUSTOMER_API_KEY_SCOPES = [
   "analytics:read",
 ] as const;
 
-/**
- * Scopes reserved for the platform's own internal API key. The platform uses
- * `org_verifications:write` to create verification sessions tagged with
- * `owner_verification_org_id` so the share-completion path can flip another
- * org's `verified_at`. Customer-facing keys must never carry these.
- */
-export const PLATFORM_ONLY_SCOPES = ["org_verifications:write"] as const;
-
-export const API_KEY_SCOPES = [
-  ...CUSTOMER_API_KEY_SCOPES,
-  ...PLATFORM_ONLY_SCOPES,
-] as const;
+export const API_KEY_SCOPES = [...CUSTOMER_API_KEY_SCOPES] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 export type CustomerApiKeyScope = (typeof CUSTOMER_API_KEY_SCOPES)[number];
-export type PlatformOnlyScope = (typeof PLATFORM_ONLY_SCOPES)[number];
 
 export function isApiKeyScope(value: unknown): value is ApiKeyScope {
   return (
@@ -63,15 +51,6 @@ export function isCustomerApiKeyScope(
   );
 }
 
-export function isPlatformOnlyScope(
-  value: unknown
-): value is PlatformOnlyScope {
-  return (
-    typeof value === "string" &&
-    (PLATFORM_ONLY_SCOPES as readonly string[]).includes(value)
-  );
-}
-
 /**
  * Minimum org role a session caller must hold to exercise each scope.
  * Reads require any org member; writes require admin or owner. Used by the
@@ -84,8 +63,4 @@ export const SCOPE_REQUIRED_ROLE: Record<ApiKeyScope, OrgRole> = {
   "sessions:read": "member",
   "sessions:write": "admin",
   "analytics:read": "member",
-  // Owner-only on the dashboard side; the scope itself only makes sense for
-  // the platform's internal API key, but if a session caller ever exercises
-  // it, require the strongest org role.
-  "org_verifications:write": "owner",
 };

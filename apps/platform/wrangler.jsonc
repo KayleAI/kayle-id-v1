@@ -43,6 +43,10 @@
 		}
 	],
 	"secrets": {
-		"required": ["KAYLE_INTERNAL_TOKEN", "KAYLE_DEMO_API_KEY"]
+		"required": [
+			"KAYLE_INTERNAL_TOKEN",
+			"KAYLE_INTERNAL_API_KEY",
+			"KAYLE_DEMO_API_KEY"
+		]
 	}
 }

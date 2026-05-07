@@ -8,6 +8,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		KAYLE_INTERNAL_TOKEN: string;
+		KAYLE_INTERNAL_API_KEY: string;
 		KAYLE_DEMO_API_KEY: string;
 		DEMO_RUNS: DurableObjectNamespace<import("./src/server-entry").DemoRunMailbox>;
 		API: Fetcher /* kayle-id-api */;
@@ -18,7 +19,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "KAYLE_INTERNAL_TOKEN" | "KAYLE_DEMO_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "KAYLE_INTERNAL_TOKEN" | "KAYLE_INTERNAL_API_KEY" | "KAYLE_DEMO_API_KEY">> {}
 }
 
 // Begin runtime types

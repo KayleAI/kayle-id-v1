@@ -23,6 +23,7 @@ export const env = createEnv({
 
 	server: {
 		KAYLE_INTERNAL_TOKEN: z.string().min(1),
+		KAYLE_INTERNAL_API_KEY: z.string().min(1),
 		KAYLE_DEMO_API_KEY: z.string().min(1).optional(),
 		KAYLE_DEMO_ORG_SLUG: z.string().min(1).optional(),
 

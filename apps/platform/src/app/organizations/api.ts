@@ -115,6 +115,14 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 			typeof data.pendingDeletionRequestedBy === "string"
 				? data.pendingDeletionRequestedBy
 				: null,
+		verifiedAt: toIsoStringOrNull(data.verifiedAt),
+		verificationTermsAcceptedAt: toIsoStringOrNull(
+			data.verificationTermsAcceptedAt,
+		),
+		verificationTermsAcceptedBy:
+			typeof data.verificationTermsAcceptedBy === "string"
+				? data.verificationTermsAcceptedBy
+				: null,
 		createdAt:
 			typeof data.createdAt === "string"
 				? data.createdAt
@@ -225,6 +233,44 @@ export async function cancelOrganizationDeletion(
 		method: "POST",
 		path: "/cancel-delete",
 		unexpectedMessage: "Failed to cancel deletion.",
+	});
+}
+
+export async function acceptVerificationTerms(organizationId: string): Promise<{
+	verificationTermsAcceptedAt: string;
+	verificationTermsAcceptedBy: string;
+}> {
+	return await requestApiResource<{
+		verificationTermsAcceptedAt: string;
+		verificationTermsAcceptedBy: string;
+	}>({
+		basePath: ORG_DELETE_BASE_PATH,
+		body: { organizationId },
+		method: "POST",
+		path: "/accept-verification-terms",
+		unexpectedMessage: "Failed to record verification terms acceptance.",
+	});
+}
+
+interface VerificationSessionResponse {
+	expires_at: string;
+	id: string;
+	verification_url: string;
+}
+
+export async function createOwnerVerificationSession(input: {
+	organizationId: string;
+	redirectUrl: string;
+}): Promise<VerificationSessionResponse> {
+	return await requestApiResource<VerificationSessionResponse>({
+		basePath: "/api/org-verifications",
+		body: {
+			organization_id: input.organizationId,
+			redirect_url: input.redirectUrl,
+		},
+		method: "POST",
+		path: "/",
+		unexpectedMessage: "Failed to start owner verification.",
 	});
 }
 

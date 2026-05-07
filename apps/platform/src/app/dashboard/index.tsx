@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";
+import { UnverifiedOrgBanner } from "@/app/organizations/unverified-org-banner";
 import { AppHeading } from "@/components/app-shell/heading";
 import { getSessionAnalyticsOverview } from "./api";
 import { clampIndex, getPeriodSummary } from "./chart-utils";
@@ -64,6 +65,8 @@ export function Dashboard() {
 				title="Dashboard"
 			/>
 			<hr className="my-8" />
+
+			<UnverifiedOrgBanner />
 
 			{shouldShowLoading ? <DashboardSkeleton /> : null}
 

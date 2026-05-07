@@ -37,6 +37,7 @@ import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
 import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
+import { Route as ApiApiOrgVerificationsSplatRouteImport } from './routes/_api/api/org-verifications/$'
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
 import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
 import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
@@ -178,6 +179,12 @@ const ApiApiWebhooksSplatRoute = ApiApiWebhooksSplatRouteImport.update({
   path: '/api/webhooks/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApiOrgVerificationsSplatRoute =
+  ApiApiOrgVerificationsSplatRouteImport.update({
+    id: '/_api/api/org-verifications/$',
+    path: '/api/org-verifications/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiApiDemoSplatRoute = ApiApiDemoSplatRouteImport.update({
   id: '/_api/api/demo/$',
   path: '/api/demo/$',
@@ -220,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/api/org-verifications/$': typeof ApiApiOrgVerificationsSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -248,6 +256,7 @@ export interface FileRoutesByTo {
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/api/org-verifications/$': typeof ApiApiOrgVerificationsSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -282,6 +291,7 @@ export interface FileRoutesById {
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
+  '/_api/api/org-verifications/$': typeof ApiApiOrgVerificationsSplatRoute
   '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
   '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
 }
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
+    | '/api/org-verifications/$'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
   fileRoutesByTo: FileRoutesByTo
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
+    | '/api/org-verifications/$'
     | '/api/webhooks/$'
     | '/webhooks/events/$event'
   id:
@@ -374,6 +386,7 @@ export interface FileRouteTypes {
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
+    | '/_api/api/org-verifications/$'
     | '/_api/api/webhooks/$'
     | '/_app/webhooks/events/$event'
   fileRoutesById: FileRoutesById
@@ -386,6 +399,7 @@ export interface RootRouteChildren {
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
   ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
+  ApiApiOrgVerificationsSplatRoute: typeof ApiApiOrgVerificationsSplatRoute
   ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute
 }
 
@@ -587,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApiWebhooksSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_api/api/org-verifications/$': {
+      id: '/_api/api/org-verifications/$'
+      path: '/api/org-verifications/$'
+      fullPath: '/api/org-verifications/$'
+      preLoaderRoute: typeof ApiApiOrgVerificationsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_api/api/demo/$': {
       id: '/_api/api/demo/$'
       path: '/api/demo/$'
@@ -709,6 +730,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
   ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,
+  ApiApiOrgVerificationsSplatRoute: ApiApiOrgVerificationsSplatRoute,
   ApiApiWebhooksSplatRoute: ApiApiWebhooksSplatRoute,
 }
 export const routeTree = rootRouteImport

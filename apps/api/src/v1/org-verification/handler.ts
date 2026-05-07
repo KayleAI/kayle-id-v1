@@ -1,8 +1,12 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { auth } from "@kayle-id/auth/server";
 import { logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
-import { eq } from "drizzle-orm";
+import {
+	auth_organization_members,
+	auth_organizations,
+} from "@kayle-id/database/schema/auth";
+import { and, eq } from "drizzle-orm";
 import { getRequestLogger } from "@/logging";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
@@ -145,6 +149,41 @@ orgVerification.openapi(createOrgVerificationSession, async (c) => {
 			},
 			400,
 		);
+	}
+
+	// When the request carries a session cookie alongside the platform-internal
+	// API key, the dashboard is acting on behalf of a logged-in user. Require
+	// that user to be an owner of the target org so a malicious caller can't
+	// trigger verification for an org they don't belong to. If no session is
+	// present (e.g., a backend admin script calling with just the API key), we
+	// trust the scoped key.
+	const sessionResponse = await auth.api.getSession(c.req.raw);
+	const actingUserId = sessionResponse?.session?.userId ?? null;
+	if (actingUserId) {
+		const [member] = await db
+			.select({ role: auth_organization_members.role })
+			.from(auth_organization_members)
+			.where(
+				and(
+					eq(auth_organization_members.organizationId, targetOrgId),
+					eq(auth_organization_members.userId, actingUserId),
+				),
+			)
+			.limit(1);
+		if (!member?.role.split(",").includes("owner")) {
+			return c.json(
+				{
+					data: null,
+					error: {
+						code: "FORBIDDEN",
+						message: "Acting user is not an owner of the target organization.",
+						hint: "Only an owner of the target organization can initiate its owner-verification flow.",
+						docs,
+					},
+				},
+				403,
+			);
+		}
 	}
 
 	// Identity-revealing share fields (default set) — the dedup hash needs the

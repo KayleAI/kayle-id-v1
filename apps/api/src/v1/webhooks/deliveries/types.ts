@@ -1,7 +1,36 @@
 import type { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
 
-export const MAX_DELIVERY_ATTEMPTS = 3;
+/**
+ * Backoff schedule between webhook delivery attempts. Mirrors Resend's
+ * webhook retry policy (https://resend.com/docs/webhooks/retries-and-replays):
+ *
+ *   attempt 1   immediate
+ *   attempt 2   +5s
+ *   attempt 3   +5m
+ *   attempt 4   +30m
+ *   attempt 5   +2h
+ *   attempt 6   +5h
+ *   attempt 7   +10h
+ *   attempt 8   +10h     (final, ~32h35m after the initial event)
+ *
+ * Each entry is the wall-clock delay between the previous attempt and the
+ * next one. Strings are passed verbatim to `step.sleep` so the Workflow
+ * runtime parses them — keep the units aligned with Cloudflare's accepted
+ * duration grammar ("seconds" / "minutes" / "hours").
+ */
+export const WEBHOOK_DELIVERY_RETRY_SCHEDULE = [
+	"5 seconds",
+	"5 minutes",
+	"30 minutes",
+	"2 hours",
+	"5 hours",
+	"10 hours",
+	"10 hours",
+] as const;
+
+/** Total attempts = 1 initial + N retries from the schedule above. */
+export const MAX_DELIVERY_ATTEMPTS = 1 + WEBHOOK_DELIVERY_RETRY_SCHEDULE.length;
 
 export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
 

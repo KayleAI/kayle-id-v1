@@ -161,7 +161,7 @@
 			mainGroup = B8ED7CEC2F081CC600CD508D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B9A0C0A0A0A0A0A0A0A0D001 /* XCLocalSwiftPackageReference "../../../../Work/capnproto-swift" */,
+				B9A0C0A0A0A0A0A0A0A0D001 /* XCRemoteSwiftPackageReference "capnproto-swift" */,
 				B8F0012F2000010000000006 /* XCRemoteSwiftPackageReference "OpenSSL-Package" */,
 				B8ABF89F2F13073100ECA26E /* XCRemoteSwiftPackageReference "MRTDReader" */,
 			);
@@ -334,7 +334,6 @@
 					"$(inherited)",
 					"$(SRCROOT)/../../packages/capnp/include",
 					"$(SRCROOT)/../../packages/capnp/generated/c",
-					"$(SRCROOT)/../../../../Work/capnproto-swift/capnproto/c++/src",
 				);
 				INFOPLIST_FILE = "$(DERIVED_FILE_DIR)/KayleID-Generated-Info.plist";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read ePassport NFC data.";
@@ -376,7 +375,6 @@
 					"$(inherited)",
 					"$(SRCROOT)/../../packages/capnp/include",
 					"$(SRCROOT)/../../packages/capnp/generated/c",
-					"$(SRCROOT)/../../../../Work/capnproto-swift/capnproto/c++/src",
 				);
 				INFOPLIST_FILE = "$(DERIVED_FILE_DIR)/KayleID-Generated-Info.plist";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read ePassport NFC data.";
@@ -426,13 +424,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		B9A0C0A0A0A0A0A0A0A0D001 /* XCLocalSwiftPackageReference "../../../../Work/capnproto-swift" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../../../Work/capnproto-swift";
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
 		B8ABF89F2F13073100ECA26E /* XCRemoteSwiftPackageReference "MRTDReader" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -450,6 +441,14 @@
 				minimumVersion = 3.3.1000;
 			};
 		};
+		B9A0C0A0A0A0A0A0A0A0D001 /* XCRemoteSwiftPackageReference "capnproto-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/arsenstorm/capnproto-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -465,7 +464,7 @@
 		};
 		B9A0C0A0A0A0A0A0A0A0E001 /* Capnp */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B9A0C0A0A0A0A0A0A0A0D001 /* XCLocalSwiftPackageReference "../../../../Work/capnproto-swift" */;
+			package = B9A0C0A0A0A0A0A0A0A0D001 /* XCRemoteSwiftPackageReference "capnproto-swift" */;
 			productName = Capnp;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -1,6 +1,15 @@
 {
-  "originHash" : "f07b1cd5ead9ce2f4bd2e550675666d0ec47ae8860ce141b238cccdf786c831d",
+  "originHash" : "e76a25472f917f0d793149f2e6ad0edb1b2b9ea959410408f64f036ba4ee2667",
   "pins" : [
+    {
+      "identity" : "capnproto-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arsenstorm/capnproto-swift.git",
+      "state" : {
+        "revision" : "00411f6c44fd68d5ad7468f03e5bcc29a9350c7b",
+        "version" : "1.0.0"
+      }
+    },
     {
       "identity" : "mrtdreader",
       "kind" : "remoteSourceControl",

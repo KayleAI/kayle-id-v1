@@ -9,11 +9,15 @@ import {
 export interface VerifyClientHello {
   appVersion?: string;
   attemptId?: string;
+  attestKeyId?: string;
   deviceId?: string;
+  helloAssertion?: Uint8Array;
   mobileWriteToken?: string;
+  runtimeIntegritySignal?: number;
 }
 
 export interface VerifyPhaseUpdate {
+  attestAssertion?: Uint8Array;
   error?: string;
   phase?: string;
 }
@@ -284,6 +288,10 @@ export function encodeClientHello(hello: VerifyClientHello): Uint8Array {
   next.mobileWriteToken = hello.mobileWriteToken ?? "";
   next.deviceId = hello.deviceId ?? "";
   next.appVersion = hello.appVersion ?? "";
+  next.attestKeyId = hello.attestKeyId ?? "";
+  const helloAssertion = hello.helloAssertion ?? new Uint8Array();
+  next._initHelloAssertion(helloAssertion.length).copyBuffer(helloAssertion);
+  next.runtimeIntegritySignal = hello.runtimeIntegritySignal ?? 0;
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -293,6 +301,8 @@ export function encodeClientPhase(phase: VerifyPhaseUpdate): Uint8Array {
   const next = root._initPhase();
   next.phase = phase.phase ?? "";
   next.error = phase.error ?? "";
+  const attestAssertion = phase.attestAssertion ?? new Uint8Array();
+  next._initAttestAssertion(attestAssertion.length).copyBuffer(attestAssertion);
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -342,6 +352,11 @@ export function decodeClientMessage(
             mobileWriteToken: root.hello.mobileWriteToken,
             deviceId: root.hello.deviceId,
             appVersion: root.hello.appVersion,
+            attestKeyId: root.hello.attestKeyId,
+            helloAssertion: new Uint8Array(
+              root.hello.helloAssertion.toUint8Array()
+            ),
+            runtimeIntegritySignal: root.hello.runtimeIntegritySignal,
           },
         };
       case CapnpClientMessage.PHASE:
@@ -349,6 +364,9 @@ export function decodeClientMessage(
           phase: {
             phase: root.phase.phase,
             error: root.phase.error,
+            attestAssertion: new Uint8Array(
+              root.phase.attestAssertion.toUint8Array()
+            ),
           },
         };
       case CapnpClientMessage.DATA:

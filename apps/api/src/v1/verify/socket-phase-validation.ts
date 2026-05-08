@@ -1,5 +1,9 @@
 import { logEvent } from "@kayle-id/config/logging";
+import { db } from "@kayle-id/database/drizzle";
+import { verification_attempts } from "@kayle-id/database/schema/core";
+import { eq } from "drizzle-orm";
 import { triggerWebhookDeliveryWorkflows } from "@/v1/webhooks/deliveries/service";
+import { isAttestationGateEnabled, verifyNfcAttestation } from "./attest-gate";
 import { getNfcTransferStatus, getSelfieTransferStatus } from "./data-payload";
 import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
 import { parseDg14 } from "./dg14-parser";
@@ -89,6 +93,7 @@ async function rejectAttemptWithVerdict({
 }: {
 	attemptId: string;
 	code:
+		| "passport_anti_cloning_attestation_failed"
 		| "passport_authenticity_failed"
 		| "passport_active_authentication_failed"
 		| "passport_chip_authentication_failed"
@@ -470,6 +475,94 @@ async function runChipAuthValidation({
 	return verdict;
 }
 
+async function runAttestationValidation({
+	attemptId,
+	context,
+}: {
+	attemptId: string;
+	context: VerifySocketContext;
+}) {
+	if (!isAttestationGateEnabled(context.env)) {
+		// Gate is off (pre-rollout). Surface presence/absence in logs but never
+		// fail-close. CA-v1-only and no-DG15 attempts continue to skip without
+		// an anti-cloning anchor until the flag flips.
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				assertion_present:
+					(context.state.transfer.nfcAttestAssertion?.length ?? 0) > 0,
+			},
+			event: "verify.ws.attest_gate_skipped",
+		});
+		return null;
+	}
+
+	const [attempt] = await db
+		.select({ mobileAttestKeyId: verification_attempts.mobileAttestKeyId })
+		.from(verification_attempts)
+		.where(eq(verification_attempts.id, attemptId))
+		.limit(1);
+
+	const attestKeyId = attempt?.mobileAttestKeyId ?? null;
+	if (!attestKeyId) {
+		logEvent(context.log, {
+			details: { attempt_id: attemptId, reason: "key_missing_on_attempt" },
+			event: "verify.ws.attest_failed",
+			level: "warn",
+		});
+
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "passport_anti_cloning_attestation_failed",
+			context,
+			riskScore: 1,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	const result = await verifyNfcAttestation({
+		attemptId,
+		attestKeyId,
+		authSecret: context.env.AUTH_SECRET as string,
+		transfer: context.state.transfer,
+	});
+
+	if (result.ok) {
+		logEvent(context.log, {
+			details: {
+				attempt_id: attemptId,
+				attest_key_id: attestKeyId,
+				attest_counter: result.counter,
+			},
+			event: "verify.ws.attest_succeeded",
+		});
+		return null;
+	}
+
+	logEvent(context.log, {
+		details: {
+			attempt_id: attemptId,
+			attest_key_id: attestKeyId,
+			reason: result.code,
+			detail: result.detail ?? null,
+		},
+		event: "verify.ws.attest_failed",
+		level: "warn",
+	});
+
+	const verdict = await rejectAttemptWithVerdict({
+		attemptId,
+		code: "passport_anti_cloning_attestation_failed",
+		context,
+		riskScore: 1,
+	});
+	context.transport.sendVerdict(verdict);
+	context.transport.closeAfterVerdict(verdict.reasonCode);
+	return verdict;
+}
+
 export async function runPhaseValidation(
 	context: VerifySocketContext,
 	attemptId: string,
@@ -480,6 +573,14 @@ export async function runPhaseValidation(
 
 		if (!(dg1 && dg2 && sod)) {
 			return null;
+		}
+
+		const attestVerdict = await runAttestationValidation({
+			attemptId,
+			context,
+		});
+		if (attestVerdict) {
+			return attestVerdict;
 		}
 
 		const authenticity = await validateAuthenticity({

@@ -7,14 +7,20 @@ nonisolated private func verify_build_hello(
   _ attemptId: UnsafePointer<CChar>?,
   _ mobileWriteToken: UnsafePointer<CChar>?,
   _ deviceId: UnsafePointer<CChar>?,
-  _ appVersion: UnsafePointer<CChar>?
+  _ appVersion: UnsafePointer<CChar>?,
+  _ attestKeyId: UnsafePointer<CChar>?,
+  _ helloAssertion: UnsafePointer<UInt8>?,
+  _ helloAssertionSize: Int,
+  _ runtimeIntegritySignal: UInt32
 ) -> Int32
 
 @_silgen_name("verify_build_phase")
 nonisolated private func verify_build_phase(
   _ builder: UnsafeMutableRawPointer?,
   _ phase: UnsafePointer<CChar>?,
-  _ error: UnsafePointer<CChar>?
+  _ error: UnsafePointer<CChar>?,
+  _ attestAssertion: UnsafePointer<UInt8>?,
+  _ attestAssertionSize: Int
 ) -> Int32
 
 @_silgen_name("verify_build_data")
@@ -155,33 +161,45 @@ final class VerifyCapnpCodec {
     attemptId: String,
     mobileWriteToken: String,
     deviceId: String?,
-    appVersion: String
+    appVersion: String,
+    attestKeyId: String,
+    helloAssertion: Data,
+    runtimeIntegritySignal: UInt32
   ) -> Data? {
     guard let builder = CapnpMessageBuilder() else {
       return nil
     }
 
-    let result = attemptId.withCString { attemptCString in
-      mobileWriteToken.withCString { tokenCString in
-        appVersion.withCString { appCString in
-          if let deviceId {
-            return deviceId.withCString { deviceCString in
-              verify_build_hello(
-                builder.opaque,
-                attemptCString,
-                tokenCString,
-                deviceCString,
-                appCString
-              )
+    let result: Int32 = helloAssertion.withUnsafeBytes { assertionBuffer -> Int32 in
+      let assertionPtr = assertionBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+      let assertionSize = helloAssertion.count
+
+      return attemptId.withCString { attemptCString in
+        mobileWriteToken.withCString { tokenCString in
+          appVersion.withCString { appCString in
+            attestKeyId.withCString { keyIdCString in
+              let invokeWithDeviceId: (UnsafePointer<CChar>?) -> Int32 = { deviceCString in
+                verify_build_hello(
+                  builder.opaque,
+                  attemptCString,
+                  tokenCString,
+                  deviceCString,
+                  appCString,
+                  keyIdCString,
+                  assertionPtr,
+                  assertionSize,
+                  runtimeIntegritySignal
+                )
+              }
+
+              if let deviceId {
+                return deviceId.withCString { deviceCString in
+                  invokeWithDeviceId(deviceCString)
+                }
+              }
+              return invokeWithDeviceId(nil)
             }
           }
-          return verify_build_hello(
-            builder.opaque,
-            attemptCString,
-            tokenCString,
-            nil,
-            appCString
-          )
         }
       }
     }
@@ -193,18 +211,39 @@ final class VerifyCapnpCodec {
     return builder.toBytes()
   }
 
-  nonisolated func encodePhase(phase: String, error: String?) -> Data? {
+  nonisolated func encodePhase(
+    phase: String,
+    error: String?,
+    attestAssertion: Data
+  ) -> Data? {
     guard let builder = CapnpMessageBuilder() else {
       return nil
     }
 
-    let result = phase.withCString { phaseCString in
-      if let error {
-        return error.withCString { errorCString in
-          verify_build_phase(builder.opaque, phaseCString, errorCString)
+    let result: Int32 = attestAssertion.withUnsafeBytes { assertionBuffer -> Int32 in
+      let assertionPtr = assertionBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+      let assertionSize = attestAssertion.count
+
+      return phase.withCString { phaseCString in
+        if let error {
+          return error.withCString { errorCString in
+            verify_build_phase(
+              builder.opaque,
+              phaseCString,
+              errorCString,
+              assertionPtr,
+              assertionSize
+            )
+          }
         }
+        return verify_build_phase(
+          builder.opaque,
+          phaseCString,
+          nil,
+          assertionPtr,
+          assertionSize
+        )
       }
-      return verify_build_phase(builder.opaque, phaseCString, nil)
     }
 
     guard result == 1 else {

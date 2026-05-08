@@ -21,6 +21,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private let attemptId: String
   private let mobileWriteToken: String
   private let baseURL: String
+  private let attestHelloChallenge: Data?
   private let onFatalError: ((VerifyWebSocketError) -> Void)?
   private let onShareRequest: ((VerifyShareRequest) -> Void)?
   private let onActiveAuthChallenge: ((Data) -> Void)?
@@ -54,6 +55,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     attemptId: String,
     mobileWriteToken: String,
     baseURL: String,
+    attestHelloChallenge: Data? = nil,
     onFatalError: ((VerifyWebSocketError) -> Void)? = nil,
     onShareRequest: ((VerifyShareRequest) -> Void)? = nil,
     onActiveAuthChallenge: ((Data) -> Void)? = nil
@@ -62,6 +64,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     self.attemptId = attemptId
     self.mobileWriteToken = mobileWriteToken
     self.baseURL = baseURL
+    self.attestHelloChallenge = attestHelloChallenge
     self.onFatalError = onFatalError
     self.onShareRequest = onShareRequest
     self.onActiveAuthChallenge = onActiveAuthChallenge
@@ -81,16 +84,48 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
   func sendHello() async throws {
     let (deviceId, appVersion) = await resolveHelloMetadata()
+
+    var attestKeyId = ""
+    var helloAssertion = Data()
+    if let challenge = attestHelloChallenge, !challenge.isEmpty {
+      do {
+        let result = try await AppAttestService.shared.helloAssertion(
+          baseURL: baseURL,
+          attemptId: attemptId,
+          deviceId: deviceId,
+          appVersion: appVersion,
+          challenge: challenge
+        )
+        attestKeyId = result.keyId
+        helloAssertion = result.assertion
+      } catch {
+        // App Attest unavailable (simulator, jailbroken device, network
+        // glitch). The server's gate decides whether to fail-closed; on this
+        // side we forward an empty assertion and let the server respond with
+        // HELLO_ATTEST_KEY_UNKNOWN.
+        #if DEBUG
+        print("AppAttest helloAssertion failed: \(error.localizedDescription)")
+        #endif
+      }
+    }
+
+    let runtimeIntegritySignal = await MainActor.run {
+      RuntimeIntegrity.currentSignal()
+    }
+
     guard let payload = codec.encodeHello(
       attemptId: attemptId,
       mobileWriteToken: mobileWriteToken,
       deviceId: deviceId,
-      appVersion: appVersion
+      appVersion: appVersion,
+      attestKeyId: attestKeyId,
+      helloAssertion: helloAssertion,
+      runtimeIntegritySignal: runtimeIntegritySignal
     ) else {
       throw VerifyWebSocketError.sendFailed
     }
     #if DEBUG
-    print("WS -> hello")
+    print("WS -> hello attestKeyIdPresent=\(!attestKeyId.isEmpty) assertionBytes=\(helloAssertion.count) integrity=\(runtimeIntegritySignal)")
     #endif
     let responseTask = Task { try await waitForHelloResponse() }
     do {
@@ -105,8 +140,16 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  func sendPhase(_ phase: AttemptPhase, error: String?) async throws {
-    let response = try await sendPhaseAwaitResponse(phase, error: error)
+  func sendPhase(
+    _ phase: AttemptPhase,
+    error: String?,
+    attestAssertion: Data = Data()
+  ) async throws {
+    let response = try await sendPhaseAwaitResponse(
+      phase,
+      error: error,
+      attestAssertion: attestAssertion
+    )
     guard isExpectedPhaseAck(response.ackMessage) else {
       throw VerifyWebSocketError.unexpectedServerResponse(
         describeUnexpectedServerMessage(
@@ -119,9 +162,14 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
   func sendPhaseAwaitResponse(
     _ phase: AttemptPhase,
-    error: String?
+    error: String?,
+    attestAssertion: Data = Data()
   ) async throws -> VerifyServerMessage {
-    guard let payload = codec.encodePhase(phase: phase.rawValue, error: error) else {
+    guard let payload = codec.encodePhase(
+      phase: phase.rawValue,
+      error: error,
+      attestAssertion: attestAssertion
+    ) else {
       throw VerifyWebSocketError.sendFailed
     }
 

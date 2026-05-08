@@ -6,5 +6,20 @@
   <array>
     <string>TAG</string>
   </array>
+  <!--
+    App Attest environment.
+
+    "production" uses Apple's production attestation servers and AAGUID
+    `appattest` (the value the API server expects when PUBLIC_AUTH_URL is
+    `https://kayle.id`). TestFlight and App Store builds must use this.
+
+    For Xcode debug runs against a dev API, override this to "development"
+    locally so the AAGUID matches `appattestdevelop`. The server's environment
+    selector lives in apps/api/src/v1/verify/attest-gate.ts /
+    apps/api/src/v1/verify/attest-handlers.ts and is decided from
+    PUBLIC_AUTH_URL — never trust the client's claim.
+  -->
+  <key>com.apple.developer.devicecheck.appattest-environment</key>
+  <string>production</string>
 </dict>
 </plist>

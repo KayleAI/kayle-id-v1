@@ -6,6 +6,10 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
+import {
+	deriveAttestHelloChallenge,
+	deriveAttestNfcChallenge,
+} from "./attest-challenges";
 import { isTerminalSessionStatus } from "./status";
 import {
 	deriveMobileWriteToken,
@@ -28,6 +32,8 @@ type HandoffSuccess = {
 	attempt_id: string;
 	mobile_write_token: string;
 	expires_at: string;
+	attest_hello_challenge: string;
+	attest_nfc_challenge: string;
 };
 
 export type IssueHandoffResult =
@@ -188,6 +194,13 @@ export async function issueHandoffPayload(
 		seed: mobileWriteTokenSeed,
 	});
 
+	const [attestHelloChallenge, attestNfcChallenge] = env?.AUTH_SECRET
+		? await Promise.all([
+				deriveAttestHelloChallenge({ attemptId, authSecret: env.AUTH_SECRET }),
+				deriveAttestNfcChallenge({ attemptId, authSecret: env.AUTH_SECRET }),
+			])
+		: [new Uint8Array(), new Uint8Array()];
+
 	return {
 		ok: true,
 		data: {
@@ -196,6 +209,19 @@ export async function issueHandoffPayload(
 			attempt_id: attemptId,
 			mobile_write_token: mobileWriteToken,
 			expires_at: expiresAt.toISOString(),
+			attest_hello_challenge: bytesToBase64Url(attestHelloChallenge),
+			attest_nfc_challenge: bytesToBase64Url(attestNfcChallenge),
 		},
 	};
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/u, "");
 }

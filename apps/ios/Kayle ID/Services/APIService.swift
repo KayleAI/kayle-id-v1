@@ -68,7 +68,9 @@ enum APIService {
       sessionId: payloadSessionId,
       attemptId: attemptId,
       mobileWriteToken: mobileWriteToken,
-      expiresAt: expiresAt
+      expiresAt: expiresAt,
+      attestHelloChallenge: payload["attest_hello_challenge"] as? String,
+      attestNfcChallenge: payload["attest_nfc_challenge"] as? String
     )
   }
 

@@ -401,11 +401,15 @@ final class VerificationSession: ObservableObject {
     let baseURL = APIService.baseURL(from: payload.sessionId)
     let attemptId = payload.attemptId
 
+    let attestChallenge = payload.attestHelloChallenge
+      .flatMap { Data(base64URLEncodedString: $0) }
+
     let service = VerifyWebSocketService(
       sessionId: payload.sessionId,
       attemptId: payload.attemptId,
       mobileWriteToken: payload.mobileWriteToken,
       baseURL: baseURL,
+      attestHelloChallenge: attestChallenge,
       onFatalError: { [weak self] socketError in
         Task { @MainActor [weak self] in
           guard let self else { return }
@@ -816,6 +820,67 @@ final class VerificationSession: ObservableObject {
     }
   }
 
+  /// Build the App Attest assertion that binds this NFC payload to the
+  /// hardware-attested key. The server recomputes the same digest from the
+  /// uploaded artifacts before calling verifyAssertion, so the byte order
+  /// MUST match `apps/api/src/v1/verify/attest-gate.ts buildNfcClientDataHash`
+  /// exactly: dg1, dg2, dg14, dg15, sod, chipAuthTranscript, activeAuthSignature.
+  private func buildNfcAttestAssertion(plans: [NFCUploadPlan]) async -> Data {
+    func bytes(for kind: VerifyDataKind) -> Data? {
+      guard let plan = plans.first(where: { $0.kind == kind }) else {
+        return nil
+      }
+      var assembled = Data()
+      for chunk in plan.chunks {
+        assembled.append(chunk)
+      }
+      return assembled
+    }
+
+    // The activeAuth plan packs `challenge ‖ signature`; the server only
+    // hashes the signature half (challenge is server-issued and known to it).
+    let activeAuthSignature: Data? = {
+      guard let combined = bytes(for: .activeAuth) else { return nil }
+      // The challenge is 8 bytes (ICAO), signature is the remainder.
+      let challengeBytes = 8
+      guard combined.count > challengeBytes else { return nil }
+      return combined.subdata(in: challengeBytes..<combined.count)
+    }()
+
+    let digests = NfcArtifactDigests.make(
+      dg1: bytes(for: .dg1),
+      dg2: bytes(for: .dg2),
+      dg14: bytes(for: .dg14),
+      dg15: bytes(for: .dg15),
+      sod: bytes(for: .sod),
+      chipAuthTranscript: bytes(for: .chipAuth),
+      activeAuthSignature: activeAuthSignature
+    )
+
+    guard
+      let challengeString = payload?.attestNfcChallenge,
+      let challenge = Data(base64URLEncodedString: challengeString)
+    else {
+      return Data()
+    }
+
+    do {
+      let attemptId = payload?.attemptId ?? ""
+      let baseURL = APIService.baseURL(from: payload?.sessionId ?? "")
+      return try await AppAttestService.shared.nfcPayloadAssertion(
+        baseURL: baseURL,
+        attemptId: attemptId,
+        challenge: challenge,
+        digests: digests
+      )
+    } catch {
+      #if DEBUG
+      print("AppAttest nfcPayloadAssertion failed: \(error.localizedDescription)")
+      #endif
+      return Data()
+    }
+  }
+
   private func buildNFCUploadPlans(from result: PassportReadResult) throws -> [NFCUploadPlan] {
     guard let dg1 = result.dataGroups.first(where: { $0.id == 0x61 }) else {
       throw VerificationError.missingRequiredNFCData(
@@ -959,11 +1024,14 @@ final class VerificationSession: ObservableObject {
     via webSocketService: VerifyWebSocketService,
     onChunkAcknowledged: ((String, Int, Int, VerifyDataKind) -> Void)? = nil
   ) async throws -> Bool {
+    let nfcAssertion = await buildNfcAttestAssertion(plans: plans)
+
     while true {
       do {
         let response = try await webSocketService.sendPhaseAwaitResponse(
           .nfcComplete,
-          error: nil
+          error: nil,
+          attestAssertion: nfcAssertion
         )
 
         if response.ackMessage == "phase_ok" {

@@ -9,6 +9,10 @@ import v1 from "@/v1";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
 import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import verify from "@/v1/verify";
+import {
+	refreshAppAttestReceipts,
+	shouldRunReceiptRefresh,
+} from "@/v1/verify/attest-receipt-refresh";
 import auth from "./auth";
 
 export { WebhookDeliveryWorkflow } from "@/v1/webhooks/deliveries/workflow";
@@ -124,6 +128,13 @@ const worker = Object.assign(app, {
 		if (shouldRunExpiredSessionNormalization(controller.scheduledTime)) {
 			await normalizeExpiredVerificationSessions({
 				env,
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
+		if (shouldRunReceiptRefresh(controller.scheduledTime)) {
+			await refreshAppAttestReceipts({
+				env: env as Parameters<typeof refreshAppAttestReceipts>[0]["env"],
 				now: new Date(controller.scheduledTime),
 			});
 		}

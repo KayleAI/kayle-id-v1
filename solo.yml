@@ -1,67 +1,23 @@
 name: kayle-id
 icon: apps/platform/public/android-chrome-512x512.png
 processes:
-  iOS (Production):
-    command: bash ./apps/ios/scripts/run-on-connected-device.sh --api-base-url https://api.kayle.id
-    working_dir: ./
-    auto_start: false
-    auto_restart: false
-    restart_when_changed: []
-    env:
-      IOS_DEVICE_IDENTIFIER: ''
-  Verify:
-    command: bun run dev
-    working_dir: ./apps/verify
-    auto_start: false
-    auto_restart: true
-    restart_when_changed: []
-    env: {}
-  Seed (Production):
-    command: infisical run --env=prod -- bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
-    working_dir: ./
-    auto_start: false
-    auto_restart: false
-    restart_when_changed: []
-    env: {}
-  Emails:
-    command: bun run dev
-    working_dir: ./packages/emails
-    auto_start: false
-    auto_restart: true
-    restart_when_changed: []
-    env: {}
-  'Redis':
+  Redis:
     command: ./infra/redis/launch.sh
     working_dir: null
-    auto_start: true
-    auto_restart: false
-    restart_when_changed: []
-    env: {}
-  iOS (Local):
-    command: infisical run --env=dev -- bash ./apps/ios/scripts/run-on-connected-device.sh
-    working_dir: ./
     auto_start: false
     auto_restart: false
-    restart_when_changed: []
-    env:
-      IOS_DEVICE_IDENTIFIER: ''
-  API:
-    command: bun run dev
-    working_dir: ./apps/api
-    auto_start: false
-    auto_restart: true
-    restart_when_changed: []
-    env: {}
-  Platform:
-    command: bun run dev
-    working_dir: ./apps/platform
-    auto_start: false
-    auto_restart: true
     restart_when_changed: []
     env: {}
   Face Matcher:
     command: ./scripts/dev-with-healthcheck.sh
     working_dir: ./infra/face-matcher
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  Emails:
+    command: bun run dev
+    working_dir: ./packages/emails
     auto_start: false
     auto_restart: true
     restart_when_changed: []
@@ -80,13 +36,6 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
-  Database:
-    command: ./infra/postgres/launch.sh
-    working_dir: null
-    auto_start: false
-    auto_restart: true
-    restart_when_changed: []
-    env: {}
   Docs:
     command: bunx mint dev
     working_dir: ./docs
@@ -94,3 +43,54 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  iOS (Production):
+    command: bash ./apps/ios/scripts/run-on-connected-device.sh --api-base-url https://api.kayle.id
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ''
+  Seed (Production):
+    command: infisical run --env=prod -- bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Platform:
+    command: bun run dev
+    working_dir: ./apps/platform
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  Database:
+    command: ./infra/postgres/launch.sh
+    working_dir: null
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  API:
+    command: bun run dev
+    working_dir: ./apps/api
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  Verify:
+    command: bun run dev
+    working_dir: ./apps/verify
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  iOS (Local):
+    command: infisical run --env=dev -- bash ./apps/ios/scripts/run-on-connected-device.sh
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ''

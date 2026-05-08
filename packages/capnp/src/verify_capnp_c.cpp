@@ -30,7 +30,11 @@ int verify_build_hello(
   const char* attempt_id,
   const char* mobile_write_token,
   const char* device_id,
-  const char* app_version
+  const char* app_version,
+  const char* attest_key_id,
+  const uint8_t* hello_assertion,
+  size_t hello_assertion_size,
+  uint32_t runtime_integrity_signal
 ) {
   if (!message_builder || !attempt_id || !mobile_write_token || !app_version) {
     return 0;
@@ -44,13 +48,25 @@ int verify_build_hello(
     hello.setDeviceId(device_id);
   }
   hello.setAppVersion(app_version);
+  if (attest_key_id) {
+    hello.setAttestKeyId(attest_key_id);
+  }
+  if (hello_assertion && hello_assertion_size > 0) {
+    hello.setHelloAssertion(kj::ArrayPtr<const capnp::byte>(
+      reinterpret_cast<const capnp::byte*>(hello_assertion),
+      hello_assertion_size
+    ));
+  }
+  hello.setRuntimeIntegritySignal(runtime_integrity_signal);
   return 1;
 }
 
 int verify_build_phase(
   void* message_builder,
   const char* phase,
-  const char* error
+  const char* error,
+  const uint8_t* attest_assertion,
+  size_t attest_assertion_size
 ) {
   if (!message_builder || !phase) {
     return 0;
@@ -61,6 +77,12 @@ int verify_build_phase(
   phase_msg.setPhase(phase);
   if (error) {
     phase_msg.setError(error);
+  }
+  if (attest_assertion && attest_assertion_size > 0) {
+    phase_msg.setAttestAssertion(kj::ArrayPtr<const capnp::byte>(
+      reinterpret_cast<const capnp::byte*>(attest_assertion),
+      attest_assertion_size
+    ));
   }
   return 1;
 }

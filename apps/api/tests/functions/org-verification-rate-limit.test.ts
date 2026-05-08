@@ -29,6 +29,22 @@ describe("isAgeOnlyShareFields", () => {
 		expect(isAgeOnlyShareFields(fields)).toBe(true);
 	});
 
+	test("treats age_over_X plus both Kayle-internal claims as age-only", () => {
+		// Real-world payload integrators send: an age gate plus both Kayle-internal
+		// IDs. Neither kayle_document_id nor kayle_human_id reveals an identity
+		// attribute, so the combination still qualifies for the unverified-org
+		// rate-limit exemption.
+		const fields = buildShareFields({
+			age_over_18: { required: true, reason: 'Sharing "Age Over 18"' },
+			kayle_document_id: {
+				required: true,
+				reason: 'Sharing "Kayle Document ID"',
+			},
+			kayle_human_id: { required: true, reason: 'Sharing "Kayle Human ID"' },
+		});
+		expect(isAgeOnlyShareFields(fields)).toBe(true);
+	});
+
 	test("rejects sessions that mix age claims with identity claims", () => {
 		const fields = buildShareFields({
 			age_over_18: { required: true, reason: "Age verification" },

@@ -612,7 +612,7 @@ async function deriveBitsBetween({
 }
 
 /**
- * Byte-for-byte mirror of the Swift `PassportNFCReader.encodeChipAuthTranscript`
+ * Byte-for-byte mirror of the Swift `DocumentNFCReader.encodeChipAuthTranscript`
  * helper. Keeps the iOS encoder pinned against this test — any drift in the
  * Swift implementation will fail the equality assertion below.
  */

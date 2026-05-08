@@ -16,7 +16,7 @@ type SessionConsentProps = {
 /**
  * Collects the user's consent. Age-only sessions render a narrower variant
  * since the integrator only receives a yes/no age answer — framing consent
- * around "share my passport data" would be inaccurate and unnecessarily scary.
+ * around "share my document data" would be inaccurate and unnecessarily scary.
  */
 export function SessionConsent({
 	organizationName,
@@ -44,9 +44,9 @@ export function SessionConsent({
 
 	const bullets: ReactNode[] = isAgeOnly
 		? [
-				<>I allow Kayle ID to read my passport to check my age</>,
+				<>I allow Kayle ID to read my document to check my age</>,
 				<>
-					I allow Kayle ID to capture a selfie to confirm I am the passport
+					I allow Kayle ID to capture a selfie to confirm I am the document
 					holder
 				</>,
 				<>
@@ -59,9 +59,9 @@ export function SessionConsent({
 				</>,
 			]
 		: [
-				<>I allow Kayle ID to read data from my passport</>,
+				<>I allow Kayle ID to read data from my document</>,
 				<>
-					I allow Kayle ID to capture a selfie to confirm I am the passport
+					I allow Kayle ID to capture a selfie to confirm I am the document
 					holder
 				</>,
 				<>

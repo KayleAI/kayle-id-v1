@@ -60,25 +60,25 @@ export function buildTerminalContent(
 
 	const failureCode = sessionStatus.latest_attempt?.failure_code;
 
-	if (failureCode === "passport_authenticity_failed") {
+	if (failureCode === "document_authenticity_failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.passportAuthenticityFailed,
+			...VERIFY_HANDOFF_COPY.screens.terminal.documentAuthenticityFailed,
 		};
 	}
 
-	if (failureCode === "passport_active_authentication_failed") {
+	if (failureCode === "document_active_authentication_failed") {
 		return {
 			colour: "red",
 			...VERIFY_HANDOFF_COPY.screens.terminal
-				.passportActiveAuthenticationFailed,
+				.documentActiveAuthenticationFailed,
 		};
 	}
 
-	if (failureCode === "passport_chip_authentication_failed") {
+	if (failureCode === "document_chip_authentication_failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.passportChipAuthenticationFailed,
+			...VERIFY_HANDOFF_COPY.screens.terminal.documentChipAuthenticationFailed,
 		};
 	}
 

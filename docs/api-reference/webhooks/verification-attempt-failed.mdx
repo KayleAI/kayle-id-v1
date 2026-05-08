@@ -52,9 +52,9 @@ Sessions allow up to three attempts. Each rejected attempt fires this event inde
 
 <ResponseField name="data.failure_code" type="string">
   One of:
-  - `passport_authenticity_failed` — passive auth failed (SOD signature, DSC chain, data-group hash, or CRL revocation).
-  - `passport_active_authentication_failed` — DG15 was present and the chip's signature over the challenge did not verify.
-  - `passport_chip_authentication_failed` — DG14 was present and the authenticated key agreement transcript did not verify.
+  - `document_authenticity_failed` — passive auth failed (SOD signature, DSC chain, data-group hash, or CRL revocation).
+  - `document_active_authentication_failed` — DG15 was present and the chip's signature over the challenge did not verify.
+  - `document_chip_authentication_failed` — DG14 was present and the authenticated key agreement transcript did not verify.
   - `selfie_face_mismatch` — the face matcher rejected the selfie against the on-chip portrait.
 </ResponseField>
 

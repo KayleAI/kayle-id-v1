@@ -2031,9 +2031,9 @@ describe("Verification Flows", () => {
 				expect(response.error).toBeUndefined();
 				expect(response.verdict).toEqual({
 					outcome: "rejected",
-					reasonCode: "passport_authenticity_failed",
+					reasonCode: "document_authenticity_failed",
 					reasonMessage:
-						ERROR_MESSAGES.passport_authenticity_failed.description,
+						ERROR_MESSAGES.document_authenticity_failed.description,
 					retryAllowed: true,
 					remainingAttempts: 2,
 				});
@@ -2067,7 +2067,7 @@ describe("Verification Flows", () => {
 				.limit(1);
 
 			expect(attempt?.status).toBe("failed");
-			expect(attempt?.failureCode).toBe("passport_authenticity_failed");
+			expect(attempt?.failureCode).toBe("document_authenticity_failed");
 			expect(attempt?.riskScore).toBe(1);
 			expect(attempt?.completedAt).not.toBeNull();
 			expect(session?.status).toBe("created");

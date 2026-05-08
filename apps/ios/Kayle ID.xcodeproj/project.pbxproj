@@ -337,8 +337,8 @@
 					"$(SRCROOT)/../../packages/capnp/generated/c",
 				);
 				INFOPLIST_FILE = "$(DERIVED_FILE_DIR)/KayleID-Generated-Info.plist";
-				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read ePassport NFC data.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan the MRZ on your passport.";
+				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read identity-document NFC data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan the MRZ on your identity document.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -379,8 +379,8 @@
 					"$(SRCROOT)/../../packages/capnp/generated/c",
 				);
 				INFOPLIST_FILE = "$(DERIVED_FILE_DIR)/KayleID-Generated-Info.plist";
-				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read ePassport NFC data.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan the MRZ on your passport.";
+				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to read identity-document NFC data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan the MRZ on your identity document.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

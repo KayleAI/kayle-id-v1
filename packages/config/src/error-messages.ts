@@ -100,7 +100,7 @@ export const ERROR_MESSAGES = {
 
   NFC_DATA_PHASE_REQUIRED: {
     title: "Not ready yet",
-    description: "Scan your passport when prompted.",
+    description: "Scan your document when prompted.",
   },
 
   DATA_CHUNK_RETRY: {
@@ -109,8 +109,8 @@ export const ERROR_MESSAGES = {
   },
 
   NFC_REQUIRED_DATA_MISSING: {
-    title: "Passport scan incomplete",
-    description: "Finish scanning your passport to continue.",
+    title: "Document scan incomplete",
+    description: "Finish scanning your document to continue.",
   },
 
   SELFIE_DATA_PHASE_REQUIRED: {
@@ -139,32 +139,32 @@ export const ERROR_MESSAGES = {
     description: "You must keep required details selected.",
   },
 
-  passport_authenticity_failed: {
-    title: "Passport check failed",
+  document_authenticity_failed: {
+    title: "Document check failed",
     description:
-      "We couldn’t verify your passport. Try again or use a different one.",
+      "We couldn’t verify your document. Try again or use a different one.",
   },
 
-  passport_active_authentication_failed: {
-    title: "Passport check failed",
+  document_active_authentication_failed: {
+    title: "Document check failed",
     description:
-      "We couldn’t confirm your passport chip. Try again or use a different one.",
+      "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
-  passport_chip_authentication_failed: {
-    title: "Passport check failed",
+  document_chip_authentication_failed: {
+    title: "Document check failed",
     description:
-      "We couldn’t confirm your passport chip. Try again or use a different one.",
+      "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
-  passport_anti_cloning_attestation_failed: {
-    title: "Passport check failed",
+  document_anti_cloning_attestation_failed: {
+    title: "Document check failed",
     description:
       "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
 
   selfie_face_mismatch: {
     title: "Face doesn’t match",
-    description: "Your selfie doesn’t match your passport photo. Try again.",
+    description: "Your selfie doesn’t match your document photo. Try again.",
   },
 } as const;

@@ -72,7 +72,7 @@ function normalizeSexMarkerForMrz(value: string): string {
 	return "<";
 }
 
-export function buildPassportMachineReadableZone({
+export function buildDocumentMachineReadableZone({
 	dateOfBirth,
 	documentExpiryDate,
 	documentNumber,
@@ -112,8 +112,11 @@ export function buildPassportMachineReadableZone({
 		`${surname || "<"}<<${givenNameBlock || "<"}`,
 		39,
 	);
-	const passportNumber = padMrzField(normalizeMrzText(documentNumber ?? ""), 9);
-	const passportNumberCheckDigit = calculateMrzCheckDigit(passportNumber);
+	const documentNumberField = padMrzField(
+		normalizeMrzText(documentNumber ?? ""),
+		9,
+	);
+	const documentNumberCheckDigit = calculateMrzCheckDigit(documentNumberField);
 	const nationality = padMrzField(normalizeMrzText(nationalityCode ?? ""), 3);
 	const birthDateCheckDigit = calculateMrzCheckDigit(birthDate);
 	const normalizedSexMarker = normalizeSexMarkerForMrz(sexMarker ?? "<");
@@ -122,8 +125,8 @@ export function buildPassportMachineReadableZone({
 	const optionalDataCheckDigit = calculateMrzCheckDigit(optionalData);
 	const compositeCheckDigit = calculateMrzCheckDigit(
 		[
-			passportNumber,
-			passportNumberCheckDigit,
+			documentNumberField,
+			documentNumberCheckDigit,
 			birthDate,
 			birthDateCheckDigit,
 			expiryDate,
@@ -135,6 +138,6 @@ export function buildPassportMachineReadableZone({
 
 	return [
 		`${documentCode}${issuingState}${nameField}`,
-		`${passportNumber}${passportNumberCheckDigit}${nationality}${birthDate}${birthDateCheckDigit}${normalizedSexMarker}${expiryDate}${expiryDateCheckDigit}${optionalData}${optionalDataCheckDigit}${compositeCheckDigit}`,
+		`${documentNumberField}${documentNumberCheckDigit}${nationality}${birthDate}${birthDateCheckDigit}${normalizedSexMarker}${expiryDate}${expiryDateCheckDigit}${optionalData}${optionalDataCheckDigit}${compositeCheckDigit}`,
 	] as const;
 }

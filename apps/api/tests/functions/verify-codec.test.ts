@@ -76,7 +76,7 @@ describe("verify codec", () => {
 		const verdictBytes = encodeServerVerdict({
 			outcome: "rejected",
 			reasonCode: "selfie_face_mismatch",
-			reasonMessage: "Selfie does not match the passport photo.",
+			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
 			remainingAttempts: 2,
 		});
@@ -84,7 +84,7 @@ describe("verify codec", () => {
 		expect(decodedVerdict?.verdict).toEqual({
 			outcome: "rejected",
 			reasonCode: "selfie_face_mismatch",
-			reasonMessage: "Selfie does not match the passport photo.",
+			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
 			remainingAttempts: 2,
 		});

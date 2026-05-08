@@ -187,7 +187,7 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     let verdict = VerifyServerVerdict(
       outcome: .rejected,
       reasonCode: "selfie_face_mismatch",
-      reasonMessage: "Selfie evidence did not match the passport photo.",
+      reasonMessage: "Selfie evidence did not match the document photo.",
       retryAllowed: true,
       remainingAttempts: 2
     )

@@ -196,7 +196,7 @@ describe("/v1/analytics/sessions/overview", () => {
 					id: "va_analytics_failure_failed",
 					verificationSessionId: "vs_analytics_failure",
 					status: "failed",
-					failureCode: "passport_authenticity_failed",
+					failureCode: "document_authenticity_failed",
 					completedAt: failureCompletedAt,
 				},
 			]);

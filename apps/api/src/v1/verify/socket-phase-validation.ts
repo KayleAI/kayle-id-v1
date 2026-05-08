@@ -93,10 +93,10 @@ async function rejectAttemptWithVerdict({
 }: {
 	attemptId: string;
 	code:
-		| "passport_anti_cloning_attestation_failed"
-		| "passport_authenticity_failed"
-		| "passport_active_authentication_failed"
-		| "passport_chip_authentication_failed"
+		| "document_anti_cloning_attestation_failed"
+		| "document_authenticity_failed"
+		| "document_active_authentication_failed"
+		| "document_chip_authentication_failed"
 		| "selfie_face_mismatch";
 	context: VerifySocketContext;
 	riskScore: number;
@@ -244,7 +244,7 @@ async function runActiveAuthValidation({
 
 		const verdict = await rejectAttemptWithVerdict({
 			attemptId,
-			code: "passport_active_authentication_failed",
+			code: "document_active_authentication_failed",
 			context,
 			riskScore: 1,
 		});
@@ -291,7 +291,7 @@ async function runActiveAuthValidation({
 
 	const verdict = await rejectAttemptWithVerdict({
 		attemptId,
-		code: "passport_active_authentication_failed",
+		code: "document_active_authentication_failed",
 		context,
 		riskScore: 1,
 	});
@@ -425,7 +425,7 @@ async function runChipAuthValidation({
 
 		const verdict = await rejectAttemptWithVerdict({
 			attemptId,
-			code: "passport_chip_authentication_failed",
+			code: "document_chip_authentication_failed",
 			context,
 			riskScore: 1,
 		});
@@ -466,7 +466,7 @@ async function runChipAuthValidation({
 
 	const verdict = await rejectAttemptWithVerdict({
 		attemptId,
-		code: "passport_chip_authentication_failed",
+		code: "document_chip_authentication_failed",
 		context,
 		riskScore: 1,
 	});
@@ -513,7 +513,7 @@ async function runAttestationValidation({
 
 		const verdict = await rejectAttemptWithVerdict({
 			attemptId,
-			code: "passport_anti_cloning_attestation_failed",
+			code: "document_anti_cloning_attestation_failed",
 			context,
 			riskScore: 1,
 		});
@@ -554,7 +554,7 @@ async function runAttestationValidation({
 
 	const verdict = await rejectAttemptWithVerdict({
 		attemptId,
-		code: "passport_anti_cloning_attestation_failed",
+		code: "document_anti_cloning_attestation_failed",
 		context,
 		riskScore: 1,
 	});
@@ -607,7 +607,7 @@ export async function runPhaseValidation(
 
 			const verdict = await rejectAttemptWithVerdict({
 				attemptId,
-				code: "passport_authenticity_failed",
+				code: "document_authenticity_failed",
 				context,
 				riskScore: 1,
 			});

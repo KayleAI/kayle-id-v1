@@ -14,7 +14,6 @@ import { Route as LegalRouteImport } from './routes/_legal'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
-import { Route as MarketingDemoRouteImport } from './routes/_marketing/demo'
 import { Route as LegalTermsRouteImport } from './routes/_legal/terms'
 import { Route as LegalPrivacyRouteImport } from './routes/_legal/privacy'
 import { Route as AuthVerify2faRouteImport } from './routes/_auth/verify-2fa'
@@ -23,10 +22,13 @@ import { Route as AuthSignOutRouteImport } from './routes/_auth/sign-out'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as MarketingDemoIndexRouteImport } from './routes/_marketing/demo.index'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
 import { Route as AppOrganizationsIndexRouteImport } from './routes/_app/organizations/index'
 import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as MarketingDemoIdRouteImport } from './routes/_marketing/demo.id'
+import { Route as MarketingDemoAgeRouteImport } from './routes/_marketing/demo.age'
 import { Route as AuthOrganizationsSelectRouteImport } from './routes/_auth/organizations/select'
 import { Route as AuthOrganizationsCreateRouteImport } from './routes/_auth/organizations/create'
 import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
@@ -62,11 +64,6 @@ const AppRoute = AppRouteImport.update({
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => MarketingRoute,
-} as any)
-const MarketingDemoRoute = MarketingDemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
   getParentRoute: () => MarketingRoute,
 } as any)
 const LegalTermsRoute = LegalTermsRouteImport.update({
@@ -109,6 +106,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const MarketingDemoIndexRoute = MarketingDemoIndexRouteImport.update({
+  id: '/demo/',
+  path: '/demo/',
+  getParentRoute: () => MarketingRoute,
+} as any)
 const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
   id: '/webhooks/',
   path: '/webhooks/',
@@ -128,6 +130,16 @@ const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppAccountRoute,
+} as any)
+const MarketingDemoIdRoute = MarketingDemoIdRouteImport.update({
+  id: '/demo/id',
+  path: '/demo/id',
+  getParentRoute: () => MarketingRoute,
+} as any)
+const MarketingDemoAgeRoute = MarketingDemoAgeRouteImport.update({
+  id: '/demo/age',
+  path: '/demo/age',
+  getParentRoute: () => MarketingRoute,
 } as any)
 const AuthOrganizationsSelectRoute = AuthOrganizationsSelectRouteImport.update({
   id: '/organizations/select',
@@ -218,7 +230,6 @@ export interface FileRoutesByFullPath {
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
-  '/demo': typeof MarketingDemoRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
@@ -228,10 +239,13 @@ export interface FileRoutesByFullPath {
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
   '/organizations/select': typeof AuthOrganizationsSelectRoute
+  '/demo/age': typeof MarketingDemoAgeRoute
+  '/demo/id': typeof MarketingDemoIdRoute
   '/account/': typeof AppAccountIndexRoute
   '/api-keys/': typeof AppApiKeysIndexRoute
   '/organizations/': typeof AppOrganizationsIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
+  '/demo/': typeof MarketingDemoIndexRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -248,7 +262,6 @@ export interface FileRoutesByTo {
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
-  '/demo': typeof MarketingDemoRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
@@ -258,10 +271,13 @@ export interface FileRoutesByTo {
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/organizations/create': typeof AuthOrganizationsCreateRoute
   '/organizations/select': typeof AuthOrganizationsSelectRoute
+  '/demo/age': typeof MarketingDemoAgeRoute
+  '/demo/id': typeof MarketingDemoIdRoute
   '/account': typeof AppAccountIndexRoute
   '/api-keys': typeof AppApiKeysIndexRoute
   '/organizations': typeof AppOrganizationsIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
+  '/demo': typeof MarketingDemoIndexRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -283,7 +299,6 @@ export interface FileRoutesById {
   '/_auth/verify-2fa': typeof AuthVerify2faRoute
   '/_legal/privacy': typeof LegalPrivacyRoute
   '/_legal/terms': typeof LegalTermsRoute
-  '/_marketing/demo': typeof MarketingDemoRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
@@ -294,10 +309,13 @@ export interface FileRoutesById {
   '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/_auth/organizations/create': typeof AuthOrganizationsCreateRoute
   '/_auth/organizations/select': typeof AuthOrganizationsSelectRoute
+  '/_marketing/demo/age': typeof MarketingDemoAgeRoute
+  '/_marketing/demo/id': typeof MarketingDemoIdRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
   '/_app/organizations/': typeof AppOrganizationsIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
+  '/_marketing/demo/': typeof MarketingDemoIndexRoute
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -317,7 +335,6 @@ export interface FileRouteTypes {
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
-    | '/demo'
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
@@ -327,10 +344,13 @@ export interface FileRouteTypes {
     | '/webhooks/$endpoint'
     | '/organizations/create'
     | '/organizations/select'
+    | '/demo/age'
+    | '/demo/id'
     | '/account/'
     | '/api-keys/'
     | '/organizations/'
     | '/webhooks/'
+    | '/demo/'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
@@ -347,7 +367,6 @@ export interface FileRouteTypes {
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
-    | '/demo'
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
@@ -357,10 +376,13 @@ export interface FileRouteTypes {
     | '/webhooks/$endpoint'
     | '/organizations/create'
     | '/organizations/select'
+    | '/demo/age'
+    | '/demo/id'
     | '/account'
     | '/api-keys'
     | '/organizations'
     | '/webhooks'
+    | '/demo'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
@@ -381,7 +403,6 @@ export interface FileRouteTypes {
     | '/_auth/verify-2fa'
     | '/_legal/privacy'
     | '/_legal/terms'
-    | '/_marketing/demo'
     | '/_marketing/'
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
@@ -392,10 +413,13 @@ export interface FileRouteTypes {
     | '/_app/webhooks/$endpoint'
     | '/_auth/organizations/create'
     | '/_auth/organizations/select'
+    | '/_marketing/demo/age'
+    | '/_marketing/demo/id'
     | '/_app/account/'
     | '/_app/api-keys/'
     | '/_app/organizations/'
     | '/_app/webhooks/'
+    | '/_marketing/demo/'
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
@@ -454,13 +478,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
     }
-    '/_marketing/demo': {
-      id: '/_marketing/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof MarketingDemoRouteImport
-      parentRoute: typeof MarketingRoute
-    }
     '/_legal/terms': {
       id: '/_legal/terms'
       path: '/terms'
@@ -517,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_marketing/demo/': {
+      id: '/_marketing/demo/'
+      path: '/demo'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof MarketingDemoIndexRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/webhooks/': {
       id: '/_app/webhooks/'
       path: '/webhooks'
@@ -544,6 +568,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
       parentRoute: typeof AppAccountRoute
+    }
+    '/_marketing/demo/id': {
+      id: '/_marketing/demo/id'
+      path: '/demo/id'
+      fullPath: '/demo/id'
+      preLoaderRoute: typeof MarketingDemoIdRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_marketing/demo/age': {
+      id: '/_marketing/demo/age'
+      path: '/demo/age'
+      fullPath: '/demo/age'
+      preLoaderRoute: typeof MarketingDemoAgeRouteImport
+      parentRoute: typeof MarketingRoute
     }
     '/_auth/organizations/select': {
       id: '/_auth/organizations/select'
@@ -730,13 +768,17 @@ const LegalRouteChildren: LegalRouteChildren = {
 const LegalRouteWithChildren = LegalRoute._addFileChildren(LegalRouteChildren)
 
 interface MarketingRouteChildren {
-  MarketingDemoRoute: typeof MarketingDemoRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
+  MarketingDemoAgeRoute: typeof MarketingDemoAgeRoute
+  MarketingDemoIdRoute: typeof MarketingDemoIdRoute
+  MarketingDemoIndexRoute: typeof MarketingDemoIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
-  MarketingDemoRoute: MarketingDemoRoute,
   MarketingIndexRoute: MarketingIndexRoute,
+  MarketingDemoAgeRoute: MarketingDemoAgeRoute,
+  MarketingDemoIdRoute: MarketingDemoIdRoute,
+  MarketingDemoIndexRoute: MarketingDemoIndexRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(

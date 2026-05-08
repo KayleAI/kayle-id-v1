@@ -1,110 +1,167 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Button } from "@kayleai/ui/button";
 import { Link } from "@tanstack/react-router";
-import { PageHeading } from "@/components/site/page-heading";
+import {
+	IconGlobe,
+	IconLockPassword,
+	IconShield,
+	IconWalletCard,
+} from "nucleo-isometric";
+import type { ComponentType } from "react";
 
-const steps = [
+type IsometricIcon = ComponentType<{
+	className?: string;
+	size?: number | string;
+}>;
+
+const documentCoverage: ReadonlyArray<{
+	Icon: IsometricIcon;
+	title: string;
+	description: string;
+}> = [
 	{
-		index: "01",
-		title: "Launch a session",
+		Icon: IconWalletCard,
+		title: "TD1 + TD2 — national ID cards",
 		description:
-			"Configure the fields you want and send your user into a single guided flow.",
+			"Identity cards issued by EU member states, the UK, the US, and many others, parsed from the MRZ across both formats.",
 	},
 	{
-		index: "02",
-		title: "Verify your user's identity",
+		Icon: IconGlobe,
+		title: "TD3 — passports",
 		description:
-			"We guide the user through the steps to verify their identity.",
+			"ICAO 9303 passport books with the contactless chip, including biometric portraits used for face matching.",
 	},
 	{
-		index: "03",
-		title: "Continue with the approved data",
-		description: "Users choose the data they want to securely share with you.",
+		Icon: IconLockPassword,
+		title: "Chip authentication",
+		description:
+			"Kayle performs Passive, Active, and Chip Authentication during the read — clones and replays do not pass.",
 	},
-] as const;
+];
+
+const trustPillars: ReadonlyArray<{
+	Icon: IsometricIcon;
+	title: string;
+	description: string;
+}> = [
+	{
+		Icon: IconLockPassword,
+		title: "End-to-end encrypted webhooks",
+		description:
+			"Sensitive claims are encrypted with your public key and can only be decrypted in your secure environment.",
+	},
+	{
+		Icon: IconShield,
+		title: "Document-bound trust",
+		description:
+			"Chip Authentication and Active Authentication establish that the chip is the original to prevent replay attacks and clones.",
+	},
+];
 
 export function Homepage() {
 	const { status } = useAuth();
+	const ctaTo = status === "authenticated" ? "/dashboard" : "/sign-in";
 
 	return (
 		<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-			<PageHeading
-				actions={[
-					{
-						to: "/demo",
-						label: "View Demo",
-						variant: "outline",
-					},
-					{
-						to: status === "authenticated" ? "/dashboard" : "/sign-in",
-						label: "Get Started",
-					},
-				]}
-				description="Kayle ID gives teams a privacy-first way to verify identity with passport NFC, selfie capture, and selective disclosure built into one coherent flow."
-				title="Identity verification infrastructure for high-trust products."
-			/>
-
-			<section className="mt-24 border-neutral-100 border-t pt-24">
-				<div className="grid gap-12 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
-					<div>
-						<p className="text-emerald-600 text-sm uppercase tracking-widest">
-							Flow
-						</p>
-						<h2 className="mt-4 text-balance font-light text-3xl text-neutral-950 tracking-tight">
-							Built for products that need a verification answer without a
-							sprawling integration.
-						</h2>
-					</div>
-					<ol className="space-y-8">
-						{steps.map((step) => (
-							<li
-								className="grid gap-4 border-neutral-100 border-b pb-8 md:grid-cols-[4rem_minmax(0,1fr)]"
-								key={step.index}
-							>
-								<span className="font-mono text-emerald-600 text-lg leading-relaxed">
-									{step.index}
-								</span>
-								<div>
-									<h3 className="mb-2 font-light text-neutral-950 text-xl">
-										{step.title}
-									</h3>
-									<p className="max-w-2xl text-neutral-600 leading-relaxed">
-										{step.description}
-									</p>
-								</div>
-							</li>
-						))}
-					</ol>
+			{/* === Hero === */}
+			<section className="mb-16 sm:mb-24">
+				<h1 className="mx-auto mt-8 max-w-[20ch] text-balance text-center font-light text-6xl text-neutral-950 tracking-tighter sm:text-7xl">
+					Identity verification for high-trust products.
+				</h1>
+				<p className="mx-auto mt-6 max-w-[48ch] text-balance text-center font-medium text-lg text-neutral-600 sm:mt-8 sm:text-xl">
+					Verify your users' identity or confirm their age with one coherent
+					flow — with only the details you need, end-to-end-encrypted.
+				</p>
+				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+					<Button
+						nativeButton={false}
+						render={<Link to={ctaTo}>Get Started</Link>}
+					/>
+					<Button
+						nativeButton={false}
+						render={<Link to="/demo">Try demo</Link>}
+						variant="outline"
+					/>
 				</div>
 			</section>
 
+			{/* === Documents coverage === */}
 			<section className="mt-24 border-neutral-100 border-t pt-24">
-				<div className="max-w-3xl">
-					<h2 className="text-balance font-light text-3xl text-neutral-950 tracking-tight">
-						Bring Kayle&apos;s calmer, more legible design language into your
-						identity flows.
-					</h2>
-					<p className="mt-4 text-balance text-lg text-neutral-600">
-						Explore the live demo, then connect Kayle ID to your own onboarding
-						or compliance journey.
-					</p>
-					<div className="mt-8 flex flex-col gap-4 sm:flex-row">
-						<Button
-							nativeButton={false}
-							render={<Link to="/demo">View Demo</Link>}
-							variant="outline"
-						/>
-						<Button
-							nativeButton={false}
-							render={
-								<Link
-									to={status === "authenticated" ? "/dashboard" : "/sign-in"}
-								>
-									Get Started
-								</Link>
-							}
-						/>
-					</div>
+				<h2 className="mx-auto mt-8 max-w-[24ch] text-balance text-center font-light text-4xl text-neutral-950 tracking-tighter sm:text-5xl">
+					Read passports and ID cards from over 200 countries.
+				</h2>
+				<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-neutral-600">
+					ICAO 9303-compliant documents are read straight from the chip — not
+					from a printed photo. Kayle handles passports and national ID cards
+					with the same flow.
+				</p>
+				<dl className="mt-16 grid gap-6 lg:grid-cols-3 lg:gap-8">
+					{documentCoverage.map((entry) => (
+						<div
+							className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-6"
+							key={entry.title}
+						>
+							<entry.Icon className="text-emerald-700" size={48} />
+							<dt className="mt-5 font-light text-neutral-950 text-xl">
+								{entry.title}
+							</dt>
+							<dd className="mt-3 text-neutral-600 text-pretty leading-relaxed">
+								{entry.description}
+							</dd>
+						</div>
+					))}
+				</dl>
+			</section>
+
+			{/* === Trust & privacy === */}
+			<section className="mt-24 border-neutral-100 border-t pt-24">
+				<h2 className="mx-auto mt-8 max-w-[24ch] text-balance text-center font-light text-4xl text-neutral-950 tracking-tighter sm:text-5xl">
+					Built so we hold as little of your users' data as possible.
+				</h2>
+				<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-neutral-600">
+					At Kayle, we place privacy at the core of what we do. We never store
+					sensitive data, and we never pass it on to third parties.
+				</p>
+
+				<dl className="mt-16 grid gap-6 md:grid-cols-2 lg:gap-8">
+					{trustPillars.map((pillar) => (
+						<div
+							className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-8"
+							key={pillar.title}
+						>
+							<pillar.Icon className="text-emerald-700" size={56} />
+							<dt className="mt-6 font-light text-neutral-950 text-2xl tracking-tight">
+								{pillar.title}
+							</dt>
+							<dd className="mt-3 text-neutral-600 text-pretty leading-relaxed">
+								{pillar.description}
+							</dd>
+						</div>
+					))}
+				</dl>
+			</section>
+
+			{/* === Closing CTA === */}
+			<section className="mt-24 border-neutral-100 border-t pt-24">
+				<h2 className="mx-auto mt-8 max-w-[28ch] text-balance text-center font-light text-4xl text-neutral-950 tracking-tighter sm:text-5xl">
+					Bring Kayle's calmer, more legible design language into your identity
+					flows.
+				</h2>
+				<p className="mx-auto mt-6 max-w-[48ch] text-balance text-center text-lg text-neutral-600">
+					Explore the live demo, then connect Kayle ID to your own onboarding or
+					compliance journey.
+				</p>
+				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+					<Button
+						nativeButton={false}
+						render={<Link to={ctaTo}>Get Started</Link>}
+					/>
+					<Button
+						nativeButton={false}
+						render={<Link to="/demo">Try demo</Link>}
+						variant="outline"
+					/>
 				</div>
 			</section>
 		</main>

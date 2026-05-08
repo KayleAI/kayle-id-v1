@@ -52,7 +52,7 @@ export const demoClaimSections: DemoClaimSection[] = [
 	{
 		title: "Document",
 		description:
-			"Passport metadata like issuing country code, document number, expiry date, and chip portrait.",
+			"Document metadata like issuing country code, document number, expiry date, and chip portrait.",
 		claims: [
 			"document_type_code",
 			"issuing_country_code",
@@ -77,7 +77,7 @@ const claimDescriptions: Record<string, string> = {
 		"Three-letter issuing state code, for example `GBR` or `USA`.",
 	family_name: "Family name from the document, for example `DOE`.",
 	given_names: "All given names from the document, for example `JANE MARIE`.",
-	document_number: "Passport or document number, for example `123456789`.",
+	document_number: "Document number, for example `123456789`.",
 	nationality_code:
 		"Three-letter nationality code, for example `GBR` or `USA`.",
 	date_of_birth: "Full birth date from the document, for example `1992-04-16`.",

@@ -14,7 +14,7 @@ A complete Kayle ID deployment is a small set of services that talk to each othe
 |---|---|
 | `apps/api` | The Cloudflare Worker that exposes the public API and orchestrates verifications. |
 | `apps/verify` | The web app users land on (`verify.kayle.id`). Renders consent and produces a handoff payload for the mobile app. |
-| `apps/ios`, `apps/android` | Native apps that read the passport chip over NFC and capture the selfie. |
+| `apps/ios`, `apps/android` | Native apps that read the document chip over NFC and capture the selfie. |
 | `infra/face-matcher` | A separate Worker plus container that compares the on-chip portrait (DG2) to the user's selfies. |
 | `database/trust-store` | A Cloudflare D1 database seeded from the [ICAO PKD](https://pkddownload.icao.int/downloads). Holds CSCA certificates and CRLs used to verify document signatures. |
 | `database/kayle-id` | Postgres. Stores sessions, attempts, events, webhook deliveries — metadata only, never document data. |

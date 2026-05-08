@@ -9,21 +9,21 @@ const MAX_EXPIRY_PAST_OFFSET = 50;
 const MAX_EXPIRY_FUTURE_OFFSET = 50;
 const SIX_DIGIT_DATE_REGEX = /^\d{6}$/;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const CHILD_PASSPORT_VALIDITY_YEARS = 5 as const;
-const ADULT_PASSPORT_VALIDITY_YEARS = 10 as const;
-const CHILD_PASSPORT_MAX_ISSUE_AGE = 16;
-const ADULT_PASSPORT_MIN_ISSUE_AGE = 16;
+const CHILD_DOCUMENT_VALIDITY_YEARS = 5 as const;
+const ADULT_DOCUMENT_VALIDITY_YEARS = 10 as const;
+const CHILD_DOCUMENT_MAX_ISSUE_AGE = 16;
+const ADULT_DOCUMENT_MIN_ISSUE_AGE = 16;
 const MAX_YOUTH_AGE = 25;
 const YOUTH_DRIFT_RANGE_YEARS = 10;
-const PASSPORT_AGE_WEIGHT = 0.14;
+const DOCUMENT_AGE_WEIGHT = 0.14;
 const YOUTH_DRIFT_WEIGHT = 0.09;
 
 export const MIN_FACE_MATCH_THRESHOLD = 0.75;
 export const MAX_FACE_MATCH_THRESHOLD = 0.9;
 
-type PassportValidityYears =
-	| typeof CHILD_PASSPORT_VALIDITY_YEARS
-	| typeof ADULT_PASSPORT_VALIDITY_YEARS;
+type DocumentValidityYears =
+	| typeof CHILD_DOCUMENT_VALIDITY_YEARS
+	| typeof ADULT_DOCUMENT_VALIDITY_YEARS;
 
 export type Dg1Claims = {
 	birthDateIso: string;
@@ -219,38 +219,38 @@ function shiftIsoDateByYears(dateIso: string, yearDelta: number): string {
 		.padStart(2, "0")}-${targetDay.toString().padStart(2, "0")}`;
 }
 
-function inferPassportValidityYears({
+function inferDocumentValidityYears({
 	birthDateIso,
 	expiryDateIso,
 }: {
 	birthDateIso: string;
 	expiryDateIso: string;
-}): PassportValidityYears | null {
+}): DocumentValidityYears | null {
 	const adultIssueAge = ageFromDateOfBirth(
 		birthDateIso,
 		dateFromIsoDate(
-			shiftIsoDateByYears(expiryDateIso, -ADULT_PASSPORT_VALIDITY_YEARS),
+			shiftIsoDateByYears(expiryDateIso, -ADULT_DOCUMENT_VALIDITY_YEARS),
 		),
 	);
 	const childIssueAge = ageFromDateOfBirth(
 		birthDateIso,
 		dateFromIsoDate(
-			shiftIsoDateByYears(expiryDateIso, -CHILD_PASSPORT_VALIDITY_YEARS),
+			shiftIsoDateByYears(expiryDateIso, -CHILD_DOCUMENT_VALIDITY_YEARS),
 		),
 	);
-	const adultPassportPossible = adultIssueAge >= ADULT_PASSPORT_MIN_ISSUE_AGE;
-	const childPassportPossible = childIssueAge < CHILD_PASSPORT_MAX_ISSUE_AGE;
+	const adultIssuancePossible = adultIssueAge >= ADULT_DOCUMENT_MIN_ISSUE_AGE;
+	const childIssuancePossible = childIssueAge < CHILD_DOCUMENT_MAX_ISSUE_AGE;
 
-	if (adultPassportPossible === childPassportPossible) {
+	if (adultIssuancePossible === childIssuancePossible) {
 		return null;
 	}
 
-	return adultPassportPossible
-		? ADULT_PASSPORT_VALIDITY_YEARS
-		: CHILD_PASSPORT_VALIDITY_YEARS;
+	return adultIssuancePossible
+		? ADULT_DOCUMENT_VALIDITY_YEARS
+		: CHILD_DOCUMENT_VALIDITY_YEARS;
 }
 
-function resolvePassportAgeFraction({
+function resolveDocumentAgeFraction({
 	expiryDateIso,
 	issueDateIso,
 	now,
@@ -337,7 +337,7 @@ export function resolveFaceMatchThreshold({
 	expiryDateIso: string;
 	now: Date;
 }): number {
-	const validityYears = inferPassportValidityYears({
+	const validityYears = inferDocumentValidityYears({
 		birthDateIso,
 		expiryDateIso,
 	});
@@ -352,7 +352,7 @@ export function resolveFaceMatchThreshold({
 		birthDateIso,
 		dateFromIsoDate(issueDateIso),
 	);
-	const normalizedPassportAge = resolvePassportAgeFraction({
+	const normalizedDocumentAge = resolveDocumentAgeFraction({
 		expiryDateIso,
 		issueDateIso,
 		now,
@@ -367,7 +367,7 @@ export function resolveFaceMatchThreshold({
 
 	return clamp(
 		MAX_FACE_MATCH_THRESHOLD -
-			PASSPORT_AGE_WEIGHT * normalizedPassportAge -
+			DOCUMENT_AGE_WEIGHT * normalizedDocumentAge -
 			YOUTH_DRIFT_WEIGHT * normalizedYouthDrift,
 		MIN_FACE_MATCH_THRESHOLD,
 		MAX_FACE_MATCH_THRESHOLD,

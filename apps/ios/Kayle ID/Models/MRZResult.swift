@@ -49,41 +49,15 @@ struct MRZResult: Equatable {
   }
 
   var userFacingDocumentName: String {
-    let normalizedDocumentType = documentType
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .uppercased()
-
-    if format == .td3 || normalizedDocumentType.hasPrefix("P") {
-      return "passport"
-    }
-
-    if format == .td1 || format == .td2 || normalizedDocumentType.hasPrefix("I") {
-      return "ID card"
-    }
-
-    return "document"
+    "document"
   }
 
   var userFacingDocumentNameWithArticle: String {
-    switch userFacingDocumentName {
-    case "ID card":
-      return "an ID card"
-    case "passport":
-      return "a passport"
-    default:
-      return "a document"
-    }
+    "a document"
   }
 
   var userFacingRFIDSymbolLocationDescription: String {
-    switch userFacingDocumentName {
-    case "passport":
-      return "the cover or photo page of your passport"
-    case "ID card":
-      return "your ID card"
-    default:
-      return "the cover or photo page of your document"
-    }
+    "the cover or photo page of your document"
   }
 
   var userFacingDocumentChipName: String {

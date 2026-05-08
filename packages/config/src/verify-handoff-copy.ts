@@ -66,24 +66,24 @@ export const VERIFY_HANDOFF_COPY = {
         description: "The latest attempt didn’t pass.",
       },
 
-      passportAuthenticityFailed: {
+      documentAuthenticityFailed: {
         title: "Document check failed",
-        description: "We couldn’t verify your passport.",
+        description: "We couldn’t verify your document.",
       },
 
-      passportActiveAuthenticationFailed: {
+      documentActiveAuthenticationFailed: {
         title: "Document check failed",
-        description: "We couldn’t confirm your passport chip.",
+        description: "We couldn’t confirm your document chip.",
       },
 
-      passportChipAuthenticationFailed: {
+      documentChipAuthenticationFailed: {
         title: "Document check failed",
-        description: "We couldn’t confirm your passport chip.",
+        description: "We couldn’t confirm your document chip.",
       },
 
       selfieFaceMismatch: {
         title: "Face doesn’t match",
-        description: "Your selfie doesn’t match your passport photo.",
+        description: "Your selfie doesn’t match your document photo.",
       },
 
       success: {

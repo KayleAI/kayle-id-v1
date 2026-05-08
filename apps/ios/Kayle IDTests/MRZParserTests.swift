@@ -2,7 +2,7 @@ import XCTest
 @testable import KayleIDModels
 
 final class MRZParserTests: XCTestCase {
-  func testTD3PassportParsesSuccessfully() throws {
+  func testTD3ParsesSuccessfully() throws {
     let td3 =
       """
       P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<

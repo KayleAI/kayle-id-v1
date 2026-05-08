@@ -44,7 +44,7 @@ function createDg1({
 }
 
 describe("DG1 face match thresholds", () => {
-	test("resolves a dynamic adult threshold from age at issue and passport age", () => {
+	test("resolves a dynamic adult threshold from age at issue and document age", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
 				birthDateIso: "2004-04-18",
@@ -56,7 +56,7 @@ describe("DG1 face match thresholds", () => {
 		expect(threshold).toBeCloseTo(0.785, 4);
 	});
 
-	test("resolves a dynamic child threshold from age at issue and passport age", () => {
+	test("resolves a dynamic child threshold from age at issue and document age", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
 				birthDateIso: "2007-04-18",
@@ -68,7 +68,7 @@ describe("DG1 face match thresholds", () => {
 		expect(threshold).toBeCloseTo(0.752, 4);
 	});
 
-	test("clamps to the maximum threshold for a fresh adult passport", () => {
+	test("clamps to the maximum threshold for a fresh adult document", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
 				birthDateIso: "1990-04-18",
@@ -80,7 +80,7 @@ describe("DG1 face match thresholds", () => {
 		expect(threshold).toBe(MAX_FACE_MATCH_THRESHOLD);
 	});
 
-	test("clamps to the minimum threshold for a fully aged child passport", () => {
+	test("clamps to the minimum threshold for a fully aged child document", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
 				birthDateIso: "2010-04-18",
@@ -92,7 +92,7 @@ describe("DG1 face match thresholds", () => {
 		expect(threshold).toBe(MIN_FACE_MATCH_THRESHOLD);
 	});
 
-	test("falls back to the default threshold when passport validity is ambiguous", () => {
+	test("falls back to the default threshold when document validity is ambiguous", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
 				birthDateIso: "2004-04-18",

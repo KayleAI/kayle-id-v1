@@ -44,8 +44,8 @@ export function SessionExplain({
 						Verify your identity with Kayle ID
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						Kayle ID lets you verify your identity using your passport's NFC
-						chip and a selfie.
+						Kayle ID lets you verify your identity using your document's chip
+						and a selfie.
 					</p>
 				</div>
 
@@ -56,8 +56,8 @@ export function SessionExplain({
 							This process:
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Confirms that your passport is genuine</li>
-							<li>Confirms that you are the passport holder</li>
+							<li>Confirms that your document is genuine</li>
+							<li>Confirms that you are the document holder</li>
 							<li>
 								Shares only the verification result and details you choose to
 								share with{" "}
@@ -73,7 +73,7 @@ export function SessionExplain({
 							Kayle ID:
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Does not store your passport or selfie</li>
+							<li>Does not store your document or selfie</li>
 							<li>Does not create an account for you</li>
 							<li>Processes data only for this verification session</li>
 						</ul>
@@ -130,7 +130,7 @@ function AgeOnlyExplain({
 						</span>{" "}
 						only needs to know whether you're {ageLabel} — not your name, date
 						of birth, or any other personal details. Kayle ID lets you prove
-						that privately, using your passport and a selfie.
+						that privately, using your document and a selfie.
 					</p>
 				</div>
 
@@ -158,7 +158,7 @@ function AgeOnlyExplain({
 							Kayle ID:
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Does not store your passport or selfie</li>
+							<li>Does not store your document or selfie</li>
 							<li>Does not create an account for you</li>
 							<li>Processes data only for this verification session</li>
 						</ul>

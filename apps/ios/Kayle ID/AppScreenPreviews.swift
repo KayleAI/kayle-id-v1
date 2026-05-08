@@ -6,7 +6,7 @@ private struct ContentViewPreviewScreen: View {
   @State private var pendingQRCode: String?
 
   private let session: VerificationSession
-  private let nfcReader: PassportNFCReader
+  private let nfcReader: DocumentNFCReader
   private let initialCameraDrawer: CameraCaptureDrawer?
   private let initialAboutSheetPresented: Bool
 
@@ -14,10 +14,10 @@ private struct ContentViewPreviewScreen: View {
     step: VerificationStep,
     initialCameraDrawer: CameraCaptureDrawer? = nil,
     initialAboutSheetPresented: Bool = false,
-    configure: (VerificationSession, PassportNFCReader) -> Void = { _, _ in }
+    configure: (VerificationSession, DocumentNFCReader) -> Void = { _, _ in }
   ) {
     let session = VerificationSession()
-    let nfcReader = PassportNFCReader()
+    let nfcReader = DocumentNFCReader()
 
     session.step = step
     session.payload = PreviewFixtures.payload
@@ -77,15 +77,15 @@ private enum PreviewFixtures {
     )
   )
 
-  static let nfcResult = PassportReadResult(
+  static let nfcResult = DocumentReadResult(
     mrz: mrzResult.mrzKey,
     dg1MRZ: nil,
     dataGroups: [
-      PassportDataGroup(id: 0x61, name: "DG1", data: Data("DG1".utf8)),
-      PassportDataGroup(id: 0x75, name: "DG2", data: Data("DG2".utf8)),
-      PassportDataGroup(id: 0x77, name: "SOD", data: Data("SOD".utf8)),
+      DocumentDataGroup(id: 0x61, name: "DG1", data: Data("DG1".utf8)),
+      DocumentDataGroup(id: 0x75, name: "DG2", data: Data("DG2".utf8)),
+      DocumentDataGroup(id: 0x77, name: "SOD", data: Data("SOD".utf8)),
     ],
-    passportImage: nil,
+    documentImage: nil,
     signatureImage: nil,
     firstName: "JANE",
     lastName: "DOE",
@@ -95,7 +95,7 @@ private enum PreviewFixtures {
     gender: "F",
     expiryDate: "2030-01-01",
     issuingAuthority: "GBR",
-    documentType: "Passport",
+    documentType: "Document",
     activeAuthChallenge: nil,
     activeAuthSignature: nil,
     chipAuthTranscript: nil
@@ -149,7 +149,7 @@ private enum PreviewFixtures {
   static let rejectedVerdict = VerifyServerVerdict(
     outcome: .rejected,
     reasonCode: "selfie_face_mismatch",
-    reasonMessage: "Selfie evidence did not match the passport photo.",
+    reasonMessage: "Selfie evidence did not match the document photo.",
     retryAllowed: true,
     remainingAttempts: 2
   )
@@ -258,7 +258,7 @@ private enum PreviewFixtures {
 #Preview("Error") {
   ContentViewPreviewScreen(step: .error) { session, _ in
     session.mrzResult = PreviewFixtures.mrzResult
-    session.errorMessage = "Missing DG2 from NFC read. Please scan your passport chip again."
+    session.errorMessage = "Missing DG2 from NFC read. Please scan your document chip again."
   }
 }
 #endif

@@ -35,10 +35,10 @@ export const MAX_DELIVERY_ATTEMPTS = 1 + WEBHOOK_DELIVERY_RETRY_SCHEDULE.length;
 export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
 
 export type VerificationAttemptFailedCode =
-	| "passport_anti_cloning_attestation_failed"
-	| "passport_authenticity_failed"
-	| "passport_active_authentication_failed"
-	| "passport_chip_authentication_failed"
+	| "document_anti_cloning_attestation_failed"
+	| "document_authenticity_failed"
+	| "document_active_authentication_failed"
+	| "document_chip_authentication_failed"
 	| "selfie_face_mismatch";
 
 export type VerificationAttemptMetadata = {

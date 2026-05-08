@@ -46,9 +46,9 @@ When an attempt is rejected, the webhook payload's `data.failure_code` tells you
 
 | Code | Meaning |
 |---|---|
-| `passport_authenticity_failed` | Passive auth failed — the SOD signature, the DSC chain, a data-group hash, or CRL revocation rejected the document. |
-| `passport_active_authentication_failed` | DG15 was present and the chip's signature over the challenge did not verify. |
-| `passport_chip_authentication_failed` | DG14 was present and the authenticated key agreement transcript did not verify. |
+| `document_authenticity_failed` | Passive auth failed — the SOD signature, the DSC chain, a data-group hash, or CRL revocation rejected the document. |
+| `document_active_authentication_failed` | DG15 was present and the chip's signature over the challenge did not verify. |
+| `document_chip_authentication_failed` | DG14 was present and the authenticated key agreement transcript did not verify. |
 | `selfie_face_mismatch` | The face matcher rejected the selfie against the on-chip portrait. |
 | `session_expired` | The session ran past its 60-minute window before this attempt could finish. |
 | `session_cancelled` | The session was cancelled while this attempt was in progress. |

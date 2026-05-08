@@ -36,7 +36,7 @@ export type AttestGateOutcome =
 			code:
 				| "HELLO_ATTEST_KEY_UNKNOWN"
 				| "HELLO_ATTEST_INVALID"
-				| "passport_anti_cloning_attestation_failed";
+				| "document_anti_cloning_attestation_failed";
 			detail?: string;
 	  };
 
@@ -138,7 +138,7 @@ export async function verifyNfcAttestation({
 	if (!assertion || assertion.length === 0) {
 		return {
 			ok: false,
-			code: "passport_anti_cloning_attestation_failed",
+			code: "document_anti_cloning_attestation_failed",
 			detail: "assertion_missing",
 		};
 	}
@@ -147,7 +147,7 @@ export async function verifyNfcAttestation({
 	if (!stored) {
 		return {
 			ok: false,
-			code: "passport_anti_cloning_attestation_failed",
+			code: "document_anti_cloning_attestation_failed",
 			detail: "key_unknown",
 		};
 	}
@@ -176,7 +176,7 @@ export async function verifyNfcAttestation({
 	if (!result.ok) {
 		return {
 			ok: false,
-			code: "passport_anti_cloning_attestation_failed",
+			code: "document_anti_cloning_attestation_failed",
 			detail: result.reason,
 		};
 	}
@@ -190,7 +190,7 @@ export async function verifyNfcAttestation({
 	if (!persisted) {
 		return {
 			ok: false,
-			code: "passport_anti_cloning_attestation_failed",
+			code: "document_anti_cloning_attestation_failed",
 			detail: "counter_regressed_atomic",
 		};
 	}

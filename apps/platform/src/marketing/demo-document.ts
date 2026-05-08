@@ -1,7 +1,7 @@
 import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
-import { buildPassportMachineReadableZone } from "@/marketing/demo-mrz";
+import { buildDocumentMachineReadableZone } from "@/marketing/demo-mrz";
 
-export { buildPassportMachineReadableZone } from "@/marketing/demo-mrz";
+export { buildDocumentMachineReadableZone } from "@/marketing/demo-mrz";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_CLAIM_KEYS = new Set(["date_of_birth", "document_expiry_date"]);
@@ -192,11 +192,11 @@ function formatFailureCodeLabel(failureCode: string | null): string | null {
 }
 
 const demoAttemptFailureMessages = {
-	passport_authenticity_failed: ERROR_MESSAGES.passport_authenticity_failed,
-	passport_active_authentication_failed:
-		ERROR_MESSAGES.passport_active_authentication_failed,
-	passport_chip_authentication_failed:
-		ERROR_MESSAGES.passport_chip_authentication_failed,
+	document_authenticity_failed: ERROR_MESSAGES.document_authenticity_failed,
+	document_active_authentication_failed:
+		ERROR_MESSAGES.document_active_authentication_failed,
+	document_chip_authentication_failed:
+		ERROR_MESSAGES.document_chip_authentication_failed,
 	selfie_face_mismatch: ERROR_MESSAGES.selfie_face_mismatch,
 } as const;
 
@@ -455,7 +455,7 @@ export function buildDemoDocumentPreview(
 		kayleHumanId: normalizeText(toNonEmptyString(parsed.claims.kayle_human_id)),
 		machineReadableZone:
 			documentKind === "passport"
-				? buildPassportMachineReadableZone({
+				? buildDocumentMachineReadableZone({
 						dateOfBirth,
 						documentExpiryDate,
 						documentNumber,

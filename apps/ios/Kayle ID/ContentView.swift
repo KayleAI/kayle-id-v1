@@ -17,7 +17,7 @@ private struct NFCRenderSnapshot {
   let isUploading: Bool
   let hasStarted: Bool
   let errorMessage: String?
-  let result: PassportReadResult?
+  let result: DocumentReadResult?
 }
 
 private struct DocumentCopySnapshot {
@@ -31,7 +31,7 @@ private struct ShareDetailsRenderSnapshot {
   let selectedShareFieldKeys: Set<String>
   let shareSelectionErrorMessage: String?
   let isSubmittingShareSelection: Bool
-  let nfcResult: PassportReadResult?
+  let nfcResult: DocumentReadResult?
   let mrzResult: MRZResult?
 }
 
@@ -72,8 +72,8 @@ private struct FrozenNFCReadingView: View {
     .allowsHitTesting(false)
   }
 
-  private var snapshotReader: PassportNFCReader {
-    let reader = PassportNFCReader()
+  private var snapshotReader: DocumentNFCReader {
+    let reader = DocumentNFCReader()
     reader.errorMessage = snapshot.errorMessage
     reader.result = snapshot.result
     return reader
@@ -110,7 +110,7 @@ struct ContentView: View {
   }
 
   @StateObject private var session: VerificationSession
-  @StateObject private var nfcReader: PassportNFCReader
+  @StateObject private var nfcReader: DocumentNFCReader
 
   @State private var outgoingStepSnapshot: StepRenderSnapshot?
   @State private var lastStep: VerificationStep = .welcome
@@ -133,12 +133,12 @@ struct ContentView: View {
   init(
     pendingQRCode: Binding<String?>,
     session: VerificationSession? = nil,
-    nfcReader: PassportNFCReader? = nil,
+    nfcReader: DocumentNFCReader? = nil,
     initialCameraDrawer: CameraCaptureDrawer? = nil,
     initialAboutSheetPresented: Bool = false
   ) {
     let resolvedSession = session ?? VerificationSession()
-    let resolvedNFCReader = nfcReader ?? PassportNFCReader()
+    let resolvedNFCReader = nfcReader ?? DocumentNFCReader()
 
     _pendingQRCode = pendingQRCode
     _session = StateObject(wrappedValue: resolvedSession)

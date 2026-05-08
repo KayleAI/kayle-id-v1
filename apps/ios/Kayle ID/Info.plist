@@ -33,9 +33,9 @@
 		</dict>
 	</array>
 	<key>NFCReaderUsageDescription</key>
-	<string>Used to read ePassport NFC data.</string>
+	<string>Used to read identity-document NFC data.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Used to scan the MRZ on your passport.</string>
+	<string>Used to scan the MRZ on your identity document.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

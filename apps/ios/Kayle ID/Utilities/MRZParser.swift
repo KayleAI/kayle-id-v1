@@ -39,7 +39,7 @@ enum MRZParser {
     return parseTD3(l1, l2)
   }
 
-  // MARK: - TD3 (passports)
+  // MARK: - TD3
 
   private static func parseTD3(_ l1: String, _ l2: String) -> MRZResult {
     let documentType = String(l1.prefix(2))

@@ -3,11 +3,11 @@ import Foundation
 import MRTDReader
 import UIKit
 
-struct PassportReadResult: Equatable {
+struct DocumentReadResult: Equatable {
   let mrz: String
   let dg1MRZ: String?
-  let dataGroups: [PassportDataGroup]
-  let passportImage: UIImage?
+  let dataGroups: [DocumentDataGroup]
+  let documentImage: UIImage?
   let signatureImage: UIImage?
 
   // Parsed fields from MRTDModel
@@ -32,7 +32,7 @@ struct PassportReadResult: Equatable {
   let chipAuthTranscript: Data?
 
   // Custom Equatable - compare document fields, not images
-  static func == (lhs: PassportReadResult, rhs: PassportReadResult) -> Bool {
+  static func == (lhs: DocumentReadResult, rhs: DocumentReadResult) -> Bool {
     lhs.mrz == rhs.mrz &&
     lhs.documentNumber == rhs.documentNumber &&
     lhs.firstName == rhs.firstName &&
@@ -51,7 +51,7 @@ struct PassportReadResult: Equatable {
     // DG2 (Face image)
     if let dg2 = dataGroups.first(where: { $0.id == 0x75 }) {
       var dg2Dict: [String: Any] = ["raw": dg2.data.base64EncodedString()]
-      if let image = passportImage, let jpeg = image.jpegData(compressionQuality: 0.8) {
+      if let image = documentImage, let jpeg = image.jpegData(compressionQuality: 0.8) {
         dg2Dict["faceImage"] = jpeg.base64EncodedString()
       }
       dict["dg2"] = dg2Dict
@@ -85,17 +85,17 @@ struct PassportReadResult: Equatable {
   }
 }
 
-struct PassportDataGroup: Identifiable, Equatable {
+struct DocumentDataGroup: Identifiable, Equatable {
   let id: Int
   let name: String
   let data: Data
 }
 
 @MainActor
-final class PassportNFCReader: NSObject, ObservableObject {
+final class DocumentNFCReader: NSObject, ObservableObject {
   @Published var status: String = "Idle"
   @Published var progress: Int = 0
-  @Published var result: PassportReadResult?
+  @Published var result: DocumentReadResult?
   @Published var errorMessage: String?
 
   private let reader = PassportReader()
@@ -164,7 +164,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
 
     // Start reading on a background task
     readTask = Task { [weak self] in
-      await self?.readPassport()
+      await self?.readDocument()
     }
   }
 
@@ -189,7 +189,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
     }
   }
 
-  private func readPassport() async {
+  private func readDocument() async {
     do {
       let config = PassportReadingConfiguration(
         mrzKey: currentMRZKey,
@@ -201,9 +201,9 @@ final class PassportNFCReader: NSObject, ObservableObject {
           return nil
         }
       )
-      let passport = try await reader.read(configuration: config)
+      let model = try await reader.read(configuration: config)
 
-      let result = buildResult(from: passport)
+      let result = buildResult(from: model)
       guard !Task.isCancelled else { return }
       self.result = result
       self.progress = 4
@@ -242,44 +242,44 @@ final class PassportNFCReader: NSObject, ObservableObject {
     }
   }
 
-  private func buildResult(from passport: MRTDModel) -> PassportReadResult {
-    let dg1MRZ = passport.passportMRZ == "NOT FOUND" ? nil : passport.passportMRZ
+  private func buildResult(from model: MRTDModel) -> DocumentReadResult {
+    let dg1MRZ = model.passportMRZ == "NOT FOUND" ? nil : model.passportMRZ
 
-    let groups = passport.dataGroupsRead
+    let groups = model.dataGroupsRead
       .sorted { $0.key.rawValue < $1.key.rawValue }
-      .compactMap { entry -> PassportDataGroup? in
+      .compactMap { entry -> DocumentDataGroup? in
         let data = Data(entry.value.data)
-        return PassportDataGroup(
+        return DocumentDataGroup(
           id: entry.key.rawValue,
           name: entry.key.getName(),
           data: data
         )
       }
 
-    let aaChallenge = passport.activeAuthenticationChallenge.isEmpty
+    let aaChallenge = model.activeAuthenticationChallenge.isEmpty
       ? nil
-      : Data(passport.activeAuthenticationChallenge)
-    let aaSignature = passport.activeAuthenticationSignature.isEmpty
+      : Data(model.activeAuthenticationChallenge)
+    let aaSignature = model.activeAuthenticationSignature.isEmpty
       ? nil
-      : Data(passport.activeAuthenticationSignature)
+      : Data(model.activeAuthenticationSignature)
 
-    let caTranscript = extractChipAuthTranscript(from: passport)
+    let caTranscript = extractChipAuthTranscript(from: model)
 
-    return PassportReadResult(
+    return DocumentReadResult(
       mrz: currentMRZ,
       dg1MRZ: dg1MRZ,
       dataGroups: groups,
-      passportImage: passport.passportImage,
-      signatureImage: passport.signatureImage,
-      firstName: passport.firstName,
-      lastName: passport.lastName,
-      documentNumber: passport.documentNumber,
-      nationality: passport.nationality,
-      dateOfBirth: passport.dateOfBirth,
-      gender: passport.gender,
-      expiryDate: passport.documentExpiryDate,
-      issuingAuthority: passport.issuingAuthority,
-      documentType: passport.documentType,
+      documentImage: model.passportImage,
+      signatureImage: model.signatureImage,
+      firstName: model.firstName,
+      lastName: model.lastName,
+      documentNumber: model.documentNumber,
+      nationality: model.nationality,
+      dateOfBirth: model.dateOfBirth,
+      gender: model.gender,
+      expiryDate: model.documentExpiryDate,
+      issuingAuthority: model.issuingAuthority,
+      documentType: model.documentType,
       activeAuthChallenge: aaChallenge,
       activeAuthSignature: aaSignature,
       chipAuthTranscript: caTranscript
@@ -289,8 +289,8 @@ final class PassportNFCReader: NSObject, ObservableObject {
   /// Serializes the MRTDReader-captured CA-v2 transcript into the wire layout
   /// the backend expects (`apps/api/src/v1/verify/chip-auth-transcript.ts`).
   /// Returns nil when the chip didn't perform CA-v2 (CA-v1, DESede, or no CA).
-  private func extractChipAuthTranscript(from passport: MRTDModel) -> Data? {
-    guard let transcript = passport.chipAuthenticationTranscript else { return nil }
+  private func extractChipAuthTranscript(from model: MRTDModel) -> Data? {
+    guard let transcript = model.chipAuthenticationTranscript else { return nil }
     return Self.encodeChipAuthTranscript(transcript)
   }
 
@@ -354,7 +354,7 @@ final class PassportNFCReader: NSObject, ObservableObject {
 }
 
 @available(iOS 15, *)
-extension PassportNFCReader: MRTDReaderTrackingDelegate {
+extension DocumentNFCReader: MRTDReaderTrackingDelegate {
   nonisolated func nfcTagDetected() {
     Task { @MainActor in
       self.progress = 1

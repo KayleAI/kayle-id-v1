@@ -2,14 +2,14 @@ import SwiftUI
 
 /// Standalone NFC reading view - can be used in App Clips or main app.
 struct NFCReadingView: View {
-  @ObservedObject var nfcReader: PassportNFCReader
+  @ObservedObject var nfcReader: DocumentNFCReader
   var documentName = "document"
   let uploadProgress: Double
   let isUploading: Bool
   let hasStarted: Bool
   var onBack: (() -> Void)? = nil
   let onStart: () -> Void
-  let onComplete: (PassportReadResult) -> Void
+  let onComplete: (DocumentReadResult) -> Void
 
   var body: some View {
     StepScreen(layout: .centered, onBack: onBack) {

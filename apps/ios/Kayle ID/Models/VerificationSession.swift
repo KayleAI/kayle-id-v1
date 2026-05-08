@@ -41,7 +41,7 @@ nonisolated func describeUnexpectedServerMessage(
 enum VerificationStep: Int, CaseIterable {
   case welcome        // Landing screen
   case scanning       // Scanning QR code
-  case mrz            // Scanning passport MRZ
+  case mrz            // Scanning document MRZ
   case rfidCheck      // Asking if document has RFID (required, no skip)
   case rfidUnsupported // Document does not support RFID/NFC
   case nfc            // Reading NFC chip
@@ -102,13 +102,13 @@ final class VerificationSession: ObservableObject {
 
   // Captured data
   @Published var mrzResult: MRZResult?
-  @Published var nfcResult: PassportReadResult?
+  @Published var nfcResult: DocumentReadResult?
   @Published var selfieImages: [UIImage] = []
   @Published var hasRFIDSymbol: Bool?
   /// AA challenge issued by the server. Set asynchronously after hello — must
-  /// be threaded into PassportReader so the chip signs *this* nonce, not one
-  /// the client picked. Closes the Challenge Semantics weakness from
-  /// ICAO 9303 Part 11 §6.1.
+  /// be threaded into the MRTDReader configuration so the chip signs *this*
+  /// nonce, not one the client picked. Closes the Challenge Semantics
+  /// weakness from ICAO 9303 Part 11 §6.1.
   @Published var activeAuthChallenge: Data?
 
   // Services
@@ -881,7 +881,7 @@ final class VerificationSession: ObservableObject {
     }
   }
 
-  private func buildNFCUploadPlans(from result: PassportReadResult) throws -> [NFCUploadPlan] {
+  private func buildNFCUploadPlans(from result: DocumentReadResult) throws -> [NFCUploadPlan] {
     guard let dg1 = result.dataGroups.first(where: { $0.id == 0x61 }) else {
       throw VerificationError.missingRequiredNFCData(
         "DG1",

@@ -401,7 +401,7 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 			attemptId: "va_delivery_send",
 			contractVersion: 1,
 			eventId: event.id,
-			failureCode: "passport_authenticity_failed",
+			failureCode: "document_authenticity_failed",
 			organizationId: TEST_DATA?.organizationId ?? "",
 			sessionId: "vs_delivery_send",
 		});

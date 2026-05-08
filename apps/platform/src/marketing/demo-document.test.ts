@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import {
 	buildDemoDocumentPreview,
 	buildDemoWebhookEventPreview,
-	buildPassportMachineReadableZone,
+	buildDocumentMachineReadableZone,
 	formatDemoClaimValue,
 	formatDemoDocumentDate,
 	inferDemoDocumentKind,
@@ -78,9 +78,9 @@ test("formatDemoClaimValue summarizes document photos", () => {
 	).toBe("Chip portrait · JPEG2000 · 480×640");
 });
 
-test("buildPassportMachineReadableZone formats a TD3 passport footer", () => {
+test("buildDocumentMachineReadableZone formats a TD3 footer", () => {
 	expect(
-		buildPassportMachineReadableZone({
+		buildDocumentMachineReadableZone({
 			dateOfBirth: "1990-04-12",
 			documentExpiryDate: "2032-04-16",
 			documentNumber: "123456789",
@@ -98,8 +98,8 @@ test("buildPassportMachineReadableZone formats a TD3 passport footer", () => {
 	]);
 });
 
-test("buildPassportMachineReadableZone keeps MRZ structure for partial claims", () => {
-	const mrz = buildPassportMachineReadableZone({
+test("buildDocumentMachineReadableZone keeps MRZ structure for partial claims", () => {
+	const mrz = buildDocumentMachineReadableZone({
 		dateOfBirth: null,
 		documentExpiryDate: null,
 		documentNumber: null,
@@ -147,7 +147,7 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 		JSON.stringify({
 			type: "verification.attempt.failed",
 			data: {
-				failure_code: "passport_authenticity_failed",
+				failure_code: "document_authenticity_failed",
 			},
 			metadata: {
 				contract_version: 1,
@@ -160,12 +160,12 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	expect(preview).toEqual({
 		contractVersion: 1,
 		description:
-			"We couldn’t verify your passport. Try again or use a different one.",
+			"We couldn’t verify your document. Try again or use a different one.",
 		eventType: "verification.attempt.failed",
-		failureCode: "passport_authenticity_failed",
+		failureCode: "document_authenticity_failed",
 		failureDescription:
-			"We couldn’t verify your passport. Try again or use a different one.",
-		failureTitle: "Passport check failed",
+			"We couldn’t verify your document. Try again or use a different one.",
+		failureTitle: "Document check failed",
 		title: "Attempt Failed",
 		verificationAttemptId: "va_demo_test",
 		verificationSessionId: "vs_demo_test",

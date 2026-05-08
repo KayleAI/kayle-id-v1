@@ -8,6 +8,10 @@ enum MRZParseError: Error {
 }
 
 enum MRZParser {
+  private static let td1LineLength = 30
+  private static let td2LineLength = 36
+  private static let td3LineLength = 44
+
   static func parseAndValidate(_ raw: String) throws -> MRZResult {
     let lines = normalise(raw)
       .split(separator: "\n", omittingEmptySubsequences: true)
@@ -25,11 +29,11 @@ enum MRZParser {
         throw MRZParseError.invalidCharset
       }
 
-      if l1.count == 44 && l2.count == 44 {
+      if l1.count == td3LineLength && l2.count == td3LineLength {
         return parseTD3(l1, l2)
       }
 
-      if l1.count == 36 && l2.count == 36 {
+      if l1.count == td2LineLength && l2.count == td2LineLength {
         return parseTD2(l1, l2)
       }
 
@@ -41,7 +45,7 @@ enum MRZParser {
       let l2 = lines[1]
       let l3 = lines[2]
 
-      guard l1.count == 30, l2.count == 30, l3.count == 30 else {
+      guard l1.count == td1LineLength, l2.count == td1LineLength, l3.count == td1LineLength else {
         throw MRZParseError.wrongLength
       }
 
@@ -53,6 +57,24 @@ enum MRZParser {
     }
 
     throw MRZParseError.wrongLength
+  }
+
+  static func extractCandidate(fromOCRLines lines: [String]) -> String? {
+    let normalised = lines.map { normaliseLine($0) }.filter { !$0.isEmpty }
+
+    if let td3Candidate = extractTD3Candidate(from: normalised) {
+      return td3Candidate
+    }
+
+    if let td1Candidate = extractTD1Candidate(from: normalised) {
+      return td1Candidate
+    }
+
+    if let td2Candidate = extractTD2Candidate(from: normalised) {
+      return td2Candidate
+    }
+
+    return nil
   }
 
   // MARK: - TD3
@@ -247,12 +269,156 @@ enum MRZParser {
 
   // MARK: - Helpers
 
+  private static func extractTD3Candidate(from lines: [String]) -> String? {
+    let candidates = lines.filter { $0.count == td3LineLength }
+    let headers = candidates
+      .filter { td3HeaderLooksValid($0) }
+      .sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let dataLines = candidates
+      .filter { !td3HeaderLooksValid($0) }
+      .sorted { scoreTDDataLine($0) > scoreTDDataLine($1) }
+
+    for header in headers {
+      for dataLine in dataLines {
+        let candidate = "\(header)\n\(dataLine)"
+        if candidateLooksValidForScan(candidate) {
+          return candidate
+        }
+      }
+    }
+
+    guard let header = headers.first, let dataLine = dataLines.first else {
+      return nil
+    }
+
+    return "\(header)\n\(dataLine)"
+  }
+
+  private static func extractTD1Candidate(from lines: [String]) -> String? {
+    let candidates = lines.filter { $0.count == td1LineLength }
+
+    for header in candidates where mrzLineLooksLikeDocumentHeader(header) {
+      for detailLine in candidates where detailLine != header {
+        for nameLine in candidates where nameLine != header && nameLine != detailLine && nameLine.contains("<<") {
+          let candidate = "\(header)\n\(detailLine)\n\(nameLine)"
+          if candidateLooksValidForScan(candidate) {
+            return candidate
+          }
+        }
+      }
+    }
+
+    let ranked = candidates.sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let top = Array(ranked.prefix(3))
+    guard
+      top.count == 3,
+      let header = top.first(where: { mrzLineLooksLikeDocumentHeader($0) })
+    else {
+      return nil
+    }
+
+    let rest = top.filter { $0 != header }
+    guard rest.count >= 2 else {
+      return nil
+    }
+
+    return "\(header)\n\(rest[0])\n\(rest[1])"
+  }
+
+  private static func extractTD2Candidate(from lines: [String]) -> String? {
+    let candidates = lines.filter { $0.count == td2LineLength }
+    let headers = candidates
+      .filter { mrzLineLooksLikeDocumentHeader($0) && $0.contains("<<") }
+      .sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let dataLines = candidates
+      .filter { !headers.contains($0) }
+      .sorted { scoreTDDataLine($0) > scoreTDDataLine($1) }
+
+    for header in headers {
+      for dataLine in dataLines {
+        let candidate = "\(header)\n\(dataLine)"
+        if candidateLooksValidForScan(candidate) {
+          return candidate
+        }
+      }
+    }
+
+    guard let header = headers.first, let dataLine = dataLines.first else {
+      return nil
+    }
+
+    return "\(header)\n\(dataLine)"
+  }
+
+  private static func candidateLooksValidForScan(_ candidate: String) -> Bool {
+    guard let parsed = try? parseAndValidate(candidate) else {
+      return false
+    }
+
+    return parsed.checks.isValid
+  }
+
+  private static func td3HeaderLooksValid(_ s: String) -> Bool {
+    s.first == "P" && s.contains("<<")
+  }
+
+  private static func mrzLineLooksLikeDocumentHeader(_ s: String) -> Bool {
+    guard let first = s.first else { return false }
+    return first == "P" || first == "I" || first == "A" || first == "C"
+  }
+
+  private static func scoreMRZLine(_ s: String) -> Int {
+    let fillerCount = s.count(where: { $0 == "<" })
+    return fillerCount * 10 + s.count
+  }
+
+  private static func scoreTDDataLine(_ s: String) -> Int {
+    var score = 0
+
+    if characterIsDigit(char(s, 9)) {
+      score += 10
+    }
+    if characterRangeIsLetters(s, 10, 13) {
+      score += 10
+    }
+    if characterRangeIsDigits(s, 13, 19) {
+      score += 10
+    }
+    if characterIsDigit(char(s, 19)) {
+      score += 10
+    }
+    if characterRangeIsDigits(s, 21, 27) {
+      score += 10
+    }
+    if characterIsDigit(char(s, 27)) {
+      score += 10
+    }
+
+    return score + scoreMRZLine(s)
+  }
+
+  private static func characterRangeIsDigits(_ s: String, _ start: Int, _ end: Int) -> Bool {
+    s.slice(start, end).allSatisfy { characterIsDigit($0) }
+  }
+
+  private static func characterRangeIsLetters(_ s: String, _ start: Int, _ end: Int) -> Bool {
+    s.slice(start, end).allSatisfy { $0 >= "A" && $0 <= "Z" }
+  }
+
+  private static func characterIsDigit(_ ch: Character) -> Bool {
+    ch >= "0" && ch <= "9"
+  }
+
   static func normalise(_ s: String) -> String {
     let up = s.uppercased().replacingOccurrences(of: " ", with: "")
     let allowed = up.filter { ch in
       ch == "\n" || (ch >= "A" && ch <= "Z") || (ch >= "0" && ch <= "9") || ch == "<"
     }
     return String(allowed)
+  }
+
+  private static func normaliseLine(_ s: String) -> String {
+    normalise(s).replacingOccurrences(of: "\n", with: "")
   }
 
   private static func charsetOK(_ s: String) -> Bool {

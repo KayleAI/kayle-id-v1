@@ -231,6 +231,18 @@ function parseIso197945FaceImage(data: Uint8Array): Dg2FaceImage {
 
 function getOpenJpegModule(): Promise<OpenJpegModule> {
 	if (!openJpegPromise) {
+		// The Emscripten module detects a Node environment when `nodejs_compat`
+		// is enabled in Workers (because `process.versions.node` is shimmed),
+		// then references `__dirname` while computing its script directory.
+		// `__dirname` isn't defined in ES module scope, so the module load
+		// throws "__dirname is not defined". We supply `wasmBinary` directly,
+		// so the script directory is never actually used — pinning it to an
+		// empty string is safe.
+		const globals = globalThis as { __dirname?: string };
+		if (globals.__dirname === undefined) {
+			globals.__dirname = "";
+		}
+
 		openJpegPromise = import("@cornerstonejs/codec-openjpeg/decodewasmjs").then(
 			async (module) =>
 				module.default({

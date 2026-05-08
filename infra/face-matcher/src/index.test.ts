@@ -109,9 +109,8 @@ test("face matcher worker returns a passing score for valid inputs", async () =>
   expect(capturedPayload).toEqual(
     expect.objectContaining({
       dg2Image: expect.objectContaining({
-        height: expect.any(Number),
-        rgbaBase64: expect.any(String),
-        width: expect.any(Number),
+        bytesBase64: expect.any(String),
+        format: expect.any(String),
       }),
       selfiesBase64: [expect.any(String)],
       threshold: 0.7853,

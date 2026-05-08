@@ -1,6 +1,4 @@
-import jpeg from "jpeg-js";
-import type { DecodedImage, Dg2FaceImage } from "./validation-types";
-import { loadOpenJpegWasmBinary } from "./verify-assets";
+import type { Dg2FaceImage } from "./validation-types";
 
 const FAC_HEADER = [0x46, 0x41, 0x43, 0x00] as const;
 const JPEG_SIGNATURE = [0xff, 0xd8, 0xff] as const;
@@ -19,20 +17,12 @@ const DG2_ROOT_TAG = 0x7f_61;
 const DG2_BIOMETRIC_GROUP_TAG = 0x7f_60;
 const DG2_BIOMETRIC_DATA_TAG = 0x7f_2e;
 const DG2_BIOMETRIC_DATA_ALT_TAG = 0x5f_2e;
-const RGBA_CHANNELS = 4;
 
 type TlvValue = {
 	tag: number;
 	value: Uint8Array;
 	nextOffset: number;
 };
-
-type OpenJpegFactory =
-	typeof import("@cornerstonejs/codec-openjpeg/decodewasmjs").default;
-
-type OpenJpegModule = Awaited<ReturnType<OpenJpegFactory>>;
-
-let openJpegPromise: Promise<OpenJpegModule> | null = null;
 
 function startsWithBytes(
 	bytes: Uint8Array,
@@ -229,105 +219,6 @@ function parseIso197945FaceImage(data: Uint8Array): Dg2FaceImage {
 	throw new Error("dg2_image_format_unsupported");
 }
 
-function getOpenJpegModule(): Promise<OpenJpegModule> {
-	if (!openJpegPromise) {
-		// The Emscripten module detects a Node environment when `nodejs_compat`
-		// is enabled in Workers (because `process.versions.node` is shimmed),
-		// then references `__dirname` while computing its script directory.
-		// `__dirname` isn't defined in ES module scope, so the module load
-		// throws "__dirname is not defined". We supply `wasmBinary` directly,
-		// so the script directory is never actually used — pinning it to an
-		// empty string is safe.
-		const globals = globalThis as { __dirname?: string };
-		if (globals.__dirname === undefined) {
-			globals.__dirname = "";
-		}
-
-		openJpegPromise = import("@cornerstonejs/codec-openjpeg/decodewasmjs").then(
-			async (module) =>
-				module.default({
-					wasmBinary: await loadOpenJpegWasmBinary(),
-				}),
-		);
-	}
-
-	return openJpegPromise;
-}
-
-function buildRgbaFromComponents(
-	width: number,
-	height: number,
-	componentCount: number,
-	pixels: Uint8Array | Uint8ClampedArray,
-): Uint8ClampedArray {
-	const rgba = new Uint8ClampedArray(width * height * RGBA_CHANNELS);
-
-	if (componentCount === 1) {
-		for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
-			const value = pixels[pixelIndex];
-			const baseIndex = pixelIndex * RGBA_CHANNELS;
-			rgba[baseIndex] = value;
-			rgba[baseIndex + 1] = value;
-			rgba[baseIndex + 2] = value;
-			rgba[baseIndex + 3] = 255;
-		}
-
-		return rgba;
-	}
-
-	if (componentCount === 3 || componentCount === 4) {
-		for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
-			const sourceIndex = pixelIndex * componentCount;
-			const targetIndex = pixelIndex * RGBA_CHANNELS;
-			rgba[targetIndex] = pixels[sourceIndex];
-			rgba[targetIndex + 1] = pixels[sourceIndex + 1];
-			rgba[targetIndex + 2] = pixels[sourceIndex + 2];
-			rgba[targetIndex + 3] =
-				componentCount === 4 ? pixels[sourceIndex + 3] : 255;
-		}
-
-		return rgba;
-	}
-
-	throw new Error("jpeg2000_component_count_unsupported");
-}
-
-async function decodeJpeg2000(bytes: Uint8Array): Promise<DecodedImage> {
-	const openJpegModule = await getOpenJpegModule();
-	const decoder = new openJpegModule.J2KDecoder();
-	const encodedBuffer = decoder.getEncodedBuffer(bytes.length);
-	encodedBuffer.set(bytes);
-
-	decoder.readHeader?.();
-	decoder.decode();
-
-	const decodedBuffer = decoder.getDecodedBuffer();
-	const frameInfo = decoder.getFrameInfo();
-
-	return {
-		width: frameInfo.width,
-		height: frameInfo.height,
-		rgba: buildRgbaFromComponents(
-			frameInfo.width,
-			frameInfo.height,
-			frameInfo.componentCount,
-			decodedBuffer,
-		),
-	};
-}
-
-function decodeJpeg(bytes: Uint8Array): DecodedImage {
-	const decoded = jpeg.decode(bytes, {
-		useTArray: true,
-	});
-
-	return {
-		width: decoded.width,
-		height: decoded.height,
-		rgba: new Uint8ClampedArray(decoded.data),
-	};
-}
-
 export function extractDg2FaceImage(dg2: Uint8Array): Dg2FaceImage {
 	const outer = readTlv(dg2, 0);
 	const root = outer.tag === DG2_FILE_TAG ? readTlv(outer.value, 0) : outer;
@@ -364,19 +255,4 @@ export function extractDg2FaceImage(dg2: Uint8Array): Dg2FaceImage {
 	}
 
 	throw new Error("dg2_biometric_data_missing");
-}
-
-export function decodeFaceImageBytes(bytes: Uint8Array): Promise<DecodedImage> {
-	if (startsWithBytes(bytes, JPEG_SIGNATURE)) {
-		return Promise.resolve(decodeJpeg(bytes));
-	}
-
-	if (
-		startsWithBytes(bytes, JPEG_2000_FILE_SIGNATURE) ||
-		startsWithBytes(bytes, JPEG_2000_CODESTREAM_SIGNATURE)
-	) {
-		return decodeJpeg2000(bytes);
-	}
-
-	throw new Error("image_format_unsupported");
 }

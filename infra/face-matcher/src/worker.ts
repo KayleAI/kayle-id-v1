@@ -13,7 +13,6 @@ import {
   logSafeError,
   type SafeRequestLogger,
 } from "@kayle-id/config/logging";
-import { configureVerifyAssetFetcherFromEnv } from "../../../apps/api/src/v1/verify/verify-assets";
 import pkg from "../../../package.json" with { type: "json" };
 import { matchFacesWithContainer } from "./matcher";
 
@@ -241,8 +240,6 @@ async function handleMatchRequest({
   if (payload instanceof Response) {
     return payload;
   }
-
-  configureVerifyAssetFetcherFromEnv(env);
 
   const container = await getContainer(env);
   const startedAt = Date.now();

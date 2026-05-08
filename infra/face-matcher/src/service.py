@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
@@ -49,12 +50,25 @@ def decode_selfie(selfie_base64: str) -> Optional[np.ndarray]:
         return None
 
 
-def decode_dg2_rgba(image_payload: dict) -> np.ndarray:
-    rgba = base64.b64decode(image_payload["rgbaBase64"])
-    width = int(image_payload["width"])
-    height = int(image_payload["height"])
-    rgba_image = np.frombuffer(rgba, dtype=np.uint8).reshape((height, width, 4))
-    return cv2.cvtColor(rgba_image, cv2.COLOR_RGBA2BGR)
+def decode_dg2_image(image_payload: dict) -> np.ndarray:
+    if not isinstance(image_payload, dict):
+        raise ValueError(
+            f"dg2_image_payload_invalid:not_a_dict:{type(image_payload).__name__}"
+        )
+    bytes_base64 = image_payload.get("bytesBase64")
+    if not isinstance(bytes_base64, str):
+        raise ValueError(
+            f"dg2_image_payload_missing_bytes:keys={list(image_payload.keys())}"
+        )
+    encoded = base64.b64decode(bytes_base64)
+    buffer = np.frombuffer(encoded, dtype=np.uint8)
+    decoded = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+    if decoded is None:
+        raise ValueError(
+            f"dg2_image_decode_failed:format={image_payload.get('format')!r}:"
+            f"byte_count={len(encoded)}"
+        )
+    return decoded
 
 
 def detect_face(
@@ -351,7 +365,7 @@ class MatcherRuntime:
                 "usedFallback": True,
             }
 
-        dg2_image = decode_dg2_rgba(payload["dg2Image"])
+        dg2_image = decode_dg2_image(payload["dg2Image"])
         threshold = float(payload.get("threshold") or DEFAULT_THRESHOLD)
         return compare_faces(
             self.detector,
@@ -421,8 +435,11 @@ class MatcherHandler(BaseHTTPRequestHandler):
             threshold = float(payload.get("threshold") or DEFAULT_THRESHOLD)
             emit_log(
                 "container_completed",
-                dg2_width=payload.get("dg2Image", {}).get("width"),
-                dg2_height=payload.get("dg2Image", {}).get("height"),
+                dg2_byte_count=len(
+                    base64.b64decode(
+                        payload.get("dg2Image", {}).get("bytesBase64", "")
+                    )
+                ),
                 selfie_count=len(payload.get("selfiesBase64", [])),
                 threshold=threshold,
                 face_score=result.get("faceScore"),
@@ -432,7 +449,21 @@ class MatcherHandler(BaseHTTPRequestHandler):
             )
             self.respond(HTTPStatus.OK, result)
         except Exception as error:
-            emit_log("container_match_failed", error=str(error))
+            payload_keys = list(payload.keys()) if isinstance(payload, dict) else None
+            dg2_image_keys = (
+                list(payload["dg2Image"].keys())
+                if isinstance(payload, dict)
+                and isinstance(payload.get("dg2Image"), dict)
+                else None
+            )
+            emit_log(
+                "container_match_failed",
+                error=str(error),
+                error_type=type(error).__name__,
+                traceback=traceback.format_exc(),
+                payload_keys=payload_keys,
+                dg2_image_keys=dg2_image_keys,
+            )
             self.respond(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 {

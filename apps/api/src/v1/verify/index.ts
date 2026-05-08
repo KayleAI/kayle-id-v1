@@ -19,7 +19,6 @@ import { startVerifySocketSession } from "./socket-controller";
 import { hashSessionCancelToken } from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
-import { configureVerifyAssetFetcherFromEnv } from "./verify-assets";
 
 const verify = new Hono<{ Bindings: CloudflareBindings }>();
 const sessionParamSchema = z.object({ id: sessionIdSchema });
@@ -318,7 +317,6 @@ verify.get(
 		return parsed;
 	}),
 	async (c) => {
-		configureVerifyAssetFetcherFromEnv(c.env);
 		configurePkdTrustBundleLoaderFromEnv(c.env);
 
 		if (c.req.header("upgrade")?.toLowerCase() !== "websocket") {

@@ -10,9 +10,7 @@
   },
   "dependencies": {
     "@cloudflare/containers": "^0.0.25",
-    "@cornerstonejs/codec-openjpeg": "1.3.0",
-    "@kayle-id/config": "*",
-    "jpeg-js": "0.4.4"
+    "@kayle-id/config": "*"
   },
   "devDependencies": {
     "@types/bun": "latest"

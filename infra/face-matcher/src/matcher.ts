@@ -1,19 +1,14 @@
 import { faceMatcherResponseSchema } from "@kayle-id/config/face-matcher";
-import {
-  decodeFaceImageBytes,
-  extractDg2FaceImage,
-} from "../../../apps/api/src/v1/verify/validation";
+import { extractDg2FaceImage } from "../../../apps/api/src/v1/verify/validation";
 import type {
-  DecodedImage,
   Dg2FaceImage,
   FaceScoreResult,
 } from "../../../apps/api/src/v1/verify/validation-types";
 
 interface ContainerMatchRequestPayload {
   dg2Image: {
-    height: number;
-    rgbaBase64: string;
-    width: number;
+    bytesBase64: string;
+    format: Dg2FaceImage["imageFormat"];
   };
   selfiesBase64: string[];
   threshold?: number;
@@ -89,7 +84,7 @@ async function requestContainerMatch({
   }
 }
 
-export async function matchFacesWithContainer({
+export function matchFacesWithContainer({
   container,
   dg2Image,
   selfies,
@@ -101,7 +96,9 @@ export async function matchFacesWithContainer({
   threshold?: number;
 }): Promise<FaceScoreResult> {
   if (selfies.length === 0) {
-    return createUnavailableFaceScore("face_score_input_missing");
+    return Promise.resolve(
+      createUnavailableFaceScore("face_score_input_missing")
+    );
   }
 
   let dg2FaceImage: Dg2FaceImage;
@@ -109,22 +106,12 @@ export async function matchFacesWithContainer({
   try {
     dg2FaceImage = extractDg2FaceImage(dg2Image);
   } catch (error) {
-    return createUnavailableFaceScore(
-      `face_score_dg2_extract_failed:${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-  }
-
-  let decodedFaceImage: DecodedImage;
-
-  try {
-    decodedFaceImage = await decodeFaceImageBytes(dg2FaceImage.imageData);
-  } catch (error) {
-    return createUnavailableFaceScore(
-      `face_score_dg2_decode_failed:${
-        error instanceof Error ? error.message : String(error)
-      }`
+    return Promise.resolve(
+      createUnavailableFaceScore(
+        `face_score_dg2_extract_failed:${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
     );
   }
 
@@ -132,9 +119,8 @@ export async function matchFacesWithContainer({
     container,
     payload: {
       dg2Image: {
-        height: decodedFaceImage.height,
-        rgbaBase64: Buffer.from(decodedFaceImage.rgba).toString("base64"),
-        width: decodedFaceImage.width,
+        bytesBase64: Buffer.from(dg2FaceImage.imageData).toString("base64"),
+        format: dg2FaceImage.imageFormat,
       },
       selfiesBase64: selfies.map((selfie) =>
         Buffer.from(selfie).toString("base64")

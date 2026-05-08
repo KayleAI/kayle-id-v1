@@ -3,10 +3,7 @@ import {
 	validateActiveAuthentication as validateActiveAuthenticationInternal,
 } from "./active-auth";
 import { validateChipAuthentication as validateChipAuthenticationInternal } from "./chip-auth";
-import {
-	decodeFaceImageBytes as decodeFaceImageBytesInternal,
-	extractDg2FaceImage as extractDg2FaceImageInternal,
-} from "./dg2-face-image";
+import { extractDg2FaceImage as extractDg2FaceImageInternal } from "./dg2-face-image";
 import {
 	configurePkdTrustBundleLoaderFromEnv as configurePkdTrustBundleLoaderFromEnvInternal,
 	configurePkdTrustBundleLoader as configurePkdTrustBundleLoaderInternal,
@@ -17,23 +14,15 @@ import type {
 	ActiveAuthValidationResult as ActiveAuthValidationResultValue,
 	AuthenticityValidationResult as AuthenticityValidationResultValue,
 	ChipAuthValidationResult as ChipAuthValidationResultValue,
-	DecodedImage,
 	Dg2FaceImage as Dg2FaceImageValue,
 	SupportedHashAlgorithm,
 } from "./validation-types";
-import { configureVerifyAssetFetcher as configureVerifyAssetFetcherInternal } from "./verify-assets";
 
 export type AuthenticityValidationResult = AuthenticityValidationResultValue;
 export type ActiveAuthValidationResult = ActiveAuthValidationResultValue;
 export type ChipAuthValidationResult = ChipAuthValidationResultValue;
 export type Dg2FaceImage = Dg2FaceImageValue;
 export type PassiveAuthTrustBundle = PkdTrustBundle;
-
-export function configureVerifyAssetFetcher(
-	fetcher: ((pathname: string) => Promise<Uint8Array>) | null,
-): void {
-	configureVerifyAssetFetcherInternal(fetcher);
-}
 
 export function configurePkdTrustBundleLoader(
 	loader: (() => Promise<PkdTrustBundle | null>) | null,
@@ -47,10 +36,6 @@ export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
 
 export function extractDg2FaceImage(dg2: Uint8Array): Dg2FaceImage {
 	return extractDg2FaceImageInternal(dg2);
-}
-
-export function decodeFaceImageBytes(bytes: Uint8Array): Promise<DecodedImage> {
-	return decodeFaceImageBytesInternal(bytes);
 }
 
 export function validateAuthenticity({

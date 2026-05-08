@@ -98,12 +98,6 @@ export type ChipAuthValidationResult =
 
 export type PassiveAuthSignerSource = "bundle" | "sod";
 
-export type DecodedImage = {
-	width: number;
-	height: number;
-	rgba: Uint8ClampedArray;
-};
-
 export type Dg2FaceImage = {
 	imageData: Uint8Array;
 	imageFormat: SupportedImageFormat;

@@ -91,4 +91,46 @@ describe("SessionConsent", () => {
 		expect(screen.getByText("Test Organization")).not.toBeNull();
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
+
+	test("renders the default heading and start label for identity sessions", () => {
+		render(<SessionConsent organizationName="Test Organization" />);
+
+		expect(
+			screen.getByRole("heading", { name: "Your consent is required" }),
+		).not.toBeNull();
+		expect(
+			screen.getByRole("button", { name: "Start verification" }),
+		).not.toBeNull();
+	});
+
+	test("renders the age-only consent copy when isAgeOnly is true", () => {
+		render(
+			<SessionConsent
+				ageThreshold={18}
+				isAgeOnly
+				organizationName="Test Organization"
+			/>,
+		);
+
+		expect(
+			screen.getByRole("heading", { name: "Your consent is required" }),
+		).not.toBeNull();
+		expect(
+			screen.getByRole("button", { name: "Confirm my age" }),
+		).not.toBeNull();
+		expect(screen.getByText(/check my age/i)).not.toBeNull();
+		expect(screen.getByText(/whether I am over 18/i)).not.toBeNull();
+	});
+
+	test("falls back to generic age wording when no age threshold is supplied", () => {
+		render(
+			<SessionConsent
+				ageThreshold={null}
+				isAgeOnly
+				organizationName="Test Organization"
+			/>,
+		);
+
+		expect(screen.getByText(/whether I am old enough/i)).not.toBeNull();
+	});
 });

@@ -181,6 +181,7 @@ describe("SessionProvider", () => {
 				organization_name: "Test Organization",
 				organization_verified: true,
 				is_age_only: false,
+				age_threshold: null,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -215,6 +216,7 @@ describe("SessionProvider", () => {
 				organization_name: "Test Organization",
 				organization_verified: true,
 				is_age_only: false,
+				age_threshold: null,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -249,6 +251,7 @@ describe("SessionProvider", () => {
 				organization_name: "Test Organization",
 				organization_verified: true,
 				is_age_only: false,
+				age_threshold: null,
 				session_id: sessionId,
 			});
 		const statusSpy = vi
@@ -281,6 +284,7 @@ describe("SessionProvider", () => {
 			organization_name: "Test Organization",
 			organization_verified: true,
 			is_age_only: false,
+			age_threshold: null,
 			session_id: sessionId,
 		});
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(
@@ -337,6 +341,7 @@ describe("SessionProvider", () => {
 			organization_name: "Test Organization",
 			organization_verified: true,
 			is_age_only: false,
+			age_threshold: null,
 			session_id: sessionId,
 		});
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(

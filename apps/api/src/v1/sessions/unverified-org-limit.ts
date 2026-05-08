@@ -20,11 +20,24 @@ export const UNVERIFIED_ORG_ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
+ * Kayle-internal identifiers (`kayle_document_id`, `kayle_human_id`) are
+ * non-identifying anti-replay/anti-dedup IDs, not real-world attributes —
+ * they're allowed alongside an age gate without disqualifying the session
+ * from age-only treatment. `kayle_document_id` is auto-injected by the share
+ * contract normalizer; `kayle_human_id` is opt-in by the integrator. Either
+ * or both can ride along.
+ */
+const KAYLE_INTERNAL_NON_IDENTIFYING_CLAIMS = new Set([
+	"kayle_document_id",
+	"kayle_human_id",
+]);
+
+/**
  * A session is "age-only" when its share fields contain exactly one age-gate
- * claim (`age_over_xx`) and `kayle_document_id`. The latter is auto-injected
- * as required by the share contract normalizer, so a caller asking for *only*
- * `age_over_18` ends up with `{ age_over_18, kayle_document_id }` — both of
- * which are non-identifying. Anything else is treated as identity-revealing.
+ * claim (`age_over_xx`) and, optionally, the Kayle-internal claims listed
+ * above. So a caller asking for `age_over_18` + `kayle_document_id` +
+ * `kayle_human_id` is still age-only — none of those reveal an identity
+ * attribute. Anything else is treated as identity-revealing.
  */
 export function isAgeOnlyShareFields(shareFields: ShareFields): boolean {
 	const keys = Object.keys(shareFields);
@@ -34,7 +47,7 @@ export function isAgeOnlyShareFields(shareFields: ShareFields): boolean {
 
 	let ageGateCount = 0;
 	for (const key of keys) {
-		if (key === "kayle_document_id") {
+		if (KAYLE_INTERNAL_NON_IDENTIFYING_CLAIMS.has(key)) {
 			continue;
 		}
 		if (isAgeOverClaim(key) && parseAgeOverThreshold(key) !== null) {

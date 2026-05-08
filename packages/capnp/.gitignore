@@ -1,0 +1,4 @@
+# Cached `capnp` + `capnpc-c++` binaries built (or downloaded) by
+# scripts/regen.sh. The pinned upstream commit lives in regen.sh; the
+# cache rebuilds itself when that commit changes.
+.bin/

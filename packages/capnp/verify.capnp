@@ -5,11 +5,27 @@ struct ClientHello {
   mobileWriteToken @1 :Text;
   deviceId @2 :Text;
   appVersion @3 :Text;
+  # Base64url-encoded SHA-256 of the attested public key. Empty string when
+  # the client has not yet completed App Attest registration; the server
+  # rejects with HELLO_ATTEST_KEY_UNKNOWN in that case once the gate is on.
+  attestKeyId @4 :Text;
+  # CBOR-encoded App Attest assertion { signature, authenticatorData } over
+  # SHA-256("attest:hello:" + attemptId + deviceId + appVersion + challenge).
+  helloAssertion @5 :Data;
+  # Soft-signal bitfield from RuntimeIntegrity: bit 0 = debugger attached,
+  # bit 1 = DCAppAttestService swizzled. Server adds bits to riskScore but
+  # never gates on this — App Attest carries the load-bearing claim.
+  runtimeIntegritySignal @6 :UInt32;
 }
 
 struct PhaseUpdate {
   phase @0 :Text;
   error @1 :Text;
+  # CBOR-encoded App Attest assertion bound to the NFC-completion artifacts.
+  # Populated only when `phase = "nfc_complete"`. clientDataHash covers
+  # SHA-256 of every uploaded artifact (DG1/2/14/15?/SOD/CA-transcript?/AA-sig?)
+  # plus attemptId and the per-attempt nfc challenge.
+  attestAssertion @2 :Data;
 }
 
 enum DataKind {

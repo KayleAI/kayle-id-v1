@@ -31,6 +31,15 @@ struct QRCodePayload: Codable {
   let mobileWriteToken: String
   let expiresAt: Date
   let cancelToken: String?
+  /// Base64url-encoded server-derived challenge for the App Attest hello
+  /// assertion. Populated by `POST /v1/verify/session/:id/handoff` once the
+  /// server adds the field; older handoff responses or QR codes that pre-date
+  /// the App Attest gate may omit it.
+  let attestHelloChallenge: String?
+  /// Base64url-encoded server-derived challenge for the App Attest NFC
+  /// payload assertion. Same lifecycle as `attestHelloChallenge`; both are
+  /// HMAC-derived from `attemptId + AUTH_SECRET` and survive reconnects.
+  let attestNfcChallenge: String?
 
   enum CodingKeys: String, CodingKey {
     case v
@@ -39,6 +48,8 @@ struct QRCodePayload: Codable {
     case mobileWriteToken = "mobile_write_token"
     case expiresAt = "expires_at"
     case cancelToken = "cancel_token"
+    case attestHelloChallenge = "attest_hello_challenge"
+    case attestNfcChallenge = "attest_nfc_challenge"
   }
 
   init(
@@ -47,7 +58,9 @@ struct QRCodePayload: Codable {
     attemptId: String,
     mobileWriteToken: String,
     expiresAt: Date,
-    cancelToken: String? = nil
+    cancelToken: String? = nil,
+    attestHelloChallenge: String? = nil,
+    attestNfcChallenge: String? = nil
   ) {
     self.v = v
     self.sessionId = sessionId
@@ -55,6 +68,8 @@ struct QRCodePayload: Codable {
     self.mobileWriteToken = mobileWriteToken
     self.expiresAt = expiresAt
     self.cancelToken = cancelToken
+    self.attestHelloChallenge = attestHelloChallenge
+    self.attestNfcChallenge = attestNfcChallenge
   }
 
   init(from decoder: Decoder) throws {
@@ -64,6 +79,14 @@ struct QRCodePayload: Codable {
     attemptId = try container.decode(String.self, forKey: .attemptId)
     mobileWriteToken = try container.decode(String.self, forKey: .mobileWriteToken)
     cancelToken = try container.decodeIfPresent(String.self, forKey: .cancelToken)
+    attestHelloChallenge = try container.decodeIfPresent(
+      String.self,
+      forKey: .attestHelloChallenge
+    )
+    attestNfcChallenge = try container.decodeIfPresent(
+      String.self,
+      forKey: .attestNfcChallenge
+    )
     let expiresAtValue = try container.decode(String.self, forKey: .expiresAt)
 
     guard let parsedExpiresAt = parseQRCodePayloadDate(expiresAtValue) else {

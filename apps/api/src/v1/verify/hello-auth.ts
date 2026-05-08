@@ -12,6 +12,9 @@ export type HelloPayload = {
 	mobileWriteToken?: string;
 	deviceId?: string;
 	appVersion?: string;
+	attestKeyId?: string;
+	helloAssertion?: Uint8Array;
+	runtimeIntegritySignal?: number;
 };
 
 export type ParsedHelloPayload = {
@@ -19,6 +22,9 @@ export type ParsedHelloPayload = {
 	mobileWriteToken: string;
 	deviceId: string;
 	appVersion: string;
+	attestKeyId: string;
+	helloAssertion: Uint8Array;
+	runtimeIntegritySignal: number;
 };
 
 export function parseHelloPayload(
@@ -29,6 +35,9 @@ export function parseHelloPayload(
 		mobileWriteToken: payload.mobileWriteToken?.trim() ?? "",
 		deviceId: payload.deviceId?.trim() ?? "",
 		appVersion: payload.appVersion?.trim() ?? "",
+		attestKeyId: payload.attestKeyId?.trim() ?? "",
+		helloAssertion: payload.helloAssertion ?? new Uint8Array(),
+		runtimeIntegritySignal: payload.runtimeIntegritySignal ?? 0,
 	};
 
 	if (!(parsed.attemptId && parsed.mobileWriteToken && parsed.deviceId)) {
@@ -147,10 +156,12 @@ export async function consumeHelloAttempt({
 	attemptId,
 	deviceIdHash,
 	appVersion,
+	mobileAttestKeyId,
 }: {
 	attemptId: string;
 	deviceIdHash: string;
 	appVersion: string;
+	mobileAttestKeyId: string | null;
 }): Promise<void> {
 	await db
 		.update(verification_attempts)
@@ -158,6 +169,7 @@ export async function consumeHelloAttempt({
 			mobileWriteTokenConsumedAt: new Date(),
 			mobileHelloDeviceIdHash: deviceIdHash,
 			mobileHelloAppVersion: appVersion || null,
+			mobileAttestKeyId,
 		})
 		.where(eq(verification_attempts.id, attemptId));
 }

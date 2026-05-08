@@ -13,6 +13,7 @@ import {
 type PhasePayload = {
 	error?: string;
 	phase?: string;
+	attestAssertion?: Uint8Array;
 };
 
 export async function handlePhaseMessage(
@@ -35,6 +36,14 @@ export async function handlePhaseMessage(
 	if (!isTrackedAttemptPhase(nextPhase)) {
 		transport.sendAck("phase_ok");
 		return;
+	}
+
+	if (
+		nextPhase === "nfc_complete" &&
+		payload.attestAssertion &&
+		payload.attestAssertion.length > 0
+	) {
+		state.transfer.nfcAttestAssertion = payload.attestAssertion;
 	}
 
 	const missingData = buildMissingDataMessage(context, nextPhase);

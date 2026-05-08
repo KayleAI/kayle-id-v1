@@ -33,6 +33,7 @@ export const verificationAttemptFailureCodes = [
 	"passport_authenticity_failed",
 	"passport_active_authentication_failed",
 	"passport_chip_authentication_failed",
+	"passport_anti_cloning_attestation_failed",
 	"selfie_face_mismatch",
 ] as const;
 
@@ -302,6 +303,15 @@ export const verification_attempts = pgTable(
 		 */
 		claimedByConnectionId: text("claimed_by_connection_id"),
 		claimedAt: timestamp("claimed_at"),
+		/**
+		 * Mobile attestation key bound to this attempt at hello time. References
+		 * `mobile_attest_keys.key_id`; nullable for attempts that predate the
+		 * App Attest gate (the gate is feature-flagged during rollout).
+		 *
+		 * The key carries the device-and-app trust anchor used for the hello and
+		 * NFC-completion assertions; see `apps/api/src/v1/verify/app-attest.ts`.
+		 */
+		mobileAttestKeyId: text("mobile_attest_key_id"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()
@@ -313,6 +323,89 @@ export const verification_attempts = pgTable(
 		index("verif_attempts_session_id_idx").on(table.verificationSessionId),
 		// Filter by status (e.g. in_progress, failed)
 		index("verif_attempts_status_idx").on(table.status),
+		// Lookup attempts by attesting key (riskMetric refresh feedback path).
+		index("verif_attempts_mobile_attest_key_idx").on(table.mobileAttestKeyId),
+	],
+);
+
+/**
+ * Providers of mobile attestation. The schema stores a per-device row only for
+ * iOS (App Attest mints a hardware-backed P-256 keypair we verify per-request);
+ * Android Play Integrity yields stateless tokens that are verified per-request
+ * against Google's keys, so a row exists only as a logical anchor.
+ */
+export const mobileAttestProviders = [
+	"ios_app_attest",
+	"android_play_integrity",
+] as const;
+
+/**
+ * Hardware-attested mobile keys used as the device + app trust anchor for
+ * verify attempts. Populated by `POST /v1/verify/attest/register` on iOS.
+ *
+ * For `ios_app_attest`:
+ *   - `keyId` is the Apple-issued base64url SHA-256 of the credCert public
+ *     key. Identifies the Secure-Enclave-resident private key.
+ *   - `publicKeyCose` is the COSE_Key (CBOR) encoding of the EC2 P-256 public
+ *     key extracted from the attestation's credCert; used to verify every
+ *     subsequent assertion.
+ *   - `counter` is the WebAuthn-style monotonic counter. Strictly increases
+ *     across assertions; persisted atomically.
+ *   - `receipt` is Apple's opaque CMS receipt, used for periodic riskMetric
+ *     refresh against `https://data.appattest.apple.com`. The refreshed
+ *     receipt and the `riskMetric` it carries feed the per-attempt risk score.
+ *
+ * For `android_play_integrity` (future): only `keyId` (a server-minted device
+ * anchor) is set; `publicKeyCose`/`counter`/`receipt` stay null.
+ */
+export const mobile_attest_keys = pgTable(
+	"mobile_attest_keys",
+	{
+		/**
+		 * Base64url-encoded SHA-256 of the attested public key (iOS) or a
+		 * server-minted opaque device anchor (Android). Globally unique.
+		 */
+		keyId: text("key_id").primaryKey(),
+		provider: text({
+			enum: mobileAttestProviders,
+		}).notNull(),
+		/**
+		 * COSE_Key (CBOR) encoding of the attested EC2 P-256 public key,
+		 * stored base64-encoded. iOS only; null for Android.
+		 */
+		publicKeyCose: text("public_key_cose"),
+		/**
+		 * Last assertion counter accepted by the server. Strictly monotonic
+		 * across assertion verifications. iOS only; null for Android.
+		 */
+		counter: integer("counter").default(0).notNull(),
+		/**
+		 * Apple App Attest receipt, base64-encoded. iOS only; null for Android.
+		 * Refreshed periodically out-of-band; superseded by each refresh.
+		 */
+		receipt: text("receipt"),
+		/**
+		 * Time of last receipt refresh against Apple's attestation data
+		 * service. Null on freshly-registered keys; the refresh handler picks
+		 * up null-or-stale rows.
+		 */
+		receiptRefreshedAt: timestamp("receipt_refreshed_at"),
+		/**
+		 * Risk metric reported by Apple (or 0 on Android). Higher values
+		 * indicate the device has minted an unusual number of keys; feeds the
+		 * per-attempt riskScore as a soft signal.
+		 */
+		riskMetric: integer("risk_metric"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
+	},
+	(table) => [
+		// Refresh handler scans for stale or never-refreshed rows.
+		index("mobile_attest_keys_receipt_refresh_idx").on(
+			table.receiptRefreshedAt,
+		),
+		// Filter by provider (e.g. when the Android path lands).
+		index("mobile_attest_keys_provider_idx").on(table.provider),
 	],
 );
 

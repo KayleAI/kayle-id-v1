@@ -35,6 +35,7 @@ export async function markAttemptFailed({
 	session: SessionContext;
 	attemptId: string;
 	failureCode:
+		| "passport_anti_cloning_attestation_failed"
 		| "passport_authenticity_failed"
 		| "passport_active_authentication_failed"
 		| "passport_chip_authentication_failed"

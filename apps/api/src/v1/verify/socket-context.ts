@@ -31,7 +31,10 @@ export type VerifySocketTransport = {
 			| "HANDOFF_TOKEN_CONSUMED"
 			| "HANDOFF_TOKEN_EXPIRED"
 			| "HANDOFF_TOKEN_INVALID"
-			| "HELLO_AUTH_REQUIRED",
+			| "HELLO_ATTEST_INVALID"
+			| "HELLO_ATTEST_KEY_UNKNOWN"
+			| "HELLO_AUTH_REQUIRED"
+			| "MIN_APP_VERSION_REQUIRED",
 	) => void;
 	sendError: (code: string, message: string) => void;
 	sendShareReady: (input: {

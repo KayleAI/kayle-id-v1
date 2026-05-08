@@ -43,13 +43,19 @@ int verify_build_hello(
   const char* attempt_id,
   const char* mobile_write_token,
   const char* device_id,
-  const char* app_version
+  const char* app_version,
+  const char* attest_key_id,
+  const uint8_t* hello_assertion,
+  size_t hello_assertion_size,
+  uint32_t runtime_integrity_signal
 );
 
 int verify_build_phase(
   void* message_builder,
   const char* phase,
-  const char* error
+  const char* error,
+  const uint8_t* attest_assertion,
+  size_t attest_assertion_size
 );
 
 int verify_build_data(

@@ -54,6 +54,23 @@ export const ERROR_MESSAGES = {
     description: "Use the device you started with or start again.",
   },
 
+  HELLO_ATTEST_KEY_UNKNOWN: {
+    title: "Device not registered",
+    description:
+      "Your device hasn’t completed setup. Reopen the app to register and try again.",
+  },
+
+  HELLO_ATTEST_INVALID: {
+    title: "Device check failed",
+    description:
+      "We couldn’t confirm your device. Reinstall the app or contact support.",
+  },
+
+  MIN_APP_VERSION_REQUIRED: {
+    title: "Update required",
+    description: "Update Kayle ID to the latest version to continue verifying.",
+  },
+
   CANCEL_TOKEN_INVALID: {
     title: "Cannot cancel session",
     description:
@@ -138,6 +155,12 @@ export const ERROR_MESSAGES = {
     title: "Passport check failed",
     description:
       "We couldn’t confirm your passport chip. Try again or use a different one.",
+  },
+
+  passport_anti_cloning_attestation_failed: {
+    title: "Passport check failed",
+    description:
+      "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
 
   selfie_face_mismatch: {

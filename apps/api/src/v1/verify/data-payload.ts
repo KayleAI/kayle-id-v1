@@ -55,6 +55,12 @@ export type VerifyTransferState = {
 	activeAuthChallenge?: Uint8Array;
 	activeAuthSignature?: Uint8Array;
 	chipAuthTranscript?: Uint8Array;
+	/**
+	 * App Attest assertion bound to the NFC-completion artifacts. Set when the
+	 * client sends `phase = "nfc_complete"` with a populated `attestAssertion`
+	 * field; consumed once by `runAttestationValidation` ahead of PA/CA/AA.
+	 */
+	nfcAttestAssertion?: Uint8Array;
 	selfies: Map<number, Uint8Array>;
 	chunks: Map<string, VerifyChunkEntry>;
 	/** Cumulative bytes received across all chunks/artifacts for this attempt. */
@@ -99,6 +105,7 @@ export function resetTransferState(state: VerifyTransferState): void {
 	state.activeAuthChallenge = undefined;
 	state.activeAuthSignature = undefined;
 	state.chipAuthTranscript = undefined;
+	state.nfcAttestAssertion = undefined;
 	state.chunks.clear();
 	state.bytesReceived = 0;
 }

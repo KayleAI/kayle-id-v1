@@ -12,6 +12,9 @@
       "import": "./src/verify-codec.ts"
     }
   },
+  "scripts": {
+    "capnp:regen": "bash scripts/regen.sh"
+  },
   "peerDependencies": {
     "typescript": "^5"
   }

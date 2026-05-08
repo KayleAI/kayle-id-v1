@@ -9,6 +9,7 @@ import {
 	cancelVerificationSession,
 	expireVerificationSessionIfNeeded,
 } from "@/v1/sessions/repo/session-repo";
+import attest from "./attest-handlers";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
 import { loadActiveVerifySession } from "./session-context";
@@ -22,6 +23,8 @@ import { configureVerifyAssetFetcherFromEnv } from "./verify-assets";
 
 const verify = new Hono<{ Bindings: CloudflareBindings }>();
 const sessionParamSchema = z.object({ id: sessionIdSchema });
+
+verify.route("/attest", attest);
 
 function validateSessionParam(
 	value: unknown,

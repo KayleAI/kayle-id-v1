@@ -547,7 +547,7 @@ struct ContentView: View {
   }
 
   private var defaultRFIDSymbolLocationDescription: String {
-    "the cover or photo page of your document"
+    "your document"
   }
 
   @ViewBuilder
@@ -623,8 +623,8 @@ struct ContentView: View {
           aspectRatio: 0.75,
           cornerRadius: 12
         ),
-        title: "Scan your photo page",
-        subtitle: "Align the photo page within the box.",
+        title: "Scan your document",
+        subtitle: "Align the printed code within the box.",
         borderColor: isMRZLocked ? .green : .white,
         borderWidth: 6,
         overlayOpacity: 0.55,

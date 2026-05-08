@@ -11,7 +11,7 @@ struct MRZIntroView: View {
         variant: .step,
         visual: .logo,
         title: "Let's read your ID",
-        subtitle: "Use your camera to scan your photo page, then read the chip if it has one."
+        subtitle: "Use your camera to scan the printed code on your document, then read the chip if it has one."
       )
     } content: {
       EmptyView()

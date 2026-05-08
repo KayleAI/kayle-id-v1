@@ -13,7 +13,7 @@ import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
 	ageFromDateOfBirth,
 	type Dg1Claims,
-	parseTd3MrzClaims,
+	parseDg1Claims,
 } from "./dg1-claims";
 import { extractDg2FaceImage } from "./dg2-face-image";
 
@@ -296,7 +296,7 @@ export async function validateAndBuildShareManifest({
 		return selection;
 	}
 
-	const dg1Claims = parseTd3MrzClaims(dg1, now);
+	const dg1Claims = parseDg1Claims(dg1, now);
 	const selectedFieldKeySet = new Set(selection.selectedFieldKeys);
 	const claimEntries = await Promise.all(
 		shareRequest.fields.map(

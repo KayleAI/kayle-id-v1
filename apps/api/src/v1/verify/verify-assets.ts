@@ -49,11 +49,15 @@ export function getWorkerAssetBinding(env: unknown): WorkerAssetBinding | null {
 
 	const fetchBinding = Reflect.get(candidate, "fetch");
 
-	return typeof fetchBinding === "function"
-		? {
-				fetch: fetchBinding as typeof fetch,
-			}
-		: null;
+	if (typeof fetchBinding !== "function") {
+		return null;
+	}
+
+	// Cloudflare's ASSETS.fetch is a method whose `this` must be the binding
+	// itself; calling it through any other receiver throws "Illegal invocation".
+	return {
+		fetch: (fetchBinding as typeof fetch).bind(candidate),
+	};
 }
 
 export function configureVerifyAssetFetcherFromEnv(env: unknown): void {

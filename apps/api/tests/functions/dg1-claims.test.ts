@@ -2,10 +2,15 @@ import { describe, expect, test } from "bun:test";
 import {
 	MAX_FACE_MATCH_THRESHOLD,
 	MIN_FACE_MATCH_THRESHOLD,
+	parseDg1Claims,
 	resolveFaceMatchThresholdFromDg1,
 } from "@/v1/verify/dg1-claims";
 import { DEFAULT_FACE_MATCH_THRESHOLD } from "@/v1/verify/validation-types";
-import { createDg1Artifact } from "../helpers/verify-artifacts";
+import {
+	createDg1Artifact,
+	createTd1MrzText,
+	createTd2MrzText,
+} from "../helpers/verify-artifacts";
 
 const TD3_LINE_ONE = "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<";
 
@@ -102,5 +107,79 @@ describe("DG1 face match thresholds", () => {
 		});
 
 		expect(threshold).toBe(DEFAULT_FACE_MATCH_THRESHOLD);
+	});
+
+	test("returns the default threshold for a TD1 ID card regardless of birth/expiry", () => {
+		const threshold = resolveFaceMatchThresholdFromDg1({
+			dg1: createDg1Artifact(
+				createTd1MrzText({
+					birthDateIso: "2004-04-18",
+					expiryDateIso: "2030-04-19",
+				}),
+			),
+			now: new Date("2025-04-19T00:00:00.000Z"),
+		});
+
+		expect(threshold).toBe(DEFAULT_FACE_MATCH_THRESHOLD);
+	});
+
+	test("returns the default threshold for a TD2 ID card regardless of birth/expiry", () => {
+		const threshold = resolveFaceMatchThresholdFromDg1({
+			dg1: createDg1Artifact(
+				createTd2MrzText({
+					birthDateIso: "1990-04-18",
+					expiryDateIso: "2036-04-19",
+				}),
+			),
+			now: new Date("2026-04-19T00:00:00.000Z"),
+		});
+
+		expect(threshold).toBe(DEFAULT_FACE_MATCH_THRESHOLD);
+	});
+});
+
+describe("parseDg1Claims", () => {
+	test("parses a TD1 ID card into format-agnostic claims", () => {
+		const claims = parseDg1Claims(
+			createDg1Artifact(
+				createTd1MrzText({
+					birthDateIso: "1974-08-12",
+					expiryDateIso: "2030-04-15",
+				}),
+			),
+			new Date("2026-05-08T00:00:00.000Z"),
+		);
+
+		expect(claims.documentType).toBe("I");
+		expect(claims.issuingCountry).toBe("UTO");
+		expect(claims.documentNumber).toBe("D23145890");
+		expect(claims.nationality).toBe("UTO");
+		expect(claims.birthDateIso).toBe("1974-08-12");
+		expect(claims.expiryDateIso).toBe("2030-04-15");
+		expect(claims.surname).toBe("ERIKSSON");
+		expect(claims.givenNames).toBe("ANNA MARIA");
+		expect(claims.sex).toBe("F");
+	});
+
+	test("parses a TD2 ID card into format-agnostic claims", () => {
+		const claims = parseDg1Claims(
+			createDg1Artifact(
+				createTd2MrzText({
+					birthDateIso: "1974-08-12",
+					expiryDateIso: "2030-04-15",
+				}),
+			),
+			new Date("2026-05-08T00:00:00.000Z"),
+		);
+
+		expect(claims.documentType).toBe("I");
+		expect(claims.issuingCountry).toBe("UTO");
+		expect(claims.documentNumber).toBe("D23145890");
+		expect(claims.nationality).toBe("UTO");
+		expect(claims.birthDateIso).toBe("1974-08-12");
+		expect(claims.expiryDateIso).toBe("2030-04-15");
+		expect(claims.surname).toBe("ERIKSSON");
+		expect(claims.givenNames).toBe("ANNA MARIA");
+		expect(claims.sex).toBe("F");
 	});
 });

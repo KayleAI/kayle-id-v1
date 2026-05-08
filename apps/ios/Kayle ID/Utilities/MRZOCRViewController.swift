@@ -138,20 +138,52 @@ private func extractMRZ(from lines: [String]) -> String? {
   let mrzLike = normalised
     .filter { $0.count >= 25 && $0.contains("<<") }
 
+  // TD3 (passport): 2 lines × 44 chars, line 1 starts with "P".
   let td3Candidates = mrzLike.filter { $0.count == 44 }
-  if td3Candidates.count < 2 {
-    return nil
+  if td3Candidates.count >= 2 {
+    let ranked = td3Candidates.sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let l1 = ranked[0]
+    let l2 = ranked[1]
+    if l1.hasPrefix("P") {
+      return "\(l1)\n\(l2)"
+    }
   }
 
-  let ranked = td3Candidates.sorted { scoreMRZLine($0) > scoreMRZLine($1) }
-  let l1 = ranked[0]
-  let l2 = ranked[1]
+  // TD1 (ID-1): 3 lines × 30 chars. Line 3 carries the name; line 1 starts
+  // with the document type code (typically "I", "A", or "C"). Prefer this
+  // over TD2 when 3 thirty-char candidates are available.
+  let td1Candidates = mrzLike.filter { $0.count == 30 }
+  if td1Candidates.count >= 3 {
+    let ranked = td1Candidates.sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let top = Array(ranked.prefix(3))
+    if let header = top.first(where: { mrzLineLooksLikeDocumentHeader($0) }) {
+      let rest = top.filter { $0 != header }
+      if rest.count >= 2 {
+        return "\(header)\n\(rest[0])\n\(rest[1])"
+      }
+    }
+  }
 
-  if l1.hasPrefix("P") {
-    return "\(l1)\n\(l2)"
+  // TD2 (ID-2): 2 lines × 36 chars, line 1 starts with the document type code.
+  let td2Candidates = mrzLike.filter { $0.count == 36 }
+  if td2Candidates.count >= 2 {
+    let ranked = td2Candidates.sorted { scoreMRZLine($0) > scoreMRZLine($1) }
+    let l1 = ranked[0]
+    let l2 = ranked[1]
+    if mrzLineLooksLikeDocumentHeader(l1) {
+      return "\(l1)\n\(l2)"
+    }
+    if mrzLineLooksLikeDocumentHeader(l2) {
+      return "\(l2)\n\(l1)"
+    }
   }
 
   return nil
+}
+
+private func mrzLineLooksLikeDocumentHeader(_ s: String) -> Bool {
+  guard let first = s.first else { return false }
+  return first == "P" || first == "I" || first == "A" || first == "C"
 }
 
 private func normaliseMRZish(_ s: String) -> String {

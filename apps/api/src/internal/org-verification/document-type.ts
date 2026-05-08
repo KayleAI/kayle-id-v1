@@ -2,9 +2,9 @@ import type { OrgVerificationDocumentType } from "./dedup";
 
 /**
  * Map a raw MRZ document type code (DG1) onto the enum we record in the
- * dedup table. The current verify pipeline only accepts TD3 passports, so in
- * practice this always returns `"passport"` today; the wider mapping is here
- * so we don't need to revisit dedup when TD1/TD2 ID cards land.
+ * dedup table. The verify pipeline accepts TD1/TD2/TD3 documents and routes
+ * "P*" codes to "passport", "IR*"/"AR*" to "residence_permit", and other
+ * "I*"/"A*"/"C*" codes to "national_id".
  */
 export function mapMrzDocumentTypeToEnum(
 	documentTypeCode: string,

@@ -815,6 +815,39 @@ export function createTd3MrzText(): string {
 	].join("\n");
 }
 
+function toMrzDate(dateIso: string): string {
+	return `${dateIso.slice(2, 4)}${dateIso.slice(5, 7)}${dateIso.slice(8, 10)}`;
+}
+
+export function createTd1MrzText({
+	birthDateIso = "1974-08-12",
+	expiryDateIso = "2030-04-15",
+}: {
+	birthDateIso?: string;
+	expiryDateIso?: string;
+} = {}): string {
+	return [
+		"I<UTOD231458907<<<<<<<<<<<<<<<",
+		`${toMrzDate(birthDateIso)}0F${toMrzDate(expiryDateIso)}0UTO<<<<<<<<<<<0`,
+		"ERIKSSON<<ANNA<MARIA<<<<<<<<<<",
+	].join("\n");
+}
+
+export function createTd2MrzText({
+	birthDateIso = "1974-08-12",
+	expiryDateIso = "2030-04-15",
+}: {
+	birthDateIso?: string;
+	expiryDateIso?: string;
+} = {}): string {
+	return [
+		"I<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<",
+		`D231458907UTO${toMrzDate(birthDateIso)}0F${toMrzDate(
+			expiryDateIso,
+		)}0<<<<<<<0`,
+	].join("\n");
+}
+
 export function createDg1Artifact(mrzText: string): Uint8Array {
 	const mrzBytes = new TextEncoder().encode(mrzText);
 	return encodeTlv(DG1_ROOT_TAG, encodeTlv(DG1_MRZ_TAG, mrzBytes));

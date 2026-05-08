@@ -29,7 +29,6 @@ struct MRZScannerView: UIViewControllerRepresentable {
     vc.onScan = { mrz, can in
       guard
         let res = try? MRZParser.parseAndValidate(mrz),
-        res.format == .td3,
         res.checks.isValid
       else {
         return

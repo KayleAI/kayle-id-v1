@@ -17,26 +17,42 @@ enum MRZParser {
       throw MRZParseError.notEnoughLines
     }
 
-    if lines.count != 2 {
+    if lines.count == 2 {
+      let l1 = lines[0]
+      let l2 = lines[1]
+
+      guard charsetOK(l1) && charsetOK(l2) else {
+        throw MRZParseError.invalidCharset
+      }
+
+      if l1.count == 44 && l2.count == 44 {
+        return parseTD3(l1, l2)
+      }
+
+      if l1.count == 36 && l2.count == 36 {
+        return parseTD2(l1, l2)
+      }
+
       throw MRZParseError.wrongLength
     }
 
-    let l1 = lines[0]
-    let l2 = lines[1]
+    if lines.count == 3 {
+      let l1 = lines[0]
+      let l2 = lines[1]
+      let l3 = lines[2]
 
-    guard l1.count == 44, l2.count == 44 else {
-      throw MRZParseError.wrongLength
+      guard l1.count == 30, l2.count == 30, l3.count == 30 else {
+        throw MRZParseError.wrongLength
+      }
+
+      guard charsetOK(l1) && charsetOK(l2) && charsetOK(l3) else {
+        throw MRZParseError.invalidCharset
+      }
+
+      return parseTD1(l1, l2, l3)
     }
 
-    guard charsetOK(l1) && charsetOK(l2) else {
-      throw MRZParseError.invalidCharset
-    }
-
-    guard l1.hasPrefix("P") else {
-      throw MRZParseError.unsupportedDocumentType
-    }
-
-    return parseTD3(l1, l2)
+    throw MRZParseError.wrongLength
   }
 
   // MARK: - TD3

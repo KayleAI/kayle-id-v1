@@ -3,7 +3,7 @@ import SwiftUI
 /// Standalone RFID check view - can be used in App Clips or main app.
 /// NFC is required for Kayle ID, so documents without RFID symbol are not supported.
 struct RFIDCheckView: View {
-  var rfidSymbolLocationDescription = "the cover or photo page of your document"
+  var rfidSymbolLocationDescription = "your document"
   let onHasRFID: () -> Void
   let onNoRFID: () -> Void
   var onBack: (() -> Void)? = nil

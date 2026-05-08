@@ -57,7 +57,7 @@ struct MRZResult: Equatable {
   }
 
   var userFacingRFIDSymbolLocationDescription: String {
-    "the cover or photo page of your document"
+    "your document"
   }
 
   var userFacingDocumentChipName: String {

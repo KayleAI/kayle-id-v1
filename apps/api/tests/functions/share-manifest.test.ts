@@ -4,6 +4,7 @@ import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle
 import { validateAndBuildShareManifest } from "@/v1/verify/share-manifest";
 import {
 	createDg1Artifact,
+	createTd1MrzText,
 	createTd3MrzText,
 	createValidNfcArtifacts,
 } from "../helpers/verify-artifacts";
@@ -183,5 +184,56 @@ describe("verify share manifest", () => {
 			code: "SHARE_SELECTION_MISSING_REQUIRED",
 			message: ERROR_MESSAGES.SHARE_SELECTION_MISSING_REQUIRED.description,
 		});
+	});
+
+	test("builds a manifest from a TD1 ID card", async () => {
+		const organizationId = "11111111-1111-4111-8111-111111111111";
+		const dg1 = createDg1Artifact(createTd1MrzText());
+		const artifacts = await createValidNfcArtifacts({ dg1 });
+
+		const result = await validateAndBuildShareManifest({
+			contractVersion: 1,
+			dg1: artifacts.dg1,
+			dg2: artifacts.dg2,
+			now: new Date("2026-03-09T12:00:00.000Z"),
+			organizationId,
+			selectedFieldKeysInput: [
+				"document_type_code",
+				"nationality_code",
+				"kayle_document_id",
+			],
+			sessionId: "vs_123",
+			submittedSessionId: "vs_123",
+			shareFieldsInput: {
+				document_type_code: {
+					required: false,
+					reason: "Document type is optional.",
+				},
+				nationality_code: {
+					required: false,
+					reason: "Nationality code is optional.",
+				},
+				kayle_document_id: {
+					required: true,
+					reason: "Document ID is required.",
+				},
+			},
+		});
+
+		expect(result.ok).toBeTrue();
+		if (!result.ok) {
+			return;
+		}
+
+		expect(result.manifest.claims.document_type_code).toBe("I");
+		expect(result.manifest.claims.nationality_code).toBe("UTO");
+		expect(result.manifest.claims.kayle_document_id).toBe(
+			await createKayleDocumentId({
+				organizationId,
+				countryCode: "UTO",
+				documentNumber: "D23145890",
+				documentType: "I",
+			}),
+		);
 	});
 });

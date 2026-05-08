@@ -3,7 +3,7 @@ import SwiftUI
 struct RFIDUnsupportedView: View {
   var documentName = "document"
   var documentNameWithArticle = "a document"
-  var rfidSymbolLocationDescription = "the cover or photo page of your document"
+  var rfidSymbolLocationDescription = "your document"
   let onTryAnotherDocument: () -> Void
   let onReturnHome: () -> Void
   var onBack: (() -> Void)? = nil

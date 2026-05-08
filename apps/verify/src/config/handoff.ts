@@ -28,6 +28,7 @@ export type VerifySessionDetailsPayload = {
 	organization_verified: boolean;
 	session_id: string;
 	is_age_only: boolean;
+	age_threshold: number | null;
 };
 
 type VerifyApiError = {

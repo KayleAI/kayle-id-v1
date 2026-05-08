@@ -29,6 +29,7 @@ type SessionContextType = {
 	organizationName: string | null;
 	organizationVerified: boolean;
 	isAgeOnly: boolean;
+	ageThreshold: number | null;
 	sessionStatus: VerifySessionStatusPayload | null;
 	session: VerifySession | null;
 	error: SessionError | null;
@@ -48,6 +49,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	const [organizationName, setOrganizationName] = useState<string | null>(null);
 	const [organizationVerified, setOrganizationVerified] = useState(false);
 	const [isAgeOnly, setIsAgeOnly] = useState(false);
+	const [ageThreshold, setAgeThreshold] = useState<number | null>(null);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(null);
 	const [isSessionReady, setIsSessionReady] = useState(false);
@@ -93,6 +95,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		setOrganizationName(null);
 		setOrganizationVerified(false);
 		setIsAgeOnly(false);
+		setAgeThreshold(null);
 		setSessionStatus(null);
 
 		Promise.all([
@@ -107,6 +110,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				setOrganizationName(details.organization_name);
 				setOrganizationVerified(details.organization_verified);
 				setIsAgeOnly(details.is_age_only);
+				setAgeThreshold(details.age_threshold);
 				setSessionStatus(nextSessionStatus);
 				const showUnverifiedWarning =
 					!details.organization_verified && !details.is_age_only;
@@ -170,6 +174,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			organizationName,
 			organizationVerified,
 			isAgeOnly,
+			ageThreshold,
 			sessionStatus,
 			session: isSessionReady ? sessionStubRef.current : null,
 			error,
@@ -180,6 +185,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			organizationName,
 			organizationVerified,
 			isAgeOnly,
+			ageThreshold,
 			sessionStatus,
 			isSessionReady,
 			error,

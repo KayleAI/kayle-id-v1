@@ -10,8 +10,14 @@ import { Handoff } from "./handoff";
 import { UnverifiedOrgWarning } from "./unverified-org-warning";
 
 export function SessionApp() {
-	const { error, isSessionDetailsReady, organizationName, session } =
-		useSession();
+	const {
+		ageThreshold,
+		error,
+		isAgeOnly,
+		isSessionDetailsReady,
+		organizationName,
+		session,
+	} = useSession();
 	const step = useVerificationStore((state) => state.step);
 
 	if (error) {
@@ -30,9 +36,21 @@ export function SessionApp() {
 		case "unverified_org_warning":
 			return <UnverifiedOrgWarning organizationName={organizationName} />;
 		case "explain":
-			return <SessionExplain organizationName={organizationName} />;
+			return (
+				<SessionExplain
+					ageThreshold={ageThreshold}
+					isAgeOnly={isAgeOnly}
+					organizationName={organizationName}
+				/>
+			);
 		case "consent":
-			return <SessionConsent organizationName={organizationName} />;
+			return (
+				<SessionConsent
+					ageThreshold={ageThreshold}
+					isAgeOnly={isAgeOnly}
+					organizationName={organizationName}
+				/>
+			);
 		case "handoff":
 			return <Handoff />;
 		default:

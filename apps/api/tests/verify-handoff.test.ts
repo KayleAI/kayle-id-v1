@@ -65,6 +65,7 @@ type VerifySessionDetailsResponse = {
 		organization_verified: boolean;
 		session_id: string;
 		is_age_only: boolean;
+		age_threshold: number | null;
 	} | null;
 	error: {
 		code: string;
@@ -361,9 +362,44 @@ describe("/v1/verify/session/:id/status", () => {
 				organization_verified: true,
 				session_id: sessionId,
 				is_age_only: false,
+				age_threshold: null,
 			});
 		},
 	);
+
+	test.serial("Returns the age threshold for age-only sessions", async () => {
+		const sessionResponse = await v1.request("/sessions", {
+			body: JSON.stringify({
+				share_fields: { age_over_21: { required: true, reason: "Bar entry" } },
+			}),
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		});
+		expect(sessionResponse.status).toBe(200);
+		const sessionPayload = (await sessionResponse.json()) as {
+			data: { id: string };
+		};
+		const ageOnlySessionId = sessionPayload.data.id;
+
+		const response = await app.request(
+			`/v1/verify/session/${ageOnlySessionId}/details`,
+			{
+				method: "GET",
+			},
+		);
+
+		expect(response.status).toBe(200);
+		const payload = (await response.json()) as VerifySessionDetailsResponse;
+
+		expect(payload.error).toBeNull();
+		expect(payload.data).toMatchObject({
+			is_age_only: true,
+			age_threshold: 21,
+		});
+	});
 
 	test.serial(
 		"Cancels a live verification session via the public verify route",

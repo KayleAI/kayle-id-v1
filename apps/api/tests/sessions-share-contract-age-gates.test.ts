@@ -38,7 +38,7 @@ describe("/v1/sessions share contract age gate validation", () => {
 	);
 
 	test.serial(
-		"DOB + age_over conflict returns DOB_AND_AGE_GATE_CONFLICT",
+		"DOB + age_over is accepted; both required → both stored required",
 		async () => {
 			const response = await v1.request("/sessions", {
 				method: "POST",
@@ -54,9 +54,114 @@ describe("/v1/sessions share contract age gate validation", () => {
 				}),
 			});
 
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: {
+					share_fields: Record<string, { required: boolean; reason: string }>;
+				};
+			};
+			expect(payload.data.share_fields.date_of_birth.required).toBe(true);
+			expect(payload.data.share_fields.age_over_18.required).toBe(true);
+		},
+	);
+
+	test.serial(
+		"DOB required + age_over optional silently promotes age_over to required",
+		async () => {
+			const response = await v1.request("/sessions", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					share_fields: {
+						date_of_birth: { required: true, reason: "DOB" },
+						age_over_18: { required: false, reason: "" },
+					},
+				}),
+			});
+
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: { share_fields: Record<string, { required: boolean }> };
+			};
+			expect(payload.data.share_fields.date_of_birth.required).toBe(true);
+			expect(payload.data.share_fields.age_over_18.required).toBe(true);
+		},
+	);
+
+	test.serial(
+		"DOB optional + age_over required silently promotes DOB to required",
+		async () => {
+			const response = await v1.request("/sessions", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					share_fields: {
+						date_of_birth: { required: false, reason: "DOB" },
+						age_over_18: { required: true, reason: "Age gate" },
+					},
+				}),
+			});
+
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: { share_fields: Record<string, { required: boolean }> };
+			};
+			expect(payload.data.share_fields.date_of_birth.required).toBe(true);
+			expect(payload.data.share_fields.age_over_18.required).toBe(true);
+		},
+	);
+
+	test.serial(
+		"DOB optional + age_over optional preserves both as optional",
+		async () => {
+			const response = await v1.request("/sessions", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					share_fields: {
+						date_of_birth: { required: false, reason: "DOB" },
+						age_over_18: { required: false, reason: "" },
+					},
+				}),
+			});
+
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: { share_fields: Record<string, { required: boolean }> };
+			};
+			expect(payload.data.share_fields.date_of_birth.required).toBe(false);
+			expect(payload.data.share_fields.age_over_18.required).toBe(false);
+		},
+	);
+
+	test.serial(
+		"age_over without DOB still requires a non-empty reason",
+		async () => {
+			const response = await v1.request("/sessions", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					share_fields: {
+						age_over_18: { required: true, reason: "" },
+					},
+				}),
+			});
+
 			expect(response.status).toBe(400);
 			const payload = (await response.json()) as { error: { code: string } };
-			expect(payload.error.code).toBe("DOB_AND_AGE_GATE_CONFLICT");
+			expect(payload.error.code).toBe("REASON_REQUIRED");
 		},
 	);
 

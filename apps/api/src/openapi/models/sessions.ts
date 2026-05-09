@@ -5,9 +5,10 @@ export const RequestedShareField = z.object({
 	required: z.boolean().describe("Whether this field is required by the RC."),
 	reason: z
 		.string()
-		.min(1)
 		.max(200)
-		.describe("Human-readable reason for requesting this field."),
+		.describe(
+			"Human-readable reason for requesting this field. Required for most claims; may be empty for an `age_over_X` claim when `date_of_birth` is also requested in the same session.",
+		),
 });
 
 export const RequestedShareFields = z

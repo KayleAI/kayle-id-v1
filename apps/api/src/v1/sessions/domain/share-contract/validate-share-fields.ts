@@ -31,10 +31,6 @@ const errorConfig = {
 		message: "Multiple age gate claims are not allowed.",
 		hint: "Only one age_over_X claim can be provided per session.",
 	},
-	DOB_AND_AGE_GATE_CONFLICT: {
-		message: "date_of_birth cannot be combined with age gate claims.",
-		hint: "Use either date_of_birth or one age_over_X claim, but not both.",
-	},
 	REASON_REQUIRED: {
 		message: "Each share field requires a reason.",
 		hint: "Provide a non-empty reason for every requested claim.",
@@ -66,6 +62,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function validateRequestedField(
 	claimKey: string,
 	value: unknown,
+	allowEmptyReason: boolean,
 ): RequestedShareField | ShareContractError {
 	if (!isRecord(value)) {
 		return makeError("INVALID_SHARE_FIELDS");
@@ -80,7 +77,7 @@ function validateRequestedField(
 	}
 
 	const reason = value.reason.trim();
-	if (reason.length === 0) {
+	if (reason.length === 0 && !allowEmptyReason) {
 		return makeError("REASON_REQUIRED");
 	}
 
@@ -116,12 +113,14 @@ export function validateShareFields(
 		return { ok: false, error: makeError("TOO_MANY_SHARE_FIELDS") };
 	}
 
+	const hasDOB = entries.some(([claimKey]) => isDOBClaim(claimKey));
+
 	let ageGateCount = 0;
-	let hasDOB = false;
 	const validated: RequestedShareFields = {};
 
 	for (const [claimKey, rawField] of entries) {
-		const field = validateRequestedField(claimKey, rawField);
+		const allowEmptyReason = hasDOB && isAgeOverClaim(claimKey);
+		const field = validateRequestedField(claimKey, rawField, allowEmptyReason);
 		if ("code" in field) {
 			return { ok: false, error: field };
 		}
@@ -136,15 +135,7 @@ export function validateShareFields(
 			}
 		}
 
-		if (isDOBClaim(claimKey)) {
-			hasDOB = true;
-		}
-
 		validated[claimKey] = field;
-	}
-
-	if (hasDOB && ageGateCount > 0) {
-		return { ok: false, error: makeError("DOB_AND_AGE_GATE_CONFLICT") };
 	}
 
 	return { ok: true, data: validated };

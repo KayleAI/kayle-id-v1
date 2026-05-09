@@ -1,4 +1,4 @@
-import { staticClaims } from "./claim-catalog";
+import { isAgeOverClaim, staticClaims } from "./claim-catalog";
 import { defaultReasonForClaim } from "./default-reasons";
 import type {
 	RequestedShareFields,
@@ -44,6 +44,16 @@ function normalizeRequestedShareFields(
 			reason: entry.reason,
 			source: "rc",
 		};
+	}
+
+	const dob = normalized.date_of_birth;
+	const ageGateKey = Object.keys(normalized).find(isAgeOverClaim);
+	if (dob && ageGateKey) {
+		const ageGate = normalized[ageGateKey];
+		if (dob.required || ageGate.required) {
+			normalized.date_of_birth = { ...dob, required: true };
+			normalized[ageGateKey] = { ...ageGate, required: true };
+		}
 	}
 
 	const docId = normalized.kayle_document_id;

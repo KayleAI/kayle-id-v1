@@ -107,13 +107,25 @@ async function getContainerInstance(
   return containers[0] ?? null;
 }
 
-export class FaceMatcherContainer extends Container {
+function resolvePixelFallbackEnv(env: unknown): Record<string, string> {
+  // Forward the test-only fallback flag to the container only when the worker
+  // env explicitly sets it to "1". Production wrangler config does not set
+  // this binding, so the container always runs without the fallback.
+  const value = isObjectRecord(env)
+    ? Reflect.get(env, "FACE_MATCHER_ALLOW_PIXEL_FALLBACK")
+    : undefined;
+
+  return value === "1" ? { FACE_MATCHER_ALLOW_PIXEL_FALLBACK: "1" } : {};
+}
+
+export class FaceMatcherContainer extends Container<FaceMatcherBindings> {
   defaultPort = 8080;
   sleepAfter = "10m";
   envVars = {
     FACE_MATCHER_DETECTOR_PATH,
     FACE_MATCHER_MODEL_PATH,
     PORT: "8080",
+    ...resolvePixelFallbackEnv(this.env),
   };
 }
 

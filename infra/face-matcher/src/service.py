@@ -12,6 +12,7 @@ import numpy as np
 
 MODEL_INPUT_SIZE = (112, 112)
 DETAIL_STDDEV_MIN = 12.0
+STRICT_IMAGE_SIMILARITY_THRESHOLD = 0.995
 DEFAULT_THRESHOLD = 0.8
 DEFAULT_DETECTOR_INPUT_SIZE = (320, 320)
 MIN_USABLE_SELFIE_COUNT = 2
@@ -22,6 +23,14 @@ DETECTOR_MODEL_PATH = os.environ.get(
     "FACE_MATCHER_DETECTOR_PATH", "/app/models/face_detection_yunet_2023mar.onnx"
 )
 PORT = int(os.environ.get("PORT", "8080"))
+
+# Test-only escape hatch. When set to "1" the matcher falls back to a raw
+# pixel-correlation path if face detection fails on either DG2 or selfie.
+# Production wrangler config does NOT set this; the test wrangler env does,
+# so the verify integration tests can exercise the rest of the verify flow
+# without sourcing detectable face-image fixtures. A guardrail test asserts
+# the production wrangler block does not enable this flag.
+ALLOW_PIXEL_FALLBACK = os.environ.get("FACE_MATCHER_ALLOW_PIXEL_FALLBACK") == "1"
 
 
 def emit_log(event: str, **details: object) -> None:
@@ -34,6 +43,10 @@ def clamp_score(value: float) -> float:
 
 def normalize_cosine_score(raw_score: float) -> float:
     return clamp_score((raw_score + 1.0) / 2.0)
+
+
+def normalize_correlation_score(raw_score: float) -> float:
+    return clamp_score(raw_score)
 
 
 def decode_selfie(selfie_base64: str) -> Optional[np.ndarray]:
@@ -115,17 +128,63 @@ def prepare_face_crop(
     return prepared
 
 
+def prepare_full_image_crop(image: np.ndarray) -> Optional[np.ndarray]:
+    # Test-only path. Bypasses face detection by treating the whole image as
+    # a face crop. Reachable only when ALLOW_PIXEL_FALLBACK is true.
+    if image.size == 0:
+        return None
+
+    prepared = cv2.resize(image, MODEL_INPUT_SIZE)
+    grayscale = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
+
+    if float(grayscale.std()) < DETAIL_STDDEV_MIN:
+        return None
+
+    return prepared
+
+
 def build_embedding(
     detector: cv2.FaceDetectorYN,
     recognizer: cv2.FaceRecognizerSF,
     image: np.ndarray,
+    allow_full_image_fallback: bool = False,
 ):
     prepared = prepare_face_crop(detector, recognizer, image)
+
+    if prepared is None and ALLOW_PIXEL_FALLBACK and allow_full_image_fallback:
+        prepared = prepare_full_image_crop(image)
 
     if prepared is None:
         return None
 
     return recognizer.feature(prepared).copy()
+
+
+def compute_image_similarity(
+    dg2_image: np.ndarray, selfie_image: np.ndarray
+) -> Optional[float]:
+    # Test-only path. Pearson correlation of the two images at MODEL_INPUT_SIZE.
+    # Caller must ensure ALLOW_PIXEL_FALLBACK is true before invoking.
+    dg2_grayscale = cv2.cvtColor(
+        cv2.resize(dg2_image, MODEL_INPUT_SIZE), cv2.COLOR_BGR2GRAY
+    ).astype(np.float32)
+    selfie_grayscale = cv2.cvtColor(
+        cv2.resize(selfie_image, MODEL_INPUT_SIZE), cv2.COLOR_BGR2GRAY
+    ).astype(np.float32)
+
+    dg2_centered = dg2_grayscale - float(dg2_grayscale.mean())
+    selfie_centered = selfie_grayscale - float(selfie_grayscale.mean())
+    dg2_norm = float(np.linalg.norm(dg2_centered))
+    selfie_norm = float(np.linalg.norm(selfie_centered))
+
+    if dg2_norm == 0.0 or selfie_norm == 0.0:
+        return None
+
+    raw_score = float(
+        np.dot(dg2_centered.flatten(), selfie_centered.flatten())
+        / (dg2_norm * selfie_norm)
+    )
+    return normalize_correlation_score(raw_score)
 
 
 def resolve_face_score(score_candidates: list[float]) -> Optional[float]:
@@ -153,11 +212,17 @@ def compare_faces(
     selfies_base64: list[str],
     threshold: float,
 ) -> dict:
-    dg2_embedding = build_embedding(detector, recognizer, dg2_image)
+    dg2_embedding = build_embedding(
+        detector,
+        recognizer,
+        dg2_image,
+        allow_full_image_fallback=True,
+    )
 
     score_candidates: list[float] = []
     selfie_diagnostics: list[dict[str, object]] = []
     decoded_selfie_count = 0
+    used_fallback = False
 
     for index, selfie_base64 in enumerate(selfies_base64):
         selfie = decode_selfie(selfie_base64)
@@ -185,6 +250,17 @@ def compare_faces(
             )
             normalized_score = normalize_cosine_score(raw_score)
             diagnostic["used_embedding"] = True
+        elif ALLOW_PIXEL_FALLBACK:
+            normalized_score = compute_image_similarity(dg2_image, selfie)
+
+            if (
+                normalized_score is not None
+                and normalized_score < STRICT_IMAGE_SIMILARITY_THRESHOLD
+            ):
+                normalized_score = None
+
+            if normalized_score is not None:
+                used_fallback = True
         else:
             normalized_score = None
 
@@ -231,7 +307,7 @@ def compare_faces(
     return {
         "faceScore": final_score,
         "passed": final_score >= threshold,
-        "usedFallback": False,
+        "usedFallback": used_fallback,
     }
 
 

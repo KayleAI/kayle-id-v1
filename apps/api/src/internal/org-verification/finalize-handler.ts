@@ -1,18 +1,29 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { memberHasOwnerRoleSql } from "@kayle-id/auth/organization-role-sql";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
+import {
+	auth_organization_members,
+	auth_organizations,
+} from "@kayle-id/database/schema/auth";
 import {
 	org_verification_records,
 	orgVerificationDocumentTypes,
 } from "@kayle-id/database/schema/core";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, sql } from "drizzle-orm";
 import { getRequestLogger } from "@/logging";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
+import { ISSUING_COUNTRY_CODE_PATTERN } from "./dedup";
 import { prepareOrgVerificationRecord } from "./records-repo";
 
 const docs = "https://kayle.id/docs/api/internal/org-verification";
+const MAX_DOCUMENT_NUMBER_LENGTH = 128;
+const issuingCountrySchema = z
+	.string()
+	.trim()
+	.transform((value) => value.toUpperCase())
+	.pipe(z.string().regex(ISSUING_COUNTRY_CODE_PATTERN));
 
 const finalizeOrgVerificationRoute = createRoute({
 	hide: true,
@@ -28,8 +39,9 @@ const finalizeOrgVerificationRoute = createRoute({
 					schema: z.object({
 						organization_id: z.string().uuid(),
 						document_type: z.enum(orgVerificationDocumentTypes),
-						document_number: z.string().min(1),
-						issuing_country: z.string().length(3),
+						document_number: z.string().min(1).max(MAX_DOCUMENT_NUMBER_LENGTH),
+						issuing_country: issuingCountrySchema,
+						owner_user_id: z.string().uuid(),
 					}),
 				},
 			},
@@ -63,6 +75,11 @@ const finalizeOrgVerificationRoute = createRoute({
 		401: {
 			content: { "application/json": { schema: ErrorResponse } },
 			description: "Trust token missing or invalid.",
+		},
+		403: {
+			content: { "application/json": { schema: ErrorResponse } },
+			description:
+				"The user who started verification is no longer an organization owner.",
 		},
 		404: {
 			content: { "application/json": { schema: ErrorResponse } },
@@ -106,6 +123,9 @@ type FinalizeResult =
 	  }
 	| {
 			kind: "frozen";
+	  }
+	| {
+			kind: "owner_not_active";
 	  };
 
 finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
@@ -247,6 +267,21 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 					eq(auth_organizations.id, body.organization_id),
 					isNull(auth_organizations.verified_at),
 					isNull(auth_organizations.pending_deletion_at),
+					exists(
+						tx
+							.select({ presence: sql`1` })
+							.from(auth_organization_members)
+							.where(
+								and(
+									eq(
+										auth_organization_members.organizationId,
+										auth_organizations.id,
+									),
+									eq(auth_organization_members.userId, body.owner_user_id),
+									memberHasOwnerRoleSql(),
+								),
+							),
+					),
 				),
 			)
 			.returning({
@@ -275,7 +310,7 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 				return { kind: "frozen" } satisfies FinalizeResult;
 			}
 
-			throw new Error("org_verification_finalize_update_returned_no_row");
+			return { kind: "owner_not_active" } satisfies FinalizeResult;
 		}
 
 		if (existingRecord) {
@@ -350,6 +385,22 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 				},
 			},
 			410,
+		);
+	}
+
+	if (finalizeResult.kind === "owner_not_active") {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "OWNER_NOT_ACTIVE" as const,
+					message:
+						"The user who started verification is no longer an owner of this organization.",
+					hint: "Start a new verification flow as a current organization owner.",
+					docs,
+				},
+			},
+			403,
 		);
 	}
 

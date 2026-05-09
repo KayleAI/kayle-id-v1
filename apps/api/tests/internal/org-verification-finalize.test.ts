@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
+import {
+	auth_organization_members,
+	auth_organizations,
+} from "@kayle-id/database/schema/auth";
 import { org_verification_records } from "@kayle-id/database/schema/core";
 import { eq, inArray } from "drizzle-orm";
 import internal from "@/internal";
@@ -13,6 +16,7 @@ const VALID_BODY = {
 	document_number: "AB1234567",
 	issuing_country: "GBR",
 };
+const OVERSIZED_DOCUMENT_NUMBER = "A".repeat(129);
 
 let TEST_DATA: TestData | undefined;
 
@@ -49,7 +53,10 @@ async function clearRecordsForOrg(organizationId: string): Promise<void> {
 		.where(eq(org_verification_records.organizationId, organizationId));
 }
 
-async function createUnverifiedOrganization(): Promise<string> {
+async function createUnverifiedOrganization(
+	ownerUserId: string,
+	role = "owner",
+): Promise<string> {
 	const [org] = await db
 		.insert(auth_organizations)
 		.values({
@@ -63,6 +70,13 @@ async function createUnverifiedOrganization(): Promise<string> {
 	if (!org) {
 		throw new Error("Failed to create organization.");
 	}
+
+	await db.insert(auth_organization_members).values({
+		createdAt: new Date(),
+		organizationId: org.id,
+		role,
+		userId: ownerUserId,
+	});
 
 	return org.id;
 }
@@ -105,11 +119,48 @@ describe("POST /internal/org-verification/finalize", () => {
 			body: JSON.stringify({
 				...VALID_BODY,
 				organization_id: crypto.randomUUID(),
+				owner_user_id: crypto.randomUUID(),
 			}),
 		});
 		expect(response.status).toBe(404);
 		const body = (await response.json()) as { error: { code: string } };
 		expect(body.error.code).toBe("ORGANIZATION_NOT_FOUND");
+	});
+
+	test("rejects oversized document numbers before recording verification", async () => {
+		const response = await internal.request(FINALIZE_PATH, {
+			body: JSON.stringify({
+				...VALID_BODY,
+				document_number: OVERSIZED_DOCUMENT_NUMBER,
+				organization_id: crypto.randomUUID(),
+				owner_user_id: crypto.randomUUID(),
+			}),
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${process.env.KAYLE_INTERNAL_TOKEN}`,
+			},
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+	});
+
+	test("rejects non-alpha issuing country codes before finalizing", async () => {
+		const response = await internal.request(FINALIZE_PATH, {
+			body: JSON.stringify({
+				...VALID_BODY,
+				issuing_country: "G1R",
+				organization_id: crypto.randomUUID(),
+				owner_user_id: crypto.randomUUID(),
+			}),
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${process.env.KAYLE_INTERNAL_TOKEN}`,
+			},
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
 	});
 
 	test("rejects frozen organizations without writing a verification record", async () => {
@@ -130,6 +181,7 @@ describe("POST /internal/org-verification/finalize", () => {
 				body: JSON.stringify({
 					...VALID_BODY,
 					organization_id: TEST_DATA.organizationId,
+					owner_user_id: TEST_DATA.userId,
 				}),
 			});
 
@@ -171,7 +223,9 @@ describe("POST /internal/org-verification/finalize", () => {
 			},
 			body: JSON.stringify({
 				...VALID_BODY,
+				issuing_country: "gbr",
 				organization_id: TEST_DATA.organizationId,
+				owner_user_id: TEST_DATA.userId,
 			}),
 		});
 
@@ -204,6 +258,7 @@ describe("POST /internal/org-verification/finalize", () => {
 				eq(org_verification_records.organizationId, TEST_DATA.organizationId),
 			);
 		expect(records.length).toBe(1);
+		expect(records[0]?.issuingCountry).toBe("GBR");
 	});
 
 	test("returns already_verified=true on retry without writing duplicate records", async () => {
@@ -220,6 +275,7 @@ describe("POST /internal/org-verification/finalize", () => {
 			body: JSON.stringify({
 				...VALID_BODY,
 				organization_id: TEST_DATA.organizationId,
+				owner_user_id: TEST_DATA.userId,
 			}),
 		});
 
@@ -239,9 +295,59 @@ describe("POST /internal/org-verification/finalize", () => {
 		expect(records.length).toBe(1);
 	});
 
+	test("rejects finalization when the initiating user is no longer an owner", async () => {
+		if (!TEST_DATA) {
+			throw new Error("TEST_DATA missing");
+		}
+		const organizationId = await createUnverifiedOrganization(
+			TEST_DATA.userId,
+			"member",
+		);
+
+		try {
+			const response = await internal.request(FINALIZE_PATH, {
+				body: JSON.stringify({
+					...VALID_BODY,
+					document_number: `LOSTOWNER${crypto.randomUUID().replaceAll("-", "")}`,
+					organization_id: organizationId,
+					owner_user_id: TEST_DATA.userId,
+				}),
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${process.env.KAYLE_INTERNAL_TOKEN}`,
+				},
+				method: "POST",
+			});
+
+			expect(response.status).toBe(403);
+			const body = (await response.json()) as { error: { code: string } };
+			expect(body.error.code).toBe("OWNER_NOT_ACTIVE");
+
+			const [org] = await db
+				.select({ verifiedAt: auth_organizations.verified_at })
+				.from(auth_organizations)
+				.where(eq(auth_organizations.id, organizationId))
+				.limit(1);
+			expect(org?.verifiedAt).toBeNull();
+
+			const records = await db
+				.select()
+				.from(org_verification_records)
+				.where(eq(org_verification_records.organizationId, organizationId));
+			expect(records.length).toBe(0);
+		} finally {
+			await db
+				.delete(auth_organizations)
+				.where(eq(auth_organizations.id, organizationId));
+		}
+	});
+
 	test("allows only one organization to finalize the same document", async () => {
-		const firstOrgId = await createUnverifiedOrganization();
-		const secondOrgId = await createUnverifiedOrganization();
+		if (!TEST_DATA) {
+			throw new Error("TEST_DATA missing");
+		}
+		const firstOrgId = await createUnverifiedOrganization(TEST_DATA.userId);
+		const secondOrgId = await createUnverifiedOrganization(TEST_DATA.userId);
 		const documentNumber = `RACE${crypto.randomUUID().replaceAll("-", "")}`;
 		const body = {
 			...VALID_BODY,
@@ -254,6 +360,7 @@ describe("POST /internal/org-verification/finalize", () => {
 					body: JSON.stringify({
 						...body,
 						organization_id: firstOrgId,
+						owner_user_id: TEST_DATA.userId,
 					}),
 					headers: {
 						"Content-Type": "application/json",
@@ -265,6 +372,7 @@ describe("POST /internal/org-verification/finalize", () => {
 					body: JSON.stringify({
 						...body,
 						organization_id: secondOrgId,
+						owner_user_id: TEST_DATA.userId,
 					}),
 					headers: {
 						"Content-Type": "application/json",

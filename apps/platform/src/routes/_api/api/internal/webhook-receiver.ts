@@ -20,6 +20,11 @@ interface WebhookEnvelope {
 	};
 }
 
+interface OrgVerificationMapping {
+	organization_id: string;
+	owner_user_id: string;
+}
+
 type ApiDocumentType =
 	| "passport"
 	| "national_id"
@@ -80,6 +85,32 @@ function payloadTooLargeResponse(): Response {
 	return refuse("Request body is too large.", 413);
 }
 
+function parseOrgVerificationMapping(
+	value: string,
+): OrgVerificationMapping | null {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		return null;
+	}
+
+	if (!(parsed && typeof parsed === "object")) {
+		return null;
+	}
+
+	const organizationId = Reflect.get(parsed, "organization_id");
+	const ownerUserId = Reflect.get(parsed, "owner_user_id");
+	if (typeof organizationId !== "string" || typeof ownerUserId !== "string") {
+		return null;
+	}
+
+	return {
+		organization_id: organizationId,
+		owner_user_id: ownerUserId,
+	};
+}
+
 export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 	server: {
 		handlers: {
@@ -138,10 +169,16 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					return ack();
 				}
 
-				const targetOrgId = await env.ORG_VERIFICATIONS_KV.get(
+				const mappingText = await env.ORG_VERIFICATIONS_KV.get(
 					`${KV_PREFIX}${sessionId}`,
 				);
-				if (!targetOrgId) {
+				if (!mappingText) {
+					return ack();
+				}
+
+				const orgVerificationMapping = parseOrgVerificationMapping(mappingText);
+				if (!orgVerificationMapping) {
+					await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
 					return ack();
 				}
 
@@ -169,10 +206,11 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
-							organization_id: targetOrgId,
+							organization_id: orgVerificationMapping.organization_id,
 							document_type: mapDocumentTypeCode(documentTypeCode),
 							document_number: documentNumber,
 							issuing_country: issuingCountry,
+							owner_user_id: orgVerificationMapping.owner_user_id,
 						}),
 					},
 				);

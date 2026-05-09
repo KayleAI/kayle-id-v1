@@ -1,5 +1,15 @@
 import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import InfoCard from "@kayle-id/ui/info-card";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@kayleai/ui/alert-dialog";
 import { useLoaderData } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -116,6 +126,8 @@ export function Handoff() {
 	const [redirectCountdown, setRedirectCountdown] = useState<number | null>(
 		null,
 	);
+	const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+	const [isCancelInFlight, setIsCancelInFlight] = useState(false);
 
 	const cancelTokenFromLocation = useMemo(readCancelTokenFromLocation, []);
 
@@ -239,22 +251,17 @@ export function Handoff() {
 	}, [handoffPayload, pollSessionStatus, sessionId]);
 
 	const handleCancelVerification = useCallback(async () => {
-		if (
-			typeof window !== "undefined" &&
-			typeof window.confirm === "function" &&
-			!window.confirm(VERIFY_HANDOFF_COPY.actions.cancelConfirmation)
-		) {
-			return;
-		}
-
 		const cancelToken = readCancelTokenFromLocation();
 		if (!cancelToken) {
+			setIsCancelDialogOpen(false);
 			setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
 			return;
 		}
 
+		setIsCancelInFlight(true);
 		try {
 			await requestCancelVerifySession(sessionId, cancelToken);
+			setIsCancelDialogOpen(false);
 			setHandoffPayload(null);
 			setHandoffError(null);
 			setHandoffLoading(false);
@@ -266,7 +273,10 @@ export function Handoff() {
 				}),
 			);
 		} catch {
+			setIsCancelDialogOpen(false);
 			setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+		} finally {
+			setIsCancelInFlight(false);
 		}
 	}, [sessionId, sessionStatus]);
 
@@ -447,29 +457,65 @@ export function Handoff() {
 			secondary: {
 				label: VERIFY_HANDOFF_COPY.actions.cancel,
 				onClick: () => {
-					handleCancelVerification().catch(() => {
-						// handleCancelVerification already stores the error state that the UI renders.
-					});
+					setIsCancelDialogOpen(true);
 				},
 			},
 		};
 	}
 
 	return (
-		<InfoCard
-			buttons={buttons}
-			colour={screenContent.colour}
-			footer={false}
-			header={{
-				title: screenContent.headerTitle,
-				description: screenContent.headerDescription,
-			}}
-			message={{
-				title: screenContent.messageTitle,
-				description: screenContent.messageDescription,
-			}}
-		>
-			{stateContent}
-		</InfoCard>
+		<>
+			<InfoCard
+				buttons={buttons}
+				colour={screenContent.colour}
+				footer={false}
+				header={{
+					title: screenContent.headerTitle,
+					description: screenContent.headerDescription,
+				}}
+				message={{
+					title: screenContent.messageTitle,
+					description: screenContent.messageDescription,
+				}}
+			>
+				{stateContent}
+			</InfoCard>
+			<AlertDialog
+				onOpenChange={(open) => {
+					if (isCancelInFlight) {
+						return;
+					}
+					setIsCancelDialogOpen(open);
+				}}
+				open={isCancelDialogOpen}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{VERIFY_HANDOFF_COPY.cancelDialog.title}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{VERIFY_HANDOFF_COPY.cancelDialog.description}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isCancelInFlight}>
+							{VERIFY_HANDOFF_COPY.cancelDialog.dismiss}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							disabled={isCancelInFlight}
+							onClick={() => {
+								handleCancelVerification().catch(() => {
+									// handleCancelVerification already stores the error state that the UI renders.
+								});
+							}}
+							variant="destructive"
+						>
+							{VERIFY_HANDOFF_COPY.cancelDialog.confirm}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	);
 }

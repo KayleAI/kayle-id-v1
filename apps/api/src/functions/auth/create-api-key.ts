@@ -2,6 +2,7 @@ import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import type { ApiKeyScope } from "@/auth/permissions";
+import { assertCanManageApiKeys } from "@/functions/auth/api-key-authorization";
 import { createHMAC } from "@/functions/hmac";
 import { generateId } from "@/utils/generate-id";
 
@@ -12,11 +13,13 @@ import { generateId } from "@/utils/generate-id";
  * @returns The API key hash
  */
 export async function createApiKey({
+	actorUserId,
 	name,
 	organizationId,
 	metadata = {},
 	permissions,
 }: {
+	actorUserId?: string;
 	name: string;
 	organizationId: string;
 	permissions: ApiKeyScope[];
@@ -29,18 +32,31 @@ export async function createApiKey({
 		secret: env.AUTH_SECRET,
 	});
 
-	const [created] = await db
-		.insert(api_keys)
-		.values({
-			name,
-			organizationId,
-			keyHash,
-			permissions,
-			metadata,
-		})
-		.returning({
-			id: api_keys.id,
-		});
+	const values = {
+		name,
+		organizationId,
+		keyHash,
+		permissions,
+		metadata,
+	};
+
+	const created = actorUserId
+		? await db.transaction(async (tx) => {
+				await assertCanManageApiKeys(tx, {
+					organizationId,
+					userId: actorUserId,
+				});
+				const [row] = await tx.insert(api_keys).values(values).returning({
+					id: api_keys.id,
+				});
+
+				return row;
+			})
+		: (
+				await db.insert(api_keys).values(values).returning({
+					id: api_keys.id,
+				})
+			)[0];
 
 	if (!created?.id) {
 		throw new Error("Failed to create API key");

@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { checkPermission } from "@/functions/auth/check-permission";
+import { ApiKeyManagementAuthorizationError } from "@/functions/auth/api-key-authorization";
 import { deleteApiKey } from "@/functions/auth/delete-api-key";
+import { organizationFrozen } from "@/v1/auth";
 import {
 	createApiKeyErrorPayload,
 	createApiKeyForbiddenError,
@@ -15,25 +16,12 @@ const deleteApiKeyRoute = new OpenAPIHono<{
 
 deleteApiKeyRoute.openapi(internalDeleteApiKey, async (c) => {
 	const organizationId = c.get("organizationId");
+	const userId = c.get("userId");
 
 	const { id } = c.req.valid("param");
 
 	try {
-		// ensure the user has permission to delete API keys
-		const hasPermission = await checkPermission(
-			c.get("userId"),
-			organizationId,
-			"admin",
-		);
-
-		if (!hasPermission) {
-			return c.json(
-				createApiKeyErrorPayload(createApiKeyForbiddenError("delete")),
-				403,
-			);
-		}
-
-		const { status, message } = await deleteApiKey(id, organizationId);
+		const { status, message } = await deleteApiKey(id, organizationId, userId);
 
 		if (status === "error") {
 			return c.json(
@@ -57,7 +45,18 @@ deleteApiKeyRoute.openapi(internalDeleteApiKey, async (c) => {
 			},
 			200,
 		);
-	} catch {
+	} catch (error) {
+		if (error instanceof ApiKeyManagementAuthorizationError) {
+			if (error.reason === "frozen") {
+				return organizationFrozen(c);
+			}
+
+			return c.json(
+				createApiKeyErrorPayload(createApiKeyForbiddenError("delete")),
+				403,
+			);
+		}
+
 		return c.json(
 			createApiKeyErrorPayload(createApiKeyInternalServerError()),
 			500,

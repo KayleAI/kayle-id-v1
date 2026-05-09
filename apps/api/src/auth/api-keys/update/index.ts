@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { checkPermission } from "@/functions/auth/check-permission";
+import { ApiKeyManagementAuthorizationError } from "@/functions/auth/api-key-authorization";
 import { updateApiKey } from "@/functions/auth/update-api-key";
+import { organizationFrozen } from "@/v1/auth";
 import {
 	createApiKeyErrorPayload,
 	createApiKeyForbiddenError,
@@ -15,26 +16,14 @@ const updateApiKeyRoute = new OpenAPIHono<{
 
 updateApiKeyRoute.openapi(internalUpdateApiKey, async (c) => {
 	const organizationId = c.get("organizationId");
+	const userId = c.get("userId");
 
 	const { id } = c.req.valid("param");
 	const { name, enabled, metadata, permissions } = c.req.valid("json");
 
 	try {
-		// ensure the user has permission to update API keys
-		const hasPermission = await checkPermission(
-			c.get("userId"),
-			organizationId,
-			"admin",
-		);
-
-		if (!hasPermission) {
-			return c.json(
-				createApiKeyErrorPayload(createApiKeyForbiddenError("update")),
-				403,
-			);
-		}
-
 		const { status, message } = await updateApiKey(id, organizationId, {
+			actorUserId: userId,
 			name,
 			enabled,
 			metadata,
@@ -63,7 +52,18 @@ updateApiKeyRoute.openapi(internalUpdateApiKey, async (c) => {
 			},
 			200,
 		);
-	} catch {
+	} catch (error) {
+		if (error instanceof ApiKeyManagementAuthorizationError) {
+			if (error.reason === "frozen") {
+				return organizationFrozen(c);
+			}
+
+			return c.json(
+				createApiKeyErrorPayload(createApiKeyForbiddenError("update")),
+				403,
+			);
+		}
+
 		return c.json(
 			createApiKeyErrorPayload(createApiKeyInternalServerError()),
 			500,

@@ -19,9 +19,11 @@ import {
 	getLatestDemoWebhook,
 } from "@/demo/webhook-history";
 import {
+	createDemoRateLimitKey,
 	createDemoRunId,
 	createJsonResponse,
 	createRandomToken,
+	getDemoRateLimitStub,
 	getDemoRunStub,
 	isDemoRunId,
 	loadRunRecord,
@@ -94,6 +96,35 @@ async function handleCreateRun(request: Request): Promise<Response> {
 		);
 	}
 
+	const rateLimitKey = await createDemoRateLimitKey({
+		request,
+		salt: env.KAYLE_INTERNAL_TOKEN,
+	});
+	const rateLimitResponse = await getDemoRateLimitStub(rateLimitKey).fetch(
+		"https://demo.internal/rate-limit/demo-runs",
+		{ method: "POST" },
+	);
+
+	if (rateLimitResponse.status === 429) {
+		return new Response(rateLimitResponse.body, {
+			headers: rateLimitResponse.headers,
+			status: rateLimitResponse.status,
+		});
+	}
+
+	if (!rateLimitResponse.ok) {
+		return createJsonResponse(
+			{
+				data: null,
+				error: {
+					code: "RATE_LIMIT_UNAVAILABLE",
+					message: "Demo rate limit check failed.",
+				},
+			},
+			{ status: 503 },
+		);
+	}
+
 	const runId = createDemoRunId();
 	const receiverToken = createRandomToken(32);
 	const keyId = `demo_${runId}`;
@@ -104,7 +135,6 @@ async function handleCreateRun(request: Request): Promise<Response> {
 	try {
 		const endpoint = await createDemoWebhookEndpoint({
 			bindings: env,
-			request,
 			runId,
 			token: receiverToken,
 		});

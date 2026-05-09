@@ -16,8 +16,11 @@ import { appendDemoWebhookHistory } from "./webhook-history";
 
 const ABANDONED_RUN_RETENTION_MS = 2 * 60 * 60 * 1000;
 const DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES = 32 * 1024;
+const DEMO_RUN_RATE_LIMIT = 100;
+const DEMO_RUN_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const DEMO_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 const TERMINAL_RUN_RETENTION_MS = 30 * 60 * 1000;
+const RATE_LIMIT_KEY = "demo-run-rate-limit";
 const RECORD_KEY = "demo-run";
 
 interface DemoRunMailboxEnv {
@@ -37,6 +40,11 @@ interface SessionPayload {
 	session_id: string;
 	share_fields: DemoSessionShareFields;
 	verification_url: string;
+}
+
+interface RateLimitRecord {
+	count: number;
+	reset_at: number;
 }
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -72,6 +80,10 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 	private async fetchWithBodyLimits(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		const pathname = url.pathname;
+
+		if (request.method === "POST" && pathname === "/rate-limit/demo-runs") {
+			return await this.checkDemoRunRateLimit();
+		}
 
 		if (request.method === "POST" && pathname === "/initialize") {
 			await this.initializeRecord(
@@ -157,6 +169,7 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 	async alarm(): Promise<void> {
 		const record = await this.getRecord();
 		if (!record) {
+			await this.ctx.storage.deleteAll();
 			return;
 		}
 
@@ -170,6 +183,45 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		}
 
 		await this.ctx.storage.deleteAll();
+	}
+
+	private async checkDemoRunRateLimit(): Promise<Response> {
+		const now = Date.now();
+		const existing =
+			(await this.ctx.storage.get<RateLimitRecord>(RATE_LIMIT_KEY)) ?? null;
+		const resetAt =
+			existing && existing.reset_at > now
+				? existing.reset_at
+				: now + DEMO_RUN_RATE_LIMIT_WINDOW_MS;
+		const count = existing && existing.reset_at > now ? existing.count : 0;
+
+		if (count >= DEMO_RUN_RATE_LIMIT) {
+			const retryAfterSeconds = Math.max(1, Math.ceil((resetAt - now) / 1000));
+
+			return jsonResponse(
+				{
+					data: null,
+					error: {
+						code: "RATE_LIMITED",
+						message: "Too many demo runs were created. Try again later.",
+					},
+				},
+				{
+					headers: {
+						"Retry-After": String(retryAfterSeconds),
+					},
+					status: 429,
+				},
+			);
+		}
+
+		await this.ctx.storage.put(RATE_LIMIT_KEY, {
+			count: count + 1,
+			reset_at: resetAt,
+		} satisfies RateLimitRecord);
+		await this.ctx.storage.setAlarm(resetAt);
+
+		return new Response(null, { status: 204 });
 	}
 
 	private async getRecord(): Promise<DemoRunRecord | null> {

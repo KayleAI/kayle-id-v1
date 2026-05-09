@@ -1,9 +1,12 @@
+import { getForwardedClientIp } from "@kayle-id/config/client-ip";
 import { generateRandomString } from "@kayle-id/config/random";
 import { env } from "@/config/env";
 import { DemoApiError } from "@/demo/api";
 import type { DemoRunRecord, DemoRunView } from "@/demo/types";
 
 const DEMO_RUN_ID_PATTERN = /^demo_[a-f0-9]{32}$/u;
+const DEMO_RATE_LIMIT_KEY_PATTERN = /^demo_rate_[a-f0-9]{64}$/u;
+const TEXT_ENCODER = new TextEncoder();
 
 export function createJsonResponse(
 	body: unknown,
@@ -24,6 +27,32 @@ export function isDemoRunId(value: string): boolean {
 	return DEMO_RUN_ID_PATTERN.test(value);
 }
 
+function hexBytes(bytes: Uint8Array): string {
+	return Array.from(bytes)
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
+}
+
+export async function createDemoRateLimitKey({
+	request,
+	salt,
+}: {
+	request: Request;
+	salt: string;
+}): Promise<string> {
+	const clientIp = getForwardedClientIp(request.headers) ?? "anonymous";
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		TEXT_ENCODER.encode(`${salt}:${clientIp}`),
+	);
+
+	return `demo_rate_${hexBytes(new Uint8Array(digest))}`;
+}
+
+export function isDemoRateLimitKey(value: string): boolean {
+	return DEMO_RATE_LIMIT_KEY_PATTERN.test(value);
+}
+
 export function getDemoRunStub(runId: string) {
 	if (!env.DEMO_RUNS) {
 		throw new DemoApiError({
@@ -33,6 +62,24 @@ export function getDemoRunStub(runId: string) {
 	}
 
 	return env.DEMO_RUNS.getByName(runId);
+}
+
+export function getDemoRateLimitStub(rateLimitKey: string) {
+	if (!isDemoRateLimitKey(rateLimitKey)) {
+		throw new DemoApiError({
+			message: "Demo rate limit key is invalid.",
+			status: 400,
+		});
+	}
+
+	if (!env.DEMO_RUNS) {
+		throw new DemoApiError({
+			message: "DEMO_RUNS binding is not configured.",
+			status: 500,
+		});
+	}
+
+	return env.DEMO_RUNS.getByName(rateLimitKey);
 }
 
 export async function loadRunRecord(

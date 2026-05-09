@@ -23,6 +23,7 @@ interface ApiEnvelope<T> {
 }
 
 const LOCAL_DEMO_WEBHOOK_ORIGIN = "http://127.0.0.1:3001";
+const PRODUCTION_DEMO_WEBHOOK_ORIGIN = "https://kayle.id";
 const UNEXPECTED_UPSTREAM_RESPONSE = "Unexpected upstream response.";
 
 export class DemoApiError extends Error {
@@ -200,17 +201,15 @@ async function requestApi<T>({
 }
 
 export function buildDemoWebhookUrl({
-	request,
 	runId,
 	token,
 }: {
-	request: Request;
 	runId: string;
 	token: string;
 }): string {
 	const url =
 		process.env.NODE_ENV === "production"
-			? new URL(request.url)
+			? new URL(PRODUCTION_DEMO_WEBHOOK_ORIGIN)
 			: new URL(LOCAL_DEMO_WEBHOOK_ORIGIN);
 	url.pathname = `/api/demo/webhooks/${runId}/${token}`;
 	url.search = "";
@@ -220,12 +219,10 @@ export function buildDemoWebhookUrl({
 
 export async function createDemoWebhookEndpoint({
 	bindings,
-	request,
 	runId,
 	token,
 }: {
 	bindings: DemoBindings;
-	request: Request;
 	runId: string;
 	token: string;
 }): Promise<{ endpointId: string; signingSecret: string }> {
@@ -240,7 +237,7 @@ export async function createDemoWebhookEndpoint({
 		path: "/v1/webhooks/endpoints",
 		useAuth: true,
 		body: {
-			url: buildDemoWebhookUrl({ request, runId, token }),
+			url: buildDemoWebhookUrl({ runId, token }),
 			enabled: true,
 			subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 		},

@@ -1,6 +1,6 @@
 import { db } from "@kayle-id/database/drizzle";
 import { verification_sessions } from "@kayle-id/database/schema/core";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -20,6 +20,8 @@ import { startVerifySocketSession } from "./socket-controller";
 import {
 	constantTimeStringEqual,
 	hashSessionCancelToken,
+	SESSION_CANCEL_TOKEN_LENGTH,
+	SESSION_CANCEL_TOKEN_PATTERN,
 } from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
@@ -159,7 +161,10 @@ verify.get(
 );
 
 const cancelBodySchema = z.object({
-	cancel_token: z.string().min(1),
+	cancel_token: z
+		.string()
+		.length(SESSION_CANCEL_TOKEN_LENGTH)
+		.regex(SESSION_CANCEL_TOKEN_PATTERN),
 });
 
 verify.post(
@@ -292,10 +297,47 @@ verify.post(
 			);
 		}
 
-		await db
+		const [consumedCancelToken] = await db
 			.update(verification_sessions)
 			.set({ cancelTokenConsumedAt: new Date() })
-			.where(eq(verification_sessions.id, session.id));
+			.where(
+				and(
+					eq(verification_sessions.id, session.id),
+					isNull(verification_sessions.cancelTokenConsumedAt),
+				),
+			)
+			.returning({ id: verification_sessions.id });
+
+		if (!consumedCancelToken) {
+			const [latestSession] = await db
+				.select({
+					cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+					status: verification_sessions.status,
+				})
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, session.id))
+				.limit(1);
+
+			if (
+				latestSession?.cancelTokenConsumedAt &&
+				["completed", "expired", "cancelled"].includes(latestSession.status)
+			) {
+				return c.body(null, 204);
+			}
+
+			const response = createVerifyJsonErrorResponse({
+				code: "CANCEL_TOKEN_USED",
+				status: 401,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
 
 		if (!isTerminal) {
 			await cancelVerificationSession({

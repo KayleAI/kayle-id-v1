@@ -6,7 +6,10 @@ import { generateRandomString } from "better-auth/crypto";
 import type { User } from "better-auth/types";
 import { APIError } from "better-call";
 import { z } from "zod";
-import { isSafeAuthCallbackPath } from "../callback-url";
+import {
+  AUTH_CALLBACK_URL_MAX_LENGTH,
+  isSafeAuthCallbackPath,
+} from "../callback-url";
 
 interface MagicOptions {
   disableSignUp?: boolean;
@@ -62,17 +65,25 @@ interface MagicAdapterContext {
 const invalidMagicLinkMessage =
   "Your link is invalid or has expired. Please try again.";
 
+const EMAIL_MAX_LENGTH = 320;
+const MAGIC_LINK_TOKEN_LENGTH = 32;
+const MAGIC_LINK_TOKEN_PATTERN = /^[A-Za-z]+$/u;
+const OTP_PATTERN = /^\d+$/u;
+
 export const isSafeMagicCallback = isSafeAuthCallbackPath;
+
+const emailSchema = z.string().email().max(EMAIL_MAX_LENGTH);
 
 const callbackURLSchema = z
   .string()
+  .max(AUTH_CALLBACK_URL_MAX_LENGTH)
   .refine(isSafeAuthCallbackPath, {
     message: "callbackURL must be a same-site path starting with '/'.",
   })
   .optional();
 
 const magicLinkTokenValueSchema = z.object({
-  email: z.string().email(),
+  email: emailSchema,
   type: z.enum(["sign-in", "email-verification"]),
 });
 
@@ -164,6 +175,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
     disableSignUp: false,
     ...options,
   };
+  const otpSchema = z.string().length(opts.otpLength).regex(OTP_PATTERN);
 
   return {
     id: "magic",
@@ -174,7 +186,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           method: "POST",
           requireHeaders: true,
           body: z.object({
-            email: z.string().email(),
+            email: emailSchema,
             type: z.enum(["sign-in", "email-verification"]),
             callbackURL: callbackURLSchema,
           }),
@@ -232,7 +244,10 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
         {
           method: "GET",
           query: z.object({
-            token: z.string(),
+            token: z
+              .string()
+              .length(MAGIC_LINK_TOKEN_LENGTH)
+              .regex(MAGIC_LINK_TOKEN_PATTERN),
             callbackURL: callbackURLSchema,
           }),
           requireHeaders: true,
@@ -275,8 +290,8 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
         {
           method: "POST",
           body: z.object({
-            email: z.string().email(),
-            otp: z.string(),
+            email: emailSchema,
+            otp: otpSchema,
             type: z.enum(["sign-in", "email-verification"]),
           }),
           requireHeaders: true,

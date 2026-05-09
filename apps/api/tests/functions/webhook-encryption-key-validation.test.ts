@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { db } from "@kayle-id/database/drizzle";
+import { webhook_encryption_keys } from "@kayle-id/database/schema/webhooks";
 import app from "@/index";
 import { loadTestPublicJwk } from "../helpers/webhook-fixtures";
 import { setup, type TestData, teardown } from "../setup";
@@ -229,6 +231,40 @@ describe("webhook encryption key validation", () => {
 		expect(inactiveAfter[0]?.key_id).toBe("rsa-key-current");
 	});
 
+	test("database rejects multiple active keys for one endpoint", async () => {
+		const endpointId = await createEndpoint();
+		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const initialResponse = await createKey({
+			endpointId,
+			jwk: publicJwk,
+			keyId: "rsa-key-single-active",
+		});
+
+		expect(initialResponse.status).toBe(200);
+
+		let duplicateError: unknown;
+
+		try {
+			await db.insert(webhook_encryption_keys).values({
+				algorithm: "RSA-OAEP-256",
+				id: `whk_${crypto.randomUUID()}`,
+				isActive: true,
+				jwk: publicJwk,
+				keyId: "rsa-key-duplicate-active",
+				keyType: "RSA",
+				webhookEndpointId: endpointId,
+			});
+		} catch (error) {
+			duplicateError = error;
+		}
+
+		expect(duplicateError).toBeInstanceOf(Error);
+
+		const activeAfter = await listKeys({ endpointId, isActive: true });
+		expect(activeAfter).toHaveLength(1);
+		expect(activeAfter[0]?.key_id).toBe("rsa-key-single-active");
+	});
+
 	test("rejects malformed RSA public JWKs", async () => {
 		const endpointId = await createEndpoint();
 		const response = await createKey({
@@ -245,6 +281,27 @@ describe("webhook encryption key validation", () => {
 			error: { code: string };
 		};
 		expect(payload.error.code).toBe("BAD_REQUEST");
+	});
+
+	test("rejects encryption key requests that exceed route bounds", async () => {
+		const endpointId = await createEndpoint();
+		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const keyIdResponse = await createKey({
+			endpointId,
+			jwk: publicJwk,
+			keyId: "k".repeat(129),
+		});
+		const jwkResponse = await createKey({
+			endpointId,
+			jwk: {
+				...publicJwk,
+				n: "a".repeat(8193),
+			},
+			keyId: "rsa-key-oversized-jwk",
+		});
+
+		expect(keyIdResponse.status).toBe(400);
+		expect(jwkResponse.status).toBe(400);
 	});
 
 	test("rejects RSA public JWKs with weak moduli", async () => {

@@ -9,7 +9,8 @@ export type SafeUrlReason =
   | "ipv4_literal_disallowed"
   | "ipv6_literal_disallowed"
   | "loopback_not_allowed"
-  | "reserved_hostname_disallowed";
+  | "reserved_hostname_disallowed"
+  | "url_too_long";
 
 export type SafeUrlOutcome =
   | { ok: true; url: URL }
@@ -33,6 +34,7 @@ const RESERVED_WEBHOOK_HOSTNAME_SUFFIXES = [
   ".localhost",
 ] as const;
 const IPV4_LITERAL_REGEX = /^\d{1,3}(\.\d{1,3}){3}$/;
+export const SAFE_URL_MAX_LENGTH = 2048;
 
 function normalizeHostname(hostname: string): string {
   return hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
@@ -126,6 +128,10 @@ export function parseSafeUrl(
 ): SafeUrlOutcome {
   let url: URL;
 
+  if (input.length > SAFE_URL_MAX_LENGTH) {
+    return { ok: false, reason: "url_too_long" };
+  }
+
   try {
     url = new URL(input);
   } catch {
@@ -162,14 +168,17 @@ const WEBHOOK_URL_MESSAGE =
  * `javascript:`, `data:`, `file:`, `ftp:`, etc.
  */
 export function safeRedirectUrl(opts: { allowLoopback: boolean }) {
-  return z.string().refine(
-    (input) =>
-      parseSafeUrl(input, {
-        allowLoopback: opts.allowLoopback,
-        mode: "redirect",
-      }).ok,
-    { message: REDIRECT_URL_MESSAGE }
-  );
+  return z
+    .string()
+    .max(SAFE_URL_MAX_LENGTH)
+    .refine(
+      (input) =>
+        parseSafeUrl(input, {
+          allowLoopback: opts.allowLoopback,
+          mode: "redirect",
+        }).ok,
+      { message: REDIRECT_URL_MESSAGE }
+    );
 }
 
 /**
@@ -178,12 +187,15 @@ export function safeRedirectUrl(opts: { allowLoopback: boolean }) {
  * to avoid SSRF-style outbound abuse against link-local / private hosts.
  */
 export function safeWebhookUrl(opts: { allowLoopback: boolean }) {
-  return z.string().refine(
-    (input) =>
-      parseSafeUrl(input, {
-        allowLoopback: opts.allowLoopback,
-        mode: "webhook",
-      }).ok,
-    { message: WEBHOOK_URL_MESSAGE }
-  );
+  return z
+    .string()
+    .max(SAFE_URL_MAX_LENGTH)
+    .refine(
+      (input) =>
+        parseSafeUrl(input, {
+          allowLoopback: opts.allowLoopback,
+          mode: "webhook",
+        }).ok,
+      { message: WEBHOOK_URL_MESSAGE }
+    );
 }

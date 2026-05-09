@@ -94,6 +94,21 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 		);
 	}
 
+	if (delivery.status === "delivering") {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "CONFLICT",
+					message: "Webhook delivery cannot be retried.",
+					hint: "The webhook delivery is already in progress.",
+					docs: "https://kayle.id/docs/api/webhooks/deliveries#retry",
+				},
+			},
+			409,
+		);
+	}
+
 	const requeued = await requeueWebhookDelivery({
 		deliveryId: delivery.id,
 	});

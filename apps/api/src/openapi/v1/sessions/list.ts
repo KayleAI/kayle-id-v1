@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Pagination } from "@/openapi/base";
 import { InternalServerErrorWithPaginationResponse } from "@/openapi/errors";
 import { Session } from "@/openapi/models/sessions";
+import { sessionIdSchema } from "@/shared/validation";
 
 export const listSessions = createRoute({
 	method: "get",
@@ -35,8 +36,7 @@ export const listSessions = createRoute({
 				.describe(
 					"Maximum number of sessions to return. Defaults to 10 if not specified.",
 				),
-			starting_after: z
-				.string()
+			starting_after: sessionIdSchema
 				.optional()
 				.describe(
 					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",

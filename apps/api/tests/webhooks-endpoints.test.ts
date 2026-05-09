@@ -23,6 +23,19 @@ afterAll(async () => {
 });
 
 describe("/v1/webhooks/endpoints", () => {
+	test("rejects oversized endpoint IDs before lookup", async () => {
+		const response = await app.request(
+			`/v1/webhooks/endpoints/whe_${"a".repeat(200)}`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+			},
+		);
+
+		expect(response.status).toBe(400);
+	});
+
 	test("creates an endpoint, returns the signing secret once, and persists subscriptions", async () => {
 		const response = await app.request("/v1/webhooks/endpoints", {
 			body: JSON.stringify({

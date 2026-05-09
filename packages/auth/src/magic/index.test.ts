@@ -37,6 +37,17 @@ describe("parseMagicLinkTokenValue", () => {
       )
     ).toThrow("Your link is invalid or has expired. Please try again.");
   });
+
+  test("rejects oversized email values", () => {
+    expect(() =>
+      parseMagicLinkTokenValue(
+        JSON.stringify({
+          email: `${"a".repeat(312)}@kayle.id`,
+          type: "sign-in",
+        })
+      )
+    ).toThrow("Your link is invalid or has expired. Please try again.");
+  });
 });
 
 describe("shouldRateLimitMagicPath", () => {

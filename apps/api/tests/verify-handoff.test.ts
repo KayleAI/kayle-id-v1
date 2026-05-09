@@ -9,10 +9,15 @@ import { and, eq } from "drizzle-orm";
 import { createHMAC } from "@/functions/hmac";
 import app from "@/index";
 import v1 from "@/v1";
+import {
+	deriveAttestHelloChallenge,
+	deriveAttestNfcChallenge,
+} from "@/v1/verify/attest-challenges";
 import { issueHandoffPayload } from "@/v1/verify/handoff";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
+const VALID_SHAPED_WRONG_CANCEL_TOKEN = "a".repeat(48);
 
 beforeAll(async () => {
 	TEST_DATA = await setup();
@@ -28,6 +33,8 @@ type HandoffResponse = {
 		v: number;
 		session_id: string;
 		attempt_id: string;
+		attest_hello_challenge: string;
+		attest_nfc_challenge: string;
 		mobile_write_token: string;
 		expires_at: string;
 	} | null;
@@ -36,6 +43,17 @@ type HandoffResponse = {
 		message: string;
 	} | null;
 };
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/u, "");
+}
 
 type VerifySessionStatusResponse = {
 	data: {
@@ -221,6 +239,25 @@ describe("/v1/verify/session/:id/handoff", () => {
 		expect(payload.data?.attempt_id).toBeDefined();
 		expect(payload.data?.mobile_write_token).toBeDefined();
 		expect(payload.data?.expires_at).toBeDefined();
+
+		if (!payload.data?.attempt_id) {
+			throw new Error("Expected handoff payload to include an attempt ID");
+		}
+
+		const expectedHelloChallenge = await deriveAttestHelloChallenge({
+			attemptId: payload.data.attempt_id,
+			authSecret: env.AUTH_SECRET,
+		});
+		const expectedNfcChallenge = await deriveAttestNfcChallenge({
+			attemptId: payload.data.attempt_id,
+			authSecret: env.AUTH_SECRET,
+		});
+		expect(payload.data.attest_hello_challenge).toBe(
+			bytesToBase64Url(expectedHelloChallenge),
+		);
+		expect(payload.data.attest_nfc_challenge).toBe(
+			bytesToBase64Url(expectedNfcChallenge),
+		);
 
 		const [attempt] = await db
 			.select()
@@ -491,13 +528,35 @@ describe("/v1/verify/session/:id/status", () => {
 		expect(payload.error?.code).toBe("INVALID_REQUEST");
 	});
 
+	test.serial(
+		"Rejects public cancel with a malformed cancel_token",
+		async () => {
+			const { sessionId } = await createSessionWithCancelToken();
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: "ct_wrong_value" }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(400);
+			const payload = (await response.json()) as VerifySessionStatusResponse;
+			expect(payload.error?.code).toBe("INVALID_REQUEST");
+		},
+	);
+
 	test.serial("Rejects public cancel with the wrong cancel_token", async () => {
 		const { sessionId } = await createSessionWithCancelToken();
 
 		const response = await app.request(
 			`/v1/verify/session/${sessionId}/cancel`,
 			{
-				body: JSON.stringify({ cancel_token: "ct_wrong_value" }),
+				body: JSON.stringify({
+					cancel_token: VALID_SHAPED_WRONG_CANCEL_TOKEN,
+				}),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",
 			},
@@ -507,6 +566,31 @@ describe("/v1/verify/session/:id/status", () => {
 		const payload = (await response.json()) as VerifySessionStatusResponse;
 		expect(payload.error?.code).toBe("CANCEL_TOKEN_INVALID");
 	});
+
+	test.serial(
+		"Rejects a consumed public cancel token while the session is active",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+
+			await db
+				.update(verification_sessions)
+				.set({ cancelTokenConsumedAt: new Date() })
+				.where(eq(verification_sessions.id, sessionId));
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(401);
+			const payload = (await response.json()) as VerifySessionStatusResponse;
+			expect(payload.error?.code).toBe("CANCEL_TOKEN_USED");
+		},
+	);
 
 	test.serial(
 		"Rejects public cancel with a token bound to a different session",
@@ -564,7 +648,9 @@ describe("/v1/verify/session/:id/status", () => {
 			const response = await app.request(
 				"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/cancel",
 				{
-					body: JSON.stringify({ cancel_token: "ct_anything" }),
+					body: JSON.stringify({
+						cancel_token: VALID_SHAPED_WRONG_CANCEL_TOKEN,
+					}),
 					headers: { "Content-Type": "application/json" },
 					method: "POST",
 				},

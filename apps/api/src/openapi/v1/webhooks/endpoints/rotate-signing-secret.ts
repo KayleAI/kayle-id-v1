@@ -1,18 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { RotatedWebhookSigningSecret } from "@/openapi/models/webhook";
+import {
+	RotatedWebhookSigningSecret,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const rotateWebhookEndpointSigningSecret = createRoute({
 	method: "post",
 	path: "/:endpoint_id/signing-secret/rotate",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe(
-					"The ID of the webhook endpoint whose signing secret should be rotated.",
-				),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint whose signing secret should be rotated.",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

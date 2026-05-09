@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { isSafeAuthCallbackPath } from "./callback-url";
+import {
+  AUTH_CALLBACK_URL_MAX_LENGTH,
+  isSafeAuthCallbackPath,
+} from "./callback-url";
 
 describe("auth callback URL policy", () => {
   test("accepts same-site paths", () => {
@@ -12,5 +15,14 @@ describe("auth callback URL policy", () => {
     expect(isSafeAuthCallbackPath("//evil.example/path")).toBe(false);
     expect(isSafeAuthCallbackPath("/\\evil.example/path")).toBe(false);
     expect(isSafeAuthCallbackPath("/javascript:alert(1)")).toBe(false);
+  });
+
+  test("rejects oversized and control-character paths", () => {
+    expect(
+      isSafeAuthCallbackPath(`/${"a".repeat(AUTH_CALLBACK_URL_MAX_LENGTH)}`)
+    ).toBe(false);
+    expect(
+      isSafeAuthCallbackPath("/account\r\nLocation: https://evil.example")
+    ).toBe(false);
   });
 });

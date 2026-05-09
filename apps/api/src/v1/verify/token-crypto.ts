@@ -4,12 +4,15 @@ import { env } from "@kayle-id/config/env";
 import { createHMAC } from "@/functions/hmac";
 import { generateRandomString } from "@/utils/generate-id";
 
+export const SESSION_CANCEL_TOKEN_LENGTH = 48;
+export const SESSION_CANCEL_TOKEN_PATTERN = /^[a-z0-9]+$/u;
+
 export function generateMobileWriteTokenSeed(): string {
 	return generateRandomString(64);
 }
 
 export function generateSessionCancelToken(): string {
-	return generateRandomString(48);
+	return generateRandomString(SESSION_CANCEL_TOKEN_LENGTH);
 }
 
 export function hashSessionCancelToken(token: string): Promise<string> {

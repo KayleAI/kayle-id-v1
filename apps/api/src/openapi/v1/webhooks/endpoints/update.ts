@@ -3,7 +3,10 @@ import { safeWebhookUrl } from "@kayle-id/config/safe-url";
 import { webhookEventTypeSchema } from "@kayle-id/config/webhook-events";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookEndpoint } from "@/openapi/models/webhook";
+import {
+	WebhookEndpoint,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 const ALLOW_LOOPBACK_URLS = process.env.NODE_ENV !== "production";
 
@@ -12,9 +15,9 @@ export const updateWebhookEndpoint = createRoute({
 	path: "/:endpoint_id",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe("The ID of the webhook endpoint to update (e.g. whe_...)."),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint to update (e.g. whe_...).",
+			),
 		}),
 		body: {
 			content: {

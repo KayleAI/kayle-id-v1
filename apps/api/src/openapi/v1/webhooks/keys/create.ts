@@ -1,18 +1,48 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookEncryptionKey } from "@/openapi/models/webhook";
+import {
+	WebhookEncryptionKey,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
+
+const WEBHOOK_ENCRYPTION_KEY_ID_MAX_LENGTH = 128;
+const WEBHOOK_JWK_KEY_MAX_LENGTH = 32;
+const WEBHOOK_JWK_STRING_MAX_LENGTH = 8192;
+const WEBHOOK_JWK_ARRAY_MAX_LENGTH = 8;
+const WEBHOOK_JWK_ARRAY_STRING_MAX_LENGTH = 64;
+
+const WebhookJwkExtraValue = z.union([
+	z.string().max(WEBHOOK_JWK_STRING_MAX_LENGTH),
+	z.boolean(),
+	z.number().finite(),
+	z
+		.array(z.string().max(WEBHOOK_JWK_ARRAY_STRING_MAX_LENGTH))
+		.max(WEBHOOK_JWK_ARRAY_MAX_LENGTH),
+]);
+
+const WebhookPublicJwkRequest = z
+	.object({
+		kty: z.literal("RSA").optional(),
+		n: z.string().min(1).max(WEBHOOK_JWK_STRING_MAX_LENGTH).optional(),
+		e: z.string().min(1).max(WEBHOOK_JWK_ARRAY_STRING_MAX_LENGTH).optional(),
+		alg: z.string().max(WEBHOOK_JWK_ARRAY_STRING_MAX_LENGTH).optional(),
+		use: z.string().max(WEBHOOK_JWK_KEY_MAX_LENGTH).optional(),
+		key_ops: z
+			.array(z.string().max(WEBHOOK_JWK_ARRAY_STRING_MAX_LENGTH))
+			.max(WEBHOOK_JWK_ARRAY_MAX_LENGTH)
+			.optional(),
+	})
+	.catchall(WebhookJwkExtraValue);
 
 export const createWebhookEncryptionKey = createRoute({
 	method: "post",
 	path: "/:endpoint_id/keys",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe(
-					"The ID of the webhook endpoint to create the encryption key for (e.g. whe_...).",
-				),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint to create the encryption key for (e.g. whe_...).",
+			),
 		}),
 		body: {
 			content: {
@@ -21,12 +51,14 @@ export const createWebhookEncryptionKey = createRoute({
 						.object({
 							key_id: z
 								.string()
+								.min(1)
+								.max(WEBHOOK_ENCRYPTION_KEY_ID_MAX_LENGTH)
 								.describe(
 									"The key identifier to use as `kid` in the JWE header.",
 								),
-							jwk: z
-								.record(z.string(), z.unknown())
-								.describe("The public JWK for encrypting webhook payloads."),
+							jwk: WebhookPublicJwkRequest.describe(
+								"The public JWK for encrypting webhook payloads.",
+							),
 							algorithm: z
 								.literal("RSA-OAEP-256")
 								.describe("The JWE algorithm to use for webhook delivery."),

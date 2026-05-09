@@ -7,6 +7,8 @@ import type { orgVerificationDocumentTypes } from "@kayle-id/database/schema/cor
  */
 const FIELD_SEPARATOR = "|";
 
+export const ISSUING_COUNTRY_CODE_PATTERN = /^[A-Z]{3}$/;
+
 const WHITESPACE_OR_HYPHEN = /[\s-]+/g;
 
 /**
@@ -24,10 +26,10 @@ export function normalizeDocumentNumber(value: string): string {
  * 3166-1 alpha-3 form.
  */
 export function normalizeIssuingCountry(value: string): string {
-	const trimmed = value.replace(WHITESPACE_OR_HYPHEN, "").toUpperCase();
-	if (trimmed.length !== 3) {
+	const trimmed = value.trim().toUpperCase();
+	if (!ISSUING_COUNTRY_CODE_PATTERN.test(trimmed)) {
 		throw new Error(
-			`issuing_country must be a 3-letter ISO 3166-1 alpha-3 code (received ${value.length} chars).`,
+			"issuing_country must be a 3-letter ISO 3166-1 alpha-3 code.",
 		);
 	}
 	return trimmed;

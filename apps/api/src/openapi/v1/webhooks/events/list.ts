@@ -1,18 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { webhookEventTypeSchema } from "@kayle-id/config/webhook-events";
 import {
 	ErrorResponseWithPagination,
 	Pagination,
 	paginationLimitQuery,
 } from "@/openapi/base";
-import { WebhookEvent } from "@/openapi/models/webhook";
+import { WebhookEvent, WebhookResourceIdParam } from "@/openapi/models/webhook";
 
 export const listWebhookEvents = createRoute({
 	method: "get",
 	path: "/",
 	request: {
 		query: z.object({
-			type: z
-				.string()
+			type: webhookEventTypeSchema
 				.optional()
 				.describe(
 					'Filter events by type (e.g. "verification.attempt.succeeded").',
@@ -32,12 +32,9 @@ export const listWebhookEvents = createRoute({
 			limit: paginationLimitQuery.describe(
 				"Maximum number of events to return. Defaults to 10 if not specified.",
 			),
-			starting_after: z
-				.string()
-				.optional()
-				.describe(
-					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
+			starting_after: WebhookResourceIdParam.optional().describe(
+				"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

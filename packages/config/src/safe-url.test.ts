@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseSafeUrl } from "./safe-url";
+import { parseSafeUrl, SAFE_URL_MAX_LENGTH, safeWebhookUrl } from "./safe-url";
 
 describe("parseSafeUrl redirect mode", () => {
   const redirectStrict = { allowLoopback: false, mode: "redirect" } as const;
@@ -68,6 +68,15 @@ describe("parseSafeUrl redirect mode", () => {
     expect(parseSafeUrl("", redirectStrict)).toMatchObject({
       ok: false,
       reason: "invalid_url",
+    });
+  });
+
+  test("rejects oversized URLs before parsing", () => {
+    const oversizedUrl = `https://example.com/${"a".repeat(SAFE_URL_MAX_LENGTH)}`;
+
+    expect(parseSafeUrl(oversizedUrl, redirectStrict)).toMatchObject({
+      ok: false,
+      reason: "url_too_long",
     });
   });
 });
@@ -172,5 +181,15 @@ describe("parseSafeUrl webhook mode", () => {
     expect(parseSafeUrl("http://localhost.:3001/hooks", webhookDev).ok).toBe(
       true
     );
+  });
+
+  test("schema rejects oversized webhook URLs", () => {
+    const oversizedUrl = `https://hooks.example.com/${"a".repeat(
+      SAFE_URL_MAX_LENGTH
+    )}`;
+
+    expect(
+      safeWebhookUrl({ allowLoopback: false }).safeParse(oversizedUrl).success
+    ).toBe(false);
   });
 });

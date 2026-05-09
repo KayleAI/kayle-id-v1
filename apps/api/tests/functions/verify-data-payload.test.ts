@@ -150,6 +150,47 @@ describe("verify data payload processor", () => {
 		expect(result.authenticityReady).toBeFalse();
 	});
 
+	test("rejects unsupported data kinds before allocating chunk state", () => {
+		const state = createTransferState();
+
+		const result = processDataPayload({
+			state,
+			payload: {
+				kind: 99,
+				raw: new Uint8Array(),
+				index: 1000,
+				total: 1,
+				chunkIndex: 0,
+				chunkTotal: 2,
+			},
+		});
+
+		expect(result.error?.code).toBe("UNKNOWN_DATA_KIND");
+		expect(state.chunks.size).toBe(0);
+		expect(state.bytesReceived).toBe(0);
+	});
+
+	test("rejects nonzero NFC indexes before allocating chunk state", () => {
+		const state = createTransferState();
+
+		const result = processDataPayload({
+			state,
+			payload: {
+				kind: 1,
+				raw: new Uint8Array(),
+				index: 1,
+				total: 1,
+				chunkIndex: 0,
+				chunkTotal: 2,
+			},
+		});
+
+		expect(result.error?.code).toBe("DATA_CHUNK_RETRY");
+		expect(result.error?.message).toContain("invalid_nfc_index");
+		expect(state.chunks.size).toBe(0);
+		expect(state.bytesReceived).toBe(0);
+	});
+
 	test("stores selfie payloads by index idempotently", () => {
 		const state = createTransferState();
 

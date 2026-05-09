@@ -10,6 +10,7 @@ describe("buildInternalApiProxyUrl", () => {
 		expect(
 			buildInternalApiProxyUrl(
 				"https://localhost:3000/api/auth/session?fresh=true",
+				"auth",
 			),
 		).toBe("http://api/v1/auth/session?fresh=true");
 	});
@@ -18,8 +19,27 @@ describe("buildInternalApiProxyUrl", () => {
 		expect(
 			buildInternalApiProxyUrl(
 				"https://localhost:3000/api/webhooks//events//?limit=10",
+				"webhooks",
 			),
 		).toBe("http://api/v1/webhooks/events?limit=10");
+	});
+
+	test("rejects paths that normalized outside the route proxy root", () => {
+		expect(() =>
+			buildInternalApiProxyUrl(
+				"https://localhost:3000/api/auth/%2e%2e/internal/auth/check-session-membership",
+				"auth",
+			),
+		).toThrow("internal_api_proxy_path_mismatch");
+	});
+
+	test("rejects requests for a different proxy root", () => {
+		expect(() =>
+			buildInternalApiProxyUrl(
+				"https://localhost:3000/api/internal/auth/check-session-membership",
+				"webhooks",
+			),
+		).toThrow("internal_api_proxy_path_mismatch");
 	});
 });
 
@@ -40,7 +60,7 @@ describe("buildProxyHeaders", () => {
 		);
 	});
 
-	test("forwards the first available client IP", () => {
+	test("does not promote raw x-forwarded-for without Cloudflare metadata", () => {
 		const headers = buildProxyHeaders(
 			new Request("https://localhost:3000/api/auth/session", {
 				headers: {
@@ -50,7 +70,7 @@ describe("buildProxyHeaders", () => {
 			"test-token",
 		);
 
-		expect(headers.get("x-forwarded-client-ip")).toBe("198.51.100.20");
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 
 	test("strips client-supplied trusted proxy headers when no upstream metadata is present", () => {
@@ -128,5 +148,6 @@ describe("buildProxyHeaders", () => {
 		expect(headers.get("cf-connecting-ip")).toBeNull();
 		expect(headers.get("x-real-ip")).toBeNull();
 		expect(headers.get("x-forwarded-for")).toBeNull();
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 });

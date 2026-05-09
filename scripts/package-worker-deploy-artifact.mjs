@@ -1,12 +1,28 @@
-import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 
 const EXCLUDED_PATH_NAMES = new Set([
+  ".dev.vars",
+  ".pytest_cache",
   ".DS_Store",
   ".git",
+  ".tanstack",
+  ".turbo",
+  ".venv",
   ".wrangler",
+  "__pycache__",
   "node_modules",
+  "tests",
 ]);
+const EXCLUDED_SECRET_EXTENSIONS = new Set([".key", ".p8", ".p12", ".pem"]);
 const GENERATED_WRANGLER_CONFIG_PATH = path.join(
   "dist",
   "server",
@@ -78,11 +94,35 @@ const toRelativePath = (fromFilePath, targetPath) => {
 const shouldCopyPath = (sourcePath) => {
   const pathName = path.basename(sourcePath);
 
-  if (pathName.startsWith(".env")) {
+  if (
+    pathName.startsWith(".dev.vars") ||
+    pathName.startsWith(".env") ||
+    pathName.endsWith(".env")
+  ) {
+    return false;
+  }
+
+  if (
+    pathName.endsWith(".test.ts") ||
+    pathName.endsWith(".test.tsx") ||
+    pathName.endsWith("_test.py")
+  ) {
+    return false;
+  }
+
+  if (EXCLUDED_SECRET_EXTENSIONS.has(path.extname(pathName))) {
     return false;
   }
 
   return !EXCLUDED_PATH_NAMES.has(pathName);
+};
+
+const shouldCopyArtifactPath = async (sourcePath) => {
+  if (!shouldCopyPath(sourcePath)) {
+    return false;
+  }
+
+  return !(await lstat(sourcePath)).isSymbolicLink();
 };
 
 const pruneWorkspaceProjectDir = async (workspaceProjectDir) => {
@@ -183,7 +223,7 @@ const main = async () => {
   await mkdir(workspaceRoot, { recursive: true });
 
   await cp(absoluteProjectDir, workspaceProjectDir, {
-    filter: shouldCopyPath,
+    filter: shouldCopyArtifactPath,
     recursive: true,
   });
   await pruneWorkspaceProjectDir(workspaceProjectDir);
@@ -194,7 +234,7 @@ const main = async () => {
 
     await mkdir(path.dirname(workspaceExtraPath), { recursive: true });
     await cp(absoluteExtraPath, workspaceExtraPath, {
-      filter: shouldCopyPath,
+      filter: shouldCopyArtifactPath,
       recursive: true,
     });
   }

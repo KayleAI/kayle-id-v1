@@ -1,6 +1,8 @@
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import {
   createFaceMatcherResponse,
   FACE_MATCHER_AUTH_HEADER,
+  FACE_MATCHER_MAX_REQUEST_BYTES,
   type FaceMatcherMultipartPayload,
   faceMatcherResponseSchema,
   parseFaceMatcherRequestFormData,
@@ -13,6 +15,10 @@ import {
   logSafeError,
   type SafeRequestLogger,
 } from "@kayle-id/config/logging";
+import {
+  isRequestBodyTooLarge,
+  readRequestBytesWithLimit,
+} from "@kayle-id/config/request-body";
 import pkg from "../../../package.json" with { type: "json" };
 import { matchFacesWithContainer } from "./matcher";
 
@@ -64,9 +70,16 @@ function authorizeInternalRequest(
     return { ok: false, reason: "secret_missing" };
   }
 
-  const headerMatch =
-    request.headers.get(FACE_MATCHER_AUTH_HEADER) === matcherSecret ||
-    request.headers.get("authorization") === `Bearer ${matcherSecret}`;
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : null;
+  const sharedSecretHeader = request.headers.get(FACE_MATCHER_AUTH_HEADER);
+  const headerMatch = [sharedSecretHeader, bearerToken].some(
+    (candidate) =>
+      typeof candidate === "string" &&
+      constantTimeStringEqual(candidate, matcherSecret)
+  );
 
   return headerMatch
     ? { ok: true }
@@ -149,24 +162,54 @@ async function parseMatchPayload({
   logger: FaceMatcherRequestLogger;
 }): Promise<FaceMatcherMultipartPayload | Response> {
   try {
-    return await parseFaceMatcherRequestFormData(await request.formData());
+    const contentType = request.headers.get("content-type");
+    if (!contentType) {
+      throw new Error("face_matcher_content_type_missing");
+    }
+
+    const bodyBytes = await readRequestBytesWithLimit(
+      request,
+      FACE_MATCHER_MAX_REQUEST_BYTES
+    );
+    const boundedRequest = new Request(request.url, {
+      body: bodyBytes,
+      headers: {
+        "content-type": contentType,
+      },
+      method: request.method,
+    });
+
+    return await parseFaceMatcherRequestFormData(
+      await boundedRequest.formData()
+    );
   } catch (error) {
+    const bodyTooLarge = isRequestBodyTooLarge(error);
+    const status = bodyTooLarge ? 413 : 400;
+
     logSafeError(logger, {
-      code: "face_matcher_invalid_request",
+      code: bodyTooLarge
+        ? "face_matcher_request_too_large"
+        : "face_matcher_invalid_request",
       error,
-      event: "face_matcher.invalid_request",
-      message: "Face matcher request payload is invalid.",
-      status: 400,
+      event: bodyTooLarge
+        ? "face_matcher.request_too_large"
+        : "face_matcher.invalid_request",
+      message: bodyTooLarge
+        ? "Face matcher request payload is too large."
+        : "Face matcher request payload is invalid.",
+      status,
     });
 
     return jsonResponse(
       {
         error: {
-          code: "INVALID_REQUEST",
-          message: "Face matcher request payload is invalid.",
+          code: bodyTooLarge ? "PAYLOAD_TOO_LARGE" : "INVALID_REQUEST",
+          message: bodyTooLarge
+            ? "Face matcher request payload is too large."
+            : "Face matcher request payload is invalid.",
         },
       },
-      400
+      status
     );
   }
 }

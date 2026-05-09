@@ -55,6 +55,16 @@ type ApiKeyMutationResponse = {
 let TEST_DATA: ApiKeysRouteTestData | undefined;
 let FORBIDDEN_TEST_DATA: SessionAuthTestData | undefined;
 
+const API_KEY_NAME_MAX_LENGTH = 120;
+const API_KEY_METADATA_MAX_KEYS = 20;
+const TOO_LONG_API_KEY_NAME = "a".repeat(API_KEY_NAME_MAX_LENGTH + 1);
+const TOO_MANY_METADATA_KEYS = Object.fromEntries(
+	Array.from({ length: API_KEY_METADATA_MAX_KEYS + 1 }, (_, index) => [
+		`key${index}`,
+		true,
+	]),
+);
+
 function requireOrganizationId(organizationId: string | null): string {
 	if (!organizationId) {
 		throw new Error("api_keys_test_organization_missing");
@@ -139,6 +149,19 @@ describe("API Key Endpoints", () => {
 				name: "Test API Key",
 			}),
 		);
+	});
+
+	test("rejects malformed API key cursors before lookup", async () => {
+		const testData = requireTestData();
+		const response = await app.request(
+			`/v1/auth/api-keys?starting_after=${"a".repeat(200)}`,
+			{
+				headers: createJsonHeaders(testData.sessionCookie),
+				method: "GET",
+			},
+		);
+
+		expect(response.status).toBe(400);
 	});
 
 	test("creates an API key for an authenticated session", async () => {
@@ -248,6 +271,49 @@ describe("API Key Endpoints", () => {
 
 		expect(createResponse.status).toBe(400);
 		expect(updateResponse.status).toBe(400);
+	});
+
+	test("rejects API key names and metadata that exceed route bounds", async () => {
+		const testData = requireTestData();
+		const createResponse = await app.request("/v1/auth/api-keys", {
+			body: JSON.stringify({
+				name: TOO_LONG_API_KEY_NAME,
+				permissions: ["sessions:write"],
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+		const updateResponse = await app.request(
+			`/v1/auth/api-keys/${testData.apiKeyId}`,
+			{
+				body: JSON.stringify({
+					metadata: TOO_MANY_METADATA_KEYS,
+				}),
+				headers: createJsonHeaders(testData.sessionCookie),
+				method: "PATCH",
+			},
+		);
+
+		expect(createResponse.status).toBe(400);
+		expect(updateResponse.status).toBe(400);
+	});
+
+	test("rejects malformed API key IDs before database lookup", async () => {
+		const testData = requireTestData();
+		const updateResponse = await app.request("/v1/auth/api-keys/not-a-uuid", {
+			body: JSON.stringify({
+				enabled: false,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "PATCH",
+		});
+		const deleteResponse = await app.request("/v1/auth/api-keys/not-a-uuid", {
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "DELETE",
+		});
+
+		expect(updateResponse.status).toBe(400);
+		expect(deleteResponse.status).toBe(400);
 	});
 
 	test("deletes an API key for an authenticated session", async () => {

@@ -3,9 +3,13 @@ import {
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { and, eq } from "drizzle-orm";
-import { isTerminalAttemptStatus } from "./status";
-import { hashMobileDeviceId, hashMobileWriteToken } from "./token-crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import { ACTIVE_SESSION_STATUSES, isTerminalAttemptStatus } from "./status";
+import {
+	constantTimeStringEqual,
+	hashMobileDeviceId,
+	hashMobileWriteToken,
+} from "./token-crypto";
 
 export type HelloPayload = {
 	attemptId?: string;
@@ -111,7 +115,9 @@ export async function resolveHelloAuthState({
 	}
 
 	const providedTokenHash = await hashMobileWriteToken(mobileWriteToken);
-	if (providedTokenHash !== attempt.mobileWriteTokenHash) {
+	if (
+		!constantTimeStringEqual(providedTokenHash, attempt.mobileWriteTokenHash)
+	) {
 		return {
 			kind: "error",
 			code: "HANDOFF_TOKEN_INVALID",
@@ -128,7 +134,9 @@ export async function resolveHelloAuthState({
 			};
 		}
 
-		if (attempt.mobileHelloDeviceIdHash !== deviceIdHash) {
+		if (
+			!constantTimeStringEqual(attempt.mobileHelloDeviceIdHash, deviceIdHash)
+		) {
 			return {
 				kind: "error",
 				code: "HANDOFF_DEVICE_MISMATCH",
@@ -177,19 +185,32 @@ export async function consumeHelloAttempt({
 export async function markSessionInProgress(session: {
 	id: string;
 	status: string;
-}): Promise<void> {
+}): Promise<boolean> {
 	if (session.status === "in_progress") {
-		return;
+		return true;
 	}
 
-	await db
+	const [updated] = await db
 		.update(verification_sessions)
 		.set({
 			status: "in_progress",
 		})
-		.where(eq(verification_sessions.id, session.id));
+		.where(
+			and(
+				eq(verification_sessions.id, session.id),
+				inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+			),
+		)
+		.returning({
+			status: verification_sessions.status,
+		});
 
-	session.status = "in_progress";
+	if (!updated) {
+		return false;
+	}
+
+	session.status = updated.status;
+	return true;
 }
 
 export function isAttemptMissingOrTerminal(

@@ -5,17 +5,42 @@ import {
 	LogoValidationError,
 	uploadOrganizationLogo,
 } from "@/auth/organizations/create/logo";
+import { checkPermission } from "@/functions/auth/check-permission";
 import { getRequestLogger } from "@/logging";
+import { denyIfOrgFrozen } from "@/v1/auth";
 import { internalUploadOrganizationLogo } from "./openapi";
 
 const uploadLogoRoute = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
-	Variables: { userId: string };
+	Variables: { organizationId?: null | string; userId?: string };
 }>();
 
 uploadLogoRoute.openapi(internalUploadOrganizationLogo, async (c) => {
 	const { logo } = c.req.valid("json");
 	const log = getRequestLogger(c);
+	const organizationId = c.get("organizationId");
+	const userId = c.get("userId");
+
+	if (
+		!(organizationId && userId) ||
+		!(await checkPermission(userId, organizationId, "admin"))
+	) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "FORBIDDEN",
+					message: "Only an owner or admin can upload an organization logo.",
+				} as const,
+			},
+			403,
+		);
+	}
+
+	const frozenResponse = await denyIfOrgFrozen(c);
+	if (frozenResponse) {
+		return frozenResponse;
+	}
 
 	try {
 		const logoUrl = await uploadOrganizationLogo({

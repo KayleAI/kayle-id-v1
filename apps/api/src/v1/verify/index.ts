@@ -1,6 +1,6 @@
 import { db } from "@kayle-id/database/drizzle";
 import { verification_sessions } from "@kayle-id/database/schema/core";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -12,11 +12,17 @@ import {
 import attest from "./attest-handlers";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
+import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
-import { hashSessionCancelToken } from "./token-crypto";
+import {
+	constantTimeStringEqual,
+	hashSessionCancelToken,
+	SESSION_CANCEL_TOKEN_LENGTH,
+	SESSION_CANCEL_TOKEN_PATTERN,
+} from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
 
@@ -155,21 +161,11 @@ verify.get(
 );
 
 const cancelBodySchema = z.object({
-	cancel_token: z.string().min(1),
+	cancel_token: z
+		.string()
+		.length(SESSION_CANCEL_TOKEN_LENGTH)
+		.regex(SESSION_CANCEL_TOKEN_PATTERN),
 });
-
-function constantTimeStringEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) {
-		return false;
-	}
-
-	let mismatch = 0;
-	for (let index = 0; index < a.length; index++) {
-		mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
-	}
-
-	return mismatch === 0;
-}
 
 verify.post(
 	"/session/:id/cancel",
@@ -204,6 +200,21 @@ verify.post(
 			.limit(1);
 
 		if (!rawSession) {
+			const response = createVerifyJsonErrorResponse({
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		if (await isPublicVerifySessionHidden(rawSession.organizationId)) {
 			const response = createVerifyJsonErrorResponse({
 				code: "SESSION_NOT_FOUND",
 				status: 404,
@@ -286,10 +297,47 @@ verify.post(
 			);
 		}
 
-		await db
+		const [consumedCancelToken] = await db
 			.update(verification_sessions)
 			.set({ cancelTokenConsumedAt: new Date() })
-			.where(eq(verification_sessions.id, session.id));
+			.where(
+				and(
+					eq(verification_sessions.id, session.id),
+					isNull(verification_sessions.cancelTokenConsumedAt),
+				),
+			)
+			.returning({ id: verification_sessions.id });
+
+		if (!consumedCancelToken) {
+			const [latestSession] = await db
+				.select({
+					cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+					status: verification_sessions.status,
+				})
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, session.id))
+				.limit(1);
+
+			if (
+				latestSession?.cancelTokenConsumedAt &&
+				["completed", "expired", "cancelled"].includes(latestSession.status)
+			) {
+				return c.body(null, 204);
+			}
+
+			const response = createVerifyJsonErrorResponse({
+				code: "CANCEL_TOKEN_USED",
+				status: 401,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
 
 		if (!isTerminal) {
 			await cancelVerificationSession({

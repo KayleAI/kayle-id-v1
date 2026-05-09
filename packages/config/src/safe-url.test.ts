@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseSafeUrl } from "./safe-url";
+import { parseSafeUrl, SAFE_URL_MAX_LENGTH, safeWebhookUrl } from "./safe-url";
 
 describe("parseSafeUrl redirect mode", () => {
   const redirectStrict = { allowLoopback: false, mode: "redirect" } as const;
@@ -70,6 +70,15 @@ describe("parseSafeUrl redirect mode", () => {
       reason: "invalid_url",
     });
   });
+
+  test("rejects oversized URLs before parsing", () => {
+    const oversizedUrl = `https://example.com/${"a".repeat(SAFE_URL_MAX_LENGTH)}`;
+
+    expect(parseSafeUrl(oversizedUrl, redirectStrict)).toMatchObject({
+      ok: false,
+      reason: "url_too_long",
+    });
+  });
 });
 
 describe("parseSafeUrl webhook mode", () => {
@@ -110,6 +119,25 @@ describe("parseSafeUrl webhook mode", () => {
     });
   });
 
+  test("rejects reserved hostnames", () => {
+    expect(
+      parseSafeUrl("https://metadata.google.internal/hooks", webhookStrict)
+    ).toMatchObject({
+      ok: false,
+      reason: "reserved_hostname_disallowed",
+    });
+    expect(
+      parseSafeUrl("https://printer.local/hooks", webhookStrict)
+    ).toMatchObject({
+      ok: false,
+      reason: "reserved_hostname_disallowed",
+    });
+    expect(parseSafeUrl("https://webhook/hooks", webhookStrict)).toMatchObject({
+      ok: false,
+      reason: "reserved_hostname_disallowed",
+    });
+  });
+
   test("accepts http://127.0.0.1 demo loopback when allowed", () => {
     expect(parseSafeUrl("http://127.0.0.1:3001/hooks", webhookDev).ok).toBe(
       true
@@ -137,9 +165,31 @@ describe("parseSafeUrl webhook mode", () => {
     ).toMatchObject({ ok: false, reason: "loopback_not_allowed" });
   });
 
+  test("rejects root-dotted localhost in strict (production) mode", () => {
+    expect(
+      parseSafeUrl("https://localhost.:3001/hooks", webhookStrict)
+    ).toMatchObject({ ok: false, reason: "loopback_not_allowed" });
+  });
+
   test("accepts https://localhost when loopback is allowed", () => {
     expect(parseSafeUrl("https://localhost:3001/hooks", webhookDev).ok).toBe(
       true
     );
+  });
+
+  test("accepts root-dotted localhost when loopback is allowed", () => {
+    expect(parseSafeUrl("http://localhost.:3001/hooks", webhookDev).ok).toBe(
+      true
+    );
+  });
+
+  test("schema rejects oversized webhook URLs", () => {
+    const oversizedUrl = `https://hooks.example.com/${"a".repeat(
+      SAFE_URL_MAX_LENGTH
+    )}`;
+
+    expect(
+      safeWebhookUrl({ allowLoopback: false }).safeParse(oversizedUrl).success
+    ).toBe(false);
   });
 });

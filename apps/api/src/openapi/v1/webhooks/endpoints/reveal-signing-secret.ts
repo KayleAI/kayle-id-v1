@@ -1,18 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { RevealedWebhookSigningSecret } from "@/openapi/models/webhook";
+import {
+	RevealedWebhookSigningSecret,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const revealWebhookEndpointSigningSecret = createRoute({
 	method: "post",
 	path: "/:endpoint_id/signing-secret/reveal",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe(
-					"The ID of the webhook endpoint whose signing secret should be revealed.",
-				),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint whose signing secret should be revealed.",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

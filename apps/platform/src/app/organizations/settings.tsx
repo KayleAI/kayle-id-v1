@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	AlertDialog,
@@ -39,8 +40,6 @@ import {
 import { OrganizationPageLayout } from "./layout";
 import { StartVerificationDialog } from "./start-verification-dialog";
 
-const SLUG_REGEX = /^[a-z0-9-]+$/;
-
 function SettingsSkeleton() {
 	return (
 		<div className="space-y-6">
@@ -78,7 +77,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 			setErrorMessage("Slug is required");
 			return;
 		}
-		if (!SLUG_REGEX.test(trimmed)) {
+		if (!isOrganizationSlug(trimmed)) {
 			setErrorMessage(
 				"Slug must contain only lowercase letters, numbers, and hyphens",
 			);

@@ -1,5 +1,7 @@
 import type { DemoWebhookEnvelope } from "@/demo/types";
 
+export const DEMO_WEBHOOK_HISTORY_LIMIT = 10;
+
 interface DemoWebhookHistorySource {
 	webhook?: DemoWebhookEnvelope | null;
 	webhooks?: DemoWebhookEnvelope[] | null;
@@ -43,6 +45,15 @@ export function getLatestDemoWebhook(
 	source: DemoWebhookHistorySource | null | undefined,
 ): DemoWebhookEnvelope | null {
 	return getDemoWebhookHistory(source).at(-1) ?? null;
+}
+
+export function appendDemoWebhookHistory(
+	source: DemoWebhookHistorySource | null | undefined,
+	webhook: DemoWebhookEnvelope,
+): DemoWebhookEnvelope[] {
+	return [...getDemoWebhookHistory(source), webhook].slice(
+		-DEMO_WEBHOOK_HISTORY_LIMIT,
+	);
 }
 
 export function getDemoWebhookReplayReceiptIds(

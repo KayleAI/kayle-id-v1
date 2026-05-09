@@ -13,7 +13,7 @@ export const acceptVerificationTermsRoute = createRoute({
 			content: {
 				"application/json": {
 					schema: z.object({
-						organizationId: z.string().min(1),
+						organizationId: z.string().uuid(),
 					}),
 				},
 			},

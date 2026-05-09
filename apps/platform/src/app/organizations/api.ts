@@ -1,4 +1,8 @@
 import { client } from "@kayle-id/auth/client";
+import {
+	type OrganizationMetadata,
+	parseStoredOrganizationMetadata,
+} from "@kayle-id/auth/organization-metadata";
 import type { Organization } from "@kayle-id/auth/types";
 import { requestApiResource } from "@/utils/api-client";
 
@@ -38,11 +42,6 @@ export interface OrganizationInvitation {
 	status: OrganizationInvitationStatus;
 }
 
-export interface OrganizationMetadata {
-	description?: string | null;
-	website?: string | null;
-}
-
 export interface FullOrganization extends Organization {
 	createdAt: string;
 	invitations: OrganizationInvitation[];
@@ -60,29 +59,6 @@ function unwrap<T>(result: BetterAuthResult<T>, fallback: string): T {
 		throw new Error(result.error?.message ?? fallback);
 	}
 	return result.data;
-}
-
-function parseMetadata(value: unknown): OrganizationMetadata | null {
-	if (value === null || value === undefined) {
-		return null;
-	}
-
-	if (typeof value === "object") {
-		return value as OrganizationMetadata;
-	}
-
-	if (typeof value !== "string") {
-		return null;
-	}
-
-	try {
-		const parsed = JSON.parse(value);
-		return parsed && typeof parsed === "object"
-			? (parsed as OrganizationMetadata)
-			: null;
-	} catch {
-		return null;
-	}
 }
 
 function toIsoStringOrNull(value: unknown): string | null {
@@ -132,7 +108,7 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 		invitations:
 			(data.invitations as OrganizationInvitation[] | undefined) ?? [],
 		members: (data.members as OrganizationMember[] | undefined) ?? [],
-		metadata: parseMetadata(data.metadata),
+		metadata: parseStoredOrganizationMetadata(data.metadata),
 	};
 }
 

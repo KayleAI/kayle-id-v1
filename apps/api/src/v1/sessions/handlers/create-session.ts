@@ -3,6 +3,7 @@ import { logEvent } from "@kayle-id/config/logging";
 import { getRequestLogger } from "@/logging";
 import type { createSession } from "@/openapi/v1/sessions/create";
 import { generateId } from "@/utils/generate-id";
+import { denyIfOrgFrozen } from "@/v1/auth";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
 import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
@@ -20,6 +21,11 @@ export const createSessionHandler: RouteHandler<
 	const log = getRequestLogger(c);
 	const query = c.req.valid("query") ?? {};
 	const body = c.req.valid("json");
+
+	const frozenResponse = await denyIfOrgFrozen(c);
+	if (frozenResponse) {
+		return frozenResponse;
+	}
 
 	const redirectUrl = body?.redirect_url ?? null;
 

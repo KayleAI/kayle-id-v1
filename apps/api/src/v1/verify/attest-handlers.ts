@@ -5,24 +5,75 @@ import { mobile_attest_keys } from "@kayle-id/database/schema/core";
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
+import { createHMAC } from "@/functions/hmac";
 import { getRequestLogger } from "@/logging";
-import { type AppAttestEnvironment, verifyAttestation } from "./app-attest";
+import { resolveTrustedClientIp } from "@/proxy-client-ip";
+import { verifyAttestation } from "./app-attest";
+import { resolveAppAttestEnvironment } from "./attest-gate";
 import { createVerifyJsonErrorResponse } from "./error-response";
 
 const ATTEST_CHALLENGE_BYTES = 32;
+const ATTEST_CHALLENGE_BASE64URL_LENGTH = 43;
 const ATTEST_CHALLENGE_TTL_SECONDS = 5 * 60;
 const ATTEST_CHALLENGE_REDIS_PREFIX = "attest:register_challenge:";
+const ATTEST_CHALLENGE_RATE_LIMIT_PREFIX = "attest:challenge_rate:";
+const ATTEST_CHALLENGE_RATE_LIMIT_WINDOW_SECONDS = 60;
+export const ATTEST_CHALLENGE_RATE_LIMIT_MAX = 20;
+const ANONYMOUS_CHALLENGE_RATE_LIMIT_ID = "anonymous";
+const MAX_ATTESTATION_BYTES = 64 * 1024;
+const MAX_ATTESTATION_BASE64_LENGTH =
+	Math.ceil(MAX_ATTESTATION_BYTES / 3) * 4 + 4;
+const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/u;
 
 const attest = new Hono<{ Bindings: CloudflareBindings }>();
 
+interface AttestChallengeRateLimitStore {
+	expire(key: string, seconds: number): Promise<unknown>;
+	incr(key: string): Promise<number>;
+	ttl(key: string): Promise<number>;
+}
+
+interface AttestChallengeRateLimitResult {
+	ok: boolean;
+	retryAfterSeconds: number;
+}
+
 const registerBodySchema = z.object({
 	key_id: z.string().min(1).max(512),
-	attestation: z.string().min(1),
-	challenge: z.string().min(1),
+	attestation: z.string().min(1).max(MAX_ATTESTATION_BASE64_LENGTH),
+	challenge: z
+		.string()
+		.length(ATTEST_CHALLENGE_BASE64URL_LENGTH)
+		.regex(BASE64URL_PATTERN),
 });
 
 attest.get("/challenge", async (c) => {
 	const log = getRequestLogger(c);
+	const rateLimit = await checkAttestChallengeRateLimit({
+		identity: await resolveAttestChallengeRateLimitIdentity({
+			headers: c.req.raw.headers,
+			internalToken: c.env.KAYLE_INTERNAL_TOKEN,
+		}),
+		secret: c.env.AUTH_SECRET,
+		store: redis,
+	});
+
+	if (!rateLimit.ok) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ATTEST_CHALLENGE_RATE_LIMITED" as const,
+					message: "Too many App Attest challenge requests. Try again later.",
+				},
+			},
+			429,
+			{
+				"Retry-After": String(rateLimit.retryAfterSeconds),
+			},
+		);
+	}
+
 	const challengeBytes = crypto.getRandomValues(
 		new Uint8Array(ATTEST_CHALLENGE_BYTES),
 	);
@@ -109,7 +160,7 @@ attest.post(
 		}
 
 		const clientDataHash = await sha256(challengeBytes);
-		const environment = resolveEnvironment(c.env);
+		const environment = resolveAppAttestEnvironment(c.env);
 
 		const result = await verifyAttestation({
 			attestationCbor: attestationBytes,
@@ -200,17 +251,60 @@ function jsonError(
 	);
 }
 
+export async function resolveAttestChallengeRateLimitIdentity({
+	headers,
+	internalToken,
+}: {
+	headers: Headers;
+	internalToken: string;
+}): Promise<string> {
+	return (
+		(await resolveTrustedClientIp({ headers, internalToken })) ??
+		ANONYMOUS_CHALLENGE_RATE_LIMIT_ID
+	);
+}
+
+export async function checkAttestChallengeRateLimit({
+	identity,
+	secret,
+	store,
+}: {
+	identity: string;
+	secret: string;
+	store: AttestChallengeRateLimitStore;
+}): Promise<AttestChallengeRateLimitResult> {
+	const key = `${ATTEST_CHALLENGE_RATE_LIMIT_PREFIX}${await createHMAC(
+		identity,
+		{
+			algorithm: "SHA256",
+			secret,
+		},
+	)}`;
+	const count = await store.incr(key);
+
+	if (count === 1) {
+		await store.expire(key, ATTEST_CHALLENGE_RATE_LIMIT_WINDOW_SECONDS);
+	}
+
+	if (count <= ATTEST_CHALLENGE_RATE_LIMIT_MAX) {
+		return { ok: true, retryAfterSeconds: 0 };
+	}
+
+	const ttl = await store.ttl(key);
+	const retryAfterSeconds =
+		ttl > 0 ? ttl : ATTEST_CHALLENGE_RATE_LIMIT_WINDOW_SECONDS;
+
+	return {
+		ok: false,
+		retryAfterSeconds,
+	};
+}
+
 async function consumeRedisKey(key: string): Promise<boolean> {
 	// Upstash's `redis.getdel` returns the previous value or null. A null
 	// indicates the key was missing or already consumed; either way, fail.
 	const value = await redis.getdel<string>(key);
 	return value !== null;
-}
-
-function resolveEnvironment(env: CloudflareBindings): AppAttestEnvironment {
-	return env.PUBLIC_AUTH_URL === "https://kayle.id"
-		? "production"
-		: "development";
 }
 
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {

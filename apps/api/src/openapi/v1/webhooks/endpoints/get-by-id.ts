@@ -1,16 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookEndpoint } from "@/openapi/models/webhook";
+import {
+	WebhookEndpoint,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const getWebhookEndpoint = createRoute({
 	method: "get",
 	path: "/:endpoint_id",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe("The ID of the webhook endpoint to retrieve (e.g. whe_...)."),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint to retrieve (e.g. whe_...).",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

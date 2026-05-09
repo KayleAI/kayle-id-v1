@@ -63,7 +63,7 @@ async function addMember({
 }: {
 	organizationId: string;
 	userId: string;
-	role: "owner" | "admin" | "member";
+	role: string;
 }): Promise<void> {
 	await db.insert(auth_organization_members).values({
 		createdAt: new Date(),
@@ -101,7 +101,7 @@ describe("Account — owned-organizations endpoint", () => {
 		expect(response.status).toBe(401);
 	});
 
-	test("returns sole-owned org and excludes co-owned, admin, and member orgs", async () => {
+	test("returns sole-owned orgs and excludes co-owned, admin, and member orgs", async () => {
 		const caller = requireCaller();
 		const coOwner = requireCoOwner();
 
@@ -112,6 +112,13 @@ describe("Account — owned-organizations endpoint", () => {
 			role: "owner",
 		});
 
+		const combinedRoleSoleOwnedId = await createOrganization();
+		await addMember({
+			organizationId: combinedRoleSoleOwnedId,
+			userId: caller.userId,
+			role: "owner,admin",
+		});
+
 		const coOwnedId = await createOrganization();
 		await addMember({
 			organizationId: coOwnedId,
@@ -120,6 +127,18 @@ describe("Account — owned-organizations endpoint", () => {
 		});
 		await addMember({
 			organizationId: coOwnedId,
+			userId: coOwner.userId,
+			role: "owner",
+		});
+
+		const combinedRoleCoOwnedId = await createOrganization();
+		await addMember({
+			organizationId: combinedRoleCoOwnedId,
+			userId: caller.userId,
+			role: "owner,admin",
+		});
+		await addMember({
+			organizationId: combinedRoleCoOwnedId,
 			userId: coOwner.userId,
 			role: "owner",
 		});
@@ -148,6 +167,13 @@ describe("Account — owned-organizations endpoint", () => {
 			role: "owner",
 		});
 
+		const malformedOwnerOrgId = await createOrganization();
+		await addMember({
+			organizationId: malformedOwnerOrgId,
+			userId: caller.userId,
+			role: "owner,",
+		});
+
 		const response = await app.request("/v1/auth/account/owned-organizations", {
 			headers: { Cookie: caller.sessionCookie },
 			method: "GET",
@@ -158,6 +184,6 @@ describe("Account — owned-organizations endpoint", () => {
 		expect(payload.error).toBeNull();
 		const ids =
 			payload.data?.organizations.map((org) => org.id).toSorted() ?? [];
-		expect(ids).toEqual([soleOwnedId]);
+		expect(ids).toEqual([combinedRoleSoleOwnedId, soleOwnedId].toSorted());
 	});
 });

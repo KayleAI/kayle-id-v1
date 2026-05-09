@@ -1,7 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organization_members } from "@kayle-id/database/schema/auth";
 import { and, eq } from "drizzle-orm";
-import { hasOrgRole, isOrgRole, type OrgRole } from "@/auth/permissions";
+import { hasOrgRole, type OrgRole } from "@/auth/permissions";
 
 /**
  * Returns true when `userId` is a member of `organizationId` whose stored role
@@ -26,10 +26,6 @@ export async function checkPermission(
 		.limit(1);
 
 	if (!member) {
-		return false;
-	}
-
-	if (!isOrgRole(member.role)) {
 		return false;
 	}
 

@@ -7,6 +7,10 @@ import {
 import { and, eq } from "drizzle-orm";
 import { deactivateWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/deactivate";
 import { reactivateWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/reactivate";
+import {
+	acquireWebhookEndpointKeyMutationLock,
+	mapKeyRowToResponse,
+} from "@/v1/webhooks/endpoints/utils";
 
 const webhookEncryptionKeys = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
@@ -15,21 +19,6 @@ const webhookEncryptionKeys = new OpenAPIHono<{
 		type: "api" | "session";
 	};
 }>();
-
-function mapKeyRowToResponse(row: typeof webhook_encryption_keys.$inferSelect) {
-	return {
-		id: row.id,
-		webhook_endpoint_id: row.webhookEndpointId,
-		key_id: row.keyId,
-		algorithm: row.algorithm,
-		key_type: row.keyType,
-		jwk: row.jwk as Record<string, unknown>,
-		is_active: row.isActive,
-		created_at: row.createdAt.toISOString(),
-		updated_at: row.updatedAt.toISOString(),
-		disabled_at: row.disabledAt ? row.disabledAt.toISOString() : null,
-	};
-}
 
 async function findWebhookKeyByIdForOrganization({
 	keyId,
@@ -58,28 +47,55 @@ async function findWebhookKeyByIdForOrganization({
 	return row ?? null;
 }
 
-async function updateWebhookKeyActiveState({
-	isActive,
-	keyId,
-}: {
-	isActive: boolean;
-	keyId: string;
-}) {
-	await db
+async function deactivateWebhookKey({ keyId }: { keyId: string }) {
+	const [updated] = await db
 		.update(webhook_encryption_keys)
 		.set({
-			isActive,
-			disabledAt: isActive ? null : new Date(),
+			disabledAt: new Date(),
+			isActive: false,
 		})
-		.where(eq(webhook_encryption_keys.id, keyId));
-
-	const [updated] = await db
-		.select()
-		.from(webhook_encryption_keys)
 		.where(eq(webhook_encryption_keys.id, keyId))
-		.limit(1);
+		.returning();
 
 	return updated;
+}
+
+async function reactivateWebhookKey({
+	keyId,
+	webhookEndpointId,
+}: {
+	keyId: string;
+	webhookEndpointId: string;
+}) {
+	const now = new Date();
+
+	return db.transaction(async (tx) => {
+		await acquireWebhookEndpointKeyMutationLock(tx, webhookEndpointId);
+
+		await tx
+			.update(webhook_encryption_keys)
+			.set({
+				disabledAt: now,
+				isActive: false,
+			})
+			.where(
+				and(
+					eq(webhook_encryption_keys.webhookEndpointId, webhookEndpointId),
+					eq(webhook_encryption_keys.isActive, true),
+				),
+			);
+
+		const [updated] = await tx
+			.update(webhook_encryption_keys)
+			.set({
+				disabledAt: null,
+				isActive: true,
+			})
+			.where(eq(webhook_encryption_keys.id, keyId))
+			.returning();
+
+		return updated;
+	});
 }
 
 webhookEncryptionKeys.openapi(deactivateWebhookEncryptionKey, async (c) => {
@@ -105,10 +121,10 @@ webhookEncryptionKeys.openapi(deactivateWebhookEncryptionKey, async (c) => {
 		);
 	}
 
-	const updated = await updateWebhookKeyActiveState({
-		isActive: false,
-		keyId: row.key.id,
-	});
+	const updated = await deactivateWebhookKey({ keyId: row.key.id });
+	if (!updated) {
+		throw new Error("webhook_encryption_key_deactivate_failed");
+	}
 	const data = mapKeyRowToResponse(updated);
 
 	return c.json(
@@ -143,10 +159,13 @@ webhookEncryptionKeys.openapi(reactivateWebhookEncryptionKey, async (c) => {
 		);
 	}
 
-	const updated = await updateWebhookKeyActiveState({
-		isActive: true,
+	const updated = await reactivateWebhookKey({
 		keyId: row.key.id,
+		webhookEndpointId: row.key.webhookEndpointId,
 	});
+	if (!updated) {
+		throw new Error("webhook_encryption_key_reactivate_failed");
+	}
 	const data = mapKeyRowToResponse(updated);
 
 	return c.json(

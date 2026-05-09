@@ -58,7 +58,7 @@ export function startVerifySocketSession(
 	c: Context<{ Bindings: CloudflareBindings }>,
 	activeSession: ActiveVerifySessionContext,
 ): Response {
-	const debug = c.req.query("debug") === "1";
+	const debug = shouldEnableVerifySocketDebug(c.req.query("debug") === "1");
 	const connectionOwnerId = crypto.randomUUID();
 	const log = getRequestLogger(c);
 	const [client, server] = createWebSocketPairTuple();
@@ -201,4 +201,8 @@ export function startVerifySocketSession(
 		status: 101,
 		webSocket: client,
 	});
+}
+
+export function shouldEnableVerifySocketDebug(requested: boolean): boolean {
+	return requested && process.env.NODE_ENV !== "production";
 }

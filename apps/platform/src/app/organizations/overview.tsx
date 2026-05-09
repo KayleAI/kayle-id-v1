@@ -18,6 +18,7 @@ import {
 	ORGANIZATION_QUERY_KEY,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { parsePublicWebsiteUrl } from "./website-url";
 
 function OverviewSkeleton() {
 	return (
@@ -75,6 +76,7 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 	const ownerCount = organization.members.filter(
 		(member) => member.role === "owner",
 	).length;
+	const websiteUrl = parsePublicWebsiteUrl(organization.metadata?.website);
 
 	return (
 		<div className="space-y-6">
@@ -148,14 +150,14 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 						<div className="space-y-1">
 							<dt className="font-medium text-foreground">Website</dt>
 							<dd className="text-muted-foreground">
-								{organization.metadata?.website ? (
+								{websiteUrl ? (
 									<a
 										className="text-foreground hover:underline"
-										href={organization.metadata.website}
+										href={websiteUrl.href}
 										rel="noopener noreferrer"
 										target="_blank"
 									>
-										{organization.metadata.website}
+										{websiteUrl.label}
 									</a>
 								) : (
 									<span className="italic">Not set</span>

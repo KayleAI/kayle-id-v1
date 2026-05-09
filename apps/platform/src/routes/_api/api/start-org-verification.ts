@@ -1,8 +1,14 @@
+import {
+	isRequestBodyTooLarge,
+	readRequestJsonWithLimit,
+} from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
 import { getPublicHost } from "@/utils/proxy-internal-api-utils";
 
+const START_ORG_VERIFICATION_BODY_LIMIT_BYTES = 4 * 1024;
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
+const ORG_VERIFICATION_KV_PREFIX = "org-verify:";
 
 interface CheckMembershipResponse {
 	data: {
@@ -41,11 +47,18 @@ async function readJson(request: Request): Promise<{
 	organizationId: string | null;
 }> {
 	try {
-		const body = (await request.json()) as { organizationId?: unknown };
+		const body = await readRequestJsonWithLimit<{ organizationId?: unknown }>(
+			request,
+			START_ORG_VERIFICATION_BODY_LIMIT_BYTES,
+		);
 		const organizationId =
 			typeof body.organizationId === "string" ? body.organizationId : null;
 		return { organizationId };
-	} catch {
+	} catch (error) {
+		if (isRequestBodyTooLarge(error)) {
+			throw error;
+		}
+
 		return { organizationId: null };
 	}
 }
@@ -54,7 +67,17 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
-				const { organizationId } = await readJson(request);
+				let organizationId: string | null;
+				try {
+					({ organizationId } = await readJson(request));
+				} catch (error) {
+					if (isRequestBodyTooLarge(error)) {
+						return jsonError("Request body is too large.", 413);
+					}
+
+					throw error;
+				}
+
 				if (!organizationId) {
 					return jsonError("organizationId is required.", 400);
 				}
@@ -174,10 +197,15 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 
 				// 3. Stash the session_id → target_org_id mapping. The webhook handler
 				// reads this on `verification.attempt.succeeded` to know which org's
-				// `verified_at` to flip via the trust-token finalize endpoint.
+				// `verified_at` to flip via the trust-token finalize endpoint. Store
+				// the initiating owner too so finalization can re-check ownership at
+				// webhook time instead of trusting a stale session start.
 				await env.ORG_VERIFICATIONS_KV.put(
-					`org-verify:${sessionBody.data.id}`,
-					organizationId,
+					`${ORG_VERIFICATION_KV_PREFIX}${sessionBody.data.id}`,
+					JSON.stringify({
+						organization_id: organization.id,
+						owner_user_id: checkBody.data.user_id,
+					}),
 					{ expirationTtl: SEVEN_DAYS_SECONDS },
 				);
 

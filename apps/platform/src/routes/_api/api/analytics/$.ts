@@ -7,6 +7,7 @@ export const Route = createFileRoute("/_api/api/analytics/$")({
 			ANY: ({ request }) =>
 				proxyInternalApiRequest({
 					request,
+					root: "analytics",
 				}),
 		},
 	},

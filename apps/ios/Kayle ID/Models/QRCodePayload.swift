@@ -20,10 +20,13 @@ func parseQRCodePayloadDate(_ value: String) -> Date? {
 struct QRCodePayload: Codable {
   private static let supportedSchemePrefixes = [
     "kayle-id://",
-    "kayle://",
     "kayle-id:",
-    "kayle:",
   ]
+  private static let currentPayloadVersion = 1
+  private static let generatedIdRandomLength = 64
+  private static let mobileWriteTokenLength = 64
+  private static let cancelTokenLength = 48
+  private static let maxPayloadUrlLength = 4096
 
   let v: Int?
   let sessionId: String
@@ -102,6 +105,10 @@ struct QRCodePayload: Codable {
 
   /// Parse a QR code payload from a `kayle-id://` URL.
   static func parse(from urlString: String) throws -> QRCodePayload {
+    guard urlString.count <= maxPayloadUrlLength else {
+      throw QRCodePayloadError.invalidPayload
+    }
+
     guard
       let prefix = supportedSchemePrefixes.first(where: { urlString.hasPrefix($0) })
     else {
@@ -135,11 +142,74 @@ struct QRCodePayload: Codable {
   var isValid: Bool {
     let expirySkewToleranceSeconds = 30.0
 
-    return !sessionId.isEmpty &&
-      !attemptId.isEmpty &&
-      !mobileWriteToken.isEmpty &&
+    return isSupportedVersion &&
+      Self.isGeneratedId(sessionId, prefix: "vs_") &&
+      Self.isGeneratedId(attemptId, prefix: "va_") &&
+      Self.isLowercaseHex(mobileWriteToken, length: Self.mobileWriteTokenLength) &&
+      Self.isValidCancelToken(cancelToken) &&
       expiresAt.timeIntervalSinceNow >= -expirySkewToleranceSeconds
   }
+
+  private var isSupportedVersion: Bool {
+    guard let v else {
+      return true
+    }
+    return v == Self.currentPayloadVersion
+  }
+
+  private static func isGeneratedId(_ value: String, prefix: String) -> Bool {
+    guard value.hasPrefix(prefix) else {
+      return false
+    }
+
+    let suffix = value.dropFirst(prefix.count)
+    guard suffix.count == generatedIdRandomLength else {
+      return false
+    }
+
+    return suffix.utf8.allSatisfy { byte in
+      (byte >= CharacterByte.zero && byte <= CharacterByte.nine) ||
+        (byte >= CharacterByte.uppercaseA && byte <= CharacterByte.uppercaseZ) ||
+        (byte >= CharacterByte.lowercaseA && byte <= CharacterByte.lowercaseZ)
+    }
+  }
+
+  private static func isLowercaseHex(_ value: String, length: Int) -> Bool {
+    guard value.count == length else {
+      return false
+    }
+
+    return value.utf8.allSatisfy { byte in
+      (byte >= CharacterByte.zero && byte <= CharacterByte.nine) ||
+        (byte >= CharacterByte.lowercaseA && byte <= CharacterByte.lowercaseF)
+    }
+  }
+
+  private static func isValidCancelToken(_ value: String?) -> Bool {
+    guard let value else {
+      return true
+    }
+
+    guard value.count == cancelTokenLength else {
+      return false
+    }
+
+    return value.utf8.allSatisfy { byte in
+      (byte >= CharacterByte.zero && byte <= CharacterByte.nine) ||
+        (byte >= CharacterByte.uppercaseA && byte <= CharacterByte.uppercaseZ) ||
+        (byte >= CharacterByte.lowercaseA && byte <= CharacterByte.lowercaseZ)
+    }
+  }
+}
+
+private enum CharacterByte {
+  static let zero = UInt8(ascii: "0")
+  static let nine = UInt8(ascii: "9")
+  static let uppercaseA = UInt8(ascii: "A")
+  static let uppercaseZ = UInt8(ascii: "Z")
+  static let lowercaseA = UInt8(ascii: "a")
+  static let lowercaseF = UInt8(ascii: "f")
+  static let lowercaseZ = UInt8(ascii: "z")
 }
 
 enum QRCodePayloadError: LocalizedError {

@@ -6,6 +6,7 @@ import {
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
 import { and, eq } from "drizzle-orm";
+import { hasOrgRole } from "@/auth/permissions";
 import { ErrorResponse } from "@/openapi/base";
 
 const ROLES = ["owner", "admin", "member"] as const;
@@ -144,15 +145,14 @@ checkMembership.openapi(checkSessionMembershipRoute, async (c) => {
 		);
 	}
 
-	const parts = member.role.split(",");
-	const isOwner = parts.includes("owner");
-	const isAdminOrOwner = isOwner || parts.includes("admin");
+	const isOwner = hasOrgRole(member.role, "owner");
+	const isAdminOrOwner = hasOrgRole(member.role, "admin");
 
 	const primary = isOwner
 		? "owner"
 		: isAdminOrOwner
 			? "admin"
-			: parts.includes("member")
+			: hasOrgRole(member.role, "member")
 				? "member"
 				: null;
 

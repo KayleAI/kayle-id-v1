@@ -17,13 +17,26 @@ v1.use(authenticate);
 // Scope enforcement. API-key callers must hold the scope explicitly;
 // session callers must hold the org role mapped to that scope by
 // SCOPE_REQUIRED_ROLE in @kayle-id/auth/permissions.
+v1.use("/analytics", requireScope("analytics:read"));
 v1.use("/analytics/*", requireScope("analytics:read"));
+v1.use(
+	"/sessions",
+	requireReadWriteScope({ read: "sessions:read", write: "sessions:write" }),
+);
 v1.use(
 	"/sessions/*",
 	requireReadWriteScope({ read: "sessions:read", write: "sessions:write" }),
 );
 v1.use(
+	"/events",
+	requireReadWriteScope({ read: "webhooks:read", write: "webhooks:write" }),
+);
+v1.use(
 	"/events/*",
+	requireReadWriteScope({ read: "webhooks:read", write: "webhooks:write" }),
+);
+v1.use(
+	"/webhooks",
 	requireReadWriteScope({ read: "webhooks:read", write: "webhooks:write" }),
 );
 v1.use(

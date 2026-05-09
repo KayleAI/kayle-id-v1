@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 
+const CONFIRMATION_CODE_PATTERN = /^[A-Z0-9]{8}$/u;
+
 export const confirmOrgDeletionRoute = createRoute({
 	hide: process.env.NODE_ENV === "production",
 	method: "post",
@@ -13,11 +15,11 @@ export const confirmOrgDeletionRoute = createRoute({
 			content: {
 				"application/json": {
 					schema: z.object({
-						organizationId: z.string().min(1),
+						organizationId: z.string().uuid(),
 						code: z
 							.string()
-							.min(1)
-							.transform((v) => v.trim().toUpperCase()),
+							.transform((v) => v.trim().toUpperCase())
+							.pipe(z.string().regex(CONFIRMATION_CODE_PATTERN)),
 					}),
 				},
 			},

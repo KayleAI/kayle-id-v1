@@ -4,7 +4,10 @@ import {
 	Pagination,
 	paginationLimitQuery,
 } from "@/openapi/base";
-import { WebhookDelivery } from "@/openapi/models/webhook";
+import {
+	WebhookDelivery,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const listWebhookDeliveries = createRoute({
 	method: "get",
@@ -15,23 +18,18 @@ export const listWebhookDeliveries = createRoute({
 				.enum(["pending", "delivering", "succeeded", "failed"])
 				.optional()
 				.describe("Filter webhook deliveries by status."),
-			endpoint_id: z
-				.string()
-				.optional()
-				.describe("Filter webhook deliveries by webhook endpoint ID."),
-			event_id: z
-				.string()
-				.optional()
-				.describe("Filter webhook deliveries by event ID."),
+			endpoint_id: WebhookResourceIdParam.optional().describe(
+				"Filter webhook deliveries by webhook endpoint ID.",
+			),
+			event_id: WebhookResourceIdParam.optional().describe(
+				"Filter webhook deliveries by event ID.",
+			),
 			limit: paginationLimitQuery.describe(
 				"Maximum number of webhook deliveries to return. Defaults to 10 if not specified.",
 			),
-			starting_after: z
-				.string()
-				.optional()
-				.describe(
-					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
+			starting_after: WebhookResourceIdParam.optional().describe(
+				"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

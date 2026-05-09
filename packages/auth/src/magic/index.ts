@@ -1,3 +1,4 @@
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
@@ -5,6 +6,10 @@ import { generateRandomString } from "better-auth/crypto";
 import type { User } from "better-auth/types";
 import { APIError } from "better-call";
 import { z } from "zod";
+import {
+  AUTH_CALLBACK_URL_MAX_LENGTH,
+  isSafeAuthCallbackPath,
+} from "../callback-url";
 
 interface MagicOptions {
   disableSignUp?: boolean;
@@ -60,40 +65,25 @@ interface MagicAdapterContext {
 const invalidMagicLinkMessage =
   "Your link is invalid or has expired. Please try again.";
 
-const SCHEME_PATH_PATTERN = /^\/[a-z][a-z0-9+.-]*:/i;
+const EMAIL_MAX_LENGTH = 320;
+const MAGIC_LINK_TOKEN_LENGTH = 32;
+const MAGIC_LINK_TOKEN_PATTERN = /^[A-Za-z]+$/u;
+const OTP_PATTERN = /^\d+$/u;
 
-/**
- * Returns true when `input` is safe to redirect to from a magic-link callback —
- * i.e. it is a same-site relative path. Absolute URLs, protocol-relative paths
- * (`//evil.example`), backslash-prefixed paths (`/\evil.example`), and
- * scheme-prefixed paths (`/javascript:foo`) are rejected to close the
- * post-login open-redirect surface.
- */
-export function isSafeMagicCallback(input: string): boolean {
-  if (!input.startsWith("/")) {
-    return false;
-  }
+export const isSafeMagicCallback = isSafeAuthCallbackPath;
 
-  if (input.startsWith("//") || input.startsWith("/\\")) {
-    return false;
-  }
-
-  if (SCHEME_PATH_PATTERN.test(input)) {
-    return false;
-  }
-
-  return true;
-}
+const emailSchema = z.string().email().max(EMAIL_MAX_LENGTH);
 
 const callbackURLSchema = z
   .string()
-  .refine(isSafeMagicCallback, {
+  .max(AUTH_CALLBACK_URL_MAX_LENGTH)
+  .refine(isSafeAuthCallbackPath, {
     message: "callbackURL must be a same-site path starting with '/'.",
   })
   .optional();
 
 const magicLinkTokenValueSchema = z.object({
-  email: z.string().email(),
+  email: emailSchema,
   type: z.enum(["sign-in", "email-verification"]),
 });
 
@@ -162,31 +152,6 @@ export function shouldRateLimitMagicPath(path: string): boolean {
   );
 }
 
-// Compares two strings without short-circuiting on the first mismatching
-// byte, so an attacker cannot learn which OTP digits matched by measuring
-// per-attempt response time.
-//
-// The length-mismatch path returns immediately because the OTP length is a
-// public configuration value (`magic({ otpLength })`), not a secret. If the
-// caller's OTP is the wrong length we already know it is invalid and there is
-// nothing useful to leak.
-//
-// The bitwise XOR/OR pair is the standard constant-time accumulator and is
-// intentional despite the project-wide ban on bitwise operators.
-export function constantTimeStringEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  let mismatch = 0;
-  for (let index = 0; index < a.length; index++) {
-    // biome-ignore lint/suspicious/noBitwiseOperators: constant-time XOR/OR accumulator
-    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
-  }
-
-  return mismatch === 0;
-}
-
 export function createMagicVerifyLinkUrl({
   baseURL,
   callbackURL = "/",
@@ -210,6 +175,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
     disableSignUp: false,
     ...options,
   };
+  const otpSchema = z.string().length(opts.otpLength).regex(OTP_PATTERN);
 
   return {
     id: "magic",
@@ -220,7 +186,7 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
           method: "POST",
           requireHeaders: true,
           body: z.object({
-            email: z.string().email(),
+            email: emailSchema,
             type: z.enum(["sign-in", "email-verification"]),
             callbackURL: callbackURLSchema,
           }),
@@ -278,7 +244,10 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
         {
           method: "GET",
           query: z.object({
-            token: z.string(),
+            token: z
+              .string()
+              .length(MAGIC_LINK_TOKEN_LENGTH)
+              .regex(MAGIC_LINK_TOKEN_PATTERN),
             callbackURL: callbackURLSchema,
           }),
           requireHeaders: true,
@@ -321,8 +290,8 @@ export const magic = (options: MagicOptions): BetterAuthPlugin => {
         {
           method: "POST",
           body: z.object({
-            email: z.string().email(),
-            otp: z.string(),
+            email: emailSchema,
+            otp: otpSchema,
             type: z.enum(["sign-in", "email-verification"]),
           }),
           requireHeaders: true,

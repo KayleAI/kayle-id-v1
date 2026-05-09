@@ -26,34 +26,22 @@ class BuildEmbeddingTests(unittest.TestCase):
         self.assertIsNone(result)
         recognizer.feature.assert_not_called()
 
-    def test_build_embedding_falls_back_to_full_image_for_dg2_inputs(self) -> None:
+    def test_build_embedding_never_falls_back_to_full_image(self) -> None:
         recognizer = mock.Mock()
-        prepared = np.ones((112, 112, 3), dtype=np.uint8)
-        embedding = np.array([0.1, 0.2, 0.3], dtype=np.float32)
-        recognizer.feature.return_value = embedding
 
-        with (
-            mock.patch.object(service, "prepare_face_crop", return_value=None),
-            mock.patch.object(
-                service,
-                "prepare_full_image_crop",
-                return_value=prepared,
-            ),
-        ):
+        with mock.patch.object(service, "prepare_face_crop", return_value=None):
             result = service.build_embedding(
                 object(),
                 recognizer,
                 np.zeros((8, 8, 3), dtype=np.uint8),
-                allow_full_image_fallback=True,
             )
 
-        self.assertTrue(np.array_equal(result, embedding))
-        self.assertIsNot(result, embedding)
-        recognizer.feature.assert_called_once_with(prepared)
+        self.assertIsNone(result)
+        recognizer.feature.assert_not_called()
 
 
 class CompareFacesTests(unittest.TestCase):
-    def test_compare_faces_falls_back_to_strict_image_similarity(self) -> None:
+    def test_compare_faces_rejects_when_selfie_face_is_not_detected(self) -> None:
         recognizer = mock.Mock()
 
         with (
@@ -61,13 +49,9 @@ class CompareFacesTests(unittest.TestCase):
             mock.patch.object(
                 service,
                 "build_embedding",
-                side_effect=[None, None, None, None],
+                side_effect=["dg2-embedding", None, None, None],
             ),
-            mock.patch.object(
-                service,
-                "compute_image_similarity",
-                side_effect=[1.0, 1.0, None],
-            ),
+            mock.patch.object(service, "emit_log"),
         ):
             result = service.compare_faces(
                 object(),
@@ -77,9 +61,10 @@ class CompareFacesTests(unittest.TestCase):
                 0.95,
             )
 
-        self.assertEqual(result["faceScore"], 1.0)
-        self.assertTrue(result["passed"])
-        self.assertTrue(result["usedFallback"])
+        self.assertIsNone(result["faceScore"])
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["reason"], "face_score_insufficient_usable_selfies")
+        self.assertFalse(result["usedFallback"])
         recognizer.match.assert_not_called()
 
     def test_compare_faces_uses_median_score_instead_of_best_selfie(self) -> None:
@@ -127,7 +112,6 @@ class CompareFacesTests(unittest.TestCase):
                     None,
                 ],
             ),
-            mock.patch.object(service, "compute_image_similarity", return_value=None),
             mock.patch.object(service, "emit_log"),
         ):
             result = service.compare_faces(
@@ -141,7 +125,7 @@ class CompareFacesTests(unittest.TestCase):
         self.assertIsNone(result["faceScore"])
         self.assertFalse(result["passed"])
         self.assertEqual(result["reason"], "face_score_insufficient_usable_selfies")
-        self.assertTrue(result["usedFallback"])
+        self.assertFalse(result["usedFallback"])
         recognizer.match.assert_called_once()
 
     def test_compare_faces_rejects_when_passport_face_is_not_detected(self) -> None:
@@ -159,7 +143,6 @@ class CompareFacesTests(unittest.TestCase):
                     "selfie-embedding-2",
                 ],
             ),
-            mock.patch.object(service, "compute_image_similarity", return_value=None),
             mock.patch.object(service, "emit_log"),
         ):
             result = service.compare_faces(
@@ -173,8 +156,84 @@ class CompareFacesTests(unittest.TestCase):
         self.assertIsNone(result["faceScore"])
         self.assertFalse(result["passed"])
         self.assertEqual(result["reason"], "face_score_dg2_face_not_detected")
-        self.assertTrue(result["usedFallback"])
+        self.assertFalse(result["usedFallback"])
         recognizer.match.assert_not_called()
+
+
+class PixelFallbackTests(unittest.TestCase):
+    def test_compare_faces_passes_pixel_fallback_when_flag_enabled(self) -> None:
+        # When ALLOW_PIXEL_FALLBACK is on (test wrangler env only), the matcher
+        # should accept pixel-identical synthetic fixtures whose face detection
+        # fails. This is what lets the API verify integration tests assert an
+        # `accepted` verdict with the icon.jpg test fixtures.
+        recognizer = mock.Mock()
+
+        with (
+            mock.patch.object(service, "ALLOW_PIXEL_FALLBACK", True),
+            mock.patch.object(service, "decode_selfie", side_effect=["s0", "s1", "s2"]),
+            mock.patch.object(service, "build_embedding", return_value=None),
+            mock.patch.object(service, "compute_image_similarity", return_value=1.0),
+        ):
+            result = service.compare_faces(
+                object(),
+                recognizer,
+                np.zeros((8, 8, 3), dtype=np.uint8),
+                ["selfie-0", "selfie-1", "selfie-2"],
+                0.8,
+            )
+
+        self.assertEqual(result["faceScore"], 1.0)
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["usedFallback"])
+
+    def test_compare_faces_drops_low_correlation_under_strict_threshold(self) -> None:
+        recognizer = mock.Mock()
+
+        with (
+            mock.patch.object(service, "ALLOW_PIXEL_FALLBACK", True),
+            mock.patch.object(service, "decode_selfie", side_effect=["s0", "s1", "s2"]),
+            mock.patch.object(service, "build_embedding", return_value=None),
+            mock.patch.object(service, "compute_image_similarity", return_value=0.5),
+            mock.patch.object(service, "emit_log"),
+        ):
+            result = service.compare_faces(
+                object(),
+                recognizer,
+                np.zeros((8, 8, 3), dtype=np.uint8),
+                ["selfie-0", "selfie-1", "selfie-2"],
+                0.8,
+            )
+
+        self.assertIsNone(result["faceScore"])
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["usedFallback"])
+
+    def test_compare_faces_ignores_pixel_fallback_when_flag_disabled(self) -> None:
+        # Production path: even if compute_image_similarity could produce a
+        # high score, ALLOW_PIXEL_FALLBACK=False means the fallback is never
+        # consulted.
+        recognizer = mock.Mock()
+        similarity_mock = mock.Mock(return_value=1.0)
+
+        with (
+            mock.patch.object(service, "ALLOW_PIXEL_FALLBACK", False),
+            mock.patch.object(service, "decode_selfie", side_effect=["s0", "s1", "s2"]),
+            mock.patch.object(service, "build_embedding", return_value=None),
+            mock.patch.object(service, "compute_image_similarity", similarity_mock),
+            mock.patch.object(service, "emit_log"),
+        ):
+            result = service.compare_faces(
+                object(),
+                recognizer,
+                np.zeros((8, 8, 3), dtype=np.uint8),
+                ["selfie-0", "selfie-1", "selfie-2"],
+                0.8,
+            )
+
+        self.assertIsNone(result["faceScore"])
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["usedFallback"])
+        similarity_mock.assert_not_called()
 
 
 if __name__ == "__main__":

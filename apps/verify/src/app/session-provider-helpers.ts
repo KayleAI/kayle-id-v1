@@ -9,8 +9,8 @@ import {
 	type VerifySessionStatusPayload,
 } from "@/config/handoff";
 
-const WEB_DEVICE_ID_STORAGE_KEY = "kayle-id.verify.web-device-id";
 const WEB_APP_VERSION = "verify-web";
+let webDeviceId: string | null = null;
 
 function isErrorWithCode(
 	value: unknown,
@@ -44,23 +44,9 @@ export function toSessionError(value: unknown): SessionError {
 	};
 }
 
-function getWebDeviceId(): string {
-	if (typeof window === "undefined") {
-		return `web-${crypto.randomUUID()}`;
-	}
-
-	try {
-		const existing = window.localStorage.getItem(WEB_DEVICE_ID_STORAGE_KEY);
-		if (existing) {
-			return existing;
-		}
-
-		const generated = `web-${crypto.randomUUID()}`;
-		window.localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, generated);
-		return generated;
-	} catch {
-		return `web-${crypto.randomUUID()}`;
-	}
+export function getWebDeviceId(): string {
+	webDeviceId ??= `web-${crypto.randomUUID()}`;
+	return webDeviceId;
 }
 
 function toHelloCredentials(payload: {

@@ -3,6 +3,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bunx wrangler dev --env-file ../../.env --ip 0.0.0.0 --port 8787 --inspector-port 9230",
+		"test": "bun test ./tests/functions ./tests/internal",
 		"deploy": "bunx wrangler deploy --minify --env production",
 		"cf:types": "bunx wrangler types --env-file .env.example --env-interface CloudflareBindings cloudflare-env.d.ts"
 	},
@@ -18,7 +19,7 @@
 		"capnp-es": "0.0.14",
 		"capnweb": "0.4.0",
 		"drizzle-orm": "1.0.0-beta.22",
-		"hono": "4.12.16",
+		"hono": "4.12.18",
 		"hono-openapi": "1.1.1",
 		"jose": "6.1.2",
 		"jpeg-js": "0.4.4",

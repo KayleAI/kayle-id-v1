@@ -26,7 +26,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>kayle-id</string>
-				<string>kayle</string>
 			</array>
 			<key>CFBundleURLName</key>
 			<string>com.kayle.id</string>

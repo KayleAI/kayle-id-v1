@@ -9,7 +9,7 @@ import {
 	auth_organizations,
 	auth_verifications,
 } from "@kayle-id/database/schema/auth";
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import app from "@/index";
 import {
 	type SessionAuthTestData,
@@ -143,6 +143,18 @@ describe("Organization deletion — request", () => {
 		expect(response.status).toBe(401);
 	});
 
+	test("rejects malformed organization IDs before database lookup", async () => {
+		const response = await app.request(REQUEST_PATH, {
+			body: JSON.stringify({ organizationId: "not-a-uuid" }),
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: requireOwner().sessionCookie,
+			},
+			method: "POST",
+		});
+		expect(response.status).toBe(400);
+	});
+
 	test("rejects non-owners with 403", async () => {
 		const orgId = await createOrgWithMembers();
 		const adminResponse = await app.request(REQUEST_PATH, {
@@ -215,6 +227,21 @@ describe("Organization deletion — request", () => {
 });
 
 describe("Organization deletion — confirm", () => {
+	test("rejects malformed confirmation codes before database lookup", async () => {
+		const response = await app.request(CONFIRM_PATH, {
+			body: JSON.stringify({
+				organizationId: crypto.randomUUID(),
+				code: "TOO-LONG-CODE",
+			}),
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: requireOwner().sessionCookie,
+			},
+			method: "POST",
+		});
+		expect(response.status).toBe(400);
+	});
+
 	test("rejects wrong code with 400", async () => {
 		const orgId = await createOrgWithMembers();
 		await app.request(REQUEST_PATH, {
@@ -234,6 +261,49 @@ describe("Organization deletion — confirm", () => {
 			method: "POST",
 		});
 		expect(response.status).toBe(400);
+		const org = await getOrg(orgId);
+		expect(org?.pending_deletion_at).toBeNull();
+	});
+
+	test("revoked owners cannot confirm deletion with a previously issued code", async () => {
+		const orgId = await createOrgWithMembers();
+		await app.request(REQUEST_PATH, {
+			body: JSON.stringify({ organizationId: orgId }),
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: requireOwner().sessionCookie,
+			},
+			method: "POST",
+		});
+		const verification = await getVerificationForOrg(
+			orgId,
+			requireOwner().userId,
+		);
+		expect(verification).not.toBeNull();
+
+		await db
+			.update(auth_organization_members)
+			.set({ role: "member" })
+			.where(
+				and(
+					eq(auth_organization_members.organizationId, orgId),
+					eq(auth_organization_members.userId, requireOwner().userId),
+				),
+			);
+
+		const response = await app.request(CONFIRM_PATH, {
+			body: JSON.stringify({
+				organizationId: orgId,
+				code: verification?.value,
+			}),
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: requireOwner().sessionCookie,
+			},
+			method: "POST",
+		});
+
+		expect(response.status).toBe(403);
 		const org = await getOrg(orgId);
 		expect(org?.pending_deletion_at).toBeNull();
 	});
@@ -369,6 +439,34 @@ describe("Organization deletion — cancel", () => {
 			},
 			method: "POST",
 		});
+		expect(response.status).toBe(403);
+		const org = await getOrg(orgId);
+		expect(org?.pending_deletion_at).not.toBeNull();
+	});
+
+	test("revoked admins cannot cancel a scheduled deletion", async () => {
+		const orgId = await createOrgWithMembers();
+		await scheduleDeletion(orgId);
+
+		await db
+			.update(auth_organization_members)
+			.set({ role: "member" })
+			.where(
+				and(
+					eq(auth_organization_members.organizationId, orgId),
+					eq(auth_organization_members.userId, requireAdmin().userId),
+				),
+			);
+
+		const response = await app.request(CANCEL_PATH, {
+			body: JSON.stringify({ organizationId: orgId }),
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: requireAdmin().sessionCookie,
+			},
+			method: "POST",
+		});
+
 		expect(response.status).toBe(403);
 		const org = await getOrg(orgId);
 		expect(org?.pending_deletion_at).not.toBeNull();

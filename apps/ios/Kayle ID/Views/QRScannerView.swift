@@ -136,8 +136,7 @@ final class QRCameraViewController: UIViewController, AVCaptureMetadataOutputObj
           let stringValue = object.stringValue
     else { return }
 
-    // Only process kayle-id:// (and legacy kayle://) URLs
-    guard stringValue.hasPrefix("kayle-id://") || stringValue.hasPrefix("kayle://") else { return }
+    guard stringValue.hasPrefix("kayle-id://") else { return }
 
     Task { @MainActor in
       self.onScan?(stringValue)

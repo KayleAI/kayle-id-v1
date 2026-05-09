@@ -2,10 +2,12 @@ import {
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 	type SupportedWebhookEventType,
 } from "@kayle-id/config/webhook-events";
+import type { db } from "@kayle-id/database/drizzle";
 import type {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
+import { sql } from "drizzle-orm";
 import { importJWK, type JWK } from "jose";
 import { generateId, generateRandomString } from "@/utils/generate-id";
 
@@ -15,6 +17,7 @@ const MIN_RSA_MODULUS_BITS = 2048;
 const MIN_RSA_MODULUS_BYTES = MIN_RSA_MODULUS_BITS / BITS_PER_BYTE;
 const WEBHOOK_ENCRYPTION_ALGORITHM = "RSA-OAEP-256";
 const WEBHOOK_ENCRYPTION_KEY_TYPE = "RSA";
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const PRIVATE_RSA_JWK_FIELDS: ReadonlySet<string> = new Set([
 	"d",
 	"dp",
@@ -86,6 +89,15 @@ export function generateKeyId(): string {
 
 export function generateSigningSecret(): string {
 	return `whsec_${generateRandomString(SIGNING_SECRET_RANDOM_LENGTH)}`;
+}
+
+export function acquireWebhookEndpointKeyMutationLock(
+	tx: Tx,
+	webhookEndpointId: string,
+): Promise<unknown> {
+	return tx.execute(
+		sql`SELECT pg_advisory_xact_lock(hashtextextended(${webhookEndpointId}::text, 3))`,
+	);
 }
 
 export async function validateWebhookEncryptionPublicJwk(

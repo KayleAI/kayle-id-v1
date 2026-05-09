@@ -7,6 +7,10 @@ import {
 import { and, eq } from "drizzle-orm";
 import { deactivateWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/deactivate";
 import { reactivateWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/reactivate";
+import {
+	acquireWebhookEndpointKeyMutationLock,
+	mapKeyRowToResponse,
+} from "@/v1/webhooks/endpoints/utils";
 
 const webhookEncryptionKeys = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
@@ -15,21 +19,6 @@ const webhookEncryptionKeys = new OpenAPIHono<{
 		type: "api" | "session";
 	};
 }>();
-
-function mapKeyRowToResponse(row: typeof webhook_encryption_keys.$inferSelect) {
-	return {
-		id: row.id,
-		webhook_endpoint_id: row.webhookEndpointId,
-		key_id: row.keyId,
-		algorithm: row.algorithm,
-		key_type: row.keyType,
-		jwk: row.jwk as Record<string, unknown>,
-		is_active: row.isActive,
-		created_at: row.createdAt.toISOString(),
-		updated_at: row.updatedAt.toISOString(),
-		disabled_at: row.disabledAt ? row.disabledAt.toISOString() : null,
-	};
-}
 
 async function findWebhookKeyByIdForOrganization({
 	keyId,
@@ -81,6 +70,8 @@ async function reactivateWebhookKey({
 	const now = new Date();
 
 	return db.transaction(async (tx) => {
+		await acquireWebhookEndpointKeyMutationLock(tx, webhookEndpointId);
+
 		await tx
 			.update(webhook_encryption_keys)
 			.set({

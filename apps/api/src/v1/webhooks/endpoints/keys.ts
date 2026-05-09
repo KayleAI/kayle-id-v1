@@ -8,6 +8,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { createWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/create";
 import { listWebhookEncryptionKeys } from "@/openapi/v1/webhooks/keys/list";
 import {
+	acquireWebhookEndpointKeyMutationLock,
 	generateKeyId,
 	mapKeyRowToResponse,
 	validateWebhookEncryptionPublicJwk,
@@ -72,6 +73,8 @@ endpointKeys.openapi(createWebhookEncryptionKey, async (c) => {
 	const now = new Date();
 
 	const created = await db.transaction(async (tx) => {
+		await acquireWebhookEndpointKeyMutationLock(tx, endpoint.id);
+
 		await tx
 			.update(webhook_encryption_keys)
 			.set({

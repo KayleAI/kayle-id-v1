@@ -20,12 +20,12 @@ docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T redis \
 
 # wait until the SRH HTTP shim is reachable (it only accepts POST, so we send PING)
 until curl -fsS -X POST \
-  -H "Authorization: Bearer example_token" \
+  -H "Authorization: Bearer a-super-secret-token" \
   -H "Content-Type: application/json" \
   -d '["PING"]' \
   http://localhost:8079/ >/dev/null 2>&1; do
   sleep 0.2
 done
 
-echo "Redis is up on redis://localhost (in-container) with Upstash-compatible REST shim on http://localhost:8079 (token: example_token). Press Ctrl+C to stop."
+echo "Redis is up on redis://localhost (in-container) with Upstash-compatible REST shim on http://localhost:8079 (token: a-super-secret-token). Press Ctrl+C to stop."
 while :; do sleep 1; done

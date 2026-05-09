@@ -409,7 +409,11 @@ nonisolated func isShareSelectionSubmittable(
   }
 
   let requiredKeys = shareRequest.fields.compactMap { field in
-    field.required && !isKayleShareField(field.key) ? field.key : nil
+    field.required
+      && !isKayleShareField(field.key)
+      && !isImplicitAgeGateField(field.key, shareRequest: shareRequest)
+      ? field.key
+      : nil
   }
 
   return requiredKeys.allSatisfy(selectedShareFieldKeys.contains)
@@ -451,6 +455,24 @@ nonisolated func visibleKayleShareRequestFields(
   }
 }
 
+/// When `date_of_birth` is required, any `age_over_X` is implicit — the
+/// developer receives it for ergonomics (computed server-side from DOB), but
+/// the holder doesn't need to see or pick it separately.
+nonisolated func isImplicitAgeGateField(
+  _ key: String,
+  shareRequest: VerifyShareRequest?
+) -> Bool {
+  guard parseAgeOverThreshold(key) != nil else {
+    return false
+  }
+  guard let shareRequest else {
+    return false
+  }
+  return shareRequest.fields.contains { field in
+    field.key == "date_of_birth" && field.required
+  }
+}
+
 nonisolated func requiredShareRequestFields(
   _ shareRequest: VerifyShareRequest?
 ) -> [VerifyShareRequestField] {
@@ -459,7 +481,9 @@ nonisolated func requiredShareRequestFields(
   }
 
   return shareRequest.fields.filter { field in
-    field.required && !isKayleShareField(field.key)
+    field.required
+      && !isKayleShareField(field.key)
+      && !isImplicitAgeGateField(field.key, shareRequest: shareRequest)
   }
 }
 
@@ -471,7 +495,9 @@ nonisolated func optionalShareRequestFields(
   }
 
   return shareRequest.fields.filter { field in
-    !field.required && !isKayleShareField(field.key)
+    !field.required
+      && !isKayleShareField(field.key)
+      && !isImplicitAgeGateField(field.key, shareRequest: shareRequest)
   }
 }
 

@@ -112,10 +112,8 @@ function normalizeMode(mode: DemoFieldMode): boolean {
 
 function buildAgeGateField({
 	ageThresholdText,
-	fieldModes,
 }: {
 	ageThresholdText: string;
-	fieldModes: Record<string, DemoFieldMode>;
 }):
 	| { ok: true; field: [string, DemoRequestedShareFields[string]] | null }
 	| { ok: false; message: string } {
@@ -137,14 +135,6 @@ function buildAgeGateField({
 		return {
 			ok: false,
 			message: `Age threshold must be between ${minAgeThreshold} and ${maxAgeThreshold}.`,
-		};
-	}
-
-	if ((fieldModes.date_of_birth ?? "off") !== "off") {
-		return {
-			ok: false,
-			message:
-				"Date of Birth and an age gate cannot both be requested in the same demo session.",
 		};
 	}
 
@@ -199,10 +189,7 @@ export function buildRequestedShareFields({
 		};
 	}
 
-	const ageGateField = buildAgeGateField({
-		ageThresholdText,
-		fieldModes,
-	});
+	const ageGateField = buildAgeGateField({ ageThresholdText });
 
 	if (!ageGateField.ok) {
 		return ageGateField;

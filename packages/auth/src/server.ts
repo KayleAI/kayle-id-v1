@@ -38,10 +38,15 @@ import {
   OrganizationMetadataError,
 } from "./organization-metadata";
 import {
+  normalizeOrganizationName,
+  OrganizationNameError,
+} from "./organization-name";
+import {
   assertOrganizationSlug,
   OrganizationSlugError,
 } from "./organization-slug";
 import { findSoleOwnedOrganizations } from "./owned-organizations";
+import { normalizeOrgRoleSet, OrganizationRoleError } from "./permissions";
 import { normalizeProfileImage, ProfileImageError } from "./profile-image";
 import type { Organization } from "./types";
 
@@ -167,6 +172,7 @@ interface MagicOtpPayload {
 interface OrganizationPolicyInput {
   logo?: unknown;
   metadata?: unknown;
+  name?: unknown;
 }
 
 interface UserProfileInput {
@@ -180,7 +186,16 @@ function normalizeOrganizationPolicyInput<T extends OrganizationPolicyInput>(
   | undefined {
   try {
     let hasChanges = false;
-    const data: { logo?: null | string; metadata?: OrganizationMetadata } = {};
+    const data: {
+      logo?: null | string;
+      metadata?: OrganizationMetadata;
+      name?: string;
+    } = {};
+    if (organization.name !== undefined) {
+      data.name = normalizeOrganizationName(organization.name);
+      hasChanges = true;
+    }
+
     const logo = normalizeStoredOrganizationLogoUrl(organization.logo);
     if (logo !== undefined) {
       data.logo = logo;
@@ -204,6 +219,12 @@ function normalizeOrganizationPolicyInput<T extends OrganizationPolicyInput>(
       },
     };
   } catch (error) {
+    if (error instanceof OrganizationNameError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_ORGANIZATION_NAME",
+        message: error.message,
+      });
+    }
     if (error instanceof OrganizationLogoUrlError) {
       throw APIError.from("BAD_REQUEST", {
         code: "INVALID_ORGANIZATION_LOGO",
@@ -260,6 +281,20 @@ function assertOrganizationSlugInput(slug: unknown): void {
     if (error instanceof OrganizationSlugError) {
       throw APIError.from("BAD_REQUEST", {
         code: "INVALID_ORGANIZATION_SLUG",
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+function normalizeOrganizationRoleInput(role: unknown): string {
+  try {
+    return normalizeOrgRoleSet(role);
+  } catch (error) {
+    if (error instanceof OrganizationRoleError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_ORGANIZATION_ROLE",
         message: error.message,
       });
     }
@@ -409,7 +444,7 @@ const plugins = [
         return normalizeOrganizationPolicyInput(org);
       },
       // biome-ignore lint/suspicious/useAwait: required
-      beforeAddMember: async ({ organization: org }) => {
+      beforeAddMember: async ({ member, organization: org }) => {
         if (
           isOrgFrozen(
             org as unknown as { pendingDeletionAt: Date | null | undefined }
@@ -417,6 +452,8 @@ const plugins = [
         ) {
           throw new Error("Organization is scheduled for deletion.");
         }
+        const role = normalizeOrganizationRoleInput(member.role);
+        return { data: { role } };
       },
       // biome-ignore lint/suspicious/useAwait: required
       beforeRemoveMember: async ({ organization: org }) => {
@@ -429,7 +466,7 @@ const plugins = [
         }
       },
       // biome-ignore lint/suspicious/useAwait: required
-      beforeUpdateMemberRole: async ({ organization: org }) => {
+      beforeUpdateMemberRole: async ({ newRole, organization: org }) => {
         if (
           isOrgFrozen(
             org as unknown as { pendingDeletionAt: Date | null | undefined }
@@ -437,9 +474,11 @@ const plugins = [
         ) {
           throw new Error("Organization is scheduled for deletion.");
         }
+        const role = normalizeOrganizationRoleInput(newRole);
+        return { data: { role } };
       },
       // biome-ignore lint/suspicious/useAwait: required
-      beforeCreateInvitation: async ({ organization: org }) => {
+      beforeCreateInvitation: async ({ invitation, organization: org }) => {
         if (
           isOrgFrozen(
             org as unknown as { pendingDeletionAt: Date | null | undefined }
@@ -447,9 +486,11 @@ const plugins = [
         ) {
           throw new Error("Organization is scheduled for deletion.");
         }
+        const role = normalizeOrganizationRoleInput(invitation.role);
+        return { data: { role } };
       },
       // biome-ignore lint/suspicious/useAwait: required
-      beforeAcceptInvitation: async ({ organization: org }) => {
+      beforeAcceptInvitation: async ({ invitation, organization: org }) => {
         if (
           isOrgFrozen(
             org as unknown as { pendingDeletionAt: Date | null | undefined }
@@ -457,6 +498,7 @@ const plugins = [
         ) {
           throw new Error("Organization is scheduled for deletion.");
         }
+        normalizeOrganizationRoleInput(invitation.role);
       },
     },
   }),

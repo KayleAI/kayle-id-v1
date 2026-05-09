@@ -7,6 +7,7 @@ import {
 	mock,
 	test,
 } from "bun:test";
+import { ORGANIZATION_NAME_MAX_LENGTH } from "@kayle-id/auth/organization-name";
 import { auth } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
@@ -25,6 +26,19 @@ import {
 type OrganizationCreateResponse = {
 	data: null | {
 		id: string;
+	};
+	error: null | {
+		code: string;
+		docs?: string;
+		hint?: string;
+		message: string;
+	};
+};
+
+type AcceptVerificationTermsResponse = {
+	data: null | {
+		verificationTermsAcceptedAt: string;
+		verificationTermsAcceptedBy: string;
 	};
 	error: null | {
 		code: string;
@@ -235,6 +249,134 @@ describe("Organization Endpoints", () => {
 			organizationId,
 			userId: testData.userId,
 		});
+	});
+
+	test("rejects custom organization creation when the name exceeds route bounds", async () => {
+		const testData = requireTestData();
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				name: "a".repeat(ORGANIZATION_NAME_MAX_LENGTH + 1),
+				slug: `oversized-name-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+	});
+
+	test("allows an active organization owner to accept verification terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			const response = await app.request(
+				"/v1/auth/orgs/accept-verification-terms",
+				{
+					body: JSON.stringify({
+						organizationId: activeSession.organizationId,
+					}),
+					headers: createJsonHeaders(activeSession.sessionCookie),
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(200);
+
+			const payload =
+				(await response.json()) as AcceptVerificationTermsResponse;
+
+			expect(payload.error).toBeNull();
+			expect(payload.data?.verificationTermsAcceptedBy).toBe(
+				activeSession.userId,
+			);
+			expect(payload.data?.verificationTermsAcceptedAt).toBeString();
+
+			const [organization] = await db
+				.select({
+					verificationTermsAcceptedAt:
+						auth_organizations.verification_terms_accepted_at,
+					verificationTermsAcceptedBy:
+						auth_organizations.verification_terms_accepted_by,
+				})
+				.from(auth_organizations)
+				.where(eq(auth_organizations.id, activeSession.organizationId))
+				.limit(1);
+
+			expect(organization?.verificationTermsAcceptedAt?.toISOString()).toBe(
+				payload.data?.verificationTermsAcceptedAt,
+			);
+			expect(organization?.verificationTermsAcceptedBy).toBe(
+				activeSession.userId,
+			);
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
+	test("prevents non-owner organization members from accepting verification terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			await db
+				.update(auth_organization_members)
+				.set({ role: "member" })
+				.where(
+					and(
+						eq(
+							auth_organization_members.organizationId,
+							activeSession.organizationId,
+						),
+						eq(auth_organization_members.userId, activeSession.userId),
+					),
+				);
+
+			const response = await app.request(
+				"/v1/auth/orgs/accept-verification-terms",
+				{
+					body: JSON.stringify({
+						organizationId: activeSession.organizationId,
+					}),
+					headers: createJsonHeaders(activeSession.sessionCookie),
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(403);
+
+			const payload =
+				(await response.json()) as AcceptVerificationTermsResponse;
+
+			expect(payload.data).toBeNull();
+			expect(payload.error?.code).toBe("FORBIDDEN");
+
+			const [organization] = await db
+				.select({
+					verificationTermsAcceptedAt:
+						auth_organizations.verification_terms_accepted_at,
+					verificationTermsAcceptedBy:
+						auth_organizations.verification_terms_accepted_by,
+				})
+				.from(auth_organizations)
+				.where(eq(auth_organizations.id, activeSession.organizationId))
+				.limit(1);
+
+			expect(organization?.verificationTermsAcceptedAt).toBeNull();
+			expect(organization?.verificationTermsAcceptedBy).toBeNull();
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
 	});
 
 	test("uploads a logo and forwards the generated logo URL to organization creation", async () => {

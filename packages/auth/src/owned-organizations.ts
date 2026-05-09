@@ -4,15 +4,12 @@ import {
   auth_organizations,
 } from "@kayle-id/database/schema/auth";
 import { and, eq, exists, ne, not, sql } from "drizzle-orm";
+import { memberHasOwnerRoleSql } from "./organization-role-sql";
 
 export interface SoleOwnedOrganization {
   id: string;
   name: string;
   slug: string;
-}
-
-function memberHasOwnerRole() {
-  return sql<boolean>`(',' || ${auth_organization_members.role} || ',') LIKE ${"%,owner,%"}`;
 }
 
 /**
@@ -46,7 +43,7 @@ export async function findSoleOwnedOrganizations(
                   auth_organizations.id
                 ),
                 eq(auth_organization_members.userId, userId),
-                memberHasOwnerRole()
+                memberHasOwnerRoleSql()
               )
             )
         ),
@@ -62,7 +59,7 @@ export async function findSoleOwnedOrganizations(
                     auth_organizations.id
                   ),
                   ne(auth_organization_members.userId, userId),
-                  memberHasOwnerRole()
+                  memberHasOwnerRoleSql()
                 )
               )
           )

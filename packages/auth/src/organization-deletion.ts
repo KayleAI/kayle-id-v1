@@ -16,7 +16,21 @@ import { sendOrgDeletionCanceled } from "@kayle-id/emails/send-org-deletion-canc
 import { sendOrgDeletionCode } from "@kayle-id/emails/send-org-deletion-code";
 import { sendOrgDeletionScheduled } from "@kayle-id/emails/send-org-deletion-scheduled";
 import { generateRandomString } from "better-auth/crypto";
-import { and, eq, inArray, lte } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  sql,
+} from "drizzle-orm";
+import {
+  memberHasAdminOrOwnerRoleSql,
+  memberHasOwnerRoleSql,
+} from "./organization-role-sql";
+import { hasOrgRole } from "./permissions";
 
 const CONFIRMATION_CODE_TTL_MS = 24 * 60 * 60 * 1000;
 const GRACE_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -67,12 +81,11 @@ async function getOrgRoleOrThrow(
 }
 
 function isOwner(role: string): boolean {
-  return role.split(",").includes("owner");
+  return hasOrgRole(role, "owner");
 }
 
 function isAdminOrOwner(role: string): boolean {
-  const parts = role.split(",");
-  return parts.includes("owner") || parts.includes("admin");
+  return hasOrgRole(role, "admin");
 }
 
 interface OrgRow {
@@ -349,18 +362,69 @@ export async function confirmOrgDeletion({
       );
     }
 
-    await tx
-      .delete(auth_verifications)
-      .where(eq(auth_verifications.id, verification.id));
-
-    await tx
+    const [scheduled] = await tx
       .update(auth_organizations)
       .set({
         pending_deletion_at: pendingDeletionAt,
         pending_deletion_requested_at: now,
         pending_deletion_requested_by: userId,
       })
-      .where(eq(auth_organizations.id, organizationId));
+      .where(
+        and(
+          eq(auth_organizations.id, organizationId),
+          isNull(auth_organizations.pending_deletion_at),
+          exists(
+            tx
+              .select({ presence: sql`1` })
+              .from(auth_organization_members)
+              .where(
+                and(
+                  eq(
+                    auth_organization_members.organizationId,
+                    auth_organizations.id
+                  ),
+                  eq(auth_organization_members.userId, userId),
+                  memberHasOwnerRoleSql()
+                )
+              )
+          )
+        )
+      )
+      .returning({ pendingDeletionAt: auth_organizations.pending_deletion_at });
+
+    if (!scheduled?.pendingDeletionAt) {
+      const [latestOrg] = await tx
+        .select({ pendingDeletionAt: auth_organizations.pending_deletion_at })
+        .from(auth_organizations)
+        .where(eq(auth_organizations.id, organizationId))
+        .limit(1);
+
+      if (!latestOrg) {
+        throw new OrgDeletionError(
+          "ORGANIZATION_NOT_FOUND",
+          "Organization not found.",
+          404
+        );
+      }
+
+      if (latestOrg.pendingDeletionAt !== null) {
+        throw new OrgDeletionError(
+          "ALREADY_SCHEDULED",
+          "This organization is already scheduled for deletion.",
+          409
+        );
+      }
+
+      throw new OrgDeletionError(
+        "FORBIDDEN",
+        "Only an owner can confirm organization deletion.",
+        403
+      );
+    }
+
+    await tx
+      .delete(auth_verifications)
+      .where(eq(auth_verifications.id, verification.id));
   });
 
   // Notifications best-effort, post-commit. A failure here must not roll the
@@ -444,14 +508,65 @@ export async function cancelOrgDeletion({
     );
   }
 
-  await db
+  const [canceled] = await db
     .update(auth_organizations)
     .set({
       pending_deletion_at: null,
       pending_deletion_requested_at: null,
       pending_deletion_requested_by: null,
     })
-    .where(eq(auth_organizations.id, organizationId));
+    .where(
+      and(
+        eq(auth_organizations.id, organizationId),
+        isNotNull(auth_organizations.pending_deletion_at),
+        exists(
+          db
+            .select({ presence: sql`1` })
+            .from(auth_organization_members)
+            .where(
+              and(
+                eq(
+                  auth_organization_members.organizationId,
+                  auth_organizations.id
+                ),
+                eq(auth_organization_members.userId, actingUserId),
+                memberHasAdminOrOwnerRoleSql()
+              )
+            )
+        )
+      )
+    )
+    .returning({ name: auth_organizations.name });
+
+  if (!canceled) {
+    const [latestOrg] = await db
+      .select({ pendingDeletionAt: auth_organizations.pending_deletion_at })
+      .from(auth_organizations)
+      .where(eq(auth_organizations.id, organizationId))
+      .limit(1);
+
+    if (!latestOrg) {
+      throw new OrgDeletionError(
+        "ORGANIZATION_NOT_FOUND",
+        "Organization not found.",
+        404
+      );
+    }
+
+    if (latestOrg.pendingDeletionAt === null) {
+      throw new OrgDeletionError(
+        "NOT_SCHEDULED",
+        "This organization is not scheduled for deletion.",
+        404
+      );
+    }
+
+    throw new OrgDeletionError(
+      "FORBIDDEN",
+      "Only owners or admins can cancel a scheduled deletion.",
+      403
+    );
+  }
 
   try {
     const [actor] = await db
@@ -471,7 +586,7 @@ export async function cancelOrgDeletion({
             binding: env.SEND_EMAIL,
             cancellerName,
             from: env.EMAIL_FROM_ADDRESS,
-            organizationName: org.name,
+            organizationName: canceled.name,
             to: r.email,
           })
         )

@@ -3,13 +3,15 @@ import {
 	assertOrgNotFrozen,
 	OrgDeletionError,
 } from "@kayle-id/auth/organization-deletion";
+import { memberHasOwnerRoleSql } from "@kayle-id/auth/organization-role-sql";
+import { hasOrgRole } from "@kayle-id/auth/permissions";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, exists, isNull, or, sql } from "drizzle-orm";
 import { getRequestLogger } from "@/logging";
 import { acceptVerificationTermsRoute } from "./openapi";
 
@@ -112,7 +114,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 		)
 		.limit(1);
 
-	if (!membership?.role.split(",").includes("owner")) {
+	if (!membership || !hasOrgRole(membership.role, "owner")) {
 		return c.json(
 			{
 				data: null,
@@ -144,13 +146,68 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 	const now = new Date();
 
 	try {
-		await db
+		const [accepted] = await db
 			.update(auth_organizations)
 			.set({
 				verification_terms_accepted_at: now,
 				verification_terms_accepted_by: userId,
 			})
-			.where(eq(auth_organizations.id, organizationId));
+			.where(
+				and(
+					eq(auth_organizations.id, organizationId),
+					isNull(auth_organizations.verified_at),
+					isNull(auth_organizations.pending_deletion_at),
+					or(
+						isNull(auth_organizations.verification_terms_accepted_at),
+						isNull(auth_organizations.verification_terms_accepted_by),
+					),
+					exists(
+						db
+							.select({ presence: sql`1` })
+							.from(auth_organization_members)
+							.where(
+								and(
+									eq(
+										auth_organization_members.organizationId,
+										auth_organizations.id,
+									),
+									eq(auth_organization_members.userId, userId),
+									memberHasOwnerRoleSql(),
+								),
+							),
+					),
+				),
+			)
+			.returning({
+				verificationTermsAcceptedAt:
+					auth_organizations.verification_terms_accepted_at,
+				verificationTermsAcceptedBy:
+					auth_organizations.verification_terms_accepted_by,
+			});
+
+		if (
+			accepted?.verificationTermsAcceptedAt &&
+			accepted.verificationTermsAcceptedBy
+		) {
+			logEvent(log, {
+				details: {
+					organization_id: organizationId,
+				},
+				event: "organizations.verification_terms.accepted",
+			});
+
+			return c.json(
+				{
+					data: {
+						verificationTermsAcceptedAt:
+							accepted.verificationTermsAcceptedAt.toISOString(),
+						verificationTermsAcceptedBy: accepted.verificationTermsAcceptedBy,
+					},
+					error: null,
+				},
+				200,
+			);
+		}
 	} catch (error) {
 		logSafeError(log, {
 			code: "verification_terms_accept_failed",
@@ -174,22 +231,93 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 		);
 	}
 
-	logEvent(log, {
-		details: {
-			organization_id: organizationId,
-		},
-		event: "organizations.verification_terms.accepted",
-	});
+	const [latestOrg] = await db
+		.select({
+			pendingDeletionAt: auth_organizations.pending_deletion_at,
+			verifiedAt: auth_organizations.verified_at,
+			verificationTermsAcceptedAt:
+				auth_organizations.verification_terms_accepted_at,
+			verificationTermsAcceptedBy:
+				auth_organizations.verification_terms_accepted_by,
+		})
+		.from(auth_organizations)
+		.where(eq(auth_organizations.id, organizationId))
+		.limit(1);
+
+	if (!latestOrg) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ORGANIZATION_NOT_FOUND" as const,
+					message: "Organization not found.",
+					hint: "Provide an existing organization ID.",
+					docs: "https://kayle.id/docs/api/errors#not_found",
+				},
+			},
+			404,
+		);
+	}
+
+	if (latestOrg.verifiedAt) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ORGANIZATION_ALREADY_VERIFIED" as const,
+					message: "Organization is already verified.",
+					hint: "Verified organizations do not need to re-accept the verification terms.",
+					docs: "https://kayle.id/docs/api/errors#conflict",
+				},
+			},
+			409,
+		);
+	}
+
+	if (latestOrg.pendingDeletionAt) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "ORGANIZATION_FROZEN" as const,
+					message:
+						"Organization is scheduled for deletion. Cancel the deletion before accepting verification terms.",
+					hint: "Cancel the pending deletion before accepting verification terms.",
+					docs: "https://kayle.id/docs/api/errors#organization_frozen",
+				},
+			},
+			410,
+		);
+	}
+
+	if (
+		latestOrg.verificationTermsAcceptedAt &&
+		latestOrg.verificationTermsAcceptedBy
+	) {
+		return c.json(
+			{
+				data: {
+					verificationTermsAcceptedAt:
+						latestOrg.verificationTermsAcceptedAt.toISOString(),
+					verificationTermsAcceptedBy: latestOrg.verificationTermsAcceptedBy,
+				},
+				error: null,
+			},
+			200,
+		);
+	}
 
 	return c.json(
 		{
-			data: {
-				verificationTermsAcceptedAt: now.toISOString(),
-				verificationTermsAcceptedBy: userId,
+			data: null,
+			error: {
+				code: "FORBIDDEN" as const,
+				message: "Only an owner can accept verification terms.",
+				hint: "Ask an owner of this organization to accept the terms.",
+				docs: "https://kayle.id/docs/api/errors#forbidden",
 			},
-			error: null,
 		},
-		200,
+		403,
 	);
 });
 

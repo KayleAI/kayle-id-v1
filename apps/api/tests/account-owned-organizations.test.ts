@@ -167,6 +167,13 @@ describe("Account — owned-organizations endpoint", () => {
 			role: "owner",
 		});
 
+		const malformedOwnerOrgId = await createOrganization();
+		await addMember({
+			organizationId: malformedOwnerOrgId,
+			userId: caller.userId,
+			role: "owner,",
+		});
+
 		const response = await app.request("/v1/auth/account/owned-organizations", {
 			headers: { Cookie: caller.sessionCookie },
 			method: "GET",

@@ -7,7 +7,11 @@ import {
 import { and, eq, gt } from "drizzle-orm";
 import { createWebhookEncryptionKey } from "@/openapi/v1/webhooks/keys/create";
 import { listWebhookEncryptionKeys } from "@/openapi/v1/webhooks/keys/list";
-import { generateKeyId, mapKeyRowToResponse } from "./utils";
+import {
+	generateKeyId,
+	mapKeyRowToResponse,
+	validateWebhookEncryptionPublicJwk,
+} from "./utils";
 
 const endpointKeys = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
@@ -48,30 +52,54 @@ endpointKeys.openapi(createWebhookEncryptionKey, async (c) => {
 		);
 	}
 
+	const publicJwk = await validateWebhookEncryptionPublicJwk(body.jwk);
+	if (!publicJwk.ok) {
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "BAD_REQUEST",
+					message: "Bad request.",
+					hint: "Provide an RSA-OAEP-256 public JWK without private key material.",
+					docs: "https://kayle.id/docs/api/webhooks/keys#create",
+				},
+			},
+			400,
+		);
+	}
+
 	const id = generateKeyId();
 	const now = new Date();
 
-	await db
-		.update(webhook_encryption_keys)
-		.set({
-			disabledAt: now,
-			isActive: false,
-		})
-		.where(eq(webhook_encryption_keys.webhookEndpointId, endpoint.id));
+	const created = await db.transaction(async (tx) => {
+		await tx
+			.update(webhook_encryption_keys)
+			.set({
+				disabledAt: now,
+				isActive: false,
+			})
+			.where(eq(webhook_encryption_keys.webhookEndpointId, endpoint.id));
 
-	const [created] = await db
-		.insert(webhook_encryption_keys)
-		.values({
-			id,
-			webhookEndpointId: endpoint.id,
-			keyId: body.key_id,
-			algorithm: body.algorithm,
-			keyType: body.key_type,
-			jwk: body.jwk,
-			isActive: true,
-			disabledAt: null,
-		})
-		.returning();
+		const [row] = await tx
+			.insert(webhook_encryption_keys)
+			.values({
+				id,
+				webhookEndpointId: endpoint.id,
+				keyId: body.key_id,
+				algorithm: body.algorithm,
+				keyType: body.key_type,
+				jwk: publicJwk.jwk,
+				isActive: true,
+				disabledAt: null,
+			})
+			.returning();
+
+		return row;
+	});
+
+	if (!created) {
+		throw new Error("webhook_encryption_key_create_failed");
+	}
 
 	const data = mapKeyRowToResponse(created);
 

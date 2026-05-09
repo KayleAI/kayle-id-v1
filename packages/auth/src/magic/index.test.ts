@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  constantTimeStringEqual,
   createMagicVerifyLinkUrl,
   isSafeMagicCallback,
   parseMagicLinkTokenValue,
@@ -49,24 +48,6 @@ describe("shouldRateLimitMagicPath", () => {
 
   test("ignores unrelated auth endpoints", () => {
     expect(shouldRateLimitMagicPath("/session")).toBe(false);
-  });
-});
-
-describe("constantTimeStringEqual", () => {
-  test("matches identical strings", () => {
-    expect(constantTimeStringEqual("123456", "123456")).toBe(true);
-  });
-
-  test("rejects mismatched strings of equal length", () => {
-    expect(constantTimeStringEqual("123456", "654321")).toBe(false);
-  });
-
-  test("rejects strings of different length", () => {
-    // Length mismatch is allowed to short-circuit because the OTP length is
-    // configured publicly via `magic({ otpLength })`, not secret. The
-    // constant-time guarantee only covers per-byte content comparison once
-    // the lengths agree.
-    expect(constantTimeStringEqual("123", "1234")).toBe(false);
   });
 });
 

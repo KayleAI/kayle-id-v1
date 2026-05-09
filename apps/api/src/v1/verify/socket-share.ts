@@ -74,6 +74,14 @@ export async function handleShareSelectionMessage(
 		faceScore: state.acceptedFaceScore,
 	});
 
+	if (!successResult.attemptSucceededEventId) {
+		transport.sendError(
+			"SESSION_EXPIRED",
+			resolveVerifyErrorMessage("SESSION_EXPIRED"),
+		);
+		return;
+	}
+
 	state.shareManifest = result.manifest;
 	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
 		attemptId: state.attemptId,

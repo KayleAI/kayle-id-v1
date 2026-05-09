@@ -34,10 +34,9 @@ export function buildProxyHeaders(
 	// them with values we derive ourselves. Without this:
 	//   - x-cf-geolocation / x-cf-signature could pass through unsigned when
 	//     `request.cf` is missing, and the API would still see them;
-	//   - x-real-ip / x-forwarded-for could pass through and either become the
-	//     proxy's derived client IP (if cf-connecting-ip is missing) or sit
-	//     alongside x-forwarded-client-ip and be picked up by anything that
-	//     still falls back to source headers.
+	//   - x-real-ip / x-forwarded-for could sit alongside
+	//     x-forwarded-client-ip and be picked up by anything that still falls
+	//     back to source headers.
 	headers.delete(FORWARDED_CLIENT_IP_HEADER);
 	headers.delete("x-cf-geolocation");
 	headers.delete("x-cf-signature");

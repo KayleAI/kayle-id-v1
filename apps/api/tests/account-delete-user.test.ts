@@ -47,7 +47,7 @@ async function addMember({
 	userId,
 }: {
 	organizationId: string;
-	role: "owner" | "admin" | "member";
+	role: string;
 	userId: string;
 }): Promise<void> {
 	await db.insert(auth_organization_members).values({
@@ -133,7 +133,7 @@ describe("Account — delete-user", () => {
 		SOLE_OWNED_ORG_ID = await createOrganization();
 		await addMember({
 			organizationId: SOLE_OWNED_ORG_ID,
-			role: "owner",
+			role: "owner,admin",
 			userId: SOLE_OWNER.userId,
 		});
 

@@ -11,6 +11,10 @@ export interface SoleOwnedOrganization {
   slug: string;
 }
 
+function memberHasOwnerRole() {
+  return sql<boolean>`(',' || ${auth_organization_members.role} || ',') LIKE ${"%,owner,%"}`;
+}
+
 /**
  * Returns the organisations where `userId` is the only `owner`-role member.
  *
@@ -42,7 +46,7 @@ export async function findSoleOwnedOrganizations(
                   auth_organizations.id
                 ),
                 eq(auth_organization_members.userId, userId),
-                eq(auth_organization_members.role, "owner")
+                memberHasOwnerRole()
               )
             )
         ),
@@ -58,7 +62,7 @@ export async function findSoleOwnedOrganizations(
                     auth_organizations.id
                   ),
                   ne(auth_organization_members.userId, userId),
-                  eq(auth_organization_members.role, "owner")
+                  memberHasOwnerRole()
                 )
               )
           )

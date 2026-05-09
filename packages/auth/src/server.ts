@@ -15,7 +15,7 @@ import { sendMagicLinkEmail } from "@kayle-id/emails/send-magic-link-email";
 import { sendVerifyEmail } from "@kayle-id/emails/send-verify-email";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { deleteSessionCookie } from "better-auth/cookies";
 import { generateRandomString } from "better-auth/crypto";
 import {
@@ -25,9 +25,24 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
+import { isSafeAuthCallbackPath } from "./callback-url";
 import { magic } from "./magic";
 import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
+import {
+  normalizeStoredOrganizationLogoUrl,
+  OrganizationLogoUrlError,
+} from "./organization-logo";
+import {
+  normalizeOrganizationMetadata,
+  type OrganizationMetadata,
+  OrganizationMetadataError,
+} from "./organization-metadata";
+import {
+  assertOrganizationSlug,
+  OrganizationSlugError,
+} from "./organization-slug";
 import { findSoleOwnedOrganizations } from "./owned-organizations";
+import { normalizeProfileImage, ProfileImageError } from "./profile-image";
 import type { Organization } from "./types";
 
 const TWO_FACTOR_COOKIE_NAME = "two_factor";
@@ -42,6 +57,11 @@ const TWO_FACTOR_ENFORCED_PATHS = new Set([
   "/magic/verify-otp",
   "/magic/verify-link",
   "/callback/google",
+]);
+const CALLBACK_URL_BODY_PATHS = new Set([
+  "/change-email",
+  "/delete-user",
+  "/send-verification-email",
 ]);
 
 const verifyEmailExpiryInSeconds = 60 * 60;
@@ -134,11 +154,117 @@ const passkeyRpID = isProduction ? "kayle.id" : "localhost";
 const passkeyOrigin = isProduction
   ? "https://kayle.id"
   : ["https://localhost:3000", "https://localhost:8787"];
+const trustedOrigins = isProduction
+  ? ["https://kayle.id"]
+  : ["https://localhost:3000", "https://localhost:8787"];
 
 interface MagicOtpPayload {
   email: string;
   otp: string;
   type: "sign-in" | "email-verification";
+}
+
+interface OrganizationPolicyInput {
+  logo?: unknown;
+  metadata?: unknown;
+}
+
+interface UserProfileInput {
+  image?: unknown;
+}
+
+function normalizeOrganizationPolicyInput<T extends OrganizationPolicyInput>(
+  organization: T
+):
+  | { data: T & { logo?: null | string; metadata?: OrganizationMetadata } }
+  | undefined {
+  try {
+    let hasChanges = false;
+    const data: { logo?: null | string; metadata?: OrganizationMetadata } = {};
+    const logo = normalizeStoredOrganizationLogoUrl(organization.logo);
+    if (logo !== undefined) {
+      data.logo = logo;
+      hasChanges = true;
+    }
+
+    const metadata = normalizeOrganizationMetadata(organization.metadata);
+    if (metadata !== undefined) {
+      data.metadata = metadata;
+      hasChanges = true;
+    }
+
+    if (!hasChanges) {
+      return;
+    }
+
+    return {
+      data: {
+        ...organization,
+        ...data,
+      },
+    };
+  } catch (error) {
+    if (error instanceof OrganizationLogoUrlError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_ORGANIZATION_LOGO",
+        message: error.message,
+      });
+    }
+    if (error instanceof OrganizationMetadataError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_ORGANIZATION_METADATA",
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+function normalizeUserProfileInput<T extends UserProfileInput>(
+  userData: T,
+  context: unknown
+): { data: T & { image?: null | string } } | undefined {
+  if (
+    !(context && typeof context === "object") ||
+    Reflect.get(context, "path") !== "/update-user"
+  ) {
+    return;
+  }
+
+  try {
+    const image = normalizeProfileImage(userData.image);
+    if (image === undefined) {
+      return;
+    }
+    return {
+      data: {
+        ...userData,
+        image,
+      },
+    };
+  } catch (error) {
+    if (error instanceof ProfileImageError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_PROFILE_IMAGE",
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+function assertOrganizationSlugInput(slug: unknown): void {
+  try {
+    assertOrganizationSlug(slug);
+  } catch (error) {
+    if (error instanceof OrganizationSlugError) {
+      throw APIError.from("BAD_REQUEST", {
+        code: "INVALID_ORGANIZATION_SLUG",
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 export function getActiveOrganizationId(session: unknown): string | null {
@@ -258,6 +384,11 @@ const plugins = [
       },
     },
     organizationHooks: {
+      // biome-ignore lint/suspicious/useAwait: required
+      beforeCreateOrganization: async ({ organization: org }) => {
+        assertOrganizationSlugInput(org.slug);
+        return normalizeOrganizationPolicyInput(org);
+      },
       // Block org-scoped writes once a deletion is scheduled. Without these
       // hooks an admin/owner could add members, change roles, send invites,
       // or rename the org during the 48h freeze window.
@@ -270,6 +401,12 @@ const plugins = [
         ) {
           throw new Error("Organization is scheduled for deletion.");
         }
+
+        if (org.slug !== undefined) {
+          assertOrganizationSlugInput(org.slug);
+        }
+
+        return normalizeOrganizationPolicyInput(org);
       },
       // biome-ignore lint/suspicious/useAwait: required
       beforeAddMember: async ({ organization: org }) => {
@@ -415,6 +552,28 @@ const enforceTwoFactorOnNonStandardSignIns = createAuthMiddleware(
   }
 );
 
+const enforceSafeCallbackURLBodies = createAuthMiddleware((ctx) => {
+  if (!CALLBACK_URL_BODY_PATHS.has(ctx.path)) {
+    return;
+  }
+
+  if (!(ctx.body && typeof ctx.body === "object")) {
+    return;
+  }
+
+  const callbackURL = Reflect.get(ctx.body, "callbackURL");
+  if (callbackURL === undefined) {
+    return;
+  }
+
+  if (typeof callbackURL !== "string" || !isSafeAuthCallbackPath(callbackURL)) {
+    throw APIError.from("BAD_REQUEST", {
+      code: "INVALID_CALLBACK_URL",
+      message: "callbackURL must be a same-site path starting with '/'.",
+    });
+  }
+});
+
 export const auth = betterAuth({
   secret: env.AUTH_SECRET,
   // In production we pin baseURL to the public origin so cookies, magic-link
@@ -441,13 +600,21 @@ export const auth = betterAuth({
     joins: false,
   },
   hooks: {
+    before: enforceSafeCallbackURLBodies,
     after: enforceTwoFactorOnNonStandardSignIns,
+  },
+  databaseHooks: {
+    user: {
+      update: {
+        before: normalizeUserProfileInput,
+      },
+    },
   },
   emailAndPassword: {
     enabled: process.env.NODE_ENV === "test",
     autoSignIn: true,
   },
-  trustedOrigins: ["https://localhost:3000", "https://kayle.id"],
+  trustedOrigins,
   appName: "Kayle ID",
   advanced: {
     cookiePrefix: "kayle-id",

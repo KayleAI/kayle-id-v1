@@ -9,6 +9,7 @@ import { and, eq } from "drizzle-orm";
 import { createHMAC } from "@/functions/hmac";
 import app from "@/index";
 import v1 from "@/v1";
+import { issueHandoffPayload } from "@/v1/verify/handoff";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -254,7 +255,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 	});
 
 	test.serial(
-		"Reuses attempt and expiry within the 60-second idempotency window",
+		"Reuses an unclaimed handoff until the token expires",
 		async () => {
 			const sessionId = await createSession();
 
@@ -266,30 +267,40 @@ describe("/v1/verify/session/:id/handoff", () => {
 			);
 			expect(firstResponse.status).toBe(200);
 			const firstPayload = (await firstResponse.json()) as HandoffResponse;
+			const firstAttemptId = firstPayload.data?.attempt_id;
 
-			const secondResponse = await app.request(
-				`/v1/verify/session/${sessionId}/handoff`,
-				{
-					method: "POST",
-				},
-			);
-			expect(secondResponse.status).toBe(200);
-			const secondPayload = (await secondResponse.json()) as HandoffResponse;
+			const [firstAttempt] = await db
+				.select({
+					mobileWriteTokenIssuedAt:
+						verification_attempts.mobileWriteTokenIssuedAt,
+				})
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, firstAttemptId ?? ""))
+				.limit(1);
+			const issuedAt = firstAttempt?.mobileWriteTokenIssuedAt;
+			if (!issuedAt) {
+				throw new Error("Expected handoff attempt to have an issued timestamp");
+			}
 
-			expect(secondPayload.data?.attempt_id).toBe(
-				firstPayload.data?.attempt_id,
-			);
-			expect(secondPayload.data?.expires_at).toBe(
-				firstPayload.data?.expires_at,
-			);
-			expect(secondPayload.data?.mobile_write_token).toBe(
+			const secondPayload = await issueHandoffPayload(sessionId, {
+				now: new Date(issuedAt.getTime() + 61_000),
+			});
+			if (!secondPayload.ok) {
+				throw new Error(
+					`Expected handoff reuse, received ${secondPayload.error.code}`,
+				);
+			}
+
+			expect(secondPayload.data.attempt_id).toBe(firstAttemptId);
+			expect(secondPayload.data.expires_at).toBe(firstPayload.data?.expires_at);
+			expect(secondPayload.data.mobile_write_token).toBe(
 				firstPayload.data?.mobile_write_token,
 			);
 		},
 	);
 
 	test.serial(
-		"Issues a new attempt after the idempotency window elapses",
+		"Issues a new attempt after the active handoff token expires",
 		async () => {
 			const sessionId = await createSession();
 
@@ -306,7 +317,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 			await db
 				.update(verification_attempts)
 				.set({
-					mobileWriteTokenIssuedAt: new Date(Date.now() - 61_000),
+					mobileWriteTokenExpiresAt: new Date(Date.now() - 1_000),
 				})
 				.where(eq(verification_attempts.id, firstAttemptId ?? ""));
 
@@ -320,6 +331,42 @@ describe("/v1/verify/session/:id/handoff", () => {
 			const secondPayload = (await secondResponse.json()) as HandoffResponse;
 
 			expect(secondPayload.data?.attempt_id).not.toBe(firstAttemptId);
+		},
+	);
+
+	test.serial(
+		"Blocks new handoff issuance after a token is claimed",
+		async () => {
+			const sessionId = await createSession();
+
+			const firstResponse = await app.request(
+				`/v1/verify/session/${sessionId}/handoff`,
+				{
+					method: "POST",
+				},
+			);
+			expect(firstResponse.status).toBe(200);
+			const firstPayload = (await firstResponse.json()) as HandoffResponse;
+
+			await db
+				.update(verification_attempts)
+				.set({
+					mobileWriteTokenConsumedAt: new Date(),
+				})
+				.where(
+					eq(verification_attempts.id, firstPayload.data?.attempt_id ?? ""),
+				);
+
+			const secondResponse = await app.request(
+				`/v1/verify/session/${sessionId}/handoff`,
+				{
+					method: "POST",
+				},
+			);
+
+			expect(secondResponse.status).toBe(409);
+			const secondPayload = (await secondResponse.json()) as HandoffResponse;
+			expect(secondPayload.error?.code).toBe("SESSION_IN_PROGRESS");
 		},
 	);
 });

@@ -40,7 +40,7 @@ describe("buildProxyHeaders", () => {
 		);
 	});
 
-	test("forwards the first available client IP", () => {
+	test("does not promote raw x-forwarded-for without Cloudflare metadata", () => {
 		const headers = buildProxyHeaders(
 			new Request("https://localhost:3000/api/auth/session", {
 				headers: {
@@ -50,7 +50,7 @@ describe("buildProxyHeaders", () => {
 			"test-token",
 		);
 
-		expect(headers.get("x-forwarded-client-ip")).toBe("198.51.100.20");
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 
 	test("strips client-supplied trusted proxy headers when no upstream metadata is present", () => {
@@ -128,5 +128,6 @@ describe("buildProxyHeaders", () => {
 		expect(headers.get("cf-connecting-ip")).toBeNull();
 		expect(headers.get("x-real-ip")).toBeNull();
 		expect(headers.get("x-forwarded-for")).toBeNull();
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 });

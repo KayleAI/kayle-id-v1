@@ -5,6 +5,7 @@ import {
 } from "@kayle-id/database/schema/core";
 import { and, desc, eq, isNotNull, or } from "drizzle-orm";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
+import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { isTerminalAttemptStatus, isTerminalSessionStatus } from "./status";
 
 export type PublicVerifyAttemptStatus = {
@@ -42,6 +43,10 @@ export async function getPublicVerifySessionStatus({
 		.limit(1);
 
 	if (!rawSession) {
+		return null;
+	}
+
+	if (await isPublicVerifySessionHidden(rawSession.organizationId)) {
 		return null;
 	}
 

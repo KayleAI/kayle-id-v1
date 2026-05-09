@@ -65,9 +65,10 @@ type StorageBinding = NonNullable<typeof env.STORAGE>;
 const LOCAL_LOGO_URL_PATTERN = /^http:\/\/127\.0\.0\.1:8787\/r2\/logos\//u;
 const LOGO_SLUG_PATTERN = /^logo-/u;
 
-const PNG_HEADER_BYTES = new Uint8Array([
-	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00,
+const PNG_SIGNATURE_BYTES = new Uint8Array([
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
+const OVERSIZED_LOGO_DIMENSION = 4096;
 
 function base64Encode(bytes: Uint8Array): string {
 	let binary = "";
@@ -77,7 +78,40 @@ function base64Encode(bytes: Uint8Array): string {
 	return btoa(binary);
 }
 
-const TINY_PNG_BASE64 = base64Encode(PNG_HEADER_BYTES);
+function createPngHeaderBytes(width: number, height: number): Uint8Array {
+	const bytes = new Uint8Array([
+		...PNG_SIGNATURE_BYTES,
+		0x00,
+		0x00,
+		0x00,
+		0x0d,
+		0x49,
+		0x48,
+		0x44,
+		0x52,
+		(width >>> 24) & 0xff,
+		(width >>> 16) & 0xff,
+		(width >>> 8) & 0xff,
+		width & 0xff,
+		(height >>> 24) & 0xff,
+		(height >>> 16) & 0xff,
+		(height >>> 8) & 0xff,
+		height & 0xff,
+		0x08,
+		0x06,
+		0x00,
+		0x00,
+		0x00,
+	]);
+
+	return bytes;
+}
+
+const TINY_PNG_BASE64 = base64Encode(createPngHeaderBytes(1, 1));
+const TRUNCATED_PNG_BASE64 = base64Encode(PNG_SIGNATURE_BYTES);
+const OVERSIZED_PNG_BASE64 = base64Encode(
+	createPngHeaderBytes(OVERSIZED_LOGO_DIMENSION, 1),
+);
 
 function requireTestData(): SessionAuthTestData {
 	if (!TEST_DATA) {
@@ -277,6 +311,70 @@ describe("Organization Endpoints", () => {
 		});
 	});
 
+	test("rejects standalone logo uploads without an active organization", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs/logo", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: TINY_PNG_BASE64,
+				},
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(403);
+	});
+
+	test("allows active organization admins to upload a standalone logo", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+		let capturedStorageKey: string | undefined;
+
+		(
+			env as typeof env & {
+				STORAGE: StorageBinding;
+			}
+		).STORAGE = {
+			...(originalStorage ?? ({} as StorageBinding)),
+			put: mock((key) => {
+				capturedStorageKey = key;
+
+				return Promise.resolve({
+					key,
+				} as R2Object);
+			}) as StorageBinding["put"],
+		} as StorageBinding;
+
+		try {
+			const response = await app.request("/v1/auth/orgs/logo", {
+				body: JSON.stringify({
+					logo: {
+						contentType: "image/png",
+						data: TINY_PNG_BASE64,
+					},
+				}),
+				headers: createJsonHeaders(activeSession.sessionCookie),
+				method: "POST",
+			});
+
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: { logo: string };
+				error: null;
+			};
+
+			expect(payload.error).toBeNull();
+			expect(payload.data.logo).toMatch(LOCAL_LOGO_URL_PATTERN);
+			expect(capturedStorageKey?.startsWith("logos/")).toBeTrue();
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
 	test("returns a structured internal error when organization creation fails", async () => {
 		const testData = requireTestData();
 
@@ -357,6 +455,58 @@ describe("Organization Endpoints", () => {
 		expect(payload.error?.code).toBe("INVALID_LOGO");
 		expect(payload.error?.message).toBe(
 			"Organization logo content type does not match the file contents.",
+		);
+	});
+
+	test("rejects a logo whose dimensions cannot be read", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: TRUNCATED_PNG_BASE64,
+				},
+				name: "Truncated Logo Organization",
+				slug: `truncated-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo dimensions could not be read.",
+		);
+	});
+
+	test("rejects a logo whose dimensions exceed the maximum", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: OVERSIZED_PNG_BASE64,
+				},
+				name: "Oversized Logo Organization",
+				slug: `oversized-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo dimensions exceed the maximum size.",
 		);
 	});
 

@@ -20,6 +20,7 @@ const buildEnv =
 # secrets from Infisical.
 
 # Database — matches infra/postgres/compose.yml.
+NODE_ENV=development
 DATABASE_URL=postgres://postgres:postgres@localhost:6432/kayle-id
 
 # Random secrets — generated locally, no third-party account required.

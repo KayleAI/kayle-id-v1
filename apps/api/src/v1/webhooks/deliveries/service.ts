@@ -155,7 +155,7 @@ async function resolveEndpointSigningSecret({
 }
 
 const WEBHOOK_DELIVERY_TIMEOUT_MS = 15_000;
-const WEBHOOK_FETCH_REJECTED_STATUS = 0;
+const WEBHOOK_FETCH_REJECTED_STATUS = 400;
 
 const ALLOW_LOOPBACK_WEBHOOK_URLS = process.env.NODE_ENV !== "production";
 
@@ -206,7 +206,7 @@ async function sendWebhookDeliveryRequest({
 	// the endpoint returns as a failed delivery — `response.ok` is false
 	// for 3xx, so `persistWebhookDeliveryAttemptResult` records it as
 	// failed without ever following the redirect.
-	return fetch(endpoint.url, {
+	return fetch(urlOutcome.url.toString(), {
 		body: delivery.payload,
 		headers: {
 			"Content-Type": "application/jose",

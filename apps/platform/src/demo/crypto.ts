@@ -1,3 +1,5 @@
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
+
 const BASE64_URL_PADDING_PATTERN = /=+$/u;
 const DEFAULT_WEBHOOK_SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
 const TEXT_ENCODER = new TextEncoder();
@@ -81,7 +83,7 @@ function parseVerificationTimeMs(
 }
 
 function signaturesMatch(left: string, right: string): boolean {
-	return left === right;
+	return constantTimeStringEqual(left, right);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

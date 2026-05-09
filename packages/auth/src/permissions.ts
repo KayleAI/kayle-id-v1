@@ -14,8 +14,17 @@ export function isOrgRole(value: unknown): value is OrgRole {
   );
 }
 
-export function hasOrgRole(actual: OrgRole, required: OrgRole): boolean {
-  return ORG_ROLE_RANK[actual] >= ORG_ROLE_RANK[required];
+function parseOrgRoles(value: string): OrgRole[] {
+  return value
+    .split(",")
+    .map((role) => role.trim())
+    .filter(isOrgRole);
+}
+
+export function hasOrgRole(actual: string, required: OrgRole): boolean {
+  return parseOrgRoles(actual).some(
+    (role) => ORG_ROLE_RANK[role] >= ORG_ROLE_RANK[required]
+  );
 }
 
 /**

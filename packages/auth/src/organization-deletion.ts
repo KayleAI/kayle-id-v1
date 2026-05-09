@@ -1,3 +1,4 @@
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import { env } from "@kayle-id/config/env";
 import {
   createSafeRequestLogger,
@@ -340,7 +341,7 @@ export async function confirmOrgDeletion({
         400
       );
     }
-    if (verification.value !== submittedCode) {
+    if (!constantTimeStringEqual(verification.value, submittedCode)) {
       throw new OrgDeletionError(
         "INVALID_CODE",
         "Confirmation code does not match.",

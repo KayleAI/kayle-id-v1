@@ -2,6 +2,12 @@ import { z } from "zod";
 
 export const FACE_MATCHER_AUTH_HEADER = "x-kayle-face-matcher-auth";
 export const FACE_MATCHER_DG2_FIELD = "dg2";
+export const FACE_MATCHER_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+export const FACE_MATCHER_MAX_SELFIES = 3;
+export const FACE_MATCHER_MAX_REQUEST_BYTES =
+  FACE_MATCHER_MAX_IMAGE_BYTES * (FACE_MATCHER_MAX_SELFIES + 1) + 64 * 1024;
+export const FACE_MATCHER_MAX_THRESHOLD = 1;
+export const FACE_MATCHER_MIN_THRESHOLD = 0;
 export const FACE_MATCHER_SELFIE_FIELD_PREFIX = "selfie_";
 export const FACE_MATCHER_THRESHOLD_FIELD = "threshold";
 
@@ -54,7 +60,26 @@ function parseThresholdValue(value: MultipartEntry | null): number | undefined {
     throw new Error("face_matcher_threshold_invalid");
   }
 
+  if (
+    parsed < FACE_MATCHER_MIN_THRESHOLD ||
+    parsed > FACE_MATCHER_MAX_THRESHOLD
+  ) {
+    throw new Error("face_matcher_threshold_out_of_range");
+  }
+
   return parsed;
+}
+
+function validateImageBytes(bytes: Uint8Array, label: string): Uint8Array {
+  if (bytes.byteLength === 0) {
+    throw new Error(`face_matcher_${label}_empty`);
+  }
+
+  if (bytes.byteLength > FACE_MATCHER_MAX_IMAGE_BYTES) {
+    throw new Error(`face_matcher_${label}_too_large`);
+  }
+
+  return bytes;
 }
 
 async function bytesFromEntry(
@@ -65,7 +90,7 @@ async function bytesFromEntry(
     throw new Error(`face_matcher_${label}_missing`);
   }
 
-  return new Uint8Array(await entry.arrayBuffer());
+  return validateImageBytes(new Uint8Array(await entry.arrayBuffer()), label);
 }
 
 export function createFaceMatcherRequestFormData({
@@ -73,11 +98,35 @@ export function createFaceMatcherRequestFormData({
   selfies,
   threshold,
 }: FaceMatcherMultipartPayload): FormData {
+  validateImageBytes(dg2Image, "dg2");
+
+  if (selfies.length === 0) {
+    throw new Error("face_matcher_selfies_missing");
+  }
+
+  if (selfies.length > FACE_MATCHER_MAX_SELFIES) {
+    throw new Error("face_matcher_selfies_too_many");
+  }
+
+  if (typeof threshold === "number" && !Number.isFinite(threshold)) {
+    throw new Error("face_matcher_threshold_invalid");
+  }
+
+  if (
+    typeof threshold === "number" &&
+    (threshold < FACE_MATCHER_MIN_THRESHOLD ||
+      threshold > FACE_MATCHER_MAX_THRESHOLD)
+  ) {
+    throw new Error("face_matcher_threshold_out_of_range");
+  }
+
   const formData = new FormData();
 
   formData.append(FACE_MATCHER_DG2_FIELD, blobFromBytes(dg2Image), "dg2.bin");
 
   for (const [index, selfie] of selfies.entries()) {
+    validateImageBytes(selfie, "selfie");
+
     formData.append(
       `${FACE_MATCHER_SELFIE_FIELD_PREFIX}${index}`,
       blobFromBytes(selfie),
@@ -117,6 +166,10 @@ export async function parseFaceMatcherRequestFormData(
       throw new Error("face_matcher_selfie_index_invalid");
     }
 
+    if (index >= FACE_MATCHER_MAX_SELFIES) {
+      throw new Error("face_matcher_selfie_index_too_large");
+    }
+
     selfies.push(
       bytesFromEntry(value, "selfie").then((bytes) => ({
         index,
@@ -129,6 +182,10 @@ export async function parseFaceMatcherRequestFormData(
 
   if (resolvedSelfies.length === 0) {
     throw new Error("face_matcher_selfies_missing");
+  }
+
+  if (resolvedSelfies.length > FACE_MATCHER_MAX_SELFIES) {
+    throw new Error("face_matcher_selfies_too_many");
   }
 
   resolvedSelfies.sort((left, right) => left.index - right.index);

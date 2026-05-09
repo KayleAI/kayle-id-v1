@@ -171,6 +171,10 @@ export function isSelfieDataKind(kind: number): boolean {
 	return kind === SELFIE_KIND;
 }
 
+function isSupportedDataKind(kind: number): boolean {
+	return isNfcDataKind(kind) || isSelfieDataKind(kind);
+}
+
 function isRequiredSelfieIndex(index: number): boolean {
 	return index >= 0 && index < REQUIRED_SELFIE_TOTAL;
 }
@@ -519,6 +523,14 @@ function validateDataPayload({
 		});
 	}
 
+	if (!(isNonNegativeInteger(kind) && isSupportedDataKind(kind))) {
+		return createErrorResult({
+			state,
+			code: "UNKNOWN_DATA_KIND",
+			message: "Unknown data kind.",
+		});
+	}
+
 	if (state.bytesReceived + raw.length > MAX_TOTAL_TRANSFER_BYTES) {
 		return createErrorResult({
 			state,
@@ -534,6 +546,16 @@ function validateDataPayload({
 			index,
 			chunkIndex,
 			reason: "invalid_index_or_total",
+		});
+	}
+
+	if (isNfcDataKind(kind) && index !== 0) {
+		return createChunkRetryResult({
+			state,
+			kind,
+			index,
+			chunkIndex,
+			reason: "invalid_nfc_index",
 		});
 	}
 

@@ -1,3 +1,5 @@
+export { constantTimeStringEqual } from "@kayle-id/config/constant-time";
+
 import { env } from "@kayle-id/config/env";
 import { createHMAC } from "@/functions/hmac";
 import { generateRandomString } from "@/utils/generate-id";

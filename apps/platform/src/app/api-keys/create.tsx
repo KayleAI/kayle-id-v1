@@ -1,5 +1,7 @@
+import type { CustomerApiKeyScope } from "@kayle-id/auth/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
+import { Checkbox } from "@kayleai/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -14,29 +16,85 @@ import { Textarea } from "@kayleai/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
 import { useCopyToClipboard } from "@/utils/use-copy";
-import { API_KEYS_QUERY_KEY, createApiKey } from "./api";
+import {
+	API_KEYS_QUERY_KEY,
+	createApiKey,
+	DEFAULT_API_KEY_PERMISSIONS,
+} from "./api";
+
+const API_KEY_PERMISSION_OPTIONS: readonly {
+	description: string;
+	label: string;
+	scope: CustomerApiKeyScope;
+}[] = [
+	{
+		scope: "sessions:write",
+		label: "Create sessions",
+		description: "Create verification sessions and read their status.",
+	},
+	{
+		scope: "sessions:read",
+		label: "Read sessions",
+		description: "Read verification sessions without creating new ones.",
+	},
+	{
+		scope: "webhooks:write",
+		label: "Manage webhooks",
+		description: "Create endpoints, keys, replays, and signing secrets.",
+	},
+	{
+		scope: "webhooks:read",
+		label: "Read webhooks",
+		description: "Read webhook endpoints, events, keys, and deliveries.",
+	},
+	{
+		scope: "analytics:read",
+		label: "Read analytics",
+		description: "Read verification analytics for this organization.",
+	},
+] as const;
 
 interface FormState {
 	apiKey: string | null;
 	errorMessage: string;
 	name: string;
+	permissions: CustomerApiKeyScope[];
 	status: "idle" | "loading" | "success" | "error";
 }
 
 type FormAction =
 	| { type: "SET_NAME"; name: string }
+	| {
+			type: "TOGGLE_PERMISSION";
+			checked: boolean;
+			permission: CustomerApiKeyScope;
+	  }
 	| { type: "SUBMIT" }
 	| { type: "SUCCESS"; apiKey: string }
 	| { type: "ERROR"; message: string }
 	| { type: "RESET" }
 	| { type: "CLEAR_ERROR" };
 
-const initialFormState: FormState = {
-	status: "idle",
-	name: "",
-	errorMessage: "",
-	apiKey: null,
-};
+function createInitialFormState(): FormState {
+	return {
+		apiKey: null,
+		errorMessage: "",
+		name: "",
+		permissions: [...DEFAULT_API_KEY_PERMISSIONS],
+		status: "idle",
+	};
+}
+
+const initialFormState = createInitialFormState();
+
+function resetErrorState(
+	state: FormState,
+): Pick<FormState, "errorMessage" | "status"> {
+	return {
+		status: state.status === "error" ? "idle" : state.status,
+		errorMessage: state.status === "error" ? "" : state.errorMessage,
+	};
+}
 
 function formReducer(state: FormState, action: FormAction): FormState {
 	switch (action.type) {
@@ -44,9 +102,21 @@ function formReducer(state: FormState, action: FormAction): FormState {
 			return {
 				...state,
 				name: action.name,
-				status: state.status === "error" ? "idle" : state.status,
-				errorMessage: state.status === "error" ? "" : state.errorMessage,
+				...resetErrorState(state),
 			};
+		case "TOGGLE_PERMISSION": {
+			const permissions = action.checked
+				? Array.from(new Set([...state.permissions, action.permission]))
+				: state.permissions.filter(
+						(permission) => permission !== action.permission,
+					);
+
+			return {
+				...state,
+				permissions,
+				...resetErrorState(state),
+			};
+		}
 		case "SUBMIT":
 			return { ...state, status: "loading", errorMessage: "" };
 		case "SUCCESS":
@@ -54,7 +124,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
 		case "ERROR":
 			return { ...state, status: "error", errorMessage: action.message };
 		case "RESET":
-			return initialFormState;
+			return createInitialFormState();
 		case "CLEAR_ERROR":
 			return { ...state, status: "idle", errorMessage: "" };
 		default:
@@ -148,9 +218,54 @@ function ApiKeyFormView({
 						value={state.name}
 					/>
 				</div>
+				<fieldset className="space-y-2" disabled={isLoading}>
+					<legend className="font-medium text-sm">Permissions</legend>
+					<div className="grid gap-2">
+						{API_KEY_PERMISSION_OPTIONS.map((option) => {
+							const checkboxId = `api-key-permission-${option.scope.replace(
+								":",
+								"-",
+							)}`;
+							const checked = state.permissions.includes(option.scope);
+
+							return (
+								<label
+									className="flex min-h-11 items-start gap-3 rounded-md border border-border/70 px-3 py-2 text-sm"
+									htmlFor={checkboxId}
+									key={option.scope}
+								>
+									<Checkbox
+										checked={checked}
+										className="mt-0.5"
+										disabled={isLoading}
+										id={checkboxId}
+										onCheckedChange={(nextChecked) =>
+											dispatch({
+												type: "TOGGLE_PERMISSION",
+												checked: nextChecked === true,
+												permission: option.scope,
+											})
+										}
+									/>
+									<span className="space-y-0.5">
+										<span className="block font-medium">{option.label}</span>
+										<span className="block text-muted-foreground">
+											{option.description}
+										</span>
+									</span>
+								</label>
+							);
+						})}
+					</div>
+				</fieldset>
 			</div>
 			<DialogFooter>
-				<Button disabled={isLoading || !state.name.trim()} onClick={onSubmit}>
+				<Button
+					disabled={
+						isLoading || !state.name.trim() || state.permissions.length === 0
+					}
+					onClick={onSubmit}
+				>
 					{isLoading ? "Creating..." : "Create API Key"}
 				</Button>
 			</DialogFooter>
@@ -172,10 +287,21 @@ export function CreateApiKey() {
 			return;
 		}
 
+		if (state.permissions.length === 0) {
+			dispatch({
+				type: "ERROR",
+				message: "Select at least one permission for this API key.",
+			});
+			return;
+		}
+
 		dispatch({ type: "SUBMIT" });
 
 		try {
-			const { key } = await createApiKey({ name: state.name.trim() });
+			const { key } = await createApiKey({
+				name: state.name.trim(),
+				permissions: state.permissions,
+			});
 
 			if (!key) {
 				dispatch({

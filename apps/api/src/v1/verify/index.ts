@@ -12,11 +12,15 @@ import {
 import attest from "./attest-handlers";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
+import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
-import { hashSessionCancelToken } from "./token-crypto";
+import {
+	constantTimeStringEqual,
+	hashSessionCancelToken,
+} from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
 
@@ -158,19 +162,6 @@ const cancelBodySchema = z.object({
 	cancel_token: z.string().min(1),
 });
 
-function constantTimeStringEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) {
-		return false;
-	}
-
-	let mismatch = 0;
-	for (let index = 0; index < a.length; index++) {
-		mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
-	}
-
-	return mismatch === 0;
-}
-
 verify.post(
 	"/session/:id/cancel",
 	validator("param", sessionParamJsonValidator),
@@ -204,6 +195,21 @@ verify.post(
 			.limit(1);
 
 		if (!rawSession) {
+			const response = createVerifyJsonErrorResponse({
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		if (await isPublicVerifySessionHidden(rawSession.organizationId)) {
 			const response = createVerifyJsonErrorResponse({
 				code: "SESSION_NOT_FOUND",
 				status: 404,

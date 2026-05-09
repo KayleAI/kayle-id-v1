@@ -30,6 +30,9 @@
 			"service": "kayle-id-api"
 		}
 	],
+	"vars": {
+		"NODE_ENV": "production"
+	},
 	"kv_namespaces": [
 		{
 			"binding": "ORG_VERIFICATIONS_KV",

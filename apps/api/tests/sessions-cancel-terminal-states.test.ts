@@ -8,6 +8,10 @@ import {
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import v1 from "@/v1";
+import {
+	cancelVerificationSession,
+	expireVerificationSessionIfNeeded,
+} from "@/v1/sessions/repo/session-repo";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -130,6 +134,158 @@ describe("/v1/sessions cancel terminal states", () => {
 			expect(attemptAfter?.status).toBe("failed");
 			expect(attemptAfter?.failureCode).toBe("session_cancelled");
 			expect(attemptAfter?.completedAt).not.toBeNull();
+		},
+	);
+
+	test.serial(
+		"Cancel does not overwrite a session completed after the caller loaded it",
+		async () => {
+			if (!TEST_DATA) {
+				throw new Error("Test data not initialized");
+			}
+
+			const sessionId = generateId({ type: "vs" });
+			const attemptId = generateId({ type: "va" });
+			const completedAt = new Date("2026-01-02T00:00:00.000Z");
+
+			const [loadedSession] = await db
+				.insert(verification_sessions)
+				.values({
+					id: sessionId,
+					organizationId: TEST_DATA.organizationId,
+					status: "in_progress",
+					contractVersion: 1,
+					shareFields: {},
+					expiresAt: new Date("2026-12-31T00:00:00.000Z"),
+				})
+				.returning();
+
+			if (!loadedSession) {
+				throw new Error("Failed to seed stale cancel session");
+			}
+
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				status: "in_progress",
+			});
+
+			await db
+				.update(verification_sessions)
+				.set({
+					status: "completed",
+					completedAt,
+				})
+				.where(eq(verification_sessions.id, sessionId));
+
+			await cancelVerificationSession({
+				row: loadedSession,
+				organizationId: TEST_DATA.organizationId,
+			});
+
+			const [sessionAfter] = await db
+				.select()
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, sessionId))
+				.limit(1);
+			expect(sessionAfter?.status).toBe("completed");
+			expect(sessionAfter?.completedAt?.toISOString()).toBe(
+				completedAt.toISOString(),
+			);
+
+			const [attemptAfter] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			expect(attemptAfter?.status).toBe("in_progress");
+			expect(attemptAfter?.failureCode).toBeNull();
+
+			const cancelledEvents = await db
+				.select({ id: events.id })
+				.from(events)
+				.where(
+					and(
+						eq(events.organizationId, TEST_DATA.organizationId),
+						eq(events.triggerId, sessionId),
+						eq(events.type, "verification.session.cancelled"),
+					),
+				);
+			expect(cancelledEvents.length).toBe(0);
+		},
+	);
+
+	test.serial(
+		"Expire does not overwrite a session completed after the caller loaded it",
+		async () => {
+			if (!TEST_DATA) {
+				throw new Error("Test data not initialized");
+			}
+
+			const sessionId = generateId({ type: "vs" });
+			const attemptId = generateId({ type: "va" });
+			const completedAt = new Date("2026-01-03T00:00:00.000Z");
+			const now = new Date("2026-01-04T00:00:00.000Z");
+
+			const [loadedSession] = await db
+				.insert(verification_sessions)
+				.values({
+					id: sessionId,
+					organizationId: TEST_DATA.organizationId,
+					status: "in_progress",
+					contractVersion: 1,
+					shareFields: {},
+					expiresAt: new Date("2026-01-01T00:00:00.000Z"),
+				})
+				.returning();
+
+			if (!loadedSession) {
+				throw new Error("Failed to seed stale expire session");
+			}
+
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				status: "in_progress",
+			});
+
+			await db
+				.update(verification_sessions)
+				.set({
+					status: "completed",
+					completedAt,
+				})
+				.where(eq(verification_sessions.id, sessionId));
+
+			const normalized = await expireVerificationSessionIfNeeded({
+				now,
+				row: loadedSession,
+			});
+
+			expect(normalized.status).toBe("completed");
+			expect(normalized.completedAt?.toISOString()).toBe(
+				completedAt.toISOString(),
+			);
+
+			const [attemptAfter] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			expect(attemptAfter?.status).toBe("in_progress");
+			expect(attemptAfter?.failureCode).toBeNull();
+
+			const expiredEvents = await db
+				.select({ id: events.id })
+				.from(events)
+				.where(
+					and(
+						eq(events.organizationId, TEST_DATA.organizationId),
+						eq(events.triggerId, sessionId),
+						eq(events.type, "verification.session.expired"),
+					),
+				);
+			expect(expiredEvents.length).toBe(0);
 		},
 	);
 

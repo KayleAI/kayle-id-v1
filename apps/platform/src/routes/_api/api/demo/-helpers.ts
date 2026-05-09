@@ -1,6 +1,9 @@
+import { generateRandomString } from "@kayle-id/config/random";
 import { env } from "@/config/env";
 import { DemoApiError } from "@/demo/api";
 import type { DemoRunRecord, DemoRunView } from "@/demo/types";
+
+const DEMO_RUN_ID_PATTERN = /^demo_[a-f0-9]{32}$/u;
 
 export function createJsonResponse(
 	body: unknown,
@@ -10,20 +13,15 @@ export function createJsonResponse(
 }
 
 export function createRandomToken(length: number): string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-	const random = new Uint8Array(length);
-	crypto.getRandomValues(random);
-
-	let output = "";
-	for (const value of random) {
-		output += alphabet[value % alphabet.length];
-	}
-
-	return output;
+	return generateRandomString(length);
 }
 
 export function createDemoRunId(): string {
 	return `demo_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
+export function isDemoRunId(value: string): boolean {
+	return DEMO_RUN_ID_PATTERN.test(value);
 }
 
 export function getDemoRunStub(runId: string) {
@@ -122,8 +120,7 @@ export function toErrorResponse(error: unknown): Response {
 			data: null,
 			error: {
 				code: "INTERNAL_ERROR",
-				message:
-					error instanceof Error ? error.message : "Unexpected demo error.",
+				message: "Unexpected demo error.",
 			},
 		},
 		{ status: 500 },

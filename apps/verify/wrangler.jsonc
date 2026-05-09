@@ -5,7 +5,7 @@
 	"preview_urls": false,
 	"workers_dev": false,
 	"compatibility_flags": ["nodejs_compat"],
-	"main": "@tanstack/react-start/server-entry",
+	"main": "src/server-entry.ts",
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1
@@ -29,8 +29,9 @@
 		}
 	],
 	"vars": {
-		"PUBLIC_API_HOST": "127.0.0.1:8787",
-		"PUBLIC_API_PROTOCOL": "ws"
+		"NODE_ENV": "production",
+		"PUBLIC_API_HOST": "api.kayle.id",
+		"PUBLIC_API_PROTOCOL": "wss"
 	},
 	"env": {
 		"production": {
@@ -42,6 +43,7 @@
 				}
 			],
 			"vars": {
+				"NODE_ENV": "production",
 				"PUBLIC_API_HOST": "api.kayle.id",
 				"PUBLIC_API_PROTOCOL": "wss"
 			}

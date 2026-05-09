@@ -96,13 +96,7 @@ describe("api key api helpers", () => {
 			expect.objectContaining({
 				body: JSON.stringify({
 					name: "Primary",
-					permissions: [
-						"webhooks:read",
-						"webhooks:write",
-						"sessions:read",
-						"sessions:write",
-						"analytics:read",
-					],
+					permissions: ["sessions:write"],
 				}),
 				credentials: "include",
 				headers: { "Content-Type": "application/json" },

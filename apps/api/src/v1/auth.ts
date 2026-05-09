@@ -55,7 +55,11 @@ const authenticate = createMiddleware<{
 	const authorization = headers.get("authorization");
 
 	if (authorization?.startsWith("Bearer ")) {
-		const apiKey = authorization.split(" ")[1];
+		const apiKey = authorization.slice("Bearer ".length).trim();
+		if (!apiKey) {
+			return unauthorized(c);
+		}
+
 		const keyHash = await createHMAC(apiKey, {
 			algorithm: "SHA256",
 			secret: env.AUTH_SECRET,
@@ -239,6 +243,22 @@ export async function denyIfOrgFrozen(c: Context): Promise<Response | null> {
 		return organizationFrozen(c);
 	}
 	return null;
+}
+
+export function denyFrozenOrgWrites() {
+	return createMiddleware(async (c, next) => {
+		const method = c.req.method.toUpperCase();
+		if (method === "GET" || method === "HEAD") {
+			return next();
+		}
+
+		const frozenResponse = await denyIfOrgFrozen(c);
+		if (frozenResponse) {
+			return frozenResponse;
+		}
+
+		return next();
+	});
 }
 
 export { authenticate, sessionMiddleware };

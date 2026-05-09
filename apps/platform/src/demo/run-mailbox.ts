@@ -1,4 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
+import {
+	isRequestBodyTooLarge,
+	readRequestJsonWithLimit,
+	readRequestTextWithLimit,
+} from "@kayle-id/config/request-body";
 import { disableDemoWebhookEndpoint } from "./api";
 import type {
 	DemoRunRecord,
@@ -6,9 +12,11 @@ import type {
 	DemoSessionStatus,
 	DemoWebhookEnvelope,
 } from "./types";
-import { getDemoWebhookHistory } from "./webhook-history";
+import { appendDemoWebhookHistory } from "./webhook-history";
 
 const ABANDONED_RUN_RETENTION_MS = 2 * 60 * 60 * 1000;
+const DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES = 32 * 1024;
+const DEMO_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 const TERMINAL_RUN_RETENTION_MS = 30 * 60 * 1000;
 const RECORD_KEY = "demo-run";
 
@@ -35,13 +43,43 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, init);
 }
 
+function payloadTooLargeResponse(): Response {
+	return jsonResponse(
+		{
+			data: null,
+			error: {
+				code: "PAYLOAD_TOO_LARGE",
+				message: "Request body is too large.",
+			},
+		},
+		{ status: 413 },
+	);
+}
+
 export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 	async fetch(request: Request): Promise<Response> {
+		try {
+			return await this.fetchWithBodyLimits(request);
+		} catch (error) {
+			if (isRequestBodyTooLarge(error)) {
+				return payloadTooLargeResponse();
+			}
+
+			throw error;
+		}
+	}
+
+	private async fetchWithBodyLimits(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		const pathname = url.pathname;
 
 		if (request.method === "POST" && pathname === "/initialize") {
-			await this.initializeRecord((await request.json()) as InitializePayload);
+			await this.initializeRecord(
+				await readRequestJsonWithLimit<InitializePayload>(
+					request,
+					DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES,
+				),
+			);
 			return new Response(null, { status: 204 });
 		}
 
@@ -66,7 +104,10 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		if (request.method === "POST" && pathname === "/session") {
 			await this.persistSession(
 				record,
-				(await request.json()) as SessionPayload,
+				await readRequestJsonWithLimit<SessionPayload>(
+					request,
+					DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES,
+				),
 			);
 			return new Response(null, { status: 204 });
 		}
@@ -74,14 +115,17 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		if (request.method === "POST" && pathname === "/session-status") {
 			await this.persistSessionStatus(
 				record,
-				(await request.json()) as DemoSessionStatus,
+				await readRequestJsonWithLimit<DemoSessionStatus>(
+					request,
+					DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES,
+				),
 			);
 			return new Response(null, { status: 204 });
 		}
 
 		if (request.method === "POST" && pathname === "/webhook") {
 			const token = url.searchParams.get("token");
-			if (!token || token !== record.receiver_token) {
+			if (!token || !constantTimeStringEqual(token, record.receiver_token)) {
 				return jsonResponse(
 					{
 						data: null,
@@ -182,7 +226,10 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		request: Request,
 	): Promise<void> {
 		const envelope: DemoWebhookEnvelope = {
-			body: await request.text(),
+			body: await readRequestTextWithLimit(
+				request,
+				DEMO_WEBHOOK_BODY_LIMIT_BYTES,
+			),
 			delivery_id: request.headers.get("X-Kayle-Delivery-Id"),
 			event_type: request.headers.get(
 				"X-Kayle-Event",
@@ -194,7 +241,7 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		await this.ctx.storage.put(RECORD_KEY, {
 			...record,
 			webhook: envelope,
-			webhooks: [...getDemoWebhookHistory(record), envelope],
+			webhooks: appendDemoWebhookHistory(record, envelope),
 		});
 		await this.ctx.storage.setAlarm(Date.now() + TERMINAL_RUN_RETENTION_MS);
 	}

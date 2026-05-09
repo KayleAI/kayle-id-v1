@@ -34,7 +34,8 @@ export type VerifySocketTransport = {
 			| "HELLO_ATTEST_INVALID"
 			| "HELLO_ATTEST_KEY_UNKNOWN"
 			| "HELLO_AUTH_REQUIRED"
-			| "MIN_APP_VERSION_REQUIRED",
+			| "MIN_APP_VERSION_REQUIRED"
+			| "SESSION_EXPIRED",
 	) => void;
 	sendError: (code: string, message: string) => void;
 	sendShareReady: (input: {

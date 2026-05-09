@@ -76,7 +76,7 @@ test("buildRequestedShareFields creates required and optional claims plus a sing
 	});
 });
 
-test("buildRequestedShareFields rejects DOB plus age gate", () => {
+test("buildRequestedShareFields allows DOB plus age gate together", () => {
 	const result = buildRequestedShareFields({
 		ageThresholdText: "18",
 		fieldModes: {
@@ -84,12 +84,19 @@ test("buildRequestedShareFields rejects DOB plus age gate", () => {
 		},
 	});
 
-	expect(result.ok).toBe(false);
-	if (result.ok) {
-		throw new Error("expected_dob_age_gate_conflict");
+	expect(result.ok).toBe(true);
+	if (!result.ok) {
+		throw new Error(result.message);
 	}
 
-	expect(result.message).toContain("Date of Birth");
+	expect(result.shareFields?.date_of_birth).toEqual({
+		reason: 'Sharing "Date of Birth"',
+		required: true,
+	});
+	expect(result.shareFields?.age_over_18).toEqual({
+		reason: 'Sharing "Age Over 18"',
+		required: true,
+	});
 });
 
 test("buildRequestedShareFields rejects age gates below 12", () => {

@@ -9,6 +9,12 @@ import {
 } from "@kayleai/ui/command";
 import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@kayleai/ui/tooltip";
 import { cn } from "@kayleai/ui/utils/cn";
 import { Command as CommandPrimitive } from "cmdk";
 import {
@@ -598,7 +604,7 @@ function DemoErrorAlert({
 	);
 }
 
-const DEFAULT_AGE_THRESHOLD = String(minAgeThreshold);
+const DEFAULT_AGE_THRESHOLD = "18";
 
 function ClaimPicker({
 	ageErrorMessage,
@@ -832,7 +838,11 @@ function ClaimPicker({
 								<div className="inline-flex shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 p-0.5">
 									{(["optional", "required"] as const).map((option) => {
 										const active = mode === option;
-										return (
+										const isDisabled =
+											claimKey === "date_of_birth" &&
+											isAgeSelected &&
+											option === "optional";
+										const button = (
 											<button
 												aria-pressed={active}
 												className={cn(
@@ -840,14 +850,30 @@ function ClaimPicker({
 													active
 														? "bg-neutral-900 text-white"
 														: "text-neutral-600 hover:text-neutral-950",
+													isDisabled &&
+														"cursor-not-allowed text-neutral-300 hover:text-neutral-300",
 												)}
-												key={option}
+												disabled={isDisabled}
 												onClick={() => onClaimModeChange(claimKey, option)}
 												type="button"
 											>
 												{getModeLabel(option)}
 											</button>
 										);
+										if (isDisabled) {
+											return (
+												<Tooltip key={option}>
+													<TooltipTrigger aria-label="Why is this disabled?">
+														<span className="inline-flex">{button}</span>
+													</TooltipTrigger>
+													<TooltipContent className="max-w-xs text-center">
+														Date of Birth automatically becomes required while a
+														minimum-age constraint is active
+													</TooltipContent>
+												</Tooltip>
+											);
+										}
+										return <span key={option}>{button}</span>;
 									})}
 								</div>
 								<button
@@ -1118,15 +1144,32 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 		setOpenStep(step);
 	}, []);
 
+	const isAgeGateActive = ageThresholdText.trim() !== "";
+
 	const handleClaimModeChange = useCallback(
 		(claimKey: string, mode: DemoFieldMode) => {
+			const effectiveMode: DemoFieldMode =
+				claimKey === "date_of_birth" && isAgeGateActive && mode === "optional"
+					? "required"
+					: mode;
 			setFieldModes((current) => ({
 				...current,
-				[claimKey]: mode,
+				[claimKey]: effectiveMode,
 			}));
 		},
-		[],
+		[isAgeGateActive],
 	);
+
+	const handleAgeThresholdChange = useCallback((value: string) => {
+		setAgeThresholdText(value);
+		if (value.trim() !== "") {
+			setFieldModes((current) =>
+				current.date_of_birth === "optional"
+					? { ...current, date_of_birth: "required" }
+					: current,
+			);
+		}
+	}, []);
 
 	const handleCreateSession = useCallback(async () => {
 		if (!runId) {
@@ -1250,48 +1293,50 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 	});
 
 	return (
-		<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-			<section className="mb-16 sm:mb-20">
-				<h1 className="mx-auto max-w-[22ch] text-balance text-center font-light text-5xl text-neutral-950 tracking-tighter sm:text-6xl">
-					{copy.title}
-				</h1>
-				<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-neutral-600 sm:mt-8 sm:text-xl">
-					{copy.description}
-				</p>
-			</section>
+		<TooltipProvider>
+			<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+				<section className="mb-16 sm:mb-20">
+					<h1 className="mx-auto max-w-[22ch] text-balance text-center font-light text-5xl text-neutral-950 tracking-tighter sm:text-6xl">
+						{copy.title}
+					</h1>
+					<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-neutral-600 sm:mt-8 sm:text-xl">
+						{copy.description}
+					</p>
+				</section>
 
-			<div className="space-y-6" id="demo-flow">
-				<DemoErrorAlert onReset={handleReset} runError={runError} />
+				<div className="space-y-6" id="demo-flow">
+					<DemoErrorAlert onReset={handleReset} runError={runError} />
 
-				<div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
-					<div className="lg:col-span-7">
-						<DemoComposerStep
-							ageThresholdText={ageThresholdText}
-							fieldModes={fieldModes}
-							hasSession={hasSession}
-							isCreatingRun={isCreatingRun}
-							isCreatingSession={isCreatingSession}
-							isRestartingDemo={isRestartingDemo}
-							mode={mode}
-							onAgeThresholdChange={setAgeThresholdText}
-							onClaimModeChange={handleClaimModeChange}
-							onCreateSession={handleCreateSession}
-							onRestartDemo={handleRestartDemo}
-							runId={runId}
-							selectionResult={selectionResult}
-						/>
-					</div>
+					<div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
+						<div className="lg:col-span-7">
+							<DemoComposerStep
+								ageThresholdText={ageThresholdText}
+								fieldModes={fieldModes}
+								hasSession={hasSession}
+								isCreatingRun={isCreatingRun}
+								isCreatingSession={isCreatingSession}
+								isRestartingDemo={isRestartingDemo}
+								mode={mode}
+								onAgeThresholdChange={handleAgeThresholdChange}
+								onClaimModeChange={handleClaimModeChange}
+								onCreateSession={handleCreateSession}
+								onRestartDemo={handleRestartDemo}
+								runId={runId}
+								selectionResult={selectionResult}
+							/>
+						</div>
 
-					<div className="space-y-6 lg:col-span-5">
-						<DemoVerificationStep hasSession={hasSession} run={run} />
-						<DemoOutcomeStep
-							canReviewOutcome={canReviewOutcome}
-							processedWebhooks={processedWebhooks}
-							run={run}
-						/>
+						<div className="space-y-6 lg:col-span-5">
+							<DemoVerificationStep hasSession={hasSession} run={run} />
+							<DemoOutcomeStep
+								canReviewOutcome={canReviewOutcome}
+								processedWebhooks={processedWebhooks}
+								run={run}
+							/>
+						</div>
 					</div>
 				</div>
-			</div>
-		</main>
+			</main>
+		</TooltipProvider>
 	);
 }

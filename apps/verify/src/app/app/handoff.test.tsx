@@ -47,7 +47,6 @@ const mockedUseDevice = vi.fn();
 const qrPropsSpy = vi.fn();
 const assignLocationSpy = vi.fn();
 const closeSpy = vi.fn();
-const confirmSpy = vi.fn();
 const mockedUseSession = vi.fn();
 const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
@@ -111,6 +110,82 @@ vi.mock("@kayleai/ui/button", () => ({
 		);
 	},
 }));
+
+vi.mock("@kayleai/ui/alert-dialog", async () => {
+	const react = await import("react");
+	const DialogContext = react.createContext<{
+		onOpenChange: (open: boolean) => void;
+	}>({
+		onOpenChange: () => {},
+	});
+
+	return {
+		AlertDialog: ({
+			children,
+			onOpenChange,
+			open,
+		}: {
+			children: React.ReactNode;
+			onOpenChange?: (open: boolean) => void;
+			open?: boolean;
+		}) =>
+			open ? (
+				<DialogContext.Provider
+					value={{ onOpenChange: onOpenChange ?? (() => {}) }}
+				>
+					<div data-testid="cancel-dialog" role="alertdialog">
+						{children}
+					</div>
+				</DialogContext.Provider>
+			) : null,
+		AlertDialogContent: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogHeader: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogFooter: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogTitle: ({ children }: { children: React.ReactNode }) => (
+			<h2>{children}</h2>
+		),
+		AlertDialogDescription: ({ children }: { children: React.ReactNode }) => (
+			<p>{children}</p>
+		),
+		AlertDialogAction: ({
+			children,
+			disabled,
+			onClick,
+		}: {
+			children: React.ReactNode;
+			disabled?: boolean;
+			onClick?: () => void;
+		}) => (
+			<button disabled={disabled} onClick={onClick} type="button">
+				{children}
+			</button>
+		),
+		AlertDialogCancel: ({
+			children,
+			disabled,
+		}: {
+			children: React.ReactNode;
+			disabled?: boolean;
+		}) => {
+			const { onOpenChange } = react.useContext(DialogContext);
+			return (
+				<button
+					disabled={disabled}
+					onClick={() => onOpenChange(false)}
+					type="button"
+				>
+					{children}
+				</button>
+			);
+		},
+	};
+});
 
 vi.mock("@kayle-id/ui/info-card", () => ({
 	default: ({
@@ -230,14 +305,8 @@ beforeEach(() => {
 	requestCancelVerifySessionMock.mockReset();
 	requestHandoffPayloadMock.mockReset();
 	requestVerifySessionStatusMock.mockReset();
-	confirmSpy.mockReset();
-	confirmSpy.mockReturnValue(true);
 	mockedUseSession.mockReturnValue({
 		sessionStatus: null,
-	});
-	Object.defineProperty(window, "confirm", {
-		configurable: true,
-		value: confirmSpy,
 	});
 	Object.defineProperty(window, "close", {
 		configurable: true,
@@ -529,20 +598,32 @@ describe("Handoff", () => {
 
 		await flushUi();
 		expect(view.getByTestId("qr-code")).not.toBeNull();
+		expect(view.queryByTestId("cancel-dialog")).toBeNull();
 
 		act(() => {
 			view.getByRole("button", { name: "Cancel" }).click();
 		});
 		await flushUi();
 
-		expect(confirmSpy).toHaveBeenCalledWith(
-			VERIFY_HANDOFF_COPY.actions.cancelConfirmation,
-		);
+		expect(view.getByTestId("cancel-dialog")).not.toBeNull();
+		expect(
+			view.getByText(VERIFY_HANDOFF_COPY.cancelDialog.title),
+		).not.toBeNull();
+		expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
+
+		act(() => {
+			view
+				.getByRole("button", { name: VERIFY_HANDOFF_COPY.cancelDialog.confirm })
+				.click();
+		});
+		await flushUi();
+
 		expect(requestCancelVerifySessionMock).toHaveBeenCalledWith(
 			"vs_session123",
 			"ct_cancel_token",
 		);
 		expect(view.queryByTestId("qr-code")).toBeNull();
+		expect(view.queryByTestId("cancel-dialog")).toBeNull();
 		expect(
 			view.getByText(VERIFY_HANDOFF_COPY.screens.terminal.cancelled.title),
 		).not.toBeNull();
@@ -578,17 +659,16 @@ describe("Handoff", () => {
 		});
 
 		expect(closeSpy).toHaveBeenCalledTimes(1);
-		expect(confirmSpy).not.toHaveBeenCalled();
+		expect(view.queryByTestId("cancel-dialog")).toBeNull();
 		expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
 	});
 
-	test("does not cancel when the browser confirmation is rejected", async () => {
+	test("dismisses the cancel dialog without cancelling the session", async () => {
 		mockedUseDevice.mockReturnValue({
 			supported: false,
 			os: "ios",
 		});
 
-		confirmSpy.mockReturnValue(false);
 		requestHandoffPayloadMock.mockResolvedValue(createHandoffPayload());
 		requestVerifySessionStatusMock.mockResolvedValue(createSessionStatus());
 
@@ -601,6 +681,16 @@ describe("Handoff", () => {
 		});
 		await flushUi();
 
+		expect(view.getByTestId("cancel-dialog")).not.toBeNull();
+
+		act(() => {
+			view
+				.getByRole("button", { name: VERIFY_HANDOFF_COPY.cancelDialog.dismiss })
+				.click();
+		});
+		await flushUi();
+
+		expect(view.queryByTestId("cancel-dialog")).toBeNull();
 		expect(requestCancelVerifySessionMock).not.toHaveBeenCalled();
 		expect(view.getByTestId("qr-code")).not.toBeNull();
 	});

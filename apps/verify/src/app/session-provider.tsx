@@ -14,6 +14,7 @@ import {
 	requestVerifySessionStatus,
 	type VerifySessionStatusPayload,
 } from "@/config/handoff";
+import { buildCancelledSessionStatus } from "@/utils/cancel";
 import { useDevice } from "@/utils/use-device";
 import { useVerificationStore } from "../stores/session";
 import type { Organization } from "./app/organization-name";
@@ -34,6 +35,7 @@ type SessionContextType = {
 	session: VerifySession | null;
 	error: SessionError | null;
 	onError: (callback: (sessionError: SessionError) => void) => () => void;
+	markSessionCancelled: () => void;
 };
 
 const EMPTY_ORGANIZATION: Organization = {
@@ -87,6 +89,15 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		},
 		[],
 	);
+
+	const markSessionCancelled = useCallback(() => {
+		setSessionStatus((current) =>
+			buildCancelledSessionStatus({
+				sessionId,
+				sessionStatus: current,
+			}),
+		);
+	}, [sessionId]);
 
 	const handleRpcError = useCallback(
 		(sessionError: SessionError) => {
@@ -193,6 +204,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			session: isSessionReady ? sessionStubRef.current : null,
 			error,
 			onError,
+			markSessionCancelled,
 		}),
 		[
 			isSessionDetailsReady,
@@ -203,6 +215,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			isSessionReady,
 			error,
 			onError,
+			markSessionCancelled,
 		],
 	);
 

@@ -6,6 +6,14 @@ import {
 } from "@kayle-id/config/client-ip";
 
 type ProxyRequest = Request & { cf?: unknown };
+export type InternalApiProxyRoot = "analytics" | "auth" | "webhooks";
+
+export class InternalApiProxyPathError extends Error {
+	constructor() {
+		super("internal_api_proxy_path_mismatch");
+		this.name = "InternalApiProxyPathError";
+	}
+}
 
 export function getPublicHost(): string {
 	return process.env.NODE_ENV === "production"
@@ -15,10 +23,23 @@ export function getPublicHost(): string {
 
 export function buildInternalApiProxyUrl(
 	requestUrl: string,
+	root: InternalApiProxyRoot,
 	host = getPublicHost(),
 ): string {
 	const url = new URL(requestUrl, host);
-	const targetPath = `v1/${url.pathname.replace("/api/", "")}`
+	const sourcePrefix = `/api/${root}`;
+
+	if (
+		!(
+			url.pathname === sourcePrefix ||
+			url.pathname.startsWith(`${sourcePrefix}/`)
+		)
+	) {
+		throw new InternalApiProxyPathError();
+	}
+
+	const suffix = url.pathname.slice(sourcePrefix.length);
+	const targetPath = `v1/${root}${suffix}`
 		.replace(/\/+$/g, "")
 		.replace(/\/\/+/g, "/");
 

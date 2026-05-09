@@ -10,6 +10,7 @@ describe("buildInternalApiProxyUrl", () => {
 		expect(
 			buildInternalApiProxyUrl(
 				"https://localhost:3000/api/auth/session?fresh=true",
+				"auth",
 			),
 		).toBe("http://api/v1/auth/session?fresh=true");
 	});
@@ -18,8 +19,27 @@ describe("buildInternalApiProxyUrl", () => {
 		expect(
 			buildInternalApiProxyUrl(
 				"https://localhost:3000/api/webhooks//events//?limit=10",
+				"webhooks",
 			),
 		).toBe("http://api/v1/webhooks/events?limit=10");
+	});
+
+	test("rejects paths that normalized outside the route proxy root", () => {
+		expect(() =>
+			buildInternalApiProxyUrl(
+				"https://localhost:3000/api/auth/%2e%2e/internal/auth/check-session-membership",
+				"auth",
+			),
+		).toThrow("internal_api_proxy_path_mismatch");
+	});
+
+	test("rejects requests for a different proxy root", () => {
+		expect(() =>
+			buildInternalApiProxyUrl(
+				"https://localhost:3000/api/internal/auth/check-session-membership",
+				"webhooks",
+			),
+		).toThrow("internal_api_proxy_path_mismatch");
 	});
 });
 

@@ -1,11 +1,17 @@
 export const VERIFY_HANDOFF_COPY = {
   actions: {
     cancel: "Cancel",
-    cancelConfirmation: "Cancel? This will stop this check.",
     closeThisPage: "Close this page",
     continueNow: "Continue",
     openKayleIdApp: "Open Kayle ID",
     tryAgain: "Try again",
+  },
+
+  cancelDialog: {
+    title: "Cancel this check?",
+    description: "This will stop the check. You can start a new one later.",
+    confirm: "Yes, cancel",
+    dismiss: "Keep going",
   },
 
   handoff: {

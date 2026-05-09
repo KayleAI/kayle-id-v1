@@ -172,7 +172,7 @@ async function parseMatchPayload({
       FACE_MATCHER_MAX_REQUEST_BYTES
     );
     const boundedRequest = new Request(request.url, {
-      body: bodyBytes,
+      body: bodyBytes as unknown as BodyInit,
       headers: {
         "content-type": contentType,
       },

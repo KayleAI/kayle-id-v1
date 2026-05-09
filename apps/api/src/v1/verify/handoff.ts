@@ -1,3 +1,4 @@
+import { env as configEnv } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	verification_attempts,
@@ -20,6 +21,10 @@ import {
 
 const HANDOFF_TOKEN_TTL_MS = 5 * 60_000;
 const HANDOFF_PAYLOAD_VERSION = 1;
+
+function resolveAuthSecret(env: CloudflareBindings | undefined): string {
+	return env?.AUTH_SECRET ?? configEnv.AUTH_SECRET;
+}
 
 type HandoffError = {
 	code: "SESSION_NOT_FOUND" | "SESSION_EXPIRED" | "SESSION_IN_PROGRESS";
@@ -245,18 +250,17 @@ export async function issueHandoffPayload(
 		seed: selectedAttempt.mobileWriteTokenSeed,
 	});
 
-	const [attestHelloChallenge, attestNfcChallenge] = env?.AUTH_SECRET
-		? await Promise.all([
-				deriveAttestHelloChallenge({
-					attemptId: selectedAttempt.attemptId,
-					authSecret: env.AUTH_SECRET,
-				}),
-				deriveAttestNfcChallenge({
-					attemptId: selectedAttempt.attemptId,
-					authSecret: env.AUTH_SECRET,
-				}),
-			])
-		: [new Uint8Array(), new Uint8Array()];
+	const authSecret = resolveAuthSecret(env);
+	const [attestHelloChallenge, attestNfcChallenge] = await Promise.all([
+		deriveAttestHelloChallenge({
+			attemptId: selectedAttempt.attemptId,
+			authSecret,
+		}),
+		deriveAttestNfcChallenge({
+			attemptId: selectedAttempt.attemptId,
+			authSecret,
+		}),
+	]);
 
 	return {
 		ok: true,

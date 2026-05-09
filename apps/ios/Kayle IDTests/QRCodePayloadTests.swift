@@ -58,6 +58,18 @@ final class QRCodePayloadTests: XCTestCase {
     XCTAssertTrue(parsed.isValid)
   }
 
+  func testLegacyGenericSchemeIsRejected() {
+    let qr = "kayle://\(makeJSON())"
+
+    XCTAssertThrowsError(try QRCodePayload.parse(from: qr))
+  }
+
+  func testOversizedPayloadIsRejectedBeforeDecoding() {
+    let qr = "kayle-id://\(String(repeating: "a", count: 4097))"
+
+    XCTAssertThrowsError(try QRCodePayload.parse(from: qr))
+  }
+
   func testParseFractionalSecondExpiryPayload() throws {
     let qr = "kayle-id://\(makeJSON(expiresAt: "2099-01-01T00:00:00.000Z"))"
     let parsed = try QRCodePayload.parse(from: qr)

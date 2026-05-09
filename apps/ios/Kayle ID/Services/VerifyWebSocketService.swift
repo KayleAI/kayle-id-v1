@@ -756,16 +756,22 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 #endif
             if let error = serverMessage.errorMessage {
               let code = serverMessage.errorCode ?? "unknown"
+#if DEBUG
               print("WebSocket error: \(code) \(error)")
+#endif
             }
           }
         case .string(let text):
+#if DEBUG
           print("Unexpected WebSocket text: \(text)")
+#endif
         @unknown default:
           break
         }
       case .failure(let error):
+#if DEBUG
         print("WebSocket receive error: \(error)")
+#endif
         if self.consumeExpectedVerdictClose() {
           return
         }

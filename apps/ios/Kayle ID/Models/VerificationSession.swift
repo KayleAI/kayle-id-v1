@@ -271,7 +271,9 @@ final class VerificationSession: ObservableObject {
       do {
         try await uploadMRZData()
       } catch {
+#if DEBUG
         print("Failed to finalize MRZ scan: \(error.localizedDescription)")
+#endif
       }
     }
   }
@@ -1146,7 +1148,9 @@ final class VerificationSession: ObservableObject {
       do {
         try await webSocketService.sendPhase(phase, error: error)
       } catch {
+#if DEBUG
         print("Failed to update phase \(phase.rawValue): \(error.localizedDescription)")
+#endif
       }
     }
   }

@@ -16,7 +16,7 @@ struct Main: App {
   }
 
   private func handleIncomingURL(_ url: URL) {
-    guard let scheme = url.scheme, scheme == "kayle-id" || scheme == "kayle" else { return }
+    guard url.scheme == "kayle-id" else { return }
     pendingQRCode = url.absoluteString
   }
 }

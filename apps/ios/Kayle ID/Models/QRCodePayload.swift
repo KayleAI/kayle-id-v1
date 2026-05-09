@@ -20,14 +20,13 @@ func parseQRCodePayloadDate(_ value: String) -> Date? {
 struct QRCodePayload: Codable {
   private static let supportedSchemePrefixes = [
     "kayle-id://",
-    "kayle://",
     "kayle-id:",
-    "kayle:",
   ]
   private static let currentPayloadVersion = 1
   private static let generatedIdRandomLength = 64
   private static let mobileWriteTokenLength = 64
   private static let cancelTokenLength = 48
+  private static let maxPayloadUrlLength = 4096
 
   let v: Int?
   let sessionId: String
@@ -106,6 +105,10 @@ struct QRCodePayload: Codable {
 
   /// Parse a QR code payload from a `kayle-id://` URL.
   static func parse(from urlString: String) throws -> QRCodePayload {
+    guard urlString.count <= maxPayloadUrlLength else {
+      throw QRCodePayloadError.invalidPayload
+    }
+
     guard
       let prefix = supportedSchemePrefixes.first(where: { urlString.hasPrefix($0) })
     else {

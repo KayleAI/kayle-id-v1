@@ -41,6 +41,12 @@ export type AttestGateOutcome =
 	  };
 
 export function isAttestationGateEnabled(env: CloudflareBindings): boolean {
+	const nodeEnv =
+		(env as { NODE_ENV?: string }).NODE_ENV ?? process.env.NODE_ENV;
+	if (nodeEnv === "production") {
+		return true;
+	}
+
 	const flag =
 		(env as { VERIFY_REQUIRE_ATTESTATION?: string })
 			.VERIFY_REQUIRE_ATTESTATION ?? process.env.VERIFY_REQUIRE_ATTESTATION;
@@ -50,7 +56,9 @@ export function isAttestationGateEnabled(env: CloudflareBindings): boolean {
 export function resolveAppAttestEnvironment(
 	env: CloudflareBindings,
 ): AppAttestEnvironment {
-	return env.PUBLIC_AUTH_URL === "https://kayle.id"
+	const nodeEnv =
+		(env as { NODE_ENV?: string }).NODE_ENV ?? process.env.NODE_ENV;
+	return nodeEnv === "production" || env.PUBLIC_AUTH_URL === "https://kayle.id"
 		? "production"
 		: "development";
 }

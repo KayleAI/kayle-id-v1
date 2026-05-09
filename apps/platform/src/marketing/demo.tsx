@@ -1051,7 +1051,9 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 	const copy = DEMO_MODE_COPY[mode];
 	const [fieldModes, setFieldModes] =
 		useState<Record<string, DemoFieldMode>>(initialFieldModes);
-	const [ageThresholdText, setAgeThresholdText] = useState("");
+	const [ageThresholdText, setAgeThresholdText] = useState(
+		mode === "age" ? DEFAULT_AGE_THRESHOLD : "",
+	);
 	const [openStep, setOpenStep] = useState<DemoStepId>("step-1");
 	const [privateKey, setPrivateKey] = useState<CryptoKey | null>(null);
 	const [signingSecret, setSigningSecret] = useState<string | null>(null);
@@ -1101,9 +1103,9 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 
 	const handleReset = useCallback(() => {
 		setFieldModes(initialFieldModes);
-		setAgeThresholdText("");
+		setAgeThresholdText(mode === "age" ? DEFAULT_AGE_THRESHOLD : "");
 		clearRunState();
-	}, [clearRunState]);
+	}, [clearRunState, mode]);
 
 	const provisionDemoRun = useCallback(async () => {
 		const keyPair = await generateDemoKeyPair();

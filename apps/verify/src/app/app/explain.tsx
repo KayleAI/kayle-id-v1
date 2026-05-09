@@ -1,10 +1,10 @@
 import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
 import { useVerificationStore } from "../../stores/session";
-import { getPlatformNameLabel } from "./platform-name";
+import { type Organization, OrganizationName } from "./organization-name";
 
 type SessionExplainProps = {
-	organizationName?: string | null;
+	organization: Organization;
 	isAgeOnly?: boolean;
 	ageThreshold?: number | null;
 };
@@ -15,19 +15,18 @@ type SessionExplainProps = {
  * what the integrator actually receives (a single age-gate boolean).
  */
 export function SessionExplain({
-	organizationName,
+	organization,
 	isAgeOnly = false,
 	ageThreshold = null,
 }: SessionExplainProps) {
 	const goToConsent = useVerificationStore((state) => state.goToConsent);
-	const platformName = getPlatformNameLabel(organizationName);
 
 	if (isAgeOnly) {
 		return (
 			<AgeOnlyExplain
 				ageThreshold={ageThreshold}
 				goToConsent={goToConsent}
-				platformName={platformName}
+				organization={organization}
 			/>
 		);
 	}
@@ -60,10 +59,7 @@ export function SessionExplain({
 							<li>Confirms that you are the document holder</li>
 							<li>
 								Shares only the verification result and details you choose to
-								share with{" "}
-								<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-									{platformName}
-								</span>
+								share with <OrganizationName organization={organization} />
 							</li>
 						</ul>
 					</div>
@@ -101,11 +97,11 @@ export function SessionExplain({
 function AgeOnlyExplain({
 	ageThreshold,
 	goToConsent,
-	platformName,
+	organization,
 }: {
 	ageThreshold: number | null;
 	goToConsent: () => void;
-	platformName: string;
+	organization: Organization;
 }) {
 	const ageLabel =
 		ageThreshold !== null ? `over ${ageThreshold}` : "old enough";
@@ -125,12 +121,10 @@ function AgeOnlyExplain({
 						{headline}
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-							{platformName}
-						</span>{" "}
-						only needs to know whether you're {ageLabel} — not your name, date
-						of birth, or any other personal details. Kayle ID lets you prove
-						that privately, using your document and a selfie.
+						<OrganizationName organization={organization} /> only needs to know
+						whether you're {ageLabel} — not your name, date of birth, or any
+						other personal details. Kayle ID lets you prove that privately,
+						using your document and a selfie.
 					</p>
 				</div>
 

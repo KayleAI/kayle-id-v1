@@ -25,7 +25,42 @@ vi.mock("@kayleai/ui/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
+vi.mock("@kayleai/ui/dialog", () => ({
+	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	DialogTrigger: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+	}) => (
+		<button className={className} type="button">
+			{children}
+		</button>
+	),
+	DialogContent: () => null,
+	DialogHeader: () => null,
+	DialogTitle: () => null,
+	DialogDescription: () => null,
+	DialogFooter: () => null,
+}));
+
 import { SessionExplain } from "./explain";
+import type { Organization } from "./organization-name";
+
+function createOrganization(
+	overrides: Partial<Organization> = {},
+): Organization {
+	return {
+		name: "Test Organization",
+		verified: true,
+		logo: null,
+		businessName: null,
+		businessJurisdiction: null,
+		businessRegistrationNumber: null,
+		...overrides,
+	};
+}
 
 afterEach(() => {
 	cleanup();
@@ -34,14 +69,14 @@ afterEach(() => {
 
 describe("SessionExplain", () => {
 	test("renders the organization name in the share copy", () => {
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(screen.getByText("Test Organization")).not.toBeNull();
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
 
 	test("renders the identity-verification heading by default", () => {
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(
 			screen.getByRole("heading", {
@@ -55,7 +90,7 @@ describe("SessionExplain", () => {
 			<SessionExplain
 				ageThreshold={21}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 
@@ -73,7 +108,7 @@ describe("SessionExplain", () => {
 			<SessionExplain
 				ageThreshold={null}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 

@@ -12,6 +12,10 @@ import { isPublicVerifySessionHidden } from "./public-session-visibility";
 export type PublicVerifySessionDetails = {
 	organization_name: string;
 	organization_verified: boolean;
+	organization_logo: string | null;
+	organization_business_name: string | null;
+	organization_business_jurisdiction: string | null;
+	organization_business_registration_number: string | null;
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
@@ -39,6 +43,12 @@ export async function getPublicVerifySessionDetails({
 		.select({
 			organizationName: auth_organizations.name,
 			organizationVerifiedAt: auth_organizations.verified_at,
+			organizationLogo: auth_organizations.logo,
+			organizationBusinessName: auth_organizations.business_name,
+			organizationBusinessJurisdiction:
+				auth_organizations.business_jurisdiction,
+			organizationBusinessRegistrationNumber:
+				auth_organizations.business_registration_number,
 			organizationId: verification_sessions.organizationId,
 			sessionId: verification_sessions.id,
 			isAgeOnly: verification_sessions.isAgeOnly,
@@ -63,6 +73,12 @@ export async function getPublicVerifySessionDetails({
 	return {
 		organization_name: session.organizationName,
 		organization_verified: session.organizationVerifiedAt !== null,
+		organization_logo: session.organizationLogo,
+		organization_business_name: session.organizationBusinessName,
+		organization_business_jurisdiction:
+			session.organizationBusinessJurisdiction,
+		organization_business_registration_number:
+			session.organizationBusinessRegistrationNumber,
 		session_id: session.sessionId,
 		is_age_only: session.isAgeOnly,
 		age_threshold: session.isAgeOnly

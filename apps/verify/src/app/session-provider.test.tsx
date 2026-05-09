@@ -4,7 +4,10 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { JSDOM } from "jsdom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { VerifySessionStatusPayload } from "@/config/handoff";
+import type {
+	VerifySessionDetailsPayload,
+	VerifySessionStatusPayload,
+} from "@/config/handoff";
 import { useVerificationStore } from "../stores/session";
 import { SessionProvider, useSession } from "./session-provider";
 
@@ -81,25 +84,37 @@ function setNavigator({
 }
 
 function SessionStateProbe() {
-	const {
-		error,
-		isSessionDetailsReady,
-		organizationName,
-		sessionStatus,
-		session,
-	} = useSession();
+	const { error, isSessionDetailsReady, organization, sessionStatus, session } =
+		useSession();
 
 	return (
 		<div>
 			<div data-testid="details-ready">
 				{isSessionDetailsReady ? "ready" : "loading"}
 			</div>
-			<div data-testid="organization-name">{organizationName ?? "none"}</div>
+			<div data-testid="organization-name">{organization.name ?? "none"}</div>
 			<div data-testid="session-status">{sessionStatus?.status ?? "none"}</div>
 			<div data-testid="session-state">{session ? "ready" : "idle"}</div>
 			<div data-testid="session-error">{error?.code ?? "none"}</div>
 		</div>
 	);
+}
+
+function createSessionDetails(
+	overrides: Partial<VerifySessionDetailsPayload> = {},
+): VerifySessionDetailsPayload {
+	return {
+		organization_name: "Test Organization",
+		organization_verified: true,
+		organization_logo: null,
+		organization_business_name: null,
+		organization_business_jurisdiction: null,
+		organization_business_registration_number: null,
+		is_age_only: false,
+		age_threshold: null,
+		session_id: sessionId,
+		...overrides,
+	};
 }
 
 function renderProvider() {
@@ -177,13 +192,7 @@ describe("SessionProvider", () => {
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
-			.mockResolvedValue({
-				organization_name: "Test Organization",
-				organization_verified: true,
-				is_age_only: false,
-				age_threshold: null,
-				session_id: sessionId,
-			});
+			.mockResolvedValue(createSessionDetails());
 		const statusSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionStatus")
 			.mockResolvedValue(createSessionStatus());
@@ -212,13 +221,7 @@ describe("SessionProvider", () => {
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
-			.mockResolvedValue({
-				organization_name: "Test Organization",
-				organization_verified: true,
-				is_age_only: false,
-				age_threshold: null,
-				session_id: sessionId,
-			});
+			.mockResolvedValue(createSessionDetails());
 		const statusSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionStatus")
 			.mockResolvedValue(createSessionStatus());
@@ -247,13 +250,7 @@ describe("SessionProvider", () => {
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
-			.mockResolvedValue({
-				organization_name: "Test Organization",
-				organization_verified: true,
-				is_age_only: false,
-				age_threshold: null,
-				session_id: sessionId,
-			});
+			.mockResolvedValue(createSessionDetails());
 		const statusSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionStatus")
 			.mockResolvedValue(createSessionStatus());
@@ -280,13 +277,9 @@ describe("SessionProvider", () => {
 		});
 
 		const handoffModule = await import("@/config/handoff");
-		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue({
-			organization_name: "Test Organization",
-			organization_verified: true,
-			is_age_only: false,
-			age_threshold: null,
-			session_id: sessionId,
-		});
+		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue(
+			createSessionDetails(),
+		);
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(
 			createSessionStatus(),
 		);
@@ -337,13 +330,9 @@ describe("SessionProvider", () => {
 		});
 
 		const handoffModule = await import("@/config/handoff");
-		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue({
-			organization_name: "Test Organization",
-			organization_verified: true,
-			is_age_only: false,
-			age_threshold: null,
-			session_id: sessionId,
-		});
+		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue(
+			createSessionDetails(),
+		);
 		vi.spyOn(handoffModule, "requestVerifySessionStatus").mockResolvedValue(
 			createSessionStatus({
 				latest_attempt: {

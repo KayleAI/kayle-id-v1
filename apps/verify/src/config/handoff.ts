@@ -26,6 +26,10 @@ export type VerifySessionStatusPayload = {
 export type VerifySessionDetailsPayload = {
 	organization_name: string;
 	organization_verified: boolean;
+	organization_logo: string | null;
+	organization_business_name: string | null;
+	organization_business_jurisdiction: string | null;
+	organization_business_registration_number: string | null;
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;

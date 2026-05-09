@@ -5,10 +5,10 @@ import { Logo } from "@kayleai/ui/logo";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useVerificationStore } from "../../stores/session";
-import { getPlatformNameLabel } from "./platform-name";
+import { type Organization, OrganizationName } from "./organization-name";
 
 type SessionConsentProps = {
-	organizationName?: string | null;
+	organization: Organization;
 	isAgeOnly?: boolean;
 	ageThreshold?: number | null;
 };
@@ -19,14 +19,13 @@ type SessionConsentProps = {
  * around "share my document data" would be inaccurate and unnecessarily scary.
  */
 export function SessionConsent({
-	organizationName,
+	organization,
 	isAgeOnly = false,
 	ageThreshold = null,
 }: SessionConsentProps) {
 	const [consentChecked, setConsentChecked] = useState(false);
 	const goToHandoff = useVerificationStore((state) => state.goToHandoff);
 	const goToExplain = useVerificationStore((state) => state.goToExplain);
-	const platformName = getPlatformNameLabel(organizationName);
 
 	const handleStartVerification = () => {
 		if (consentChecked) {
@@ -52,10 +51,7 @@ export function SessionConsent({
 				<>
 					I allow Kayle ID to share <span className="font-medium">only</span>{" "}
 					whether I am {ageLabel} with{" "}
-					<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-						{platformName}
-					</span>{" "}
-					— no other details
+					<OrganizationName organization={organization} /> — no other details
 				</>,
 			]
 		: [
@@ -66,10 +62,7 @@ export function SessionConsent({
 				</>,
 				<>
 					I allow Kayle ID to share the verification result and details I choose
-					to share with{" "}
-					<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-						{platformName}
-					</span>
+					to share with <OrganizationName organization={organization} />
 				</>,
 			];
 

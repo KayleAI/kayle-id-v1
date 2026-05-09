@@ -7,6 +7,7 @@ export const Route = createFileRoute("/_api/api/webhooks/$")({
 			ANY: ({ request }) =>
 				proxyInternalApiRequest({
 					request,
+					root: "webhooks",
 				}),
 		},
 	},

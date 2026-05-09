@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun
@@ -41,7 +41,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:17.7
+        image: postgres:17.7@sha256:030da09481c3876b71a7e49738a932e1c18c398201a1e4ccfdbff1e5a541215b
         ports:
           - 6432:5432
         env:
@@ -55,7 +55,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7-alpine
+        image: redis:7-alpine@sha256:b1addbe72465a718643cff9e60a58e6df1841e29d6d7d60c9a85d8d72f08d1a7
         ports:
           - 6379:6379
         options: >-
@@ -68,7 +68,7 @@ jobs:
       # speaks REST, not the Redis wire protocol, so tests need this in front
       # of the redis service. Token + port mirror `.env.test.example`.
       srh:
-        image: hiett/serverless-redis-http:latest
+        image: hiett/serverless-redis-http@sha256:01d66211581ebd552e07292e3b73f1f475e52c48aa725049809aa09a7ba23238
         ports:
           - 8079:80
         env:
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun
@@ -219,7 +219,7 @@ jobs:
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun

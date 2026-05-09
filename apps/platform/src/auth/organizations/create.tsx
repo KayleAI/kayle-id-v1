@@ -1,5 +1,6 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
+import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
 import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
 import { Logo } from "@kayleai/ui/logo";
@@ -9,7 +10,6 @@ import { useEffect, useRef, useState } from "react";
 import { Loading } from "@/components/loading";
 import { requestApiResource } from "@/utils/api-client";
 
-const SLUG_REGEX = /^[a-z0-9-]+$/;
 const DEFAULT_ERROR = "Failed to create organization";
 
 export function CreateOrganization() {
@@ -95,7 +95,7 @@ export function CreateOrganization() {
 		}
 
 		// Validate slug format: lowercase, hyphens, alphanumeric
-		if (!SLUG_REGEX.test(slug)) {
+		if (!isOrganizationSlug(slug)) {
 			setError(
 				"Slug must contain only lowercase letters, numbers, and hyphens",
 			);

@@ -3,27 +3,38 @@ import {
 	buildInternalApiProxyUrl,
 	buildProxyHeaders,
 	getPublicHost,
+	InternalApiProxyPathError,
+	type InternalApiProxyRoot,
 } from "./proxy-internal-api-utils";
 
 export async function proxyInternalApiRequest({
 	request,
 	rewriteRedirectLocation,
+	root,
 }: {
 	request: Request & { cf?: unknown };
 	rewriteRedirectLocation?: (location: string, host: string) => string;
+	root: InternalApiProxyRoot;
 }): Promise<Response> {
 	const host = getPublicHost();
+	let targetUrl: string;
+	try {
+		targetUrl = buildInternalApiProxyUrl(request.url, root, host);
+	} catch (error) {
+		if (error instanceof InternalApiProxyPathError) {
+			return new Response(null, { status: 404 });
+		}
 
-	const response = await env.API.fetch(
-		buildInternalApiProxyUrl(request.url, host),
-		{
-			body: request.body ?? undefined,
-			credentials: "include",
-			headers: buildProxyHeaders(request, env.KAYLE_INTERNAL_TOKEN),
-			method: request.method,
-			redirect: "manual",
-		},
-	);
+		throw error;
+	}
+
+	const response = await env.API.fetch(targetUrl, {
+		body: request.body ?? undefined,
+		credentials: "include",
+		headers: buildProxyHeaders(request, env.KAYLE_INTERNAL_TOKEN),
+		method: request.method,
+		redirect: "manual",
+	});
 
 	if (
 		rewriteRedirectLocation &&

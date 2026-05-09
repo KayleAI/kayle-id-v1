@@ -1,5 +1,10 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
+import {
+	isAllowedProfileImageMime,
+	MAX_PROFILE_IMAGE_BYTES,
+	normalizeProfileImage,
+} from "@kayle-id/auth/profile-image";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	AlertDialog,
@@ -35,7 +40,6 @@ import {
 	type OwnedOrganization,
 } from "./api";
 
-const MAX_IMAGE_BYTES = 1024 * 1024;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 interface UpdateProfileInput {
@@ -100,18 +104,19 @@ export function AccountSettingsPage() {
 			return;
 		}
 
-		if (!file.type.startsWith("image/")) {
-			toast.error("Please select an image file");
+		if (!isAllowedProfileImageMime(file.type)) {
+			toast.error("Please select a PNG, JPEG, GIF, or WebP image");
 			return;
 		}
 
-		if (file.size > MAX_IMAGE_BYTES) {
+		if (file.size > MAX_PROFILE_IMAGE_BYTES) {
 			toast.error("Image must be 1 MB or smaller");
 			return;
 		}
 
 		try {
 			const dataUrl = await readFileAsDataUrl(file);
+			normalizeProfileImage(dataUrl);
 			setImagePreview(dataUrl);
 			setPendingImage(dataUrl);
 		} catch (error) {
@@ -219,10 +224,10 @@ export function AccountSettingsPage() {
 									) : null}
 								</div>
 								<p className="text-muted-foreground text-xs">
-									PNG, JPG, or GIF. Max 1 MB.
+									PNG, JPG, GIF, or WebP. Max 1 MB.
 								</p>
 								<input
-									accept="image/*"
+									accept="image/png,image/jpeg,image/gif,image/webp"
 									className="hidden"
 									name="image"
 									onChange={handleFileChange}

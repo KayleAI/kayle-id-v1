@@ -47,6 +47,8 @@ describe("normalizeIssuingCountry", () => {
 
 	test("rejects non-alpha-3 inputs", () => {
 		expect(() => normalizeIssuingCountry("GB")).toThrow();
+		expect(() => normalizeIssuingCountry("G1R")).toThrow();
+		expect(() => normalizeIssuingCountry("G<R")).toThrow();
 		expect(() => normalizeIssuingCountry("UNITED")).toThrow();
 		expect(() => normalizeIssuingCountry("")).toThrow();
 	});

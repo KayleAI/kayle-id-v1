@@ -6,6 +6,14 @@ import {
 } from "@kayle-id/config/client-ip";
 
 type ProxyRequest = Request & { cf?: unknown };
+export type InternalApiProxyRoot = "analytics" | "auth" | "webhooks";
+
+export class InternalApiProxyPathError extends Error {
+	constructor() {
+		super("internal_api_proxy_path_mismatch");
+		this.name = "InternalApiProxyPathError";
+	}
+}
 
 export function getPublicHost(): string {
 	return process.env.NODE_ENV === "production"
@@ -15,10 +23,23 @@ export function getPublicHost(): string {
 
 export function buildInternalApiProxyUrl(
 	requestUrl: string,
+	root: InternalApiProxyRoot,
 	host = getPublicHost(),
 ): string {
 	const url = new URL(requestUrl, host);
-	const targetPath = `v1/${url.pathname.replace("/api/", "")}`
+	const sourcePrefix = `/api/${root}`;
+
+	if (
+		!(
+			url.pathname === sourcePrefix ||
+			url.pathname.startsWith(`${sourcePrefix}/`)
+		)
+	) {
+		throw new InternalApiProxyPathError();
+	}
+
+	const suffix = url.pathname.slice(sourcePrefix.length);
+	const targetPath = `v1/${root}${suffix}`
 		.replace(/\/+$/g, "")
 		.replace(/\/\/+/g, "/");
 
@@ -34,10 +55,9 @@ export function buildProxyHeaders(
 	// them with values we derive ourselves. Without this:
 	//   - x-cf-geolocation / x-cf-signature could pass through unsigned when
 	//     `request.cf` is missing, and the API would still see them;
-	//   - x-real-ip / x-forwarded-for could pass through and either become the
-	//     proxy's derived client IP (if cf-connecting-ip is missing) or sit
-	//     alongside x-forwarded-client-ip and be picked up by anything that
-	//     still falls back to source headers.
+	//   - x-real-ip / x-forwarded-for could sit alongside
+	//     x-forwarded-client-ip and be picked up by anything that still falls
+	//     back to source headers.
 	headers.delete(FORWARDED_CLIENT_IP_HEADER);
 	headers.delete("x-cf-geolocation");
 	headers.delete("x-cf-signature");

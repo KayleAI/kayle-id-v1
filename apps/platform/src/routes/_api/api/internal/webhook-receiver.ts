@@ -1,8 +1,13 @@
+import {
+	isRequestBodyTooLarge,
+	readRequestTextWithLimit,
+} from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
 import { decryptCompactJwe, verifyWebhookSignature } from "@/demo/crypto";
 
 const SIGNATURE_HEADER = "x-kayle-signature";
+const PLATFORM_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 const KV_PREFIX = "org-verify:";
 
 interface WebhookEnvelope {
@@ -15,6 +20,11 @@ interface WebhookEnvelope {
 	};
 }
 
+interface OrgVerificationMapping {
+	organization_id: string;
+	owner_user_id: string;
+}
+
 type ApiDocumentType =
 	| "passport"
 	| "national_id"
@@ -25,7 +35,7 @@ type ApiDocumentType =
  * Mirrors `mapMrzDocumentTypeToEnum` on the API. Kept here as a small copy to
  * avoid pulling API code into the platform worker — the mapping is short.
  */
-function mapDocumentTypeCode(code: unknown): ApiDocumentType {
+export function mapDocumentTypeCode(code: unknown): ApiDocumentType {
 	if (typeof code !== "string") {
 		return "other";
 	}
@@ -33,11 +43,15 @@ function mapDocumentTypeCode(code: unknown): ApiDocumentType {
 	if (normalized.startsWith("P")) {
 		return "passport";
 	}
-	if (normalized.startsWith("I") || normalized.startsWith("A")) {
-		return "national_id";
-	}
-	if (normalized.startsWith("R")) {
+	if (normalized.startsWith("IR") || normalized.startsWith("AR")) {
 		return "residence_permit";
+	}
+	if (
+		normalized.startsWith("I") ||
+		normalized.startsWith("A") ||
+		normalized.startsWith("C")
+	) {
+		return "national_id";
 	}
 	return "other";
 }
@@ -67,6 +81,36 @@ function refuse(message: string, status: number): Response {
 	});
 }
 
+function payloadTooLargeResponse(): Response {
+	return refuse("Request body is too large.", 413);
+}
+
+function parseOrgVerificationMapping(
+	value: string,
+): OrgVerificationMapping | null {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		return null;
+	}
+
+	if (!(parsed && typeof parsed === "object")) {
+		return null;
+	}
+
+	const organizationId = Reflect.get(parsed, "organization_id");
+	const ownerUserId = Reflect.get(parsed, "owner_user_id");
+	if (typeof organizationId !== "string" || typeof ownerUserId !== "string") {
+		return null;
+	}
+
+	return {
+		organization_id: organizationId,
+		owner_user_id: ownerUserId,
+	};
+}
+
 export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 	server: {
 		handlers: {
@@ -76,7 +120,19 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					return refuse("Missing signature header.", 400);
 				}
 
-				const rawBody = await request.text();
+				let rawBody: string;
+				try {
+					rawBody = await readRequestTextWithLimit(
+						request,
+						PLATFORM_WEBHOOK_BODY_LIMIT_BYTES,
+					);
+				} catch (error) {
+					if (isRequestBodyTooLarge(error)) {
+						return payloadTooLargeResponse();
+					}
+
+					throw error;
+				}
 
 				const verified = await verifyWebhookSignature({
 					payload: rawBody,
@@ -113,10 +169,16 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					return ack();
 				}
 
-				const targetOrgId = await env.ORG_VERIFICATIONS_KV.get(
+				const mappingText = await env.ORG_VERIFICATIONS_KV.get(
 					`${KV_PREFIX}${sessionId}`,
 				);
-				if (!targetOrgId) {
+				if (!mappingText) {
+					return ack();
+				}
+
+				const orgVerificationMapping = parseOrgVerificationMapping(mappingText);
+				if (!orgVerificationMapping) {
+					await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
 					return ack();
 				}
 
@@ -144,13 +206,19 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
-							organization_id: targetOrgId,
+							organization_id: orgVerificationMapping.organization_id,
 							document_type: mapDocumentTypeCode(documentTypeCode),
 							document_number: documentNumber,
 							issuing_country: issuingCountry,
+							owner_user_id: orgVerificationMapping.owner_user_id,
 						}),
 					},
 				);
+
+				if (finalizeResponse.status === 409) {
+					await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
+					return ack();
+				}
 
 				if (!finalizeResponse.ok) {
 					// Surface a non-2xx so the API webhook delivery system retries

@@ -87,6 +87,31 @@ test("verifyWebhookSignature rejects a tampered payload", async () => {
 	expect(result.message).toContain("verification failed");
 });
 
+test("verifyWebhookSignature rejects a truncated signature", async () => {
+	const payload = "encrypted-payload";
+	const secret = "whsec_demo_test_secret";
+	const timestamp = 1_700_000_000;
+	const signatureHeader = await createSignatureHeader({
+		payload,
+		secret,
+		timestamp,
+	});
+
+	const result = await verifyWebhookSignature({
+		payload,
+		receivedAt: new Date(timestamp * 1000).toISOString(),
+		secret,
+		signatureHeader: signatureHeader.slice(0, -2),
+	});
+
+	expect(result.ok).toBe(false);
+	if (result.ok) {
+		throw new Error("expected_signature_failure");
+	}
+
+	expect(result.message).toContain("verification failed");
+});
+
 test("verifyWebhookSignature rejects stale deliveries outside the freshness window", async () => {
 	const payload = "encrypted-payload";
 	const secret = "whsec_demo_test_secret";

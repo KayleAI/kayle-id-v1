@@ -8,6 +8,7 @@ import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import { applyUnverifiedOrgSessionLimitInTx } from "@/v1/sessions/unverified-org-limit";
+import { ACTIVE_SESSION_STATUSES } from "@/v1/verify/status";
 import {
 	generateSessionCancelToken,
 	hashSessionCancelToken,
@@ -21,6 +22,9 @@ import {
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export { getVerificationSessionAnalyticsOverview } from "./session-analytics-repo";
+
+const EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE = 100;
+const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
 
 export function listVerificationSessions({
 	organizationId,
@@ -94,6 +98,19 @@ export function getAttemptsBySessionIds(sessionIds: string[]) {
 		.select()
 		.from(verification_attempts)
 		.where(inArray(verification_attempts.verificationSessionId, sessionIds));
+}
+
+async function getLatestVerificationSessionById(
+	sessionId: string,
+	tx: Tx,
+): Promise<typeof verification_sessions.$inferSelect | null> {
+	const [latest] = await tx
+		.select()
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, sessionId))
+		.limit(1);
+
+	return latest ?? null;
 }
 
 export type CreatedVerificationSession = {
@@ -221,13 +238,28 @@ export async function cancelVerificationSession({
 			type: "evt",
 		});
 
-		await tx
+		const [cancelled] = await tx
 			.update(verification_sessions)
 			.set({
 				status: "cancelled",
 				completedAt: now,
 			})
-			.where(eq(verification_sessions.id, row.id));
+			.where(
+				and(
+					eq(verification_sessions.id, row.id),
+					eq(verification_sessions.organizationId, organizationId),
+					inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+				),
+			)
+			.returning({
+				contractVersion: verification_sessions.contractVersion,
+				id: verification_sessions.id,
+				organizationId: verification_sessions.organizationId,
+			});
+
+		if (!cancelled) {
+			return null;
+		}
 
 		await tx
 			.update(verification_attempts)
@@ -245,23 +277,30 @@ export async function cancelVerificationSession({
 
 		await tx.insert(events).values({
 			id: sessionCancelledEventId,
-			organizationId,
+			organizationId: cancelled.organizationId,
 			type: "verification.session.cancelled",
-			triggerId: row.id,
+			triggerId: cancelled.id,
 			triggerType: "verification_session",
 		});
 
 		return {
+			contractVersion: cancelled.contractVersion,
+			organizationId: cancelled.organizationId,
 			sessionCancelledEventId,
+			sessionId: cancelled.id,
 		};
 	});
 
+	if (!result) {
+		return;
+	}
+
 	const deliveryIds =
 		await createWebhookDeliveriesForVerificationSessionCancelled({
-			contractVersion: row.contractVersion,
+			contractVersion: result.contractVersion,
 			eventId: result.sessionCancelledEventId,
-			organizationId,
-			sessionId: row.id,
+			organizationId: result.organizationId,
+			sessionId: result.sessionId,
 		});
 
 	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
@@ -290,13 +329,27 @@ export async function expireVerificationSessionIfNeeded({
 			type: "evt",
 		});
 
-		await tx
+		const [expired] = await tx
 			.update(verification_sessions)
 			.set({
 				status: "expired",
 				completedAt: row.completedAt ?? now,
 			})
-			.where(eq(verification_sessions.id, row.id));
+			.where(
+				and(
+					eq(verification_sessions.id, row.id),
+					inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+					lte(verification_sessions.expiresAt, now),
+				),
+			)
+			.returning();
+
+		if (!expired) {
+			return {
+				session: await getLatestVerificationSessionById(row.id, tx),
+				sessionExpiredEventId: null,
+			};
+		}
 
 		await tx
 			.update(verification_attempts)
@@ -314,37 +367,34 @@ export async function expireVerificationSessionIfNeeded({
 
 		await tx.insert(events).values({
 			id: sessionExpiredEventId,
-			organizationId: row.organizationId,
+			organizationId: expired.organizationId,
 			type: "verification.session.expired",
-			triggerId: row.id,
+			triggerId: expired.id,
 			triggerType: "verification_session",
 		});
 
 		return {
+			session: expired,
 			sessionExpiredEventId,
 		};
 	});
 
+	if (!result.sessionExpiredEventId) {
+		return result.session ?? row;
+	}
+
 	const deliveryIds =
 		await createWebhookDeliveriesForVerificationSessionExpired({
-			contractVersion: row.contractVersion,
+			contractVersion: result.session.contractVersion,
 			eventId: result.sessionExpiredEventId,
-			organizationId: row.organizationId,
-			sessionId: row.id,
+			organizationId: result.session.organizationId,
+			sessionId: result.session.id,
 		});
 
 	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
 
-	return {
-		...row,
-		status: "expired" as const,
-		completedAt: row.completedAt ?? now,
-	};
+	return result.session;
 }
-
-const EXPIRABLE_SESSION_STATUSES = ["created", "in_progress"] as const;
-const EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE = 100;
-const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
 
 export async function normalizeExpiredVerificationSessions({
 	batchSize = EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE,
@@ -365,7 +415,7 @@ export async function normalizeExpiredVerificationSessions({
 			.from(verification_sessions)
 			.where(
 				and(
-					inArray(verification_sessions.status, EXPIRABLE_SESSION_STATUSES),
+					inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
 					lte(verification_sessions.expiresAt, now),
 				),
 			)

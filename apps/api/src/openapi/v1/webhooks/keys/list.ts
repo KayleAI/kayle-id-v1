@@ -5,18 +5,19 @@ import {
 	Pagination,
 	paginationLimitQuery,
 } from "@/openapi/base";
-import { WebhookEncryptionKey } from "@/openapi/models/webhook";
+import {
+	WebhookEncryptionKey,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const listWebhookEncryptionKeys = createRoute({
 	method: "get",
 	path: "/:endpoint_id/keys",
 	request: {
 		params: z.object({
-			endpoint_id: z
-				.string()
-				.describe(
-					"The ID of the webhook endpoint whose keys should be listed (e.g. whe_...).",
-				),
+			endpoint_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook endpoint whose keys should be listed (e.g. whe_...).",
+			),
 		}),
 		query: z.object({
 			is_active: booleanQueryParam.describe(
@@ -25,12 +26,9 @@ export const listWebhookEncryptionKeys = createRoute({
 			limit: paginationLimitQuery.describe(
 				"Maximum number of keys to return. Defaults to 10 if not specified.",
 			),
-			starting_after: z
-				.string()
-				.optional()
-				.describe(
-					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
+			starting_after: WebhookResourceIdParam.optional().describe(
+				"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

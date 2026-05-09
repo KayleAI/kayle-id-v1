@@ -9,6 +9,7 @@ export const Route = createFileRoute("/_api/api/auth/$")({
 				proxyInternalApiRequest({
 					request,
 					rewriteRedirectLocation: rewriteAuthRedirectLocation,
+					root: "auth",
 				}),
 		},
 	},

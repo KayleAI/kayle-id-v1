@@ -1,16 +1,7 @@
+import { generateRandomString as generateSecureRandomString } from "@kayle-id/config/random";
+
 export function generateRandomString(length: number): string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-	const randomBytes = new Uint8Array(length);
-
-	crypto.getRandomValues(randomBytes);
-
-	let result = "";
-
-	for (let i = 0; i < length; i += 1) {
-		result += alphabet[randomBytes[i] % alphabet.length];
-	}
-
-	return result;
+	return generateSecureRandomString(length);
 }
 
 /**

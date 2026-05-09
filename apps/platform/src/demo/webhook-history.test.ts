@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
 import {
+	appendDemoWebhookHistory,
+	DEMO_WEBHOOK_HISTORY_LIMIT,
 	getDemoWebhookHistory,
 	getDemoWebhookReceiptId,
 	getDemoWebhookReplayReceiptIds,
@@ -63,4 +65,28 @@ test("getDemoWebhookReplayReceiptIds flags repeated delivery ids as replays", ()
 			distinctWebhook,
 		]),
 	).toEqual(new Set([getDemoWebhookReceiptId(replayedWebhook)]));
+});
+
+test("appendDemoWebhookHistory caps retained receipts", () => {
+	const history = Array.from(
+		{ length: DEMO_WEBHOOK_HISTORY_LIMIT },
+		(_, index) => ({
+			...legacyWebhook,
+			body: `old-${index}`,
+			delivery_id: `whd_old_${index}`,
+			received_at: `2026-04-19T10:${String(index).padStart(2, "0")}:00.000Z`,
+		}),
+	);
+	const appended = {
+		...legacyWebhook,
+		body: "new",
+		delivery_id: "whd_new",
+		received_at: "2026-04-19T11:00:00.000Z",
+	};
+
+	const capped = appendDemoWebhookHistory({ webhooks: history }, appended);
+
+	expect(capped).toHaveLength(DEMO_WEBHOOK_HISTORY_LIMIT);
+	expect(capped[0]?.delivery_id).toBe("whd_old_1");
+	expect(capped.at(-1)).toEqual(appended);
 });

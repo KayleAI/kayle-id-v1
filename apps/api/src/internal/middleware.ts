@@ -1,21 +1,7 @@
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import { env } from "@kayle-id/config/env";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-
-/**
- * Constant-time string equality. Avoids the early-exit timing channel of `===`
- * when comparing secrets supplied by callers.
- */
-function timingSafeEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) {
-		return false;
-	}
-	let mismatch = 0;
-	for (let i = 0; i < a.length; i += 1) {
-		mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	}
-	return mismatch === 0;
-}
 
 function unauthorized(c: Context) {
 	return c.json(
@@ -50,7 +36,7 @@ export const requireInternalTrustToken = createMiddleware<{
 		return unauthorized(c);
 	}
 	const provided = header.slice("Bearer ".length).trim();
-	if (provided.length === 0 || !timingSafeEqual(provided, expected)) {
+	if (provided.length === 0 || !constantTimeStringEqual(provided, expected)) {
 		return unauthorized(c);
 	}
 

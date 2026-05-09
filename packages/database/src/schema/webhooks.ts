@@ -1,4 +1,5 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import { sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
@@ -7,6 +8,7 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	uuid,
 } from "drizzle-orm/pg-core";
 import { auth_organizations } from "./auth";
@@ -81,6 +83,9 @@ export const webhook_encryption_keys = pgTable(
 			table.webhookEndpointId,
 		),
 		index("webhook_encryption_keys_is_active_idx").on(table.isActive),
+		uniqueIndex("webhook_encryption_keys_one_active_per_endpoint_uidx")
+			.on(table.webhookEndpointId)
+			.where(sql`${table.isActive}`),
 	],
 );
 

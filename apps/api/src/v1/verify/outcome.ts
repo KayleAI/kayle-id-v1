@@ -4,11 +4,19 @@ import {
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import { createWebhookDeliveriesForVerificationAttemptFailed } from "@/v1/webhooks/deliveries/service";
+import { ACTIVE_SESSION_STATUSES } from "./status";
 
 export const MAX_FAILED_ATTEMPTS = 3;
+
+class SessionTransitionSkippedError extends Error {
+	constructor() {
+		super("verification_session_not_active");
+		this.name = "SessionTransitionSkippedError";
+	}
+}
 
 type SessionContext = {
 	contractVersion: number;
@@ -48,70 +56,103 @@ export async function markAttemptFailed({
 }> {
 	const now = new Date();
 
-	const result = await db.transaction(async (tx) => {
-		const attemptFailedEventId = generateId({
-			type: "evt",
-		});
-
-		await tx
-			.update(verification_attempts)
-			.set({
-				status: "failed",
-				failureCode,
-				riskScore: normalizeRiskScore(riskScore),
-				completedAt: now,
-			})
-			.where(eq(verification_attempts.id, attemptId));
-
-		await tx.insert(events).values({
-			id: attemptFailedEventId,
-			organizationId: session.organizationId,
-			type: "verification.attempt.failed",
-			triggerId: attemptId,
-			triggerType: "verification_attempt",
-		});
-
-		const failedAttempts = await tx
-			.select({
-				id: verification_attempts.id,
-			})
-			.from(verification_attempts)
-			.where(
-				and(
-					eq(verification_attempts.verificationSessionId, session.id),
-					eq(verification_attempts.status, "failed"),
-				),
-			);
-
-		const exhaustedRetryLimit = failedAttempts.length >= MAX_FAILED_ATTEMPTS;
-
-		await tx
-			.update(verification_sessions)
-			.set({
-				status: exhaustedRetryLimit ? "completed" : "created",
-				completedAt: exhaustedRetryLimit ? now : null,
-			})
-			.where(eq(verification_sessions.id, session.id));
-
-		if (exhaustedRetryLimit) {
-			await tx.insert(events).values({
-				id: generateId({ type: "evt" }),
-				organizationId: session.organizationId,
-				type: "verification.session.completed",
-				triggerId: session.id,
-				triggerType: "verification_session",
+	let result: {
+		attemptFailedEventId: string;
+		failedAttempts: number;
+		terminalized: boolean;
+	};
+	try {
+		result = await db.transaction(async (tx) => {
+			const attemptFailedEventId = generateId({
+				type: "evt",
 			});
+
+			await tx
+				.update(verification_attempts)
+				.set({
+					status: "failed",
+					failureCode,
+					riskScore: normalizeRiskScore(riskScore),
+					completedAt: now,
+				})
+				.where(eq(verification_attempts.id, attemptId));
+
+			await tx.insert(events).values({
+				id: attemptFailedEventId,
+				organizationId: session.organizationId,
+				type: "verification.attempt.failed",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+			});
+
+			const failedAttempts = await tx
+				.select({
+					id: verification_attempts.id,
+				})
+				.from(verification_attempts)
+				.where(
+					and(
+						eq(verification_attempts.verificationSessionId, session.id),
+						eq(verification_attempts.status, "failed"),
+					),
+				);
+
+			const exhaustedRetryLimit = failedAttempts.length >= MAX_FAILED_ATTEMPTS;
+
+			const [updatedSession] = await tx
+				.update(verification_sessions)
+				.set({
+					status: exhaustedRetryLimit ? "completed" : "created",
+					completedAt: exhaustedRetryLimit ? now : null,
+				})
+				.where(
+					and(
+						eq(verification_sessions.id, session.id),
+						eq(verification_sessions.organizationId, session.organizationId),
+						inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+					),
+				)
+				.returning({
+					completedAt: verification_sessions.completedAt,
+					status: verification_sessions.status,
+				});
+
+			const sessionStillActive = Boolean(updatedSession);
+			if (!sessionStillActive) {
+				throw new SessionTransitionSkippedError();
+			}
+
+			if (exhaustedRetryLimit) {
+				await tx.insert(events).values({
+					id: generateId({ type: "evt" }),
+					organizationId: session.organizationId,
+					type: "verification.session.completed",
+					triggerId: session.id,
+					triggerType: "verification_session",
+				});
+			}
+
+			if (updatedSession) {
+				session.status = updatedSession.status;
+				session.completedAt = updatedSession.completedAt;
+			}
+
+			return {
+				attemptFailedEventId,
+				failedAttempts: failedAttempts.length,
+				terminalized: exhaustedRetryLimit,
+			};
+		});
+	} catch (error) {
+		if (error instanceof SessionTransitionSkippedError) {
+			return {
+				deliveryIds: [],
+				failedAttempts: MAX_FAILED_ATTEMPTS,
+				terminalized: true,
+			};
 		}
-
-		session.status = exhaustedRetryLimit ? "completed" : "created";
-		session.completedAt = exhaustedRetryLimit ? now : null;
-
-		return {
-			attemptFailedEventId,
-			failedAttempts: failedAttempts.length,
-			terminalized: exhaustedRetryLimit,
-		};
-	});
+		throw error;
+	}
 
 	const deliveryIds = await createWebhookDeliveriesForVerificationAttemptFailed(
 		{
@@ -147,10 +188,16 @@ export async function markAttemptSucceeded({
 			faceScore?: never;
 			riskScore: number;
 	  }
-)): Promise<{
-	attemptSucceededEventId: string;
-	sessionCompletedEventId: string;
-}> {
+)): Promise<
+	| {
+			attemptSucceededEventId: string;
+			sessionCompletedEventId: string;
+	  }
+	| {
+			attemptSucceededEventId: null;
+			sessionCompletedEventId: null;
+	  }
+> {
 	const now = new Date();
 	const riskScore =
 		typeof scoreInput.riskScore === "number"
@@ -158,6 +205,31 @@ export async function markAttemptSucceeded({
 			: normalizeRiskScore(1 - normalizeRiskScore(scoreInput.faceScore));
 
 	const result = await db.transaction(async (tx) => {
+		const [completedSession] = await tx
+			.update(verification_sessions)
+			.set({
+				status: "completed",
+				completedAt: now,
+			})
+			.where(
+				and(
+					eq(verification_sessions.id, session.id),
+					eq(verification_sessions.organizationId, session.organizationId),
+					inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+				),
+			)
+			.returning({
+				completedAt: verification_sessions.completedAt,
+				status: verification_sessions.status,
+			});
+
+		if (!completedSession) {
+			return {
+				attemptSucceededEventId: null,
+				sessionCompletedEventId: null,
+			};
+		}
+
 		await tx
 			.update(verification_attempts)
 			.set({
@@ -180,14 +252,6 @@ export async function markAttemptSucceeded({
 			triggerType: "verification_attempt",
 		});
 
-		await tx
-			.update(verification_sessions)
-			.set({
-				status: "completed",
-				completedAt: now,
-			})
-			.where(eq(verification_sessions.id, session.id));
-
 		const sessionCompletedEventId = generateId({
 			type: "evt",
 		});
@@ -206,8 +270,10 @@ export async function markAttemptSucceeded({
 		};
 	});
 
-	session.status = "completed";
-	session.completedAt = now;
+	if (result.attemptSucceededEventId) {
+		session.status = "completed";
+		session.completedAt = now;
+	}
 
 	return result;
 }

@@ -15,6 +15,7 @@ import {
 	createWebhookDeliveriesForVerificationAttemptFailed,
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSucceeded,
+	getWebhookEndpointLogTarget,
 } from "@/v1/webhooks/deliveries/service";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
 import { createMockFetch } from "../helpers/mock-fetch";
@@ -50,6 +51,66 @@ afterAll(async () => {
 	await teardown(TEST_DATA);
 	TEST_DATA = undefined;
 });
+
+test("getWebhookEndpointLogTarget logs only the webhook origin", () => {
+	expect(
+		getWebhookEndpointLogTarget(
+			"https://user:pass@example.com/webhooks/kayle?token=secret#fragment",
+		),
+	).toBe("https://example.com");
+	expect(getWebhookEndpointLogTarget("/webhooks/kayle?token=secret")).toBe(
+		"invalid_webhook_url",
+	);
+});
+
+async function seedPendingWebhookDelivery({
+	context,
+	url,
+}: {
+	context: string;
+	url: string;
+}): Promise<string> {
+	const signingSecretCiphertext = await encryptWebhookSigningSecret({
+		plaintext: `whsec_${context}`,
+		secret: env.AUTH_SECRET,
+	});
+	const endpointId = `whe_${context}_${crypto.randomUUID()}`;
+	const eventId = `evt_${context}_${crypto.randomUUID()}`;
+	const deliveryId = `whd_${context}_${crypto.randomUUID()}`;
+
+	const [endpoint] = await db
+		.insert(webhook_endpoints)
+		.values({
+			id: endpointId,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			signingSecretCiphertext,
+			subscribedEventTypes: ["verification.attempt.failed"],
+			url,
+		})
+		.returning();
+
+	const [event] = await db
+		.insert(events)
+		.values({
+			id: eventId,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			type: "verification.attempt.failed",
+			triggerId: `va_${context}`,
+			triggerType: "verification_attempt",
+		})
+		.returning();
+
+	await db.insert(webhook_deliveries).values({
+		eventId: event.id,
+		id: deliveryId,
+		payload: "{}",
+		status: "pending",
+		webhookEndpointId: endpoint.id,
+		webhookEncryptionKeyId: null,
+	});
+
+	return deliveryId;
+}
 
 test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypted delivery for subscribed endpoints", async () => {
 	const publicKeyText = await file(
@@ -457,4 +518,131 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 	expect(updatedDelivery?.status).toBe("succeeded");
 	expect(updatedDelivery?.lastStatusCode).toBe(202);
 	expect(updatedDelivery?.webhookEncryptionKeyId).toBe("whk_delivery_send");
+});
+
+test("attemptWebhookDelivery does not resend deliveries that already succeeded", async () => {
+	const deliveryId = await seedPendingWebhookDelivery({
+		context: "already_succeeded",
+		url: "https://example.com/webhooks/already-succeeded",
+	});
+	await db
+		.update(webhook_deliveries)
+		.set({
+			attemptCount: 1,
+			lastAttemptAt: new Date("2099-01-01T00:00:00.000Z"),
+			lastStatusCode: 202,
+			status: "succeeded",
+		})
+		.where(eq(webhook_deliveries.id, deliveryId));
+
+	let fetchCount = 0;
+	globalThis.fetch = createMockFetch(async () => {
+		fetchCount += 1;
+		return new Response(null, { status: 202 });
+	});
+
+	const result = await attemptWebhookDelivery({
+		authSecret: env.AUTH_SECRET,
+		deliveryId,
+	});
+
+	expect(fetchCount).toBe(0);
+	expect(result?.status).toBe("succeeded");
+	expect(result?.attempt_count).toBe(1);
+	expect(result?.last_status_code).toBe(202);
+});
+
+test("concurrent attemptWebhookDelivery calls claim a pending delivery once", async () => {
+	const deliveryId = await seedPendingWebhookDelivery({
+		context: "single_claim",
+		url: "https://example.com/webhooks/single-claim",
+	});
+
+	let fetchCount = 0;
+	globalThis.fetch = createMockFetch(async () => {
+		fetchCount += 1;
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		return new Response(null, { status: 202 });
+	});
+
+	await Promise.all([
+		attemptWebhookDelivery({
+			authSecret: env.AUTH_SECRET,
+			deliveryId,
+		}),
+		attemptWebhookDelivery({
+			authSecret: env.AUTH_SECRET,
+			deliveryId,
+		}),
+	]);
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	expect(fetchCount).toBe(1);
+	expect(updatedDelivery?.status).toBe("succeeded");
+	expect(updatedDelivery?.attemptCount).toBe(1);
+	expect(updatedDelivery?.lastStatusCode).toBe(202);
+});
+
+test("attemptWebhookDelivery rejects stale unsafe endpoint URLs before fetch", async () => {
+	const signingSecretCiphertext = await encryptWebhookSigningSecret({
+		plaintext: "whsec_delivery_rejected_url",
+		secret: env.AUTH_SECRET,
+	});
+
+	const [endpoint] = await db
+		.insert(webhook_endpoints)
+		.values({
+			id: "whe_delivery_rejected_url",
+			organizationId: TEST_DATA?.organizationId ?? "",
+			signingSecretCiphertext,
+			subscribedEventTypes: ["verification.attempt.failed"],
+			url: "https://10.0.0.1/webhooks/rejected",
+		})
+		.returning();
+
+	const [event] = await db
+		.insert(events)
+		.values({
+			id: "evt_delivery_rejected_url",
+			organizationId: TEST_DATA?.organizationId ?? "",
+			type: "verification.attempt.failed",
+			triggerId: "va_delivery_rejected_url",
+			triggerType: "verification_attempt",
+		})
+		.returning();
+
+	await db.insert(webhook_deliveries).values({
+		eventId: event.id,
+		id: "whd_delivery_rejected_url",
+		payload: "{}",
+		status: "pending",
+		webhookEndpointId: endpoint.id,
+		webhookEncryptionKeyId: null,
+	});
+
+	globalThis.fetch = createMockFetch(() => {
+		throw new Error("unsafe_webhook_url_should_not_fetch");
+	});
+
+	const result = await attemptWebhookDelivery({
+		authSecret: env.AUTH_SECRET,
+		deliveryId: "whd_delivery_rejected_url",
+	});
+
+	expect(result?.status).toBe("pending");
+	expect(result?.attempt_count).toBe(1);
+	expect(result?.last_status_code).toBe(400);
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, "whd_delivery_rejected_url"))
+		.limit(1);
+
+	expect(updatedDelivery?.lastStatusCode).toBe(400);
 });

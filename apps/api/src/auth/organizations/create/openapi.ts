@@ -1,5 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
+	hasOrganizationNameControlCharacter,
+	ORGANIZATION_NAME_ERROR_MESSAGE,
+	ORGANIZATION_NAME_MAX_LENGTH,
+} from "@kayle-id/auth/organization-name";
+import {
+	ORGANIZATION_SLUG_ERROR_MESSAGE,
+	ORGANIZATION_SLUG_PATTERN,
+} from "@kayle-id/auth/organization-slug";
+import {
 	ALLOWED_LOGO_MIME,
 	MAX_LOGO_BYTES,
 } from "@/auth/organizations/create/logo";
@@ -21,8 +30,22 @@ export const internalCreateOrganization = createRoute({
 			content: {
 				"application/json": {
 					schema: z.object({
-						name: z.string().min(1),
-						slug: z.string().min(1),
+						name: z
+							.string()
+							.trim()
+							.min(1)
+							.max(ORGANIZATION_NAME_MAX_LENGTH)
+							.refine(
+								(name) => !hasOrganizationNameControlCharacter(name),
+								ORGANIZATION_NAME_ERROR_MESSAGE,
+							),
+						slug: z
+							.string()
+							.min(1)
+							.regex(
+								ORGANIZATION_SLUG_PATTERN,
+								ORGANIZATION_SLUG_ERROR_MESSAGE,
+							),
 						logo: z
 							.object({
 								data: z.string().min(1).max(MAX_LOGO_BASE64_LENGTH),

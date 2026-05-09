@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildApiProxyUrl, buildProxyHeaders } from "./proxy-internal-api";
+import {
+	buildApiProxyUrl,
+	buildProxyHeaders,
+	isAllowedApiProxyPath,
+} from "./proxy-internal-api";
 
 describe("buildApiProxyUrl", () => {
 	test("preserves the API service binding scheme", () => {
@@ -12,6 +16,31 @@ describe("buildApiProxyUrl", () => {
 		expect(
 			buildApiProxyUrl("/v1/verify/session/123", "https://verify.local"),
 		).toBe("http://api/v1/verify/session/123");
+	});
+});
+
+describe("isAllowedApiProxyPath", () => {
+	test("allows only the verify API namespace", () => {
+		expect(
+			isAllowedApiProxyPath(
+				"https://verify.local/v1/verify/session/123/status",
+			),
+		).toBe(true);
+		expect(isAllowedApiProxyPath("/v1/verify", "https://verify.local")).toBe(
+			true,
+		);
+	});
+
+	test("blocks unrelated API v1 namespaces on the verify domain", () => {
+		expect(isAllowedApiProxyPath("https://verify.local/v1/auth/session")).toBe(
+			false,
+		);
+		expect(isAllowedApiProxyPath("https://verify.local/v1/sessions")).toBe(
+			false,
+		);
+		expect(
+			isAllowedApiProxyPath("https://verify.local/v1/webhooks/events"),
+		).toBe(false);
 	});
 });
 
@@ -28,7 +57,7 @@ describe("buildProxyHeaders", () => {
 		expect(headers.get("x-forwarded-client-ip")).toBe("203.0.113.10");
 	});
 
-	test("falls back to the first forwarded IP", () => {
+	test("does not promote raw x-forwarded-for without Cloudflare metadata", () => {
 		const headers = buildProxyHeaders(
 			new Request("https://verify.local/v1/status", {
 				headers: {
@@ -37,7 +66,7 @@ describe("buildProxyHeaders", () => {
 			}),
 		);
 
-		expect(headers.get("x-forwarded-client-ip")).toBe("198.51.100.20");
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 
 	test("strips a client-supplied x-forwarded-client-ip when no source headers are present", () => {
@@ -82,7 +111,7 @@ describe("buildProxyHeaders", () => {
 		expect(headers.get("x-forwarded-client-ip")).toBe("203.0.113.10");
 	});
 
-	test("does not promote a client-only x-real-ip / x-forwarded-for past the proxy without setting them downstream", () => {
+	test("does not promote a client-only x-real-ip / x-forwarded-for past the proxy", () => {
 		const headers = buildProxyHeaders(
 			new Request("https://verify.local/v1/status", {
 				headers: {
@@ -92,12 +121,9 @@ describe("buildProxyHeaders", () => {
 			}),
 		);
 
-		// The proxy still derives a value from the source headers (its only
-		// signal in a non-Cloudflare path), but the source headers themselves
-		// must not be forwarded — otherwise downstream code that accidentally
-		// reintroduces a fallback chain would honour the spoofed value.
 		expect(headers.get("cf-connecting-ip")).toBeNull();
 		expect(headers.get("x-real-ip")).toBeNull();
 		expect(headers.get("x-forwarded-for")).toBeNull();
+		expect(headers.get("x-forwarded-client-ip")).toBeNull();
 	});
 });

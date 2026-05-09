@@ -81,6 +81,33 @@ function seedWebhookEventWithType(
 
 describe("/v1/webhooks/events", () => {
 	test.serial(
+		"rejects invalid event filters and route IDs before lookup",
+		async () => {
+			const listResponse = await app.request(
+				"/v1/webhooks/events?type=unsupported.event",
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					},
+					method: "GET",
+				},
+			);
+			const getResponse = await app.request(
+				`/v1/webhooks/events/evt_${"a".repeat(200)}`,
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					},
+					method: "GET",
+				},
+			);
+
+			expect(listResponse.status).toBe(400);
+			expect(getResponse.status).toBe(400);
+		},
+	);
+
+	test.serial(
 		"GET / returns webhook events with delivery summaries",
 		async () => {
 			const seeded = await seedWebhookEvent();
@@ -257,6 +284,45 @@ describe("/v1/webhooks/events", () => {
 			expect(delivery?.attemptCount).toBe(0);
 			expect(delivery?.lastAttemptAt).toBeNull();
 			expect(delivery?.lastStatusCode).toBeNull();
+		},
+	);
+
+	test.serial(
+		"POST /:event_id/replay does not requeue deliveries already in progress",
+		async () => {
+			const seeded = await seedWebhookEvent();
+
+			await db
+				.update(webhook_deliveries)
+				.set({
+					attemptCount: 1,
+					lastAttemptAt: new Date("2099-01-01T00:00:00.000Z"),
+					lastStatusCode: null,
+					nextAttemptAt: null,
+					status: "delivering",
+				})
+				.where(eq(webhook_deliveries.id, seeded.deliveryId));
+
+			const response = await app.request(
+				`/v1/webhooks/events/${seeded.eventId}/replay`,
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					},
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(409);
+
+			const [delivery] = await db
+				.select()
+				.from(webhook_deliveries)
+				.where(eq(webhook_deliveries.id, seeded.deliveryId))
+				.limit(1);
+
+			expect(delivery?.status).toBe("delivering");
+			expect(delivery?.attemptCount).toBe(1);
 		},
 	);
 });

@@ -1,7 +1,4 @@
-import {
-	CUSTOMER_API_KEY_SCOPES,
-	type CustomerApiKeyScope,
-} from "@kayle-id/auth/permissions";
+import type { CustomerApiKeyScope } from "@kayle-id/auth/permissions";
 import type { ApiKey } from "@kayle-id/auth/types";
 import {
 	type Pagination,
@@ -15,11 +12,9 @@ export const API_KEYS_QUERY_KEY = ["api-keys"] as const;
 
 const UNEXPECTED_API_KEY_RESPONSE = "Unexpected API key response.";
 
-// TODO: surface scope selection in the create modal so users can issue
-// least-privilege keys. Until then, the dashboard issues fully-scoped keys
-// limited to customer-permitted scopes.
-const DEFAULT_API_KEY_PERMISSIONS: readonly CustomerApiKeyScope[] =
-	CUSTOMER_API_KEY_SCOPES;
+export const DEFAULT_API_KEY_PERMISSIONS = [
+	"sessions:write",
+] as const satisfies readonly CustomerApiKeyScope[];
 
 interface ApiKeyMutationResult {
 	message: string;

@@ -3,12 +3,26 @@ import { env } from "@/config/env.server";
 import {
 	buildApiProxyUrl,
 	buildProxyHeaders,
+	isAllowedApiProxyPath,
 } from "@/utils/proxy-internal-api";
 
 export const Route = createFileRoute("/v1/$")({
 	server: {
 		handlers: {
 			ANY: async ({ request }) => {
+				if (!isAllowedApiProxyPath(request.url)) {
+					return Response.json(
+						{
+							data: null,
+							error: {
+								code: "NOT_FOUND",
+								message: "API route not found.",
+							},
+						},
+						{ status: 404 },
+					);
+				}
+
 				const response = await env.API.fetch(buildApiProxyUrl(request.url), {
 					credentials: "include",
 					method: request.method,

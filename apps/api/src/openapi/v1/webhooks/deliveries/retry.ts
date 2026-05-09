@@ -1,16 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookDelivery } from "@/openapi/models/webhook";
+import {
+	WebhookDelivery,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const retryWebhookDelivery = createRoute({
 	method: "post",
 	path: "/:delivery_id/retry",
 	request: {
 		params: z.object({
-			delivery_id: z
-				.string()
-				.describe("The ID of the webhook delivery to retry (e.g. whd_...)."),
+			delivery_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook delivery to retry (e.g. whd_...).",
+			),
 		}),
 	},
 	tags: ["Webhooks"],
@@ -47,6 +50,24 @@ export const retryWebhookDelivery = createRoute({
 				},
 			},
 			description: "Webhook delivery not found.",
+		},
+		409: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse.openapi({
+						example: {
+							data: null,
+							error: {
+								code: "CONFLICT",
+								message: "Webhook delivery cannot be retried.",
+								hint: "The webhook delivery is already in progress.",
+								docs: "https://kayle.id/docs/api/webhooks/deliveries#retry",
+							},
+						},
+					}),
+				},
+			},
+			description: "Webhook delivery cannot be retried.",
 		},
 		500: {
 			content: {

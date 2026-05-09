@@ -3,12 +3,15 @@ name: Generate Capnp
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Install capnp compiler
         run: |
@@ -16,7 +19,7 @@ jobs:
           sudo apt-get install -y capnproto
 
       - name: Install capnp-es
-        run: npm install -g capnp-es
+        run: npm install -g capnp-es@0.0.14
 
       - name: Install capnpc-swift
         run: |

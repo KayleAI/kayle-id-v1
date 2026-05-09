@@ -1,10 +1,15 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { processDueOrganizationDeletions } from "@kayle-id/auth/organization-deletion";
+import {
+	applySecurityHeaders,
+	isHttpsRequest,
+} from "@kayle-id/config/security-headers";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
+import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import v1 from "@/v1";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
 import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
@@ -19,6 +24,13 @@ export { WebhookDeliveryWorkflow } from "@/v1/webhooks/deliveries/workflow";
 
 const app = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
+app.use(async (c, next) => {
+	await next();
+
+	applySecurityHeaders(c.res.headers, {
+		includeStrictTransportSecurity: isHttpsRequest(c.req.raw),
+	});
+});
 app.use(
 	cors({
 		origin: [
@@ -32,6 +44,7 @@ app.use(
 	}),
 );
 app.use(requestLoggingMiddleware());
+app.use(requestBodyLimitMiddleware);
 
 app.get("/", (c) => {
 	const status: "healthy" | "unhealthy" = "healthy";

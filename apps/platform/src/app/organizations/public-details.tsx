@@ -25,8 +25,8 @@ import {
 	uploadOrganizationLogo,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { parsePublicWebsiteUrl } from "./website-url";
 
-const HTTPS_REGEX = /^https?:\/\//i;
 const MAX_LOGO_BYTES = 1024 * 1024;
 
 function PublicDetailsSkeleton() {
@@ -91,6 +91,7 @@ function PublicDetailsForm({
 			const trimmedName = name.trim();
 			const trimmedWebsite = website.trim();
 			const trimmedDescription = description.trim();
+			const parsedWebsite = parsePublicWebsiteUrl(trimmedWebsite);
 
 			let logoPayload: string | undefined;
 			if (pendingLogo === null) {
@@ -109,7 +110,7 @@ function PublicDetailsForm({
 				name: trimmedName,
 				metadata: {
 					description: trimmedDescription ? trimmedDescription : null,
-					website: trimmedWebsite ? trimmedWebsite : null,
+					website: parsedWebsite?.href ?? null,
 				},
 				...(logoPayload === undefined ? {} : { logo: logoPayload }),
 			});
@@ -189,8 +190,10 @@ function PublicDetailsForm({
 			setErrorMessage("Name is required");
 			return;
 		}
-		if (trimmedWebsite && !HTTPS_REGEX.test(trimmedWebsite)) {
-			setErrorMessage("Website must start with http:// or https://");
+		if (trimmedWebsite && !parsePublicWebsiteUrl(trimmedWebsite)) {
+			setErrorMessage(
+				"Website must be a valid http:// or https:// URL without embedded credentials.",
+			);
 			return;
 		}
 		setErrorMessage("");

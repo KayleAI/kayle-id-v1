@@ -1,16 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookEvent } from "@/openapi/models/webhook";
+import { WebhookEvent, WebhookResourceIdParam } from "@/openapi/models/webhook";
 
 export const getWebhookEvent = createRoute({
 	method: "get",
 	path: "/:event_id",
 	request: {
 		params: z.object({
-			event_id: z
-				.string()
-				.describe("The ID of the webhook event to retrieve (e.g. evt_...)."),
+			event_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook event to retrieve (e.g. evt_...).",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

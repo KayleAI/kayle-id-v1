@@ -13,7 +13,7 @@ import {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
@@ -133,6 +133,25 @@ async function getDeliveryAttemptContext(
 		: null;
 }
 
+async function claimPendingWebhookDelivery(
+	deliveryId: string,
+): Promise<typeof webhook_deliveries.$inferSelect | null> {
+	const [claimed] = await db
+		.update(webhook_deliveries)
+		.set({
+			status: "delivering",
+		})
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				eq(webhook_deliveries.status, "pending"),
+			),
+		)
+		.returning();
+
+	return claimed ?? null;
+}
+
 async function resolveEndpointSigningSecret({
 	authSecret,
 	endpoint,
@@ -155,9 +174,17 @@ async function resolveEndpointSigningSecret({
 }
 
 const WEBHOOK_DELIVERY_TIMEOUT_MS = 15_000;
-const WEBHOOK_FETCH_REJECTED_STATUS = 0;
+const WEBHOOK_FETCH_REJECTED_STATUS = 400;
 
 const ALLOW_LOOPBACK_WEBHOOK_URLS = process.env.NODE_ENV !== "production";
+
+export function getWebhookEndpointLogTarget(endpointUrl: string): string {
+	try {
+		return new URL(endpointUrl).origin;
+	} catch {
+		return "invalid_webhook_url";
+	}
+}
 
 async function sendWebhookDeliveryRequest({
 	delivery,
@@ -206,7 +233,7 @@ async function sendWebhookDeliveryRequest({
 	// the endpoint returns as a failed delivery — `response.ok` is false
 	// for 3xx, so `persistWebhookDeliveryAttemptResult` records it as
 	// failed without ever following the redirect.
-	return fetch(endpoint.url, {
+	return fetch(urlOutcome.url.toString(), {
 		body: delivery.payload,
 		headers: {
 			"Content-Type": "application/jose",
@@ -522,7 +549,24 @@ export async function runWebhookDeliveryAttempt({
 		return;
 	}
 
-	if (!(context.endpoint.enabled && context.delivery.payload)) {
+	const claimedDelivery = await claimPendingWebhookDelivery(deliveryId);
+	if (!claimedDelivery) {
+		const currentDelivery = await getWebhookDeliveryById(deliveryId);
+		if (
+			currentDelivery?.status === "pending" ||
+			currentDelivery?.status === "delivering"
+		) {
+			throw new WebhookDeliveryAttemptError(
+				"webhook_delivery_claim_unavailable",
+				null,
+			);
+		}
+
+		// Stale invocation for a succeeded/terminal delivery. Do not resend.
+		return;
+	}
+
+	if (!(context.endpoint.enabled && claimedDelivery.payload)) {
 		await recordPreflightFailure({ deliveryId });
 		throw new WebhookDeliveryAttemptError(
 			"webhook_delivery_endpoint_disabled_or_payload_missing",
@@ -544,17 +588,11 @@ export async function runWebhookDeliveryAttempt({
 	}
 
 	const now = new Date();
-	await db
-		.update(webhook_deliveries)
-		.set({
-			status: "delivering",
-		})
-		.where(eq(webhook_deliveries.id, deliveryId));
 
 	let response: Response;
 	try {
 		response = await sendWebhookDeliveryRequest({
-			delivery: context.delivery,
+			delivery: claimedDelivery,
 			endpoint: context.endpoint,
 			eventType: context.eventType,
 			signingSecret,
@@ -574,7 +612,7 @@ export async function runWebhookDeliveryAttempt({
 			code: "webhook_delivery_attempt_threw",
 			details: {
 				delivery_id: deliveryId,
-				endpoint_url: context.endpoint.url,
+				endpoint_url: getWebhookEndpointLogTarget(context.endpoint.url),
 			},
 			error,
 			event: "webhooks.delivery.attempt_threw",
@@ -589,7 +627,7 @@ export async function runWebhookDeliveryAttempt({
 
 	await persistWebhookDeliveryAttemptResult({
 		attemptedAt: now,
-		delivery: context.delivery,
+		delivery: claimedDelivery,
 		response,
 	});
 
@@ -710,7 +748,7 @@ export async function requeueWebhookDelivery({
 }: {
 	deliveryId: string;
 }): Promise<typeof webhook_deliveries.$inferSelect | null> {
-	await db
+	const [updated] = await db
 		.update(webhook_deliveries)
 		.set({
 			attemptCount: 0,
@@ -719,13 +757,13 @@ export async function requeueWebhookDelivery({
 			nextAttemptAt: null,
 			status: "pending",
 		})
-		.where(eq(webhook_deliveries.id, deliveryId));
-
-	const [updated] = await db
-		.select()
-		.from(webhook_deliveries)
-		.where(eq(webhook_deliveries.id, deliveryId))
-		.limit(1);
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				ne(webhook_deliveries.status, "delivering"),
+			),
+		)
+		.returning();
 
 	return updated ?? null;
 }

@@ -54,6 +54,54 @@ async function seedDelivery(): Promise<string> {
 }
 
 describe("/v1/webhooks/deliveries", () => {
+	test("rejects oversized delivery route IDs before lookup", async () => {
+		const retryResponse = await app.request(
+			`/v1/webhooks/deliveries/whd_${"a".repeat(200)}/retry`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "POST",
+			},
+		);
+
+		expect(retryResponse.status).toBe(400);
+	});
+
+	test("does not retry a delivery that is already in progress", async () => {
+		const deliveryId = await seedDelivery();
+		await db
+			.update(webhook_deliveries)
+			.set({
+				attemptCount: 1,
+				lastAttemptAt: new Date("2099-01-01T00:00:00.000Z"),
+				lastStatusCode: null,
+				status: "delivering",
+			})
+			.where(eq(webhook_deliveries.id, deliveryId));
+
+		const retryResponse = await app.request(
+			`/v1/webhooks/deliveries/${deliveryId}/retry`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "POST",
+			},
+		);
+
+		expect(retryResponse.status).toBe(409);
+
+		const [delivery] = await db
+			.select()
+			.from(webhook_deliveries)
+			.where(eq(webhook_deliveries.id, deliveryId))
+			.limit(1);
+
+		expect(delivery?.status).toBe("delivering");
+		expect(delivery?.attemptCount).toBe(1);
+	});
+
 	test("lists deliveries and retries a delivery", async () => {
 		const deliveryId = await seedDelivery();
 

@@ -1,14 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponseWithPagination, Pagination } from "@/openapi/base";
 import { Attempt } from "@/openapi/models/sessions";
+import {
+	sessionIdSchema,
+	verificationAttemptIdSchema,
+} from "@/shared/validation";
 
 export const listSessionAttempts = createRoute({
 	method: "get",
 	path: "/attempts",
 	request: {
 		query: z.object({
-			session_id: z
-				.string()
+			session_id: sessionIdSchema
 				.optional()
 				.describe("Filter attempts by verification session ID (e.g. vs_...)."),
 			status: z
@@ -24,8 +27,7 @@ export const listSessionAttempts = createRoute({
 				.describe(
 					"Maximum number of attempts to return. Defaults to 10 if not specified.",
 				),
-			starting_after: z
-				.string()
+			starting_after: verificationAttemptIdSchema
 				.optional()
 				.describe(
 					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",

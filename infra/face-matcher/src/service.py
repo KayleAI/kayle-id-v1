@@ -24,6 +24,14 @@ DETECTOR_MODEL_PATH = os.environ.get(
 )
 PORT = int(os.environ.get("PORT", "8080"))
 
+# Test-only escape hatch. When set to "1" the matcher falls back to a raw
+# pixel-correlation path if face detection fails on either DG2 or selfie.
+# Production wrangler config does NOT set this; the test wrangler env does,
+# so the verify integration tests can exercise the rest of the verify flow
+# without sourcing detectable face-image fixtures. A guardrail test asserts
+# the production wrangler block does not enable this flag.
+ALLOW_PIXEL_FALLBACK = os.environ.get("FACE_MATCHER_ALLOW_PIXEL_FALLBACK") == "1"
+
 
 def emit_log(event: str, **details: object) -> None:
     print(json.dumps({"event": f"face_matcher.{event}", **details}), flush=True)
@@ -121,6 +129,8 @@ def prepare_face_crop(
 
 
 def prepare_full_image_crop(image: np.ndarray) -> Optional[np.ndarray]:
+    # Test-only path. Bypasses face detection by treating the whole image as
+    # a face crop. Reachable only when ALLOW_PIXEL_FALLBACK is true.
     if image.size == 0:
         return None
 
@@ -141,7 +151,7 @@ def build_embedding(
 ):
     prepared = prepare_face_crop(detector, recognizer, image)
 
-    if prepared is None and allow_full_image_fallback:
+    if prepared is None and ALLOW_PIXEL_FALLBACK and allow_full_image_fallback:
         prepared = prepare_full_image_crop(image)
 
     if prepared is None:
@@ -153,6 +163,8 @@ def build_embedding(
 def compute_image_similarity(
     dg2_image: np.ndarray, selfie_image: np.ndarray
 ) -> Optional[float]:
+    # Test-only path. Pearson correlation of the two images at MODEL_INPUT_SIZE.
+    # Caller must ensure ALLOW_PIXEL_FALLBACK is true before invoking.
     dg2_grayscale = cv2.cvtColor(
         cv2.resize(dg2_image, MODEL_INPUT_SIZE), cv2.COLOR_BGR2GRAY
     ).astype(np.float32)
@@ -175,27 +187,22 @@ def compute_image_similarity(
     return normalize_correlation_score(raw_score)
 
 
-def resolve_face_score(
-    score_candidates: list[tuple[float, bool]]
-) -> Optional[tuple[float, bool]]:
+def resolve_face_score(score_candidates: list[float]) -> Optional[float]:
     # Use at least two detected-face selfies and aggregate conservatively so a
     # single anomalous frame cannot decide the match outcome on its own.
     usable_count = len(score_candidates)
     if usable_count < MIN_USABLE_SELFIE_COUNT:
         return None
 
-    sorted_scores = sorted(score_candidates, key=lambda candidate: candidate[0])
+    sorted_scores = sorted(score_candidates)
     middle = usable_count // 2
 
     if usable_count % 2 == 1:
         return sorted_scores[middle]
 
-    left_score, left_used_fallback = sorted_scores[middle - 1]
-    right_score, right_used_fallback = sorted_scores[middle]
-    return (
-        (left_score + right_score) / 2.0,
-        left_used_fallback or right_used_fallback,
-    )
+    left_score = sorted_scores[middle - 1]
+    right_score = sorted_scores[middle]
+    return (left_score + right_score) / 2.0
 
 
 def compare_faces(
@@ -212,9 +219,10 @@ def compare_faces(
         allow_full_image_fallback=True,
     )
 
-    score_candidates: list[tuple[float, bool]] = []
+    score_candidates: list[float] = []
     selfie_diagnostics: list[dict[str, object]] = []
     decoded_selfie_count = 0
+    used_fallback = False
 
     for index, selfie_base64 in enumerate(selfies_base64):
         selfie = decode_selfie(selfie_base64)
@@ -232,8 +240,6 @@ def compare_faces(
         decoded_selfie_count += 1
         selfie_embedding = build_embedding(detector, recognizer, selfie)
 
-        normalized_score = None
-
         if selfie_embedding is not None and dg2_embedding is not None:
             raw_score = float(
                 recognizer.match(
@@ -244,7 +250,7 @@ def compare_faces(
             )
             normalized_score = normalize_cosine_score(raw_score)
             diagnostic["used_embedding"] = True
-        else:
+        elif ALLOW_PIXEL_FALLBACK:
             normalized_score = compute_image_similarity(dg2_image, selfie)
 
             if (
@@ -253,13 +259,18 @@ def compare_faces(
             ):
                 normalized_score = None
 
+            if normalized_score is not None:
+                used_fallback = True
+        else:
+            normalized_score = None
+
         diagnostic["similarity"] = normalized_score
         selfie_diagnostics.append(diagnostic)
 
         if normalized_score is None:
             continue
 
-        score_candidates.append((normalized_score, not diagnostic["used_embedding"]))
+        score_candidates.append(normalized_score)
 
     final_score = resolve_face_score(score_candidates)
 
@@ -275,7 +286,7 @@ def compare_faces(
                 "faceScore": None,
                 "passed": False,
                 "reason": "face_score_dg2_face_not_detected",
-                "usedFallback": True,
+                "usedFallback": False,
             }
 
         if decoded_selfie_count == 0:
@@ -283,21 +294,19 @@ def compare_faces(
                 "faceScore": None,
                 "passed": False,
                 "reason": "face_score_no_decodable_selfies",
-                "usedFallback": True,
+                "usedFallback": False,
             }
 
         return {
             "faceScore": None,
             "passed": False,
             "reason": "face_score_insufficient_usable_selfies",
-            "usedFallback": True,
+            "usedFallback": False,
         }
 
-    face_score, used_fallback = final_score
-
     return {
-        "faceScore": face_score,
-        "passed": face_score >= threshold,
+        "faceScore": final_score,
+        "passed": final_score >= threshold,
         "usedFallback": used_fallback,
     }
 

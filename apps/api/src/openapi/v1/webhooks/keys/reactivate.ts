@@ -1,18 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { WebhookEncryptionKey } from "@/openapi/models/webhook";
+import {
+	WebhookEncryptionKey,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const reactivateWebhookEncryptionKey = createRoute({
 	method: "post",
 	path: "/:key_id/reactivate",
 	request: {
 		params: z.object({
-			key_id: z
-				.string()
-				.describe(
-					"The ID of the webhook encryption key to reactivate (e.g. whk_...).",
-				),
+			key_id: WebhookResourceIdParam.describe(
+				"The ID of the webhook encryption key to reactivate (e.g. whk_...).",
+			),
 		}),
 	},
 	tags: ["Webhooks"],

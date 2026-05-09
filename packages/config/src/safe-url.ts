@@ -8,7 +8,9 @@ export type SafeUrlReason =
   | "invalid_url"
   | "ipv4_literal_disallowed"
   | "ipv6_literal_disallowed"
-  | "loopback_not_allowed";
+  | "loopback_not_allowed"
+  | "reserved_hostname_disallowed"
+  | "url_too_long";
 
 export type SafeUrlOutcome =
   | { ok: true; url: URL }
@@ -23,13 +25,95 @@ const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set([
   "localhost",
   "127.0.0.1",
 ]);
+const RESERVED_WEBHOOK_HOSTNAME_SUFFIXES = [
+  ".home.arpa",
+  ".internal",
+  ".lan",
+  ".local",
+  ".localdomain",
+  ".localhost",
+] as const;
 const IPV4_LITERAL_REGEX = /^\d{1,3}(\.\d{1,3}){3}$/;
+export const SAFE_URL_MAX_LENGTH = 2048;
+
+function normalizeHostname(hostname: string): string {
+  return hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return LOOPBACK_HOSTNAMES.has(normalizeHostname(hostname));
+}
 
 function hostnameLooksLikeIpv6(hostname: string): boolean {
   // WHATWG URL exposes IPv6 literals in `[bracketed]` form on the hostname.
   // Defensively also reject anything containing ':' since hostnames cannot
   // otherwise contain that character.
   return hostname.startsWith("[") || hostname.includes(":");
+}
+
+function isReservedWebhookHostname(hostname: string): boolean {
+  const normalizedHostname = normalizeHostname(hostname).toLowerCase();
+
+  if (!normalizedHostname.includes(".")) {
+    return true;
+  }
+
+  return RESERVED_WEBHOOK_HOSTNAME_SUFFIXES.some((suffix) =>
+    normalizedHostname.endsWith(suffix)
+  );
+}
+
+function validateSafeUrlProtocol(
+  url: URL,
+  opts: { allowLoopback: boolean }
+): SafeUrlReason | null {
+  if (url.protocol === "https:") {
+    return null;
+  }
+
+  if (url.protocol !== "http:") {
+    return "invalid_scheme";
+  }
+
+  if (!opts.allowLoopback) {
+    return "invalid_scheme";
+  }
+
+  if (!isLoopbackHostname(url.hostname)) {
+    return "loopback_not_allowed";
+  }
+
+  return null;
+}
+
+function validateWebhookHostname(
+  url: URL,
+  opts: { allowLoopback: boolean }
+): SafeUrlReason | null {
+  if (isLoopbackHostname(url.hostname) && !opts.allowLoopback) {
+    return "loopback_not_allowed";
+  }
+
+  const normalizedHostname = normalizeHostname(url.hostname);
+  if (
+    IPV4_LITERAL_REGEX.test(normalizedHostname) &&
+    normalizedHostname !== "127.0.0.1"
+  ) {
+    return "ipv4_literal_disallowed";
+  }
+
+  if (hostnameLooksLikeIpv6(url.hostname)) {
+    return "ipv6_literal_disallowed";
+  }
+
+  if (
+    !(opts.allowLoopback && isLoopbackHostname(url.hostname)) &&
+    isReservedWebhookHostname(url.hostname)
+  ) {
+    return "reserved_hostname_disallowed";
+  }
+
+  return null;
 }
 
 /**
@@ -44,6 +128,10 @@ export function parseSafeUrl(
 ): SafeUrlOutcome {
   let url: URL;
 
+  if (input.length > SAFE_URL_MAX_LENGTH) {
+    return { ok: false, reason: "url_too_long" };
+  }
+
   try {
     url = new URL(input);
   } catch {
@@ -54,37 +142,15 @@ export function parseSafeUrl(
     return { ok: false, reason: "credentials_in_url" };
   }
 
-  const protocol = url.protocol;
-
-  if (protocol === "https:") {
-    // Allowed everywhere — fall through to mode-specific checks below.
-  } else if (protocol === "http:") {
-    if (!opts.allowLoopback) {
-      return { ok: false, reason: "invalid_scheme" };
-    }
-
-    if (!LOOPBACK_HOSTNAMES.has(url.hostname)) {
-      return { ok: false, reason: "loopback_not_allowed" };
-    }
-  } else {
-    return { ok: false, reason: "invalid_scheme" };
+  const protocolReason = validateSafeUrlProtocol(url, opts);
+  if (protocolReason) {
+    return { ok: false, reason: protocolReason };
   }
 
   if (opts.mode === "webhook") {
-    // Webhooks must point at a public host. Loopback is only acceptable in
-    // dev (the demo runner) — in strict mode we reject loopback regardless of
-    // scheme, otherwise `https://localhost/` and `https://127.0.0.1/` slip
-    // past the http-only loopback gate above.
-    if (LOOPBACK_HOSTNAMES.has(url.hostname) && !opts.allowLoopback) {
-      return { ok: false, reason: "loopback_not_allowed" };
-    }
-
-    if (IPV4_LITERAL_REGEX.test(url.hostname) && url.hostname !== "127.0.0.1") {
-      return { ok: false, reason: "ipv4_literal_disallowed" };
-    }
-
-    if (hostnameLooksLikeIpv6(url.hostname)) {
-      return { ok: false, reason: "ipv6_literal_disallowed" };
+    const webhookReason = validateWebhookHostname(url, opts);
+    if (webhookReason) {
+      return { ok: false, reason: webhookReason };
     }
   }
 
@@ -102,14 +168,17 @@ const WEBHOOK_URL_MESSAGE =
  * `javascript:`, `data:`, `file:`, `ftp:`, etc.
  */
 export function safeRedirectUrl(opts: { allowLoopback: boolean }) {
-  return z.string().refine(
-    (input) =>
-      parseSafeUrl(input, {
-        allowLoopback: opts.allowLoopback,
-        mode: "redirect",
-      }).ok,
-    { message: REDIRECT_URL_MESSAGE }
-  );
+  return z
+    .string()
+    .max(SAFE_URL_MAX_LENGTH)
+    .refine(
+      (input) =>
+        parseSafeUrl(input, {
+          allowLoopback: opts.allowLoopback,
+          mode: "redirect",
+        }).ok,
+      { message: REDIRECT_URL_MESSAGE }
+    );
 }
 
 /**
@@ -118,12 +187,15 @@ export function safeRedirectUrl(opts: { allowLoopback: boolean }) {
  * to avoid SSRF-style outbound abuse against link-local / private hosts.
  */
 export function safeWebhookUrl(opts: { allowLoopback: boolean }) {
-  return z.string().refine(
-    (input) =>
-      parseSafeUrl(input, {
-        allowLoopback: opts.allowLoopback,
-        mode: "webhook",
-      }).ok,
-    { message: WEBHOOK_URL_MESSAGE }
-  );
+  return z
+    .string()
+    .max(SAFE_URL_MAX_LENGTH)
+    .refine(
+      (input) =>
+        parseSafeUrl(input, {
+          allowLoopback: opts.allowLoopback,
+          mode: "webhook",
+        }).ok,
+      { message: WEBHOOK_URL_MESSAGE }
+    );
 }

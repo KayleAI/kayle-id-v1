@@ -1,3 +1,8 @@
+import {
+	isRequestBodyTooLarge,
+	readRequestJsonWithLimit,
+	readRequestTextWithLimit,
+} from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
 import {
@@ -14,22 +19,69 @@ import {
 	getLatestDemoWebhook,
 } from "@/demo/webhook-history";
 import {
+	createDemoRateLimitKey,
 	createDemoRunId,
 	createJsonResponse,
 	createRandomToken,
+	getDemoRateLimitStub,
 	getDemoRunStub,
+	isDemoRunId,
 	loadRunRecord,
 	persistRunSession,
 	persistRunStatus,
 	toErrorResponse,
 } from "./-helpers";
 
+const DEMO_JSON_BODY_LIMIT_BYTES = 32 * 1024;
+const DEMO_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
+const DEMO_RECEIVER_TOKEN_PATTERN = /^[a-z0-9]{32}$/u;
 const TRAILING_SLASH_PATTERN = /\/+$/u;
 
+function payloadTooLargeResponse(): Response {
+	return createJsonResponse(
+		{
+			data: null,
+			error: {
+				code: "PAYLOAD_TOO_LARGE",
+				message: "Request body is too large.",
+			},
+		},
+		{ status: 413 },
+	);
+}
+
+function invalidDemoRunPathResponse(): Response {
+	return createJsonResponse(
+		{
+			data: null,
+			error: {
+				code: "BAD_REQUEST",
+				message: "Demo run path is invalid.",
+			},
+		},
+		{ status: 400 },
+	);
+}
+
+async function readDemoJson<T>(request: Request): Promise<T | null> {
+	try {
+		return await readRequestJsonWithLimit<T>(
+			request,
+			DEMO_JSON_BODY_LIMIT_BYTES,
+		);
+	} catch (error) {
+		if (isRequestBodyTooLarge(error)) {
+			throw error;
+		}
+
+		return null;
+	}
+}
+
 async function handleCreateRun(request: Request): Promise<Response> {
-	const body = (await request.json().catch(() => null)) as {
+	const body = await readDemoJson<{
 		public_jwk?: JsonWebKey;
-	} | null;
+	}>(request);
 
 	if (!(body?.public_jwk && typeof body.public_jwk === "object")) {
 		return createJsonResponse(
@@ -44,6 +96,35 @@ async function handleCreateRun(request: Request): Promise<Response> {
 		);
 	}
 
+	const rateLimitKey = await createDemoRateLimitKey({
+		request,
+		salt: env.KAYLE_INTERNAL_TOKEN,
+	});
+	const rateLimitResponse = await getDemoRateLimitStub(rateLimitKey).fetch(
+		"https://demo.internal/rate-limit/demo-runs",
+		{ method: "POST" },
+	);
+
+	if (rateLimitResponse.status === 429) {
+		return new Response(rateLimitResponse.body, {
+			headers: rateLimitResponse.headers,
+			status: rateLimitResponse.status,
+		});
+	}
+
+	if (!rateLimitResponse.ok) {
+		return createJsonResponse(
+			{
+				data: null,
+				error: {
+					code: "RATE_LIMIT_UNAVAILABLE",
+					message: "Demo rate limit check failed.",
+				},
+			},
+			{ status: 503 },
+		);
+	}
+
 	const runId = createDemoRunId();
 	const receiverToken = createRandomToken(32);
 	const keyId = `demo_${runId}`;
@@ -54,7 +135,6 @@ async function handleCreateRun(request: Request): Promise<Response> {
 	try {
 		const endpoint = await createDemoWebhookEndpoint({
 			bindings: env,
-			request,
 			runId,
 			token: receiverToken,
 		});
@@ -139,9 +219,10 @@ async function handleCreateSession({
 		);
 	}
 
-	const body = (await request.json().catch(() => ({}))) as {
-		share_fields?: DemoRequestedShareFields;
-	};
+	const body =
+		(await readDemoJson<{
+			share_fields?: DemoRequestedShareFields;
+		}>(request)) ?? {};
 
 	const session = await createDemoSession({
 		bindings: env,
@@ -222,6 +303,23 @@ async function handleReceiveWebhook({
 	runId: string;
 	token: string;
 }): Promise<Response> {
+	if (!isDemoRunId(runId) || !DEMO_RECEIVER_TOKEN_PATTERN.test(token)) {
+		return createJsonResponse(
+			{
+				data: null,
+				error: {
+					code: "BAD_REQUEST",
+					message: "Demo webhook path is invalid.",
+				},
+			},
+			{ status: 400 },
+		);
+	}
+
+	const body = await readRequestTextWithLimit(
+		request,
+		DEMO_WEBHOOK_BODY_LIMIT_BYTES,
+	);
 	const response = await getDemoRunStub(runId).fetch(
 		`https://demo.internal/webhook?token=${encodeURIComponent(token)}`,
 		{
@@ -231,7 +329,7 @@ async function handleReceiveWebhook({
 				"X-Kayle-Event": request.headers.get("X-Kayle-Event") ?? "",
 				"X-Kayle-Signature": request.headers.get("X-Kayle-Signature") ?? "",
 			},
-			body: await request.text(),
+			body,
 		},
 	);
 
@@ -252,7 +350,7 @@ async function handleReceiveWebhook({
 export const Route = createFileRoute("/_api/api/demo/$")({
 	server: {
 		handlers: {
-			ANY: ({ request }) => {
+			ANY: async ({ request }) => {
 				try {
 					const pathname = new URL(request.url).pathname.replace(
 						TRAILING_SLASH_PATTERN,
@@ -267,7 +365,7 @@ export const Route = createFileRoute("/_api/api/demo/$")({
 						segments[1] === "demo" &&
 						segments[2] === "runs"
 					) {
-						return handleCreateRun(request);
+						return await handleCreateRun(request);
 					}
 
 					if (
@@ -277,7 +375,11 @@ export const Route = createFileRoute("/_api/api/demo/$")({
 						segments[1] === "demo" &&
 						segments[2] === "runs"
 					) {
-						return handleGetRun(segments[3]);
+						if (!isDemoRunId(segments[3])) {
+							return invalidDemoRunPathResponse();
+						}
+
+						return await handleGetRun(segments[3]);
 					}
 
 					if (
@@ -288,7 +390,11 @@ export const Route = createFileRoute("/_api/api/demo/$")({
 						segments[2] === "runs" &&
 						segments[4] === "session"
 					) {
-						return handleCreateSession({
+						if (!isDemoRunId(segments[3])) {
+							return invalidDemoRunPathResponse();
+						}
+
+						return await handleCreateSession({
 							request,
 							runId: segments[3],
 						});
@@ -301,7 +407,7 @@ export const Route = createFileRoute("/_api/api/demo/$")({
 						segments[1] === "demo" &&
 						segments[2] === "webhooks"
 					) {
-						return handleReceiveWebhook({
+						return await handleReceiveWebhook({
 							request,
 							runId: segments[3],
 							token: segments[4],
@@ -319,6 +425,10 @@ export const Route = createFileRoute("/_api/api/demo/$")({
 						{ status: 404 },
 					);
 				} catch (error) {
+					if (isRequestBodyTooLarge(error)) {
+						return payloadTooLargeResponse();
+					}
+
 					return toErrorResponse(error);
 				}
 			},

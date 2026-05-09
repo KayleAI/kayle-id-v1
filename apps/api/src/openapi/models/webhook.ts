@@ -4,6 +4,15 @@ import {
 	webhookEventTypeSchema,
 } from "@kayle-id/config/webhook-events";
 
+const WEBHOOK_RESOURCE_ID_MAX_LENGTH = 128;
+const WEBHOOK_RESOURCE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export const WebhookResourceIdParam = z
+	.string()
+	.min(1)
+	.max(WEBHOOK_RESOURCE_ID_MAX_LENGTH)
+	.regex(WEBHOOK_RESOURCE_ID_PATTERN);
+
 export const WebhookDelivery = z
 	.object({
 		id: z.string().describe("Webhook delivery ID"),

@@ -2,6 +2,7 @@ import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
 import type { ApiKeyScope } from "@/auth/permissions";
+import { assertCanManageApiKeys } from "@/functions/auth/api-key-authorization";
 
 /**
  * Update an API key.
@@ -15,31 +16,61 @@ export async function updateApiKey(
 	id: string,
 	organizationId: string,
 	{
+		actorUserId,
 		name,
 		enabled,
 		permissions,
 		metadata,
 	}: {
+		actorUserId?: string;
 		name?: string;
 		enabled?: boolean;
 		permissions?: ApiKeyScope[];
 		metadata?: Record<string, string | number | boolean>;
 	},
 ): Promise<{ status: "success" | "error"; message?: string }> {
-	const [updated] = await db
-		.update(api_keys)
-		.set({
-			name,
-			enabled,
-			permissions,
-			metadata,
-		})
-		.where(
-			and(eq(api_keys.id, id), eq(api_keys.organizationId, organizationId)),
-		)
-		.returning({
-			updatedId: api_keys.id,
-		});
+	const values = {
+		name,
+		enabled,
+		permissions,
+		metadata,
+	};
+
+	const updated = actorUserId
+		? await db.transaction(async (tx) => {
+				await assertCanManageApiKeys(tx, {
+					organizationId,
+					userId: actorUserId,
+				});
+				const [row] = await tx
+					.update(api_keys)
+					.set(values)
+					.where(
+						and(
+							eq(api_keys.id, id),
+							eq(api_keys.organizationId, organizationId),
+						),
+					)
+					.returning({
+						updatedId: api_keys.id,
+					});
+
+				return row;
+			})
+		: (
+				await db
+					.update(api_keys)
+					.set(values)
+					.where(
+						and(
+							eq(api_keys.id, id),
+							eq(api_keys.organizationId, organizationId),
+						),
+					)
+					.returning({
+						updatedId: api_keys.id,
+					})
+			)[0];
 
 	if (!updated?.updatedId) {
 		return {

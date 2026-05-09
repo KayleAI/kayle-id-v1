@@ -5,7 +5,10 @@ import {
 	Pagination,
 	paginationLimitQuery,
 } from "@/openapi/base";
-import { WebhookEndpoint } from "@/openapi/models/webhook";
+import {
+	WebhookEndpoint,
+	WebhookResourceIdParam,
+} from "@/openapi/models/webhook";
 
 export const listWebhookEndpoints = createRoute({
 	method: "get",
@@ -18,12 +21,9 @@ export const listWebhookEndpoints = createRoute({
 			limit: paginationLimitQuery.describe(
 				"Maximum number of webhook endpoints to return. Defaults to 10 if not specified.",
 			),
-			starting_after: z
-				.string()
-				.optional()
-				.describe(
-					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
+			starting_after: WebhookResourceIdParam.optional().describe(
+				"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
+			),
 		}),
 	},
 	description: "List all webhook endpoints available in the organization",

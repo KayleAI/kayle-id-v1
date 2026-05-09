@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ErrorResponseWithPagination, Pagination } from "@/openapi/base";
-import { ApiKeyListItem } from "../openapi-schemas";
+import { ApiKeyId, ApiKeyListItem } from "../openapi-schemas";
 
 export const internalListApiKeys = createRoute({
 	// Hide this route in production as it's not needed for the public API.
@@ -18,12 +18,9 @@ export const internalListApiKeys = createRoute({
 				.describe(
 					"Maximum number of API keys to return. Defaults to 10 if not specified.",
 				),
-			starting_after: z
-				.string()
-				.optional()
-				.describe(
-					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
+			starting_after: ApiKeyId.optional().describe(
+				"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
+			),
 		}),
 	},
 	tags: ["API Keys"],

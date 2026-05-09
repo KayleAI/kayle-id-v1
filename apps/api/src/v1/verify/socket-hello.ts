@@ -163,13 +163,16 @@ export async function handleHelloMessage(
 	}
 
 	try {
+		if (!(await markSessionInProgress(session))) {
+			transport.sendAuthErrorAndClose("SESSION_EXPIRED");
+			return;
+		}
 		await consumeHelloAttempt({
 			attemptId: attempt.id,
 			deviceIdHash: authState.deviceIdHash,
 			appVersion: parsed.appVersion,
 			mobileAttestKeyId: attestation.attestKeyId,
 		});
-		await markSessionInProgress(session);
 		await persistTrackedAttemptPhase({
 			attemptId: attempt.id,
 			phase: "mobile_connected",

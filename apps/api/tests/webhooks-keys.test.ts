@@ -35,6 +35,29 @@ async function createEndpoint(): Promise<string> {
 }
 
 describe("/v1/webhooks/keys", () => {
+	test("rejects oversized key route IDs before lookup", async () => {
+		const listResponse = await app.request(
+			`/v1/webhooks/endpoints/whe_${"a".repeat(200)}/keys`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+			},
+		);
+		const reactivateResponse = await app.request(
+			`/v1/webhooks/keys/whk_${"a".repeat(200)}/reactivate`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "POST",
+			},
+		);
+
+		expect(listResponse.status).toBe(400);
+		expect(reactivateResponse.status).toBe(400);
+	});
+
 	test("creates, lists, deactivates, and reactivates webhook encryption keys", async () => {
 		const endpointId = await createEndpoint();
 		const publicJwk = await loadTestPublicJwk();

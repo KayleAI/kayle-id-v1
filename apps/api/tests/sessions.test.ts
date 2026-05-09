@@ -78,6 +78,20 @@ describe("/v1/sessions", () => {
 		expect(data?.some((session) => session.id === createdSessionId)).toBe(true);
 	});
 
+	test.serial("Rejects oversized session cursors before lookup", async () => {
+		const response = await v1.request(
+			`/sessions?starting_after=vs_${"a".repeat(200)}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+			},
+		);
+
+		expect(response.status).toBe(400);
+	});
+
 	test.serial("Can get a session by ID", async () => {
 		if (!createdSessionId) {
 			throw new Error("Created session ID is not defined");

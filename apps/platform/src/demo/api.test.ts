@@ -17,19 +17,17 @@ test("buildDemoWebhookUrl uses the local HTTP proxy in development", () => {
 
 	expect(
 		buildDemoWebhookUrl({
-			request: new Request("https://localhost:3000/api/demo/runs"),
 			runId: "demo_123",
 			token: "token_123",
 		}),
 	).toBe("http://127.0.0.1:3001/api/demo/webhooks/demo_123/token_123");
 });
 
-test("buildDemoWebhookUrl keeps the request origin in production", () => {
+test("buildDemoWebhookUrl pins the canonical origin in production", () => {
 	process.env.NODE_ENV = "production";
 
 	expect(
 		buildDemoWebhookUrl({
-			request: new Request("https://kayle.id/api/demo/runs"),
 			runId: "demo_123",
 			token: "token_123",
 		}),
@@ -56,9 +54,6 @@ test("createDemoWebhookEndpoint subscribes the demo to every supported public ev
 			},
 			KAYLE_DEMO_API_KEY: "demo_api_key",
 		},
-		request: new Request("https://kayle.id/api/demo/runs", {
-			method: "POST",
-		}),
 		runId: "demo_123",
 		token: "token_123",
 	});
@@ -91,9 +86,6 @@ test("createDemoWebhookEndpoint rejects malformed upstream success responses", a
 				},
 				KAYLE_DEMO_API_KEY: "demo_api_key",
 			},
-			request: new Request("https://kayle.id/api/demo/runs", {
-				method: "POST",
-			}),
 			runId: "demo_123",
 			token: "token_123",
 		}),

@@ -2,6 +2,10 @@ import { expect, test } from "bun:test";
 import {
   createFaceMatcherRequestFormData,
   FACE_MATCHER_AUTH_HEADER,
+  FACE_MATCHER_DG2_FIELD,
+  FACE_MATCHER_MAX_REQUEST_BYTES,
+  FACE_MATCHER_MAX_SELFIES,
+  FACE_MATCHER_SELFIE_FIELD_PREFIX,
 } from "@kayle-id/config/face-matcher";
 import {
   createDg2Artifact,
@@ -146,6 +150,85 @@ test("face matcher worker rejects malformed requests", async () => {
   expect(response.status).toBe(400);
 });
 
+test("face matcher worker rejects excessive selfie payloads before the container", async () => {
+  const formData = new FormData();
+  let containerCalled = false;
+
+  formData.append(FACE_MATCHER_DG2_FIELD, new Blob([new Uint8Array([1])]));
+  for (let index = 0; index <= FACE_MATCHER_MAX_SELFIES; index += 1) {
+    formData.append(
+      `${FACE_MATCHER_SELFIE_FIELD_PREFIX}${index}`,
+      new Blob([new Uint8Array([index + 1])])
+    );
+  }
+
+  const worker = createFaceMatcherWorker({
+    emitRequestLogs: false,
+    getContainer: async () => ({
+      fetch: () => {
+        containerCalled = true;
+        return Promise.resolve(new Response(null, { status: 500 }));
+      },
+    }),
+  });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://face-matcher/match", {
+      body: formData,
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "test-secret",
+      },
+      method: "POST",
+    }),
+    createBindings({
+      FACE_MATCHER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(400);
+  expect(containerCalled).toBe(false);
+});
+
+test("face matcher worker rejects oversized multipart bodies before parsing", async () => {
+  const formData = new FormData();
+  let containerCalled = false;
+
+  formData.append(FACE_MATCHER_DG2_FIELD, new Blob([new Uint8Array([1])]));
+  formData.append(
+    `${FACE_MATCHER_SELFIE_FIELD_PREFIX}0`,
+    new Blob([new Uint8Array([2])])
+  );
+
+  const worker = createFaceMatcherWorker({
+    emitRequestLogs: false,
+    getContainer: async () => ({
+      fetch: () => {
+        containerCalled = true;
+        return Promise.resolve(new Response(null, { status: 500 }));
+      },
+    }),
+  });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://face-matcher/match", {
+      body: formData,
+      headers: {
+        [FACE_MATCHER_AUTH_HEADER]: "test-secret",
+        "content-length": String(FACE_MATCHER_MAX_REQUEST_BYTES + 1),
+      },
+      method: "POST",
+    }),
+    createBindings({
+      FACE_MATCHER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(413);
+  expect(containerCalled).toBe(false);
+});
+
 test("face matcher worker fails closed (503) when the shared secret is missing", async () => {
   const portrait = await loadVerifyFixtureBytes("icon.jpg");
   const worker = createFaceMatcherWorker({ emitRequestLogs: false });
@@ -171,6 +254,51 @@ test("face matcher worker fails closed (503) when the shared secret is missing",
   expect(response.status).toBe(503);
   const payload = (await response.json()) as { error?: { code?: string } };
   expect(payload.error?.code).toBe("MATCHER_MISCONFIGURED");
+});
+
+test("face matcher worker accepts the bearer auth header", async () => {
+  const portrait = await loadVerifyFixtureBytes("icon.jpg");
+  const worker = createFaceMatcherWorker({
+    emitRequestLogs: false,
+    getContainer: async () => ({
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            faceScore: 0.91,
+            passed: true,
+            usedFallback: false,
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+            },
+            status: 200,
+          }
+        ),
+    }),
+  });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://face-matcher/match", {
+      body: createFaceMatcherRequestFormData({
+        dg2Image: createDg2Artifact({
+          imageData: portrait,
+          imageFormat: "jpeg",
+        }),
+        selfies: [portrait],
+      }),
+      headers: {
+        authorization: "Bearer test-secret",
+      },
+      method: "POST",
+    }),
+    createBindings({
+      FACE_MATCHER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(200);
 });
 
 test("face matcher worker rejects unauthorized requests", async () => {

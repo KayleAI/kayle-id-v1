@@ -15,7 +15,7 @@
  *   APP_STORE_CONNECT_KEY_ID       short key id (e.g. "1A2B3C4D5E")
  *   APP_STORE_CONNECT_PRIVATE_KEY  PEM-encoded .p8 private key contents
  *
- * Optional env vars (for tests):
+ * Optional checkAppStoreAgreements() parameter (for tests):
  *   APP_STORE_CONNECT_BASE_URL     defaults to https://api.appstoreconnect.apple.com
  */
 
@@ -159,10 +159,7 @@ export async function checkAppStoreAgreements(env: {
   const privateKey =
     env.APP_STORE_CONNECT_PRIVATE_KEY ??
     requireEnv("APP_STORE_CONNECT_PRIVATE_KEY");
-  const baseUrl =
-    env.APP_STORE_CONNECT_BASE_URL ??
-    process.env.APP_STORE_CONNECT_BASE_URL ??
-    DEFAULT_BASE_URL;
+  const baseUrl = env.APP_STORE_CONNECT_BASE_URL ?? DEFAULT_BASE_URL;
 
   const token = await signAppStoreConnectJwt({
     issuerId,

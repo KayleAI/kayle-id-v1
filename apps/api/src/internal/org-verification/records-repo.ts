@@ -26,6 +26,46 @@ export type RecordVerificationResult = {
 	pepperVersion: number;
 };
 
+export type PreparedOrgVerificationRecord = {
+	candidateHashes: string[];
+	dedupHash: string;
+	pepperVersion: number;
+};
+
+async function computeCandidateHashes(
+	candidate: DedupHashInput,
+	env: PepperBinding,
+): Promise<string[]> {
+	const peppers = listActivePeppers(env);
+	if (peppers.length === 0) {
+		return [];
+	}
+
+	return Promise.all(
+		peppers.map((pepper: ActivePepper) =>
+			computeDedupHash(candidate, pepper.value),
+		),
+	);
+}
+
+export async function prepareOrgVerificationRecord(
+	input: RecordVerificationInput,
+	env: PepperBinding,
+): Promise<PreparedOrgVerificationRecord> {
+	const pepper = getCurrentPepper(env);
+	const candidate = toHashInput(input);
+	const [dedupHash, candidateHashes] = await Promise.all([
+		computeDedupHash(candidate, pepper.value),
+		computeCandidateHashes(candidate, env),
+	]);
+
+	return {
+		dedupHash,
+		pepperVersion: pepper.version,
+		candidateHashes,
+	};
+}
+
 /**
  * Compute the dedup hash for a candidate document, scoped to the org being
  * verified, and persist the row that proves the org owner completed an ID
@@ -36,15 +76,14 @@ export async function recordOrgVerification(
 	input: RecordVerificationInput,
 	env: PepperBinding,
 ): Promise<RecordVerificationResult> {
-	const pepper = getCurrentPepper(env);
-	const dedupHash = await computeDedupHash(toHashInput(input), pepper.value);
+	const prepared = await prepareOrgVerificationRecord(input, env);
 
 	const [row] = await db
 		.insert(org_verification_records)
 		.values({
 			organizationId: input.organizationId,
-			dedupHash,
-			pepperVersion: pepper.version,
+			dedupHash: prepared.dedupHash,
+			pepperVersion: prepared.pepperVersion,
 			documentType: input.documentType,
 			issuingCountry: input.issuingCountry,
 		})
@@ -56,8 +95,8 @@ export async function recordOrgVerification(
 
 	return {
 		recordId: row.id,
-		dedupHash,
-		pepperVersion: pepper.version,
+		dedupHash: prepared.dedupHash,
+		pepperVersion: prepared.pepperVersion,
 	};
 }
 
@@ -71,16 +110,10 @@ export async function findRecordsByDocument(
 	candidate: DedupHashInput,
 	env: PepperBinding,
 ): Promise<(typeof org_verification_records.$inferSelect)[]> {
-	const peppers = listActivePeppers(env);
-	if (peppers.length === 0) {
+	const candidateHashes = await computeCandidateHashes(candidate, env);
+	if (candidateHashes.length === 0) {
 		return [];
 	}
-
-	const candidateHashes = await Promise.all(
-		peppers.map((pepper: ActivePepper) =>
-			computeDedupHash(candidate, pepper.value),
-		),
-	);
 
 	return db
 		.select()

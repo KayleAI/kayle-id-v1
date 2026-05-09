@@ -7,6 +7,7 @@ import {
 	mock,
 	test,
 } from "bun:test";
+import { ORGANIZATION_NAME_MAX_LENGTH } from "@kayle-id/auth/organization-name";
 import { auth } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
@@ -25,6 +26,19 @@ import {
 type OrganizationCreateResponse = {
 	data: null | {
 		id: string;
+	};
+	error: null | {
+		code: string;
+		docs?: string;
+		hint?: string;
+		message: string;
+	};
+};
+
+type AcceptVerificationTermsResponse = {
+	data: null | {
+		verificationTermsAcceptedAt: string;
+		verificationTermsAcceptedBy: string;
 	};
 	error: null | {
 		code: string;
@@ -65,9 +79,10 @@ type StorageBinding = NonNullable<typeof env.STORAGE>;
 const LOCAL_LOGO_URL_PATTERN = /^http:\/\/127\.0\.0\.1:8787\/r2\/logos\//u;
 const LOGO_SLUG_PATTERN = /^logo-/u;
 
-const PNG_HEADER_BYTES = new Uint8Array([
-	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00,
+const PNG_SIGNATURE_BYTES = new Uint8Array([
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
+const OVERSIZED_LOGO_DIMENSION = 4096;
 
 function base64Encode(bytes: Uint8Array): string {
 	let binary = "";
@@ -77,7 +92,40 @@ function base64Encode(bytes: Uint8Array): string {
 	return btoa(binary);
 }
 
-const TINY_PNG_BASE64 = base64Encode(PNG_HEADER_BYTES);
+function createPngHeaderBytes(width: number, height: number): Uint8Array {
+	const bytes = new Uint8Array([
+		...PNG_SIGNATURE_BYTES,
+		0x00,
+		0x00,
+		0x00,
+		0x0d,
+		0x49,
+		0x48,
+		0x44,
+		0x52,
+		(width >>> 24) & 0xff,
+		(width >>> 16) & 0xff,
+		(width >>> 8) & 0xff,
+		width & 0xff,
+		(height >>> 24) & 0xff,
+		(height >>> 16) & 0xff,
+		(height >>> 8) & 0xff,
+		height & 0xff,
+		0x08,
+		0x06,
+		0x00,
+		0x00,
+		0x00,
+	]);
+
+	return bytes;
+}
+
+const TINY_PNG_BASE64 = base64Encode(createPngHeaderBytes(1, 1));
+const TRUNCATED_PNG_BASE64 = base64Encode(PNG_SIGNATURE_BYTES);
+const OVERSIZED_PNG_BASE64 = base64Encode(
+	createPngHeaderBytes(OVERSIZED_LOGO_DIMENSION, 1),
+);
 
 function requireTestData(): SessionAuthTestData {
 	if (!TEST_DATA) {
@@ -203,6 +251,134 @@ describe("Organization Endpoints", () => {
 		});
 	});
 
+	test("rejects custom organization creation when the name exceeds route bounds", async () => {
+		const testData = requireTestData();
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				name: "a".repeat(ORGANIZATION_NAME_MAX_LENGTH + 1),
+				slug: `oversized-name-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+	});
+
+	test("allows an active organization owner to accept verification terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			const response = await app.request(
+				"/v1/auth/orgs/accept-verification-terms",
+				{
+					body: JSON.stringify({
+						organizationId: activeSession.organizationId,
+					}),
+					headers: createJsonHeaders(activeSession.sessionCookie),
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(200);
+
+			const payload =
+				(await response.json()) as AcceptVerificationTermsResponse;
+
+			expect(payload.error).toBeNull();
+			expect(payload.data?.verificationTermsAcceptedBy).toBe(
+				activeSession.userId,
+			);
+			expect(payload.data?.verificationTermsAcceptedAt).toBeString();
+
+			const [organization] = await db
+				.select({
+					verificationTermsAcceptedAt:
+						auth_organizations.verification_terms_accepted_at,
+					verificationTermsAcceptedBy:
+						auth_organizations.verification_terms_accepted_by,
+				})
+				.from(auth_organizations)
+				.where(eq(auth_organizations.id, activeSession.organizationId))
+				.limit(1);
+
+			expect(organization?.verificationTermsAcceptedAt?.toISOString()).toBe(
+				payload.data?.verificationTermsAcceptedAt,
+			);
+			expect(organization?.verificationTermsAcceptedBy).toBe(
+				activeSession.userId,
+			);
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
+	test("prevents non-owner organization members from accepting verification terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			await db
+				.update(auth_organization_members)
+				.set({ role: "member" })
+				.where(
+					and(
+						eq(
+							auth_organization_members.organizationId,
+							activeSession.organizationId,
+						),
+						eq(auth_organization_members.userId, activeSession.userId),
+					),
+				);
+
+			const response = await app.request(
+				"/v1/auth/orgs/accept-verification-terms",
+				{
+					body: JSON.stringify({
+						organizationId: activeSession.organizationId,
+					}),
+					headers: createJsonHeaders(activeSession.sessionCookie),
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(403);
+
+			const payload =
+				(await response.json()) as AcceptVerificationTermsResponse;
+
+			expect(payload.data).toBeNull();
+			expect(payload.error?.code).toBe("FORBIDDEN");
+
+			const [organization] = await db
+				.select({
+					verificationTermsAcceptedAt:
+						auth_organizations.verification_terms_accepted_at,
+					verificationTermsAcceptedBy:
+						auth_organizations.verification_terms_accepted_by,
+				})
+				.from(auth_organizations)
+				.where(eq(auth_organizations.id, activeSession.organizationId))
+				.limit(1);
+
+			expect(organization?.verificationTermsAcceptedAt).toBeNull();
+			expect(organization?.verificationTermsAcceptedBy).toBeNull();
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
 	test("uploads a logo and forwards the generated logo URL to organization creation", async () => {
 		const testData = requireTestData();
 		const mockedOrganizationId = crypto.randomUUID();
@@ -275,6 +451,70 @@ describe("Organization Endpoints", () => {
 			slug: expect.stringMatching(LOGO_SLUG_PATTERN),
 			userId: testData.userId,
 		});
+	});
+
+	test("rejects standalone logo uploads without an active organization", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs/logo", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: TINY_PNG_BASE64,
+				},
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(403);
+	});
+
+	test("allows active organization admins to upload a standalone logo", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+		let capturedStorageKey: string | undefined;
+
+		(
+			env as typeof env & {
+				STORAGE: StorageBinding;
+			}
+		).STORAGE = {
+			...(originalStorage ?? ({} as StorageBinding)),
+			put: mock((key) => {
+				capturedStorageKey = key;
+
+				return Promise.resolve({
+					key,
+				} as R2Object);
+			}) as StorageBinding["put"],
+		} as StorageBinding;
+
+		try {
+			const response = await app.request("/v1/auth/orgs/logo", {
+				body: JSON.stringify({
+					logo: {
+						contentType: "image/png",
+						data: TINY_PNG_BASE64,
+					},
+				}),
+				headers: createJsonHeaders(activeSession.sessionCookie),
+				method: "POST",
+			});
+
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as {
+				data: { logo: string };
+				error: null;
+			};
+
+			expect(payload.error).toBeNull();
+			expect(payload.data.logo).toMatch(LOCAL_LOGO_URL_PATTERN);
+			expect(capturedStorageKey?.startsWith("logos/")).toBeTrue();
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
 	});
 
 	test("returns a structured internal error when organization creation fails", async () => {
@@ -357,6 +597,58 @@ describe("Organization Endpoints", () => {
 		expect(payload.error?.code).toBe("INVALID_LOGO");
 		expect(payload.error?.message).toBe(
 			"Organization logo content type does not match the file contents.",
+		);
+	});
+
+	test("rejects a logo whose dimensions cannot be read", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: TRUNCATED_PNG_BASE64,
+				},
+				name: "Truncated Logo Organization",
+				slug: `truncated-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo dimensions could not be read.",
+		);
+	});
+
+	test("rejects a logo whose dimensions exceed the maximum", async () => {
+		const testData = requireTestData();
+
+		const response = await app.request("/v1/auth/orgs", {
+			body: JSON.stringify({
+				logo: {
+					contentType: "image/png",
+					data: OVERSIZED_PNG_BASE64,
+				},
+				name: "Oversized Logo Organization",
+				slug: `oversized-${crypto.randomUUID()}`,
+			}),
+			headers: createJsonHeaders(testData.sessionCookie),
+			method: "POST",
+		});
+
+		expect(response.status).toBe(400);
+
+		const payload = (await response.json()) as OrganizationCreateResponse;
+
+		expect(payload.error?.code).toBe("INVALID_LOGO");
+		expect(payload.error?.message).toBe(
+			"Organization logo dimensions exceed the maximum size.",
 		);
 	});
 

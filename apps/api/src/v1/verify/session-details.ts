@@ -7,6 +7,7 @@ import {
 	parseAgeOverThreshold,
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
+import { isPublicVerifySessionHidden } from "./public-session-visibility";
 
 export type PublicVerifySessionDetails = {
 	organization_name: string;
@@ -38,6 +39,7 @@ export async function getPublicVerifySessionDetails({
 		.select({
 			organizationName: auth_organizations.name,
 			organizationVerifiedAt: auth_organizations.verified_at,
+			organizationId: verification_sessions.organizationId,
 			sessionId: verification_sessions.id,
 			isAgeOnly: verification_sessions.isAgeOnly,
 			shareFields: verification_sessions.shareFields,
@@ -51,6 +53,10 @@ export async function getPublicVerifySessionDetails({
 		.limit(1);
 
 	if (!session) {
+		return null;
+	}
+
+	if (await isPublicVerifySessionHidden(session.organizationId)) {
 		return null;
 	}
 

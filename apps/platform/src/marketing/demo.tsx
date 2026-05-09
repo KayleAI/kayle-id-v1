@@ -767,7 +767,7 @@ function ClaimPicker({
 			</div>
 
 			{selectedClaims.length === 0 && !isAgeSelected ? (
-				<p className="rounded-[1rem] border border-neutral-200/80 border-dashed bg-white/50 px-4 py-5 text-center text-neutral-500 text-sm">
+				<p className="rounded-[1rem] border border-neutral-200/80 border-dashed bg-white/50 px-4 py-4.5 text-center text-neutral-500 text-sm">
 					Nothing selected — search above to add a claim or constraint.
 				</p>
 			) : (

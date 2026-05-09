@@ -19,7 +19,7 @@ jobs:
           sudo apt-get install -y capnproto
 
       - name: Install capnp-es
-        run: npm install -g capnp-es
+        run: npm install -g capnp-es@0.0.14
 
       - name: Install capnpc-swift
         run: |

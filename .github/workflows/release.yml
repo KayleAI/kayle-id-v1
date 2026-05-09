@@ -311,8 +311,7 @@ jobs:
 
           node ./scripts/package-worker-deploy-artifact.mjs \
             --project-dir infra/face-matcher \
-            --artifact-dir "${artifact_dir}" \
-            --extra-path apps/api/public
+            --artifact-dir "${artifact_dir}"
 
           tar -C "${artifact_dir}" -czf "${archive_path}" .
 
@@ -1324,9 +1323,7 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           install -d -m 700 "${API_PRIVATE_KEYS_DIR}"
-          cat <<EOF > "${API_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          ${APP_STORE_CONNECT_PRIVATE_KEY}
-          EOF
+          printf '%s\n' "${APP_STORE_CONNECT_PRIVATE_KEY}" > "${API_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           chmod 600 "${API_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
 
       - name: Upload IPA to App Store Connect

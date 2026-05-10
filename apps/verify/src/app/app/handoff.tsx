@@ -155,12 +155,10 @@ export function Handoff() {
 	}, [sessionId]);
 
 	const fetchHandoffPayload = useCallback(async () => {
-		setHandoffError(null);
-		setHandoffPayload(null);
-
 		try {
 			const payload = await requestHandoffPayload(sessionId);
 			setHandoffPayload(payload);
+			setHandoffError(null);
 		} catch (error) {
 			if (
 				isVerifyRequestError(error) &&
@@ -178,7 +176,6 @@ export function Handoff() {
 
 	const loadHandoffState = useCallback(async () => {
 		setStatusLoading(true);
-		setHandoffError(null);
 
 		const nextStatus = await pollSessionStatus();
 		setStatusLoading(false);
@@ -412,12 +409,18 @@ export function Handoff() {
 		  }
 		| undefined;
 
+	const handleRetry = () => {
+		loadHandoffState().catch(() => {
+			// loadHandoffState already stores the error state that the UI renders.
+		});
+	};
+
 	if (statusLoading || shouldShowHandoff(sessionStatus) || handoffError) {
 		stateContent = (
 			<HandoffState
 				handoffError={handoffError}
 				handoffUrl={handoffUrl}
-				onRetry={loadHandoffState}
+				onRetry={handleRetry}
 				os={os}
 			/>
 		);
@@ -450,6 +453,19 @@ export function Handoff() {
 				},
 			},
 		};
+	} else if (handoffError) {
+		buttons = {
+			primary: {
+				label: VERIFY_HANDOFF_COPY.actions.tryAgain,
+				onClick: handleRetry,
+			},
+			secondary: {
+				label: VERIFY_HANDOFF_COPY.actions.cancel,
+				onClick: () => {
+					setIsCancelDialogOpen(true);
+				},
+			},
+		};
 	} else {
 		buttons = {
 			secondary: {
@@ -465,16 +481,25 @@ export function Handoff() {
 		<>
 			<InfoCard
 				buttons={buttons}
-				colour={screenContent.colour}
+				colour={handoffError ? "red" : screenContent.colour}
+				compact={isTerminal}
 				footer={false}
 				header={{
 					title: screenContent.headerTitle,
 					description: screenContent.headerDescription,
 				}}
-				message={{
-					title: screenContent.messageTitle,
-					description: screenContent.messageDescription,
-				}}
+				message={
+					handoffError
+						? {
+								title: VERIFY_HANDOFF_COPY.handoff.errorMessageTitle,
+								description:
+									VERIFY_HANDOFF_COPY.handoff.errorMessageDescription,
+							}
+						: {
+								title: screenContent.messageTitle,
+								description: screenContent.messageDescription,
+							}
+				}
 			>
 				{stateContent}
 			</InfoCard>

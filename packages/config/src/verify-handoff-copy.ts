@@ -18,6 +18,8 @@ export const VERIFY_HANDOFF_COPY = {
     cancelError: "Unable to cancel.",
     loadStatusError: "Unable to load status.",
     refreshError: "Unable to generate QR code.",
+    errorMessageTitle: "Unable to generate QR code",
+    errorMessageDescription: "Check your internet connection and try again.",
   },
 
   screens: {

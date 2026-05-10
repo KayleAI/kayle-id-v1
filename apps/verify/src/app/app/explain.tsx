@@ -49,7 +49,7 @@ export function SessionExplain({
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
-			<div className="w-full max-w-md space-y-8">
+			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
 				{/* Header */}
 				<div>
 					<div className="mb-8">
@@ -65,7 +65,7 @@ export function SessionExplain({
 				</div>
 
 				{/* Body */}
-				<div className="space-y-6">
+				<div className="my-8 flex-1 space-y-6">
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
 							This process:
@@ -122,7 +122,7 @@ function AgeOnlyExplain({
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
-			<div className="w-full max-w-md space-y-8">
+			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -138,7 +138,7 @@ function AgeOnlyExplain({
 					</p>
 				</div>
 
-				<div className="space-y-6">
+				<div className="my-8 flex-1 space-y-6">
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
 							What gets shared:

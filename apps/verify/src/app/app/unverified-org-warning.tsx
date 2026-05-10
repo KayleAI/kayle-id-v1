@@ -35,7 +35,7 @@ export function UnverifiedOrgWarning({
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
-			<div className="w-full max-w-md space-y-8">
+			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -50,31 +50,33 @@ export function UnverifiedOrgWarning({
 					</p>
 				</div>
 
-				<div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
-					<div className="flex items-start">
-						<div className="mt-0.5 shrink-0">
-							<OctagonWarning className="size-5 text-red-400" />
-						</div>
-						<div className="ml-3">
-							<h3 className="font-medium text-red-800 text-sm dark:text-red-200">
-								What this means
-							</h3>
-							<ul className="mt-2 list-disc space-y-1 pl-4 text-red-700 text-sm dark:text-red-300">
-								<li>
-									Kayle ID has not independently verified the people running
-									this organization.
-								</li>
-								<li>
-									If you don't recognise{" "}
-									<OrganizationName dim organization={organization} /> or didn't
-									expect this verification request, cancel below.
-								</li>
-								<li>
-									You'll only see this warning if you're about to perform an ID
-									check for an organization that has not completed Kayle ID's
-									organization verification check.
-								</li>
-							</ul>
+				<div className="my-8 flex-1">
+					<div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
+						<div className="flex items-start">
+							<div className="mt-0.5 shrink-0">
+								<OctagonWarning className="size-5 text-red-400" />
+							</div>
+							<div className="ml-3">
+								<h3 className="font-medium text-red-800 text-sm dark:text-red-200">
+									What this means
+								</h3>
+								<ul className="mt-2 list-disc space-y-1 pl-4 text-red-700 text-sm dark:text-red-300">
+									<li>
+										Kayle ID has not independently verified the people running
+										this organization.
+									</li>
+									<li>
+										If you don't recognise{" "}
+										<OrganizationName dim organization={organization} /> or
+										didn't expect this verification request, cancel below.
+									</li>
+									<li>
+										You'll only see this warning if you're about to perform an
+										ID check for an organization that has not completed Kayle
+										ID's organization verification check.
+									</li>
+								</ul>
+							</div>
 						</div>
 					</div>
 				</div>

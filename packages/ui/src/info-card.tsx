@@ -22,6 +22,12 @@ interface InfoCardProps {
   };
   children?: ReactNode;
   colour: "red" | "blue" | "emerald";
+  /**
+   * When true, drops the min-height + flex-fill layout and centers the card at
+   * its natural content height — used for short terminal/result screens that
+   * should not stretch to fill the viewport.
+   */
+  compact?: boolean;
   footer?: boolean;
   header: {
     title: string;
@@ -85,13 +91,20 @@ export default function InfoCard({
     },
   },
   footer = true,
+  compact = false,
   children,
 }: InfoCardProps) {
   const hasButtons = Boolean(buttons?.primary || buttons?.secondary);
 
   return (
     <div className="relative flex w-full flex-col items-center justify-center">
-      <div className="w-full max-w-md space-y-8">
+      <div
+        className={cn(
+          "w-full max-w-md space-y-8",
+          !compact &&
+            "flex min-h-[calc(100dvh_-_6rem)] flex-col [@media(min-height:800px)]:min-h-[44rem]"
+        )}
+      >
         {/* Header */}
         <div>
           <div className="mb-8">
@@ -132,7 +145,12 @@ export default function InfoCard({
           </div>
         </div>
 
-        {children}
+        {/* Children: in non-compact mode, wrap in a flex-1 fill so buttons stay at the bottom */}
+        {compact ? (
+          children
+        ) : (
+          <div className="flex flex-1 flex-col justify-center">{children}</div>
+        )}
 
         {/* Action Buttons */}
         {hasButtons ? (

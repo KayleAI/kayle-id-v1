@@ -83,11 +83,7 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 	}
 
 	if (eventsQuery.isLoading && !eventsQuery.data) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	if (eventsQuery.error) {

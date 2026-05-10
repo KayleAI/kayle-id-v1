@@ -1,3 +1,12 @@
+/* Re-scope the `dark:` variant so it does NOT fire inside a `.light`
+ * subtree. Layouts that opt out of dark mode (marketing, legal) wrap
+ * their content in `<div class="light">`; combined with the `.light`
+ * variable reset below, anything within renders as if `<html>` had no
+ * `.dark` at all — even when the rest of the document is dark. The
+ * original variant in `@kayleai/ui/config.css` is `&:is(.dark *)`; this
+ * one is identical except for the `:not(.light *)` exclusion. */
+@custom-variant dark (&:is(.dark *):not(.light *));
+
 @layer base {
   html {
     background-color: var(--background);
@@ -24,7 +33,7 @@
    * reads as a dim emerald patch behind the white foreground. Same hue
    * and chroma as the light-mode version so the brand colour relationship
    * stays intact. */
-  .dark ::selection {
+  .dark :where(:not(.light, .light *))::selection {
     color: var(--foreground);
     background: oklch(0.35 0.12 154.8);
   }
@@ -32,5 +41,50 @@
   * {
     scrollbar-color: var(--secondary-foreground) transparent;
     scrollbar-width: thin;
+  }
+
+  /* In dark mode `--secondary-foreground` is near-white, which makes the
+   * scrollbar thumb glare as a bright white bar. Drop to a mid-tone grey
+   * so it reads as chrome rather than content. */
+  .dark :where(:not(.light, .light *)) {
+    scrollbar-color: oklch(0.45 0 0) transparent;
+  }
+
+  /* Restore the light-mode token values for any subtree wrapped in
+   * `.light`. These mirror the `:root` block in `@kayleai/ui/config.css`
+   * and override `.dark`'s cascade for descendants of the wrapper. Keep
+   * in sync if the upstream light palette changes. */
+  .light {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
   }
 }

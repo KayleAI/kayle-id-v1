@@ -13,7 +13,7 @@ function AppLayoutRoute() {
 	const { status, activeOrganization } = useAuth();
 
 	if (status === "loading") {
-		return <Loading layout />;
+		return <Loading fullscreen />;
 	}
 
 	if (status === "unauthenticated") {

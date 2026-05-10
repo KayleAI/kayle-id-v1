@@ -166,11 +166,7 @@ export function WebhooksPage({
 	}
 
 	if (endpointsQuery.isLoading && !endpointsQuery.data) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	return (

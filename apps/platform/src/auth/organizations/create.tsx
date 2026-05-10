@@ -156,11 +156,7 @@ export function CreateOrganization() {
 	};
 
 	if (created) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	return (

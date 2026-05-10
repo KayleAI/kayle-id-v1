@@ -11,7 +11,9 @@ interface TabDefinition {
 		| "/organizations"
 		| "/organizations/members"
 		| "/organizations/settings"
-		| "/organizations/public";
+		| "/organizations/public"
+		| "/organizations/business"
+		| "/organizations/domains";
 	label: string;
 }
 
@@ -19,6 +21,8 @@ const TABS: readonly TabDefinition[] = [
 	{ href: "/organizations", label: "Overview" },
 	{ href: "/organizations/members", label: "Members" },
 	{ href: "/organizations/public", label: "Public details" },
+	{ href: "/organizations/business", label: "Business" },
+	{ href: "/organizations/domains", label: "Domains" },
 	{ href: "/organizations/settings", label: "Settings" },
 ] as const;
 

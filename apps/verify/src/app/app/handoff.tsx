@@ -35,6 +35,7 @@ import type {
 import {
 	requestCancelVerifySession,
 	requestHandoffPayload,
+	requestVerifyRedirectPermitted,
 	requestVerifySessionStatus,
 } from "@/config/handoff";
 import {
@@ -100,6 +101,9 @@ export function Handoff() {
 	);
 	const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 	const [isCancelInFlight, setIsCancelInFlight] = useState(false);
+	const [isRedirectPermitted, setIsRedirectPermitted] = useState<
+		boolean | null
+	>(null);
 
 	const cancelTokenFromLocation = useMemo(readCancelTokenFromLocation, []);
 
@@ -115,12 +119,15 @@ export function Handoff() {
 		if (!(sessionStatus?.is_terminal && sessionStatus.redirect_url)) {
 			return null;
 		}
+		if (isRedirectPermitted === false) {
+			return null;
+		}
 
 		return buildRedirectTargetUrl({
 			redirectUrl: sessionStatus.redirect_url,
 			sessionId: sessionStatus.session_id,
 		});
-	}, [sessionStatus]);
+	}, [sessionStatus, isRedirectPermitted]);
 
 	const terminalContent = useMemo(
 		() =>
@@ -342,6 +349,32 @@ export function Handoff() {
 			window.clearInterval(intervalId);
 		};
 	}, [isTerminal, refreshHandoffPayload, sessionStatus]);
+
+	useEffect(() => {
+		if (!(sessionStatus?.is_terminal && sessionStatus.redirect_url)) {
+			setIsRedirectPermitted(null);
+			return;
+		}
+
+		let cancelled = false;
+		requestVerifyRedirectPermitted(sessionStatus.session_id)
+			.then((result) => {
+				if (cancelled) {
+					return;
+				}
+				setIsRedirectPermitted(result.permitted);
+			})
+			.catch(() => {
+				if (cancelled) {
+					return;
+				}
+				setIsRedirectPermitted(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [sessionStatus]);
 
 	useEffect(() => {
 		if (!redirectTargetUrl) {

@@ -105,7 +105,8 @@ function createSessionDetails(
 ): VerifySessionDetailsPayload {
 	return {
 		organization_name: "Test Organization",
-		organization_verified: true,
+		organization_owner_id_check_completed: true,
+		organization_verified_apex_domains: ["test.example"],
 		organization_logo: null,
 		organization_business_name: null,
 		organization_business_jurisdiction: null,

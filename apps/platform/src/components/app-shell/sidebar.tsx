@@ -38,6 +38,7 @@ import {
 	LogOutIcon,
 	PlusIcon,
 	SettingsIcon,
+	ShieldCheckIcon,
 	UserIcon,
 	UsersIcon,
 	WebhookIcon,
@@ -52,7 +53,8 @@ const NAV_ITEMS = [
 ] as const;
 
 export function AppSidebar() {
-	const { user, activeOrganization, organizations } = useAuth();
+	const { user, activeOrganization, organizations, isPlatformAdmin } =
+		useAuth();
 	const routerState = useRouterState();
 	const queryClient = useQueryClient();
 	const currentPath = routerState.location.pathname;
@@ -242,6 +244,20 @@ export function AppSidebar() {
 									/>
 								</SidebarMenuItem>
 							))}
+							{isPlatformAdmin ? (
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										isActive={currentPath.startsWith("/admin")}
+										render={
+											<Link to="/admin">
+												<ShieldCheckIcon />
+												<span>Admin</span>
+											</Link>
+										}
+									/>
+								</SidebarMenuItem>
+							) : null}
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>

@@ -6,11 +6,16 @@ import {
 } from "@kayle-id/config/security-headers";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
+import {
+	runDomainReverificationCron,
+	shouldRunDomainReverification,
+} from "@/auth/domain-verification/recheck";
 import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import v1 from "@/v1";
+import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
 import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import verify from "@/v1/verify";
@@ -64,6 +69,7 @@ app.route("/v1/auth", auth);
 
 // v1
 app.route("/v1/verify", verify);
+app.route("/v1/admin", admin);
 app.route("/v1", v1);
 
 // Platform-only internal endpoints (gated by KAYLE_INTERNAL_TOKEN)
@@ -148,6 +154,13 @@ const worker = Object.assign(app, {
 		if (shouldRunReceiptRefresh(controller.scheduledTime)) {
 			await refreshAppAttestReceipts({
 				env: env as Parameters<typeof refreshAppAttestReceipts>[0]["env"],
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
+		if (shouldRunDomainReverification(controller.scheduledTime)) {
+			await runDomainReverificationCron({
+				env: env as Parameters<typeof runDomainReverificationCron>[0]["env"],
 				now: new Date(controller.scheduledTime),
 			});
 		}

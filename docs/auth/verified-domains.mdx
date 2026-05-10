@@ -1,0 +1,121 @@
+---
+title: "Verified domains"
+description: "Prove control of a domain so end users see who they're really verifying for."
+icon: "globe"
+---
+
+A **verified domain** is a domain (e.g. `acme.co`) that you've proved your organization controls. Verifying a domain unlocks the user-facing trust signals in the verify flow and is required before you can register custom redirect URIs.
+
+End users see the verified domain rendered prominently in the verify dialog, alongside your organization name. Without a verified domain, Kayle ID hides your logo, legal name, jurisdiction, and registration number from end users — those fields are user-supplied and could be set to anyone, so we don't surface them until we've confirmed who runs the organization.
+
+## Why this exists
+
+Anyone can sign up to Kayle ID and create an organization called "Wells Fargo". Without a verification step, end users would have no way to tell a legitimate Wells Fargo verify link from one a phishing actor sent over SMS. Domain verification anchors your organization's identity in something an attacker can't forge: control of DNS for the domain you actually operate from.
+
+## Who can verify a domain
+
+Only organization **owners** can start, complete, or remove a domain verification. Admins and members can view the verified-domain list but can't change it. We ask for the highest role here because a verified domain unlocks branding shown to your users — taking that decision out of the hands of one-off teammates is intentional.
+
+## Verifying a domain
+
+1. Go to **Domains** in the dashboard sidebar.
+2. Click **Add domain**.
+3. Enter the bare domain you want to verify — for example `acme.co`, not a subdomain like `app.acme.co`. Verifying a domain unlocks every subdomain underneath it.
+4. Add the TXT record we show you to the domain's DNS. The record looks like:
+
+   | Field | Value |
+   |---|---|
+   | Name  | `_kayle-id-verification.<your-domain>` |
+   | Type  | `TXT` |
+   | Value | `kayle-id-verification=<token>` |
+
+5. Click **Verify now** once your DNS provider has published the record. We resolve it via DNS-over-HTTPS, so the propagation window is whatever your DNS provider takes — typically a few minutes for major providers.
+
+If the record isn't found yet, the dashboard returns `DNS_NOT_PROPAGATED`. The challenge stays valid for 7 days; you can come back and re-click **Verify now** as many times as you need within that window.
+
+### Why DNS, not email
+
+We only support DNS TXT verification. The alternative — sending a one-time code to `admin@<your-domain>` (or `postmaster@`, `webmaster@`, etc., per [RFC 2142](https://datatracker.ietf.org/doc/html/rfc2142)) — sounds easier but materially weakens the proof. Anyone who can read the inbox of a long-lived shared alias can pass the challenge, and those aliases are often misconfigured, forwarded to former employees, or unmonitored. DNS TXT proves you can publish records on the domain itself, which is the same level of control an attacker would need to actually impersonate your service.
+
+## What verification unlocks
+
+Once a domain is verified for your organization:
+
+- **Trust anchor in the verify flow.** End users see "verified domain: `<your-domain>`" in the dialog they open from your organization name.
+- **Self-asserted business fields are revealed.** Your legal name, jurisdiction, registration number, and uploaded logo (set on **Public details**) become visible to end users. Until then they're stored but hidden.
+- **Custom redirect URIs become available.** You can register specific URL patterns under [Allowed redirect URIs](#allowed-redirect-uris) for sessions you create.
+
+## Re-verification and downgrades
+
+Kayle ID re-checks each verified domain's TXT record once a day. If we can't find the record on **three consecutive checks** (≈ 3 days), the domain is **downgraded**: it's marked inactive, your business fields and logo are hidden again, and any session redirect URL on that domain is rejected. Owners receive an email when a downgrade happens.
+
+If the record reappears on a later check, the domain is automatically restored — you don't need to do anything.
+
+To re-verify manually, open the **Domains** page and click **Add domain** again with the same domain.
+
+## Verifying a domain another organization owns
+
+A given domain can only be **actively** verified by one organization at a time. When you start a DNS challenge for a domain that another organization is currently verified for, Kayle ID surfaces a `conflict` field on the start-challenge response and the dashboard shows you a warning before you continue:
+
+> _**This domain is already verified elsewhere.** `acme.co` is currently verified by `Original Owner`. If you complete the DNS challenge, their verification will be removed and your organization will become the active owner._
+
+If you proceed and pass the DNS check, Kayle ID atomically **transfers** the domain to your organization in the same transaction:
+
+- The previous owner's row is downgraded (`downgraded_at` is set), so they immediately stop showing as the verified domain in the verify flow and lose redirect-URI authorization on this domain.
+- Your row is inserted (or, if you previously held a downgraded row for this domain, restored).
+- The previous owner's owner-role members receive an email letting them know the domain was transferred.
+
+Use the dedicated **acknowledge** flag on the API (`acknowledge_takeover: true` on `POST /v1/auth/orgs/domains/challenges/dns/verify`) to confirm. The dashboard does this automatically once you click "I understand — continue" on the warning step.
+
+If you believe a takeover is malicious — for example, an attacker is impersonating your brand — contact Kayle ID support immediately so we can investigate and reverse it.
+
+## Removing a domain
+
+Click **Remove** next to the domain on the **Domains** page and confirm. Removal is immediate and:
+
+- hides the verify-flow trust signal for that domain;
+- deletes any redirect URI patterns registered under it (cascades from the domain row);
+- frees the domain so you can re-verify it later if you change your mind.
+
+## Allowed redirect URIs
+
+By default, **any subdomain or path on a verified domain is accepted as a session `redirect_url`**. So if you've verified `acme.co`, you can pass `https://app.acme.co/oauth/callback`, `https://id.acme.co/`, or `https://acme.co/done` when creating a session and Kayle ID will accept all of them.
+
+Add explicit entries on the **Allowed redirect URIs** card to **narrow** that default. Once one or more patterns exist for a verified domain, redirects on that domain must additionally match one of the registered patterns by path-prefix. URLs that don't match any pattern are rejected with `REDIRECT_URL_PATTERN_NOT_REGISTERED`.
+
+A pattern is composed of three parts:
+
+- **Subdomain** (optional) — empty registers the domain itself; `app` registers `app.<domain>`; `app.id` registers a deeper subdomain.
+- **Domain** — picked from your verified domains.
+- **Path** (optional) — must start with `/`. Query strings (`?`) and fragments (`#`) are not allowed.
+
+The composed pattern looks like `https://[subdomain.]<domain>[/path]` — e.g. `https://app.acme.co/oauth/callback`. The dashboard shows you a live preview before you save.
+
+### Why query strings aren't allowed
+
+Patterns are matched as a strict path-prefix against incoming `redirect_url` values. Allowing query strings would either over-match (anyone passing the same path with extra params would match) or under-match (only that exact query would match). Neither is useful, so we reject both up front and let the path matching do the heavy lifting.
+
+## Edge cases and known behaviour
+
+- **What "domain" means here.** Internally Kayle ID normalizes whatever you enter to the registrable domain (eTLD+1) — so `app.acme.co` collapses to `acme.co`, and `acme.co.uk` is preserved as a single unit. Subdomains aren't separately verifiable; verifying the parent unlocks them.
+- **IDN / Punycode**: hostnames are normalized to lowercase ASCII Punycode before comparison. We currently reject `xn--` domains (mixed-script protection); contact support if you operate from one.
+- **Subdomain takeover**: if you verify `acme.co` and later let `forms.acme.co` CNAME-dangle, an attacker who claims that CNAME can use your verified-domain authorization. To narrow that exposure, register explicit patterns on the **Allowed redirect URIs** card.
+- **Public suffixes**: bare public suffixes like `co.uk` are rejected. We use a hand-curated list of common multi-label suffixes (`co.uk`, `com.au`, `co.jp`, etc.); the registrable domain is the label above the suffix.
+- **Cross-org ownership**: only one organization can be the *active* owner of a domain at any time. A second organization that completes a DNS challenge takes over (see [Verifying a domain another organization owns](#verifying-a-domain-another-organization-owns)); the previous owner is notified by email and can re-verify to win it back.
+
+## Errors
+
+Common error codes when working with the domain endpoints:
+
+| Code | Status | Meaning |
+|---|---|---|
+| `APEX_INVALID` | 400 | The supplied value isn't a valid registrable domain — it's a bare public suffix, an IDN, or otherwise malformed. |
+| `APEX_TAKEOVER_REQUIRED` | 409 | Another organization holds an active verification for this domain. Re-submit `POST /domains/challenges/dns/verify` with `acknowledge_takeover: true` to transfer ownership. The error `details.conflictingOrganizationName` carries the previous owner's name. |
+| `CHALLENGE_NOT_FOUND` | 404 | The challenge ID is unknown or has been consumed. |
+| `CHALLENGE_EXPIRED` | 400 | More than 7 days have passed; start a new challenge. |
+| `DNS_NOT_PROPAGATED` | 409 | We didn't see the TXT record at the domain. Wait a few minutes and try again. |
+| `DNS_LOOKUP_FAILED` | 503 | Both upstream DNS resolvers were unreachable. Try again shortly. |
+| `DOMAIN_NOT_FOUND` | 404 | The verified-domain (or redirect-URI) row referenced doesn't belong to your organization. |
+| `FORBIDDEN` | 403 | The caller isn't an owner of the organization. |
+| `REDIRECT_URL_DOMAIN_NOT_VERIFIED` | 400 | A session was created with a `redirect_url` whose host isn't on a verified domain. |
+| `REDIRECT_URL_PATTERN_NOT_REGISTERED` | 400 | The redirect URL host is on a verified domain but doesn't match any registered pattern for that domain. |

@@ -51,6 +51,7 @@ const mockedUseSession = vi.fn();
 const requestCancelVerifySessionMock = vi.fn();
 const requestHandoffPayloadMock = vi.fn();
 const requestVerifySessionStatusMock = vi.fn();
+const requestVerifyRedirectPermittedMock = vi.fn();
 const REDIRECT_COUNTDOWN_TEXT = /Redirecting in 3 seconds\./;
 const SELFIE_FAILURE_CLOSE_PAGE_TEXT = `${VERIFY_HANDOFF_COPY.screens.terminal.selfieFaceMismatch.description} ${VERIFY_HANDOFF_COPY.screens.terminal.youCanCloseDescription}`;
 
@@ -77,6 +78,8 @@ vi.mock("@/config/handoff", () => ({
 		requestCancelVerifySessionMock(sessionId, cancelToken),
 	requestHandoffPayload: (sessionId: string) =>
 		requestHandoffPayloadMock(sessionId),
+	requestVerifyRedirectPermitted: (sessionId: string) =>
+		requestVerifyRedirectPermittedMock(sessionId),
 	requestVerifySessionStatus: (sessionId: string) =>
 		requestVerifySessionStatusMock(sessionId),
 }));
@@ -305,6 +308,11 @@ beforeEach(() => {
 	requestCancelVerifySessionMock.mockReset();
 	requestHandoffPayloadMock.mockReset();
 	requestVerifySessionStatusMock.mockReset();
+	requestVerifyRedirectPermittedMock.mockReset();
+	requestVerifyRedirectPermittedMock.mockResolvedValue({
+		permitted: true,
+		redirect_url: null,
+	});
 	mockedUseSession.mockReturnValue({
 		sessionStatus: null,
 	});

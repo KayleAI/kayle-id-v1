@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalList, LegalSection } from "@/components/site/legal-document";
+import {
+	LegalList,
+	LegalSection,
+	LegalSubsection,
+} from "@/components/site/legal-document";
 import { PageHeading } from "@/components/site/page-heading";
 
 const LAST_UPDATED = "March 20, 2026";
@@ -18,7 +22,7 @@ function PrivacyPage() {
 				/>
 
 				<section className="mt-24">
-					<div className="max-w-3xl space-y-16">
+					<div className="mx-auto max-w-3xl space-y-12">
 						<LegalSection title="Scope">
 							<p>
 								Kayle ID is identity verification infrastructure operated by
@@ -40,10 +44,7 @@ function PrivacyPage() {
 						</LegalSection>
 
 						<LegalSection title="Information We Collect">
-							<div className="space-y-3">
-								<h3 className="font-medium text-base text-neutral-900">
-									Developer and organization data
-								</h3>
+							<LegalSubsection title="Developer and organization data">
 								<LegalList
 									items={[
 										"Account details such as name, email address, and profile image when provided through sign-in.",
@@ -52,12 +53,9 @@ function PrivacyPage() {
 										"Integration configuration such as API key names, permissions, metadata, webhook endpoint URLs, webhook signing secrets, and public encryption keys.",
 									]}
 								/>
-							</div>
+							</LegalSubsection>
 
-							<div className="space-y-3">
-								<h3 className="font-medium text-base text-neutral-900">
-									Verification data
-								</h3>
+							<LegalSubsection title="Verification data">
 								<LegalList
 									items={[
 										"Verification session data such as session ID, requested share fields, human-readable sharing reasons, redirect URL, timestamps, and terminal status.",
@@ -66,19 +64,16 @@ function PrivacyPage() {
 										"User sharing choices, including which optional claims the user selected and which required claims were mandated by the requesting platform.",
 									]}
 								/>
-							</div>
+							</LegalSubsection>
 
-							<div className="space-y-3">
-								<h3 className="font-medium text-base text-neutral-900">
-									Technical and operational data
-								</h3>
+							<LegalSubsection title="Technical and operational data">
 								<LegalList
 									items={[
 										"Request, delivery, and event metadata such as request ID, sanitized path, webhook delivery attempts, status codes, and retry scheduling information.",
 										"Security and integrity data such as hashed API keys, hashed mobile write tokens, encrypted webhook payloads, encrypted signing secrets, and audit-style event records.",
 									]}
 								/>
-							</div>
+							</LegalSubsection>
 
 							<p>
 								We do not create a separate consumer account for end-users who
@@ -126,10 +121,7 @@ function PrivacyPage() {
 						</LegalSection>
 
 						<LegalSection title="What We Store and What We Do Not Store">
-							<div className="space-y-3">
-								<h3 className="font-medium text-base text-neutral-900">
-									We store
-								</h3>
+							<LegalSubsection title="We store">
 								<LegalList
 									items={[
 										"Developer account, organization, API key, webhook, and authentication records.",
@@ -138,12 +130,9 @@ function PrivacyPage() {
 										"Hashed API keys, hashed mobile write tokens, and hashed device identifiers used to protect live session authentication.",
 									]}
 								/>
-							</div>
+							</LegalSubsection>
 
-							<div className="space-y-3">
-								<h3 className="font-medium text-base text-neutral-900">
-									We do not persist in the primary application database
-								</h3>
+							<LegalSubsection title="We do not persist in the primary application database">
 								<LegalList
 									items={[
 										"Plaintext API keys after initial creation.",
@@ -152,7 +141,7 @@ function PrivacyPage() {
 										"Raw passport NFC artifacts and raw selfie image artifacts as ordinary database records.",
 									]}
 								/>
-							</div>
+							</LegalSubsection>
 
 							<p>
 								Raw verification artifacts are processed in volatile session

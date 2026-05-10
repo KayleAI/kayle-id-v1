@@ -18,7 +18,7 @@ function TermsPage() {
 				/>
 
 				<section className="mt-24">
-					<div className="max-w-3xl space-y-16">
+					<div className="mx-auto max-w-3xl space-y-12">
 						<LegalSection title="Who These Terms Cover">
 							<p>
 								These Terms of Service govern your access to and use of Kayle

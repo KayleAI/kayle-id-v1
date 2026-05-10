@@ -75,6 +75,10 @@ function createOrganization(
 		businessName: null,
 		businessJurisdiction: null,
 		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
 		...overrides,
 	};
 }
@@ -117,8 +121,8 @@ describe("OrganizationName", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
-		expect(screen.getByText("Verified by Kayle ID")).not.toBeNull();
-		expect(screen.queryByText("Not verified by Kayle ID")).toBeNull();
+		expect(screen.getByText("Owner ID check completed")).not.toBeNull();
+		expect(screen.queryByText("Owner ID check not completed")).toBeNull();
 	});
 
 	test("shows the unverified callout when the organization is not verified", () => {
@@ -130,8 +134,96 @@ describe("OrganizationName", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
-		expect(screen.getByText("Not verified by Kayle ID")).not.toBeNull();
-		expect(screen.queryByText("Verified by Kayle ID")).toBeNull();
+		expect(screen.getByText("Owner ID check not completed")).not.toBeNull();
+		expect(screen.queryByText("Owner ID check completed")).toBeNull();
+	});
+
+	test("softens unverified callout to amber for age-only sessions", () => {
+		const { container: redContainer } = render(
+			<OrganizationName
+				organization={createOrganization({ verified: false })}
+			/>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+		expect(redContainer.querySelector(".bg-red-50\\/60")).not.toBeNull();
+		expect(redContainer.querySelector(".bg-amber-50\\/60")).toBeNull();
+
+		cleanup();
+
+		const { container: amberContainer } = render(
+			<OrganizationName
+				isAgeOnly
+				organization={createOrganization({ verified: false })}
+			/>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+		expect(amberContainer.querySelector(".bg-amber-50\\/60")).not.toBeNull();
+		expect(amberContainer.querySelector(".bg-red-50\\/60")).toBeNull();
+	});
+
+	test("renders privacy policy and terms of service links when provided", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					privacyPolicyUrl: "https://acme.example/privacy",
+					termsOfServiceUrl: "https://acme.example/terms",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		const privacyLink = screen.getByRole("link", { name: "Privacy policy" });
+		const termsLink = screen.getByRole("link", { name: "Terms of service" });
+		expect(privacyLink.getAttribute("href")).toBe(
+			"https://acme.example/privacy",
+		);
+		expect(privacyLink.getAttribute("target")).toBe("_blank");
+		expect(privacyLink.getAttribute("rel")).toBe("noopener noreferrer");
+		expect(termsLink.getAttribute("href")).toBe("https://acme.example/terms");
+	});
+
+	test("renders website link and description when provided", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					website: "https://acme.example",
+					description: "Identity checks for Acme retailers.",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		const websiteLink = screen.getByRole("link", { name: "Website" });
+		expect(websiteLink.getAttribute("href")).toBe("https://acme.example");
+		expect(
+			screen.getByText("Identity checks for Acme retailers."),
+		).not.toBeNull();
+	});
+
+	test("omits a missing legal link without rendering a placeholder", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					privacyPolicyUrl: "https://acme.example/privacy",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.getByRole("link", { name: "Privacy policy" })).not.toBeNull();
+		expect(screen.queryByRole("link", { name: "Terms of service" })).toBeNull();
+	});
+
+	test("omits the legal links section when neither URL is provided", () => {
+		render(<OrganizationName organization={createOrganization()} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.queryByRole("link", { name: "Privacy policy" })).toBeNull();
+		expect(screen.queryByRole("link", { name: "Terms of service" })).toBeNull();
 	});
 
 	test("falls back to a generic placeholder when the name is missing", () => {

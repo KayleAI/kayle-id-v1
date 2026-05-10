@@ -45,6 +45,10 @@ const EMPTY_ORGANIZATION: Organization = {
 	businessName: null,
 	businessJurisdiction: null,
 	businessRegistrationNumber: null,
+	privacyPolicyUrl: null,
+	termsOfServiceUrl: null,
+	website: null,
+	description: null,
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -134,6 +138,10 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 					businessJurisdiction: details.organization_business_jurisdiction,
 					businessRegistrationNumber:
 						details.organization_business_registration_number,
+					privacyPolicyUrl: details.organization_privacy_policy_url,
+					termsOfServiceUrl: details.organization_terms_of_service_url,
+					website: details.organization_website,
+					description: details.organization_description,
 				});
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);

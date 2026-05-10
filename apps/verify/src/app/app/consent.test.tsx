@@ -97,6 +97,10 @@ function createOrganization(
 		businessName: null,
 		businessJurisdiction: null,
 		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
 		...overrides,
 	};
 }

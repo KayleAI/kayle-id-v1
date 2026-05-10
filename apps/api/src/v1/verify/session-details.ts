@@ -1,3 +1,4 @@
+import { parseStoredOrganizationMetadata } from "@kayle-id/auth/organization-metadata";
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
@@ -16,6 +17,10 @@ export type PublicVerifySessionDetails = {
 	organization_business_name: string | null;
 	organization_business_jurisdiction: string | null;
 	organization_business_registration_number: string | null;
+	organization_privacy_policy_url: string | null;
+	organization_terms_of_service_url: string | null;
+	organization_website: string | null;
+	organization_description: string | null;
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
@@ -49,6 +54,7 @@ export async function getPublicVerifySessionDetails({
 				auth_organizations.business_jurisdiction,
 			organizationBusinessRegistrationNumber:
 				auth_organizations.business_registration_number,
+			organizationMetadata: auth_organizations.metadata,
 			organizationId: verification_sessions.organizationId,
 			sessionId: verification_sessions.id,
 			isAgeOnly: verification_sessions.isAgeOnly,
@@ -70,6 +76,10 @@ export async function getPublicVerifySessionDetails({
 		return null;
 	}
 
+	const metadata = parseStoredOrganizationMetadata(
+		session.organizationMetadata,
+	);
+
 	return {
 		organization_name: session.organizationName,
 		organization_verified: session.organizationVerifiedAt !== null,
@@ -79,6 +89,10 @@ export async function getPublicVerifySessionDetails({
 			session.organizationBusinessJurisdiction,
 		organization_business_registration_number:
 			session.organizationBusinessRegistrationNumber,
+		organization_privacy_policy_url: metadata?.privacyPolicyUrl ?? null,
+		organization_terms_of_service_url: metadata?.termsOfServiceUrl ?? null,
+		organization_website: metadata?.website ?? null,
+		organization_description: metadata?.description ?? null,
 		session_id: session.sessionId,
 		is_age_only: session.isAgeOnly,
 		age_threshold: session.isAgeOnly

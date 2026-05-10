@@ -51,7 +51,8 @@ export function SessionConsent({
 				<>
 					I allow Kayle ID to share <span className="font-medium">only</span>{" "}
 					whether I am {ageLabel} with{" "}
-					<OrganizationName organization={organization} /> — no other details
+					<OrganizationName isAgeOnly organization={organization} /> — no other
+					details
 				</>,
 			]
 		: [

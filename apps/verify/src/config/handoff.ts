@@ -30,6 +30,10 @@ export type VerifySessionDetailsPayload = {
 	organization_business_name: string | null;
 	organization_business_jurisdiction: string | null;
 	organization_business_registration_number: string | null;
+	organization_privacy_policy_url: string | null;
+	organization_terms_of_service_url: string | null;
+	organization_website: string | null;
+	organization_description: string | null;
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;

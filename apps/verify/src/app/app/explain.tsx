@@ -131,10 +131,10 @@ function AgeOnlyExplain({
 						{headline}
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						<OrganizationName organization={organization} /> only needs to know
-						whether you're {ageLabel} — not your name, date of birth, or any
-						other personal details. Kayle ID lets you prove that privately,
-						using your document and a selfie.
+						<OrganizationName isAgeOnly organization={organization} /> only
+						needs to know whether you're {ageLabel} — not your name, date of
+						birth, or any other personal details. Kayle ID lets you prove that
+						privately, using your document and a selfie.
 					</p>
 				</div>
 

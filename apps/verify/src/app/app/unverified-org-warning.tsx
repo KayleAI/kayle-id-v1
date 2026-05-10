@@ -44,9 +44,9 @@ export function UnverifiedOrgWarning({
 						You are about to verify with an unverified organization
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						<OrganizationName organization={organization} /> has not completed
-						Kayle ID's organization verification check. <br /> Unless you trust
-						this request, don't continue.
+						Kayle ID has not confirmed control of a domain for{" "}
+						<OrganizationName organization={organization} />. <br /> Unless you
+						trust this request, don't continue.
 					</p>
 				</div>
 

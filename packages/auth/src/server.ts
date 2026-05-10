@@ -313,6 +313,26 @@ export function getActiveOrganizationId(session: unknown): string | null {
     : null;
 }
 
+// Returns true when the given organization id matches the platform-admin
+// org configured via the KAYLE_ORGANIZATION_ID env secret. When the env is
+// unset (dev/test without an admin org), no org is platform admin.
+//
+// Reads from process.env at call-time rather than the validated env snapshot
+// so tests can flip the value between cases. In production the secret is
+// fixed for the lifetime of the worker, so call-time reads are equivalent.
+export function isPlatformAdminOrganization(
+  organizationId: string | null | undefined
+): boolean {
+  const adminId =
+    typeof process === "undefined"
+      ? env.KAYLE_ORGANIZATION_ID
+      : process.env?.KAYLE_ORGANIZATION_ID;
+  if (!(adminId && organizationId)) {
+    return false;
+  }
+  return organizationId === adminId;
+}
+
 function logDevelopmentMagicOtp(
   payload: MagicOtpPayload,
   request?: Request
@@ -822,6 +842,7 @@ export const auth = betterAuth({
             ...authSession,
           },
           activeOrganization,
+          isPlatformAdmin: isPlatformAdminOrganization(activeOrganization?.id),
         };
       },
       {

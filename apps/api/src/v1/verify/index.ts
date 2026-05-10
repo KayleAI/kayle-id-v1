@@ -13,6 +13,7 @@ import attest from "./attest-handlers";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
+import { checkRedirectPermitted } from "./redirect-permitted";
 import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
@@ -118,6 +119,38 @@ verify.get(
 		return c.json(
 			{
 				data: details,
+				error: null,
+			},
+			200,
+		);
+	},
+);
+
+verify.get(
+	"/session/:id/redirect-permitted",
+	validator("param", sessionParamJsonValidator),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const result = await checkRedirectPermitted({ sessionId: id });
+
+		if (result.code === "SESSION_NOT_FOUND") {
+			const response = createVerifyJsonErrorResponse({
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+			return c.json(
+				{ data: response.data, error: response.error },
+				response.status,
+			);
+		}
+
+		return c.json(
+			{
+				data: {
+					permitted: result.code !== "REDIRECT_DENIED",
+					redirect_url:
+						result.code === "REDIRECT_NOT_SET" ? null : result.redirect_url,
+				},
 				error: null,
 			},
 			200,

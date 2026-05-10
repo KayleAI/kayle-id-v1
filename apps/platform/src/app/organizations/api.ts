@@ -42,7 +42,13 @@ export interface OrganizationInvitation {
 	status: OrganizationInvitationStatus;
 }
 
+export type OrganizationBusinessType = "sole" | "business";
+
 export interface FullOrganization extends Organization {
+	businessType: OrganizationBusinessType | null;
+	businessName: string | null;
+	businessJurisdiction: string | null;
+	businessRegistrationNumber: string | null;
 	createdAt: string;
 	invitations: OrganizationInvitation[];
 	members: OrganizationMember[];
@@ -109,7 +115,60 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 			(data.invitations as OrganizationInvitation[] | undefined) ?? [],
 		members: (data.members as OrganizationMember[] | undefined) ?? [],
 		metadata: parseStoredOrganizationMetadata(data.metadata),
+		businessType:
+			data.businessType === "sole" || data.businessType === "business"
+				? data.businessType
+				: null,
+		businessName:
+			typeof data.businessName === "string" ? data.businessName : null,
+		businessJurisdiction:
+			typeof data.businessJurisdiction === "string"
+				? data.businessJurisdiction
+				: null,
+		businessRegistrationNumber:
+			typeof data.businessRegistrationNumber === "string"
+				? data.businessRegistrationNumber
+				: null,
 	};
+}
+
+export interface UpdateBusinessDetailsInput {
+	businessType?: OrganizationBusinessType | null;
+	businessName?: string | null;
+	businessJurisdiction?: string | null;
+	businessRegistrationNumber?: string | null;
+}
+
+export interface BusinessDetailsResponse {
+	businessType: OrganizationBusinessType | null;
+	businessName: string | null;
+	businessJurisdiction: string | null;
+	businessRegistrationNumber: string | null;
+}
+
+export async function updateOrganizationBusinessDetails(
+	input: UpdateBusinessDetailsInput,
+): Promise<BusinessDetailsResponse> {
+	return await requestApiResource<BusinessDetailsResponse>({
+		basePath: ORG_DELETE_BASE_PATH,
+		body: {
+			...(input.businessType !== undefined
+				? { business_type: input.businessType }
+				: {}),
+			...(input.businessName !== undefined
+				? { business_name: input.businessName }
+				: {}),
+			...(input.businessJurisdiction !== undefined
+				? { business_jurisdiction: input.businessJurisdiction }
+				: {}),
+			...(input.businessRegistrationNumber !== undefined
+				? { business_registration_number: input.businessRegistrationNumber }
+				: {}),
+		},
+		method: "POST",
+		path: "/business-details",
+		unexpectedMessage: "Failed to update business details.",
+	});
 }
 
 interface UpdateOrganizationInput {
@@ -261,4 +320,145 @@ export async function uploadOrganizationLogo({
 		path: "/logo",
 		unexpectedMessage: "Failed to upload organization logo",
 	});
+}
+
+const ORG_DOMAINS_BASE_PATH = "/api/auth/orgs";
+export const ORGANIZATION_DOMAINS_QUERY_KEY = [
+	"organization",
+	"domains",
+] as const;
+export const ORGANIZATION_REDIRECT_URIS_QUERY_KEY = [
+	"organization",
+	"redirect-uris",
+] as const;
+
+export type DomainVerificationMethod = "dns_txt";
+
+export interface VerifiedDomain {
+	id: string;
+	apexDomain: string;
+	verifiedAt: string;
+	verifiedVia: DomainVerificationMethod;
+	lastCheckedAt: string | null;
+	downgradedAt: string | null;
+}
+
+export interface ActiveDomainChallenge {
+	id: string;
+	apexDomain: string;
+	method: DomainVerificationMethod;
+	expiresAt: string;
+	createdAt: string;
+}
+
+export interface OrganizationDomainsList {
+	domains: VerifiedDomain[];
+	challenges: ActiveDomainChallenge[];
+}
+
+export async function listOrganizationDomains(): Promise<OrganizationDomainsList> {
+	return await requestApiResource<OrganizationDomainsList>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		method: "GET",
+		path: "/domains",
+		unexpectedMessage: "Failed to load verified domains.",
+	});
+}
+
+export interface DnsChallengeStarted {
+	challenge_id: string;
+	record_name: string;
+	record_value: string;
+	expires_at: string;
+	conflict: { organization_name: string } | null;
+}
+
+export async function startDnsDomainChallenge(input: {
+	apexDomain: string;
+}): Promise<DnsChallengeStarted> {
+	return await requestApiResource<DnsChallengeStarted>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		body: { apex_domain: input.apexDomain },
+		method: "POST",
+		path: "/domains/challenges/dns",
+		unexpectedMessage: "Failed to start DNS challenge.",
+	});
+}
+
+export interface VerifiedDnsChallenge {
+	domain_id: string;
+	apex_domain: string;
+	takeover_from: { organization_id: string; organization_name: string } | null;
+}
+
+export async function verifyDnsDomainChallenge(input: {
+	challengeId: string;
+	acknowledgeTakeover?: boolean;
+}): Promise<VerifiedDnsChallenge> {
+	return await requestApiResource<VerifiedDnsChallenge>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		body: {
+			challenge_id: input.challengeId,
+			...(input.acknowledgeTakeover ? { acknowledge_takeover: true } : {}),
+		},
+		method: "POST",
+		path: "/domains/challenges/dns/verify",
+		unexpectedMessage: "Failed to verify DNS challenge.",
+	});
+}
+
+export async function removeVerifiedDomain(input: {
+	id: string;
+}): Promise<void> {
+	const response = await fetch(`${ORG_DOMAINS_BASE_PATH}/domains/${input.id}`, {
+		credentials: "include",
+		method: "DELETE",
+	});
+	if (response.status !== 204 && !response.ok) {
+		const body = await response.text();
+		throw new Error(body || "Failed to remove verified domain.");
+	}
+}
+
+export interface RedirectUri {
+	id: string;
+	verifiedDomainId: string;
+	apexDomain: string;
+	pattern: string;
+	createdAt: string;
+}
+
+export async function listRedirectUris(): Promise<RedirectUri[]> {
+	return await requestApiResource<RedirectUri[]>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		method: "GET",
+		path: "/redirect-uris",
+		unexpectedMessage: "Failed to load redirect URIs.",
+	});
+}
+
+export async function addRedirectUri(input: {
+	pattern: string;
+}): Promise<RedirectUri> {
+	return await requestApiResource<RedirectUri>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		body: { pattern: input.pattern },
+		method: "POST",
+		path: "/redirect-uris",
+		unexpectedMessage: "Failed to register redirect URI.",
+	});
+}
+
+export async function removeRedirectUri(input: { id: string }): Promise<void> {
+	const response = await fetch(
+		`${ORG_DOMAINS_BASE_PATH}/redirect-uris/${input.id}`,
+		{
+			credentials: "include",
+			method: "DELETE",
+		},
+	);
+	if (response.status !== 204 && !response.ok) {
+		const body = await response.text();
+		throw new Error(body || "Failed to remove redirect URI.");
+	}
 }

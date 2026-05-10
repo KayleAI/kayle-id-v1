@@ -70,7 +70,8 @@ function createOrganization(
 ): Organization {
 	return {
 		name: "Acme Corp",
-		verified: true,
+		ownerIdCheckCompleted: true,
+		verifiedApexDomains: ["acme.example"],
 		logo: null,
 		businessName: null,
 		businessJurisdiction: null,
@@ -115,7 +116,7 @@ describe("OrganizationName", () => {
 	test("shows the verified callout when the organization is verified", () => {
 		render(
 			<OrganizationName
-				organization={createOrganization({ verified: true })}
+				organization={createOrganization({ ownerIdCheckCompleted: true })}
 			/>,
 		);
 
@@ -128,7 +129,7 @@ describe("OrganizationName", () => {
 	test("shows the unverified callout when the organization is not verified", () => {
 		render(
 			<OrganizationName
-				organization={createOrganization({ verified: false })}
+				organization={createOrganization({ ownerIdCheckCompleted: false })}
 			/>,
 		);
 
@@ -141,7 +142,7 @@ describe("OrganizationName", () => {
 	test("softens unverified callout to amber for age-only sessions", () => {
 		const { container: redContainer } = render(
 			<OrganizationName
-				organization={createOrganization({ verified: false })}
+				organization={createOrganization({ ownerIdCheckCompleted: false })}
 			/>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
@@ -153,7 +154,7 @@ describe("OrganizationName", () => {
 		const { container: amberContainer } = render(
 			<OrganizationName
 				isAgeOnly
-				organization={createOrganization({ verified: false })}
+				organization={createOrganization({ ownerIdCheckCompleted: false })}
 			/>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
@@ -244,5 +245,137 @@ describe("OrganizationName", () => {
 		expect(screen.queryByText("Legal name")).toBeNull();
 		expect(screen.queryByText("Registered in")).toBeNull();
 		expect(screen.queryByText("Registration number")).toBeNull();
+	});
+
+	test("hides business fields when no verified domain is present", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: [],
+					businessName: "Acme Corporation Ltd",
+					businessJurisdiction: "United Kingdom",
+					businessRegistrationNumber: "12345678",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.queryByText("Legal name")).toBeNull();
+		expect(screen.queryByText("Acme Corporation Ltd")).toBeNull();
+		expect(screen.queryByText("United Kingdom")).toBeNull();
+		expect(screen.queryByText("12345678")).toBeNull();
+	});
+
+	test("renders the verified-domain badge only when every link points to a verified apex", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: ["acme.co"],
+					website: "https://acme.co",
+					privacyPolicyUrl: "https://privacy.acme.co/policy",
+					termsOfServiceUrl: "https://acme.co/terms",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.getByText("Verified domain")).not.toBeNull();
+		expect(screen.getByText("acme.co")).not.toBeNull();
+	});
+
+	test("hides the badge when one of the policy links is on an unverified host", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: ["acme.co"],
+					website: "https://acme.co",
+					privacyPolicyUrl: "https://acme-evil.example/policy",
+					termsOfServiceUrl: "https://acme.co/terms",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.queryByText("Verified domain")).toBeNull();
+	});
+
+	test("hides the badge when no policy or website links are present", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: ["acme.co"],
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.queryByText("Verified domain")).toBeNull();
+	});
+
+	test("hides the badge when the org has no verified domains", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: [],
+					website: "https://acme.co",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.queryByText("Verified domain")).toBeNull();
+	});
+
+	test("lists every matched apex when policy links span multiple verified domains", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: ["acme.co", "acme-corp.com"],
+					website: "https://acme.co",
+					privacyPolicyUrl: "https://acme-corp.com/privacy",
+					termsOfServiceUrl: null,
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(screen.getByText("Verified domains")).not.toBeNull();
+		expect(screen.getByText("acme-corp.com, acme.co")).not.toBeNull();
+	});
+
+	test("hides the user-supplied logo when no verified domain", () => {
+		const { container } = render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: [],
+					logo: "https://cdn.example/spoofed.png",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(container.querySelector('img[src*="spoofed.png"]')).toBeNull();
+	});
+
+	test("renders the user-supplied logo when a verified domain is present", () => {
+		const { container } = render(
+			<OrganizationName
+				organization={createOrganization({
+					verifiedApexDomains: ["acme.co"],
+					logo: "https://cdn.example/acme.png",
+				})}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		expect(container.querySelector('img[src*="acme.png"]')).not.toBeNull();
 	});
 });

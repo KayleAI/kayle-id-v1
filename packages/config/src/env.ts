@@ -35,6 +35,12 @@ export const env = createEnv({
     KAYLE_INTERNAL_TOKEN: z.string().min(1),
     AUTH_SECRET: z.string().min(1),
 
+    // The single organization with platform-admin access (e.g. the in-app
+    // approvals dashboard at /admin). Hard-coded by env so it cannot be
+    // flipped via DB write — even with database access, an attacker would
+    // need worker-secret access to escalate. Optional in dev/test.
+    KAYLE_ORGANIZATION_ID: z.string().uuid().optional(),
+
     // Google OAuth
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),

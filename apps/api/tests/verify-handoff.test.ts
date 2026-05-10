@@ -81,7 +81,8 @@ type VerifySessionStatusResponse = {
 type VerifySessionDetailsResponse = {
 	data: {
 		organization_name: string;
-		organization_verified: boolean;
+		organization_owner_id_check_completed: boolean;
+		organization_verified_apex_domains: string[];
 		organization_logo: string | null;
 		organization_business_name: string | null;
 		organization_business_jurisdiction: string | null;
@@ -336,10 +337,12 @@ describe("/v1/verify/session/:id/handoff", () => {
 				);
 			}
 
-			expect(secondPayload.data.attempt_id).toBe(firstAttemptId);
-			expect(secondPayload.data.expires_at).toBe(firstPayload.data?.expires_at);
+			expect(secondPayload.data.attempt_id).toBe(firstAttemptId ?? "");
+			expect(secondPayload.data.expires_at).toBe(
+				firstPayload.data?.expires_at ?? "",
+			);
 			expect(secondPayload.data.mobile_write_token).toBe(
-				firstPayload.data?.mobile_write_token,
+				firstPayload.data?.mobile_write_token ?? "",
 			);
 		},
 	);
@@ -451,11 +454,15 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(payload.error).toBeNull();
 			expect(payload.data).toEqual({
 				organization_name: "Test Organization",
-				organization_verified: true,
+				organization_owner_id_check_completed: true,
+				organization_verified_apex_domains: [
+					...(TEST_DATA?.verifiedApexDomains ?? []),
+				].sort(),
 				organization_logo: null,
 				organization_business_name: null,
 				organization_business_jurisdiction: null,
 				organization_business_registration_number: null,
+				organization_business_type: null,
 				organization_privacy_policy_url: null,
 				organization_terms_of_service_url: null,
 				organization_website: null,
@@ -708,9 +715,8 @@ describe("/v1/verify/session/:id/status", () => {
 		"Returns the terminal session payload with redirect URL and latest attempt",
 		async () => {
 			const completedAt = new Date("2099-01-01T00:00:00.000Z");
-			const sessionId = await createSession({
-				redirectUrl: "https://example.com/return",
-			});
+			const redirectUrl = `https://${TEST_DATA?.verifiedApexDomains[0]}/return`;
+			const sessionId = await createSession({ redirectUrl });
 
 			await db
 				.update(verification_sessions)
@@ -751,7 +757,7 @@ describe("/v1/verify/session/:id/status", () => {
 					retry_allowed: false,
 					status: "succeeded",
 				},
-				redirect_url: "https://example.com/return",
+				redirect_url: redirectUrl,
 				session_id: sessionId,
 				same_device_only: true,
 				status: "completed",

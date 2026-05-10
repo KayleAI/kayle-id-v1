@@ -1,33 +1,22 @@
-Privacy-first identity verification.
-
 # Kayle ID
 
-Kayle ID is a project engineered by [Kayle](https://kayle.ai) to give people control over their own identity.
+Privacy-first identity verification.
 
-This open-source repository contains the official implementation of the Kayle ID system.
+## Getting Started
 
-## Local Development
+Kayle ID enables you to verify the identity or perform age verification of your users.
 
-Quick start:
+## Documentation
 
-```bash
-bun install
-bun run env:setup   # writes .env with random local secrets + dummy third-party creds
-bun run db:start
-bun run db:setup
-bun run dev
-```
+Visit [kayle.id/docs](https://kayle.id/docs) to view the full documentation.
 
-The bootstrap fills in random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, and `FACE_MATCHER_SECRET`, and dummy values for Google OAuth / Resend. The dev API falls back to logging magic OTPs and email bodies, so contributors do not need any third-party accounts to run the full stack.
+## Contributing
 
-Maintainers with Infisical access can pull the shared dev secrets instead:
+Contributions are welcome and highly appreciated! However, please read the [CONTRIBUTING.md](./CONTRIBUTING.md) file before contributing.
 
-```bash
-infisical login          # once per machine
-bun run env:pull         # writes the repo-root .env from Infisical
-```
+## Security
 
-See [CODE_INSTRUCTIONS.md](CODE_INSTRUCTIONS.md) for the full local setup guide (iOS, Cap'n Proto, PKD seeding, tests).
+If you believe you have found a security vulnerability in Kayle ID, we encourage you to responsibly disclose this and NOT open a public issue by emailing [security@kayle.id](mailto:security@kayle.id).
 
 ## Data Processing
 

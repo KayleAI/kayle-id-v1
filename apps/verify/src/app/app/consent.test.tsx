@@ -92,7 +92,8 @@ function createOrganization(
 ): Organization {
 	return {
 		name: "Test Organization",
-		verified: true,
+		ownerIdCheckCompleted: true,
+		verifiedApexDomains: ["test.example"],
 		logo: null,
 		businessName: null,
 		businessJurisdiction: null,

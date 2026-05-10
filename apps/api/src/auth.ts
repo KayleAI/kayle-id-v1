@@ -41,6 +41,30 @@ export async function buildBetterAuthRequest({
 auth.route("/account", account);
 auth.route("/api-keys", apiKeys);
 auth.route("/orgs", organizations);
+
+// Membership rows must never be hard-deleted through user-facing flows —
+// suspension preserves them so audit-log entries can keep attributing past
+// actions. Better-auth's organization plugin still ships a remove-member /
+// leave handler that DELETEs the row, so we shadow those paths with a 410
+// Gone before the catch-all forwards to better-auth. The platform UI uses
+// our `/orgs/members/*` endpoints instead.
+const HARD_DELETE_BLOCKED_PAYLOAD = {
+	data: null,
+	error: {
+		code: "MEMBERSHIP_HARD_DELETE_BLOCKED" as const,
+		message:
+			"This endpoint has been replaced by the suspension flow. Membership rows are preserved so audit-log entries keep attributing past actions to the user.",
+		hint: "Use DELETE /v1/auth/orgs/members/{id} (admin/owner) or POST /v1/auth/orgs/members/leave (self).",
+		docs: "https://kayle.id/docs/api/errors#gone",
+	},
+} as const;
+auth.on(["POST"], "/organization/remove-member", (c) =>
+	c.json(HARD_DELETE_BLOCKED_PAYLOAD, 410),
+);
+auth.on(["POST"], "/organization/leave", (c) =>
+	c.json(HARD_DELETE_BLOCKED_PAYLOAD, 410),
+);
+
 auth.on(["POST", "GET"], "/*", async (c) => {
 	const original = c.req.raw;
 	let url: URL | undefined;

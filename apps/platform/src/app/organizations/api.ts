@@ -21,6 +21,13 @@ export interface OrganizationMember {
 	id: string;
 	organizationId: string;
 	role: OrganizationRole;
+	/**
+	 * ISO 8601 timestamp set when the membership has been suspended. Suspended
+	 * rows are kept for audit-log attribution but the user has no access to
+	 * the organization. `null` means the membership is active.
+	 */
+	suspendedAt: string | null;
+	suspendedBy: string | null;
 	user: {
 		email: string;
 		id: string;
@@ -212,13 +219,39 @@ export async function cancelOrganizationInvitation(
 	unwrap(result, "Failed to cancel invitation");
 }
 
-export async function removeOrganizationMember(input: {
-	memberIdOrEmail: string;
+/**
+ * Suspend a member of the active organization. The membership row is kept
+ * (so audit-log entries continue attributing past actions to the user) but
+ * the user loses all access to the org. Replaces the previous "remove member"
+ * flow — direct hard-delete via better-auth is now blocked at the API edge.
+ */
+export async function suspendOrganizationMember(input: {
+	memberId: string;
 }): Promise<void> {
-	const result = (await client.organization.removeMember(
-		input,
-	)) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to remove member");
+	const response = await fetch(`/api/auth/orgs/members/${input.memberId}`, {
+		credentials: "include",
+		method: "DELETE",
+	});
+	if (!response.ok) {
+		const body = await response.text();
+		throw new Error(body || "Failed to suspend member.");
+	}
+}
+
+export async function reinstateOrganizationMember(input: {
+	memberId: string;
+}): Promise<void> {
+	const response = await fetch(
+		`/api/auth/orgs/members/${input.memberId}/reinstate`,
+		{
+			credentials: "include",
+			method: "POST",
+		},
+	);
+	if (!response.ok) {
+		const body = await response.text();
+		throw new Error(body || "Failed to reinstate member.");
+	}
 }
 
 export async function updateOrganizationMemberRole(input: {
@@ -231,11 +264,26 @@ export async function updateOrganizationMemberRole(input: {
 	unwrap(result, "Failed to update member role");
 }
 
-export async function leaveOrganization(organizationId: string): Promise<void> {
-	const result = (await client.organization.leave({
-		organizationId,
-	})) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to leave organization");
+/**
+ * Leave the active organization. The caller's membership is suspended, not
+ * deleted, so audit-log attribution is preserved. The last active owner
+ * cannot leave.
+ *
+ * The `_organizationId` argument is kept for call-site parity with the
+ * previous better-auth-backed implementation; the server reads the active
+ * organization off the session.
+ */
+export async function leaveOrganization(
+	_organizationId: string,
+): Promise<void> {
+	const response = await fetch("/api/auth/orgs/members/leave", {
+		credentials: "include",
+		method: "POST",
+	});
+	if (!response.ok) {
+		const body = await response.text();
+		throw new Error(body || "Failed to leave organization.");
+	}
 }
 
 export async function requestOrganizationDeletion(
@@ -475,9 +523,11 @@ export const ORGANIZATION_AUDIT_LOGS_QUERY_KEY = [
 
 export interface AuditLogActor {
 	id: string | null;
-	type: "user" | "system";
+	type: "user" | "system" | "api_key";
 	name: string | null;
 	email: string | null;
+	apiKeyId: string | null;
+	apiKeyName: string | null;
 }
 
 export interface AuditLogEntry {
@@ -495,19 +545,44 @@ export interface AuditLogPage {
 	pagination: Pagination;
 }
 
-export async function listAuditLogs(input?: {
+export interface AuditLogsListInput {
+	actorApiKeyId?: string;
+	actorType?: "user" | "system" | "api_key";
+	actorUserId?: string;
+	createdFrom?: string;
+	createdTo?: string;
+	/**
+	 * One or more event names to include. Pass an array to filter on multiple
+	 * event types — the wire format is a comma-separated list. An empty array
+	 * is treated the same as omitting the filter.
+	 */
+	events?: readonly string[];
 	limit?: number;
+	q?: string;
 	startingAfter?: string;
-	event?: string;
-}): Promise<AuditLogPage> {
+}
+
+export async function listAuditLogs(
+	input?: AuditLogsListInput,
+): Promise<AuditLogPage> {
+	const eventParam =
+		input?.events && input.events.length > 0
+			? input.events.join(",")
+			: undefined;
 	const result = await requestApiResourcePage<AuditLogEntry>({
 		basePath: ORG_AUDIT_LOGS_BASE_PATH,
 		method: "GET",
 		path: "/audit-logs",
 		query: {
+			actor_api_key_id: input?.actorApiKeyId,
+			actor_type: input?.actorType,
+			actor_user_id: input?.actorUserId,
+			created_from: input?.createdFrom,
+			created_to: input?.createdTo,
+			event: eventParam,
 			limit: input?.limit,
+			q: input?.q,
 			starting_after: input?.startingAfter,
-			event: input?.event,
 		},
 		unexpectedMessage: "Failed to load audit logs.",
 	});

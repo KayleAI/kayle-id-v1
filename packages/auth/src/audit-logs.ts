@@ -13,6 +13,12 @@ export const AUDIT_LOG_EVENTS = [
   "session.cancelled",
   "session.expired",
   "session.succeeded",
+  // Per-attempt failure inside a session that still has retries left.
+  "session.attempt.failed",
+  // Session-level terminal failure: the retry budget was exhausted without a
+  // successful attempt. `session.failed` is intentionally only emitted at this
+  // point (not on every individual attempt failure) so the read-side surface
+  // matches the user-visible session outcome.
   "session.failed",
   // Organization profile
   "organization.public_details.updated",
@@ -29,8 +35,19 @@ export const AUDIT_LOG_EVENTS = [
   "member.invited",
   "member.invitation.cancelled",
   "member.joined",
+  // `member.removed` is retained for historical rows written before the
+  // suspension flow shipped. New rows use `member.suspended`/`member.left`
+  // (a self-leave is also a suspension) and `member.reinstated`. Membership
+  // rows are never hard-deleted through user-facing flows.
   "member.removed",
+  "member.suspended",
+  "member.left",
+  "member.reinstated",
   "member.role.changed",
+  // Distinct from `member.role.changed` so the UI can surface ownership
+  // transfers separately. Emitted in addition to `member.role.changed` whenever
+  // a member's role is promoted to include `owner`.
+  "organization.ownership.assigned",
   // API keys
   "api_key.created",
   "api_key.updated",
@@ -57,12 +74,28 @@ interface UserAuditLogEntry extends BaseAuditLogEntry {
   actorUserId: string;
 }
 
+/**
+ * A programmatic call authenticated by an API key. The audit row attributes
+ * the action to the key (and via the joined `api_keys.name`, to its label),
+ * not to the catch-all `system` actor — those two were getting conflated and
+ * made it impossible to filter "what did key X do" or distinguish a cron run
+ * from a customer's automation.
+ */
+interface ApiKeyAuditLogEntry extends BaseAuditLogEntry {
+  actorApiKeyId: string;
+  actorType: "api_key";
+  actorUserId?: null;
+}
+
 interface SystemAuditLogEntry extends BaseAuditLogEntry {
   actorType: "system";
   actorUserId?: string | null;
 }
 
-export type AuditLogEntry = UserAuditLogEntry | SystemAuditLogEntry;
+export type AuditLogEntry =
+  | UserAuditLogEntry
+  | ApiKeyAuditLogEntry
+  | SystemAuditLogEntry;
 
 /**
  * Drizzle's transaction type is large and derived; we accept anything with
@@ -89,13 +122,17 @@ export async function recordAuditLog(
   entry: AuditLogEntry,
   executor: AuditLogExecutor = db
 ): Promise<void> {
+  const actorUserId =
+    entry.actorType === "user"
+      ? entry.actorUserId
+      : (entry.actorUserId ?? null);
+  const actorApiKeyId =
+    entry.actorType === "api_key" ? entry.actorApiKeyId : null;
   await executor.insert(audit_logs).values({
     id: generateAuditLogId(),
     organizationId: entry.organizationId,
-    actorUserId:
-      entry.actorType === "user"
-        ? entry.actorUserId
-        : (entry.actorUserId ?? null),
+    actorUserId,
+    actorApiKeyId,
     actorType: entry.actorType,
     event: entry.event,
     targetId: entry.targetId ?? null,

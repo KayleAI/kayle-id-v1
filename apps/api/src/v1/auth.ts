@@ -18,6 +18,7 @@ type AuthVariables = {
 	type: "api" | "session";
 	organizationId?: string;
 	userId?: string;
+	apiKeyId?: string;
 	permissions?: ApiKeyScope[];
 };
 
@@ -65,13 +66,15 @@ const authenticate = createMiddleware<{
 			secret: env.AUTH_SECRET,
 		});
 		const [
-			{ organizationId, enabled, permissions } = {
+			{ id: apiKeyId, organizationId, enabled, permissions } = {
+				id: null,
 				organizationId: null,
 				enabled: false,
 				permissions: [] as string[],
 			},
 		] = await db
 			.select({
+				id: api_keys.id,
 				organizationId: api_keys.organizationId,
 				enabled: api_keys.enabled,
 				permissions: api_keys.permissions,
@@ -80,7 +83,7 @@ const authenticate = createMiddleware<{
 			.where(eq(api_keys.keyHash, keyHash))
 			.limit(1);
 
-		if (!(organizationId && enabled)) {
+		if (!(organizationId && enabled && apiKeyId)) {
 			return unauthorized(c);
 		}
 
@@ -98,6 +101,7 @@ const authenticate = createMiddleware<{
 
 		c.set("type", "api");
 		c.set("organizationId", organizationId);
+		c.set("apiKeyId", apiKeyId);
 		c.set("permissions", scopes);
 
 		return await next();

@@ -109,7 +109,8 @@ async function assertOwner({
     .where(
       and(
         eq(auth_organization_members.organizationId, organizationId),
-        eq(auth_organization_members.userId, userId)
+        eq(auth_organization_members.userId, userId),
+        isNull(auth_organization_members.suspendedAt)
       )
     )
     .limit(1);
@@ -937,7 +938,12 @@ export async function listOrgOwnerEmails(
     })
     .from(auth_organization_members)
     .innerJoin(auth_users, eq(auth_users.id, auth_organization_members.userId))
-    .where(eq(auth_organization_members.organizationId, organizationId));
+    .where(
+      and(
+        eq(auth_organization_members.organizationId, organizationId),
+        isNull(auth_organization_members.suspendedAt)
+      )
+    );
 
   return rows
     .filter((r) => hasOrgRole(r.role, "owner"))

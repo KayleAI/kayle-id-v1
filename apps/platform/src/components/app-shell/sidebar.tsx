@@ -18,12 +18,13 @@ import {
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
+	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@kayleai/ui/sidebar";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
 	ArrowUpRightIcon,
@@ -37,6 +38,7 @@ import {
 	LifeBuoyIcon,
 	LogOutIcon,
 	PlusIcon,
+	ScrollTextIcon,
 	SettingsIcon,
 	ShieldCheckIcon,
 	UserIcon,
@@ -44,6 +46,11 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+	fetchFullOrganization,
+	ORGANIZATION_QUERY_KEY,
+	type OrganizationRole,
+} from "@/app/organizations/api";
 import { SidebarVerificationWarning } from "./sidebar-verification-warning";
 
 const NAV_ITEMS = [
@@ -58,6 +65,20 @@ export function AppSidebar() {
 	const routerState = useRouterState();
 	const queryClient = useQueryClient();
 	const currentPath = routerState.location.pathname;
+
+	// Reuse the cached full-org query that the org pages also fetch — TanStack
+	// Query dedupes — so we can hide org-scoped sidebar items the caller isn't
+	// allowed to use without issuing a second request.
+	const { data: fullOrganization } = useQuery({
+		enabled: Boolean(activeOrganization?.id),
+		queryFn: fetchFullOrganization,
+		queryKey: ORGANIZATION_QUERY_KEY,
+		staleTime: 30_000,
+	});
+	const currentRole = fullOrganization?.members.find(
+		(member) => member.userId === user?.id,
+	)?.role as OrganizationRole | undefined;
+	const canViewAuditLogs = currentRole === "owner" || currentRole === "admin";
 
 	const handleSelectOrganization = async (
 		organizationId: string,
@@ -261,6 +282,30 @@ export function AppSidebar() {
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
+
+				{canViewAuditLogs ? (
+					<SidebarGroup className="pr-0!">
+						<SidebarGroupLabel>My Organization</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										isActive={currentPath.startsWith(
+											"/organizations/audit-logs",
+										)}
+										render={
+											<Link to="/organizations/audit-logs">
+												<ScrollTextIcon />
+												<span>Audit logs</span>
+											</Link>
+										}
+									/>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				) : null}
 			</SidebarContent>
 
 			<SidebarFooter>

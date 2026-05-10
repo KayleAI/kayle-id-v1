@@ -65,7 +65,9 @@ async function getOrgRoleOrThrow(
     .where(
       and(
         eq(auth_organization_members.organizationId, orgId),
-        eq(auth_organization_members.userId, userId)
+        eq(auth_organization_members.userId, userId),
+        // Suspended memberships behave as non-membership for permission checks.
+        isNull(auth_organization_members.suspendedAt)
       )
     )
     .limit(1);
@@ -180,7 +182,13 @@ async function listOwnersAndAdmins(orgId: string): Promise<
     })
     .from(auth_organization_members)
     .innerJoin(auth_users, eq(auth_users.id, auth_organization_members.userId))
-    .where(eq(auth_organization_members.organizationId, orgId));
+    .where(
+      and(
+        eq(auth_organization_members.organizationId, orgId),
+        // Notify only active owners/admins; suspended rows are bookkeeping.
+        isNull(auth_organization_members.suspendedAt)
+      )
+    );
 }
 
 function shouldSendEmail(): boolean {
@@ -384,6 +392,7 @@ export async function confirmOrgDeletion({
                     auth_organizations.id
                   ),
                   eq(auth_organization_members.userId, userId),
+                  isNull(auth_organization_members.suspendedAt),
                   memberHasOwnerRoleSql()
                 )
               )
@@ -530,6 +539,7 @@ export async function cancelOrgDeletion({
                   auth_organizations.id
                 ),
                 eq(auth_organization_members.userId, actingUserId),
+                isNull(auth_organization_members.suspendedAt),
                 memberHasAdminOrOwnerRoleSql()
               )
             )

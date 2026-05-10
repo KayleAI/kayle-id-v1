@@ -19,7 +19,7 @@ import {
 	auth_organization_members,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getRequestLogger } from "@/logging";
 import { updateOrganizationBusinessDetailsRoute } from "./openapi";
 
@@ -89,6 +89,7 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 			and(
 				eq(auth_organization_members.organizationId, organizationId),
 				eq(auth_organization_members.userId, userId),
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1);

@@ -110,6 +110,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 			and(
 				eq(auth_organization_members.organizationId, organizationId),
 				eq(auth_organization_members.userId, userId),
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1);
@@ -172,6 +173,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 										auth_organizations.id,
 									),
 									eq(auth_organization_members.userId, userId),
+									isNull(auth_organization_members.suspendedAt),
 									memberHasOwnerRoleSql(),
 								),
 							),

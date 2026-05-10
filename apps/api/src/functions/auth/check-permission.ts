@@ -1,6 +1,6 @@
 import { db } from "@kayle-id/database/drizzle";
 import { auth_organization_members } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { hasOrgRole, type OrgRole } from "@/auth/permissions";
 
 /**
@@ -21,6 +21,9 @@ export async function checkPermission(
 			and(
 				eq(auth_organization_members.userId, userId),
 				eq(auth_organization_members.organizationId, organizationId),
+				// Suspended memberships are kept for audit-log attribution but
+				// must never grant access — exclude them from permission checks.
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1);

@@ -3,7 +3,7 @@ import {
 	auth_organization_members,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { hasOrgRole } from "@/auth/permissions";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -43,6 +43,9 @@ export async function assertCanManageApiKeys(
 			and(
 				eq(auth_organization_members.organizationId, organizationId),
 				eq(auth_organization_members.userId, userId),
+				// Suspended memberships keep their row for audit attribution
+				// but lose all access — block API-key management here.
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1)

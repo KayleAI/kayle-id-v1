@@ -11,6 +11,7 @@ import { generateSigningSecret } from "./utils";
 const rotateSigningSecretEndpoint = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
+		apiKeyId?: string;
 		organizationId: string;
 		type: "api" | "session";
 		userId?: string;
@@ -22,6 +23,7 @@ rotateSigningSecretEndpoint.openapi(
 	async (c) => {
 		const organizationId = c.get("organizationId");
 		const userId = c.get("userId");
+		const apiKeyId = c.get("apiKeyId");
 		const params = c.req.valid("param");
 
 		const [endpoint] = await db
@@ -64,10 +66,13 @@ rotateSigningSecretEndpoint.openapi(
 			})
 			.where(eq(webhook_endpoints.id, endpoint.id));
 
+		// See list.ts for the actor-type policy across session vs API-key callers.
 		await recordAuditLogSafe({
 			...(userId
 				? { actorType: "user" as const, actorUserId: userId }
-				: { actorType: "system" as const }),
+				: apiKeyId
+					? { actorType: "api_key" as const, actorApiKeyId: apiKeyId }
+					: { actorType: "system" as const }),
 			organizationId,
 			event: "webhook_endpoint.signing_secret.rotated",
 			targetId: endpoint.id,

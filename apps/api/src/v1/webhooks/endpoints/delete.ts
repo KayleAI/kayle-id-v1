@@ -8,6 +8,7 @@ import { deleteWebhookEndpoint } from "@/openapi/v1/webhooks/endpoints/delete";
 const deleteEndpoint = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
+		apiKeyId?: string;
 		organizationId: string;
 		type: "api" | "session";
 		userId?: string;
@@ -17,6 +18,7 @@ const deleteEndpoint = new OpenAPIHono<{
 deleteEndpoint.openapi(deleteWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
 	const userId = c.get("userId");
+	const apiKeyId = c.get("apiKeyId");
 	const params = c.req.valid("param");
 
 	const [deleted] = await db
@@ -46,10 +48,13 @@ deleteEndpoint.openapi(deleteWebhookEndpoint, async (c) => {
 		);
 	}
 
+	// See list.ts for the actor-type policy across session vs API-key callers.
 	await recordAuditLogSafe({
 		...(userId
 			? { actorType: "user" as const, actorUserId: userId }
-			: { actorType: "system" as const }),
+			: apiKeyId
+				? { actorType: "api_key" as const, actorApiKeyId: apiKeyId }
+				: { actorType: "system" as const }),
 		organizationId,
 		event: "webhook_endpoint.deleted",
 		targetId: deleted.id,

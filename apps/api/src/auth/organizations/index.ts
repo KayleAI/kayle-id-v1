@@ -10,6 +10,7 @@ import { confirmDelete } from "./confirm-delete";
 import createOrganizationRoute from "./create";
 import { domains } from "./domains";
 import uploadLogoRoute from "./logo";
+import { members } from "./members";
 import { redirectUris } from "./redirect-uris";
 import { requestDelete } from "./request-delete";
 
@@ -49,5 +50,6 @@ organizations.route("/", businessDetails);
 organizations.route("/", domains);
 organizations.route("/", redirectUris);
 organizations.route("/", auditLogs);
+organizations.route("/", members);
 
 export default organizations;

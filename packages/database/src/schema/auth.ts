@@ -141,12 +141,33 @@ export const auth_organization_members = pgTable(
 			.references(() => auth_users.id, { onDelete: "cascade" }),
 		role: text("role").default("member").notNull(),
 		createdAt: timestamp("created_at").notNull(),
+		/**
+		 * When non-null, the membership has been suspended — the user is
+		 * blocked from accessing the org but the row stays in place so audit
+		 * logs can keep attributing past actions to the user. We never delete
+		 * a membership row through the user-facing remove/leave flows;
+		 * suspended rows replace what would otherwise be a hard delete.
+		 *
+		 * The corresponding `auth_org_members_active_uidx` partial unique
+		 * index keeps `(organization_id, user_id)` unique among active rows
+		 * while allowing a fresh membership to be created later (which would
+		 * normally be a "reinstate" of the existing suspended row, but the
+		 * partial uniqueness prevents accidental duplicates either way).
+		 */
+		suspendedAt: timestamp("suspended_at"),
+		suspendedBy: uuid("suspended_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("auth_organization_members_organizationId_idx").on(
 			table.organizationId,
 		),
 		index("auth_organization_members_userId_idx").on(table.userId),
+		index("auth_organization_members_suspended_at_idx").on(table.suspendedAt),
+		uniqueIndex("auth_org_members_active_uidx")
+			.on(table.organizationId, table.userId)
+			.where(sql`${table.suspendedAt} is null`),
 	],
 );
 

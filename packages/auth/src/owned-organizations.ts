@@ -3,7 +3,7 @@ import {
   auth_organization_members,
   auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq, exists, ne, not, sql } from "drizzle-orm";
+import { and, eq, exists, isNull, ne, not, sql } from "drizzle-orm";
 import { memberHasOwnerRoleSql } from "./organization-role-sql";
 
 export interface SoleOwnedOrganization {
@@ -32,6 +32,7 @@ export async function findSoleOwnedOrganizations(
     .from(auth_organizations)
     .where(
       and(
+        // Active owners only — suspended members do not satisfy ownership.
         exists(
           db
             .select({ presence: sql`1` })
@@ -43,6 +44,7 @@ export async function findSoleOwnedOrganizations(
                   auth_organizations.id
                 ),
                 eq(auth_organization_members.userId, userId),
+                isNull(auth_organization_members.suspendedAt),
                 memberHasOwnerRoleSql()
               )
             )
@@ -59,6 +61,7 @@ export async function findSoleOwnedOrganizations(
                     auth_organizations.id
                   ),
                   ne(auth_organization_members.userId, userId),
+                  isNull(auth_organization_members.suspendedAt),
                   memberHasOwnerRoleSql()
                 )
               )

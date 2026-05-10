@@ -163,6 +163,29 @@ export async function setupSessionAuth({
 	};
 }
 
+/**
+ * Re-issue a session cookie with `organizationId` set as the active org.
+ * Used by tests that sign up an extra "member" user, attach them to an
+ * existing org, and need their session to point at that org.
+ */
+export async function setActiveOrganizationOnSession({
+	organizationId,
+	sessionCookie,
+}: {
+	organizationId: string;
+	sessionCookie: string;
+}): Promise<string> {
+	const response = await auth.api.setActiveOrganization({
+		asResponse: true,
+		body: { organizationId },
+		headers: new Headers({ cookie: sessionCookie }),
+	});
+	if (!response.ok) {
+		throw new Error(`auth_set_active_organization_failed:${response.status}`);
+	}
+	return mergeCookieHeader(sessionCookie, getSetCookieHeader(response));
+}
+
 export async function teardownSessionAuth(
 	testData?: SessionAuthTestData,
 ): Promise<void> {

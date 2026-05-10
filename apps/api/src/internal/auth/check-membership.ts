@@ -5,7 +5,7 @@ import {
 	auth_organization_members,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { hasOrgRole } from "@/auth/permissions";
 import { ErrorResponse } from "@/openapi/base";
 
@@ -125,6 +125,8 @@ checkMembership.openapi(checkSessionMembershipRoute, async (c) => {
 			and(
 				eq(auth_organization_members.organizationId, body.organization_id),
 				eq(auth_organization_members.userId, userId),
+				// Treat suspended memberships as non-members for permission purposes.
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1);

@@ -8,6 +8,7 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 import { auth_organizations, auth_users } from "./auth";
+import { api_keys } from "./core";
 
 /**
  * Audit logs are an org-scoped, append-only record of every state-changing
@@ -47,12 +48,29 @@ export const audit_logs = pgTable(
 		}),
 
 		/**
-		 * The actor type. Either `user` (a signed-in member acted via the
-		 * dashboard or an API call performed under a session) or `system`
-		 * (cron / background work / public verify endpoints with no dashboard
-		 * user in the loop).
+		 * The API key that performed the action, when the actor is a key
+		 * (programmatic call). FK so we can join `api_keys` to surface the
+		 * key's friendly name in the audit-log UI; SET NULL on delete because
+		 * the audit row must outlive the key.
 		 */
-		actorType: text("actor_type", { enum: ["user", "system"] }).notNull(),
+		actorApiKeyId: uuid("actor_api_key_id").references(() => api_keys.id, {
+			onDelete: "set null",
+		}),
+
+		/**
+		 * The actor type:
+		 * - `user`: a signed-in member acted via the dashboard. `actorUserId`
+		 *   is set.
+		 * - `api_key`: a programmatic call authenticated by an API key.
+		 *   `actorApiKeyId` is set; `actorUserId` is null because keys aren't
+		 *   tied to a single user.
+		 * - `system`: cron, background work, or public verify endpoints with
+		 *   neither a dashboard user nor an API key in the loop. Both id
+		 *   columns are null.
+		 */
+		actorType: text("actor_type", {
+			enum: ["user", "system", "api_key"],
+		}).notNull(),
 
 		/**
 		 * Event name in dot-notation (e.g. `organization.business_details.updated`,
@@ -92,8 +110,10 @@ export const audit_logs = pgTable(
 		index("audit_logs_org_event_idx").on(table.organizationId, table.event),
 		// Filter by actor (e.g. "everything @alice did").
 		index("audit_logs_actor_user_idx").on(table.actorUserId),
+		// Filter by API key actor (e.g. "everything done by this key").
+		index("audit_logs_actor_api_key_idx").on(table.actorApiKeyId),
 	],
 );
 
-export const auditLogActorTypes = ["user", "system"] as const;
+export const auditLogActorTypes = ["user", "system", "api_key"] as const;
 export type AuditLogActorType = (typeof auditLogActorTypes)[number];

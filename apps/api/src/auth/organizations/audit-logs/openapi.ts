@@ -1,13 +1,23 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AUDIT_LOG_EVENTS } from "@kayle-id/auth/audit-logs";
 import { ErrorResponse, Pagination } from "@/openapi/base";
 
 const AuditLogActor = z
 	.object({
 		id: z.string().nullable(),
-		type: z.enum(["user", "system"]),
+		type: z.enum(["user", "system", "api_key"]),
 		name: z.string().nullable(),
 		email: z.string().nullable(),
+		/**
+		 * For api_key actors, the underlying key id (so the dashboard can
+		 * link to the API key page). Null for user/system actors.
+		 */
+		apiKeyId: z.string().nullable(),
+		/**
+		 * Friendly name of the API key, joined from `api_keys.name` for
+		 * api_key actors. Null when no key is associated or when the key has
+		 * since been deleted (the audit row outlives the key).
+		 */
+		apiKeyName: z.string().nullable(),
 	})
 	.openapi("AuditLogActor");
 
@@ -34,7 +44,53 @@ export const listAuditLogsRoute = createRoute({
 		query: z.object({
 			limit: z.coerce.number().int().min(1).max(100).optional(),
 			starting_after: z.string().optional(),
-			event: z.enum(AUDIT_LOG_EVENTS).optional(),
+			event: z
+				.string()
+				.optional()
+				.describe(
+					"Single event name or comma-separated list of event names to include. Unknown names are ignored; pass none to include every event type.",
+				),
+			actor_user_id: z
+				.string()
+				.uuid()
+				.optional()
+				.describe("Restrict to entries whose actor is this user."),
+			actor_api_key_id: z
+				.string()
+				.uuid()
+				.optional()
+				.describe(
+					"Restrict to entries whose actor is this API key. Useful when investigating what a single key did.",
+				),
+			actor_type: z
+				.enum(["user", "system", "api_key"])
+				.optional()
+				.describe(
+					"Restrict to entries whose actor type matches. `system` covers cron/background work; `api_key` covers programmatic calls; `user` covers dashboard sessions.",
+				),
+			created_from: z
+				.string()
+				.datetime()
+				.optional()
+				.describe(
+					"Return entries created at or after this ISO 8601 timestamp.",
+				),
+			created_to: z
+				.string()
+				.datetime()
+				.optional()
+				.describe(
+					"Return entries created at or before this ISO 8601 timestamp.",
+				),
+			q: z
+				.string()
+				.trim()
+				.min(1)
+				.max(200)
+				.optional()
+				.describe(
+					"Free-text search across event name, target id, and actor name/email.",
+				),
 		}),
 	},
 	responses: {

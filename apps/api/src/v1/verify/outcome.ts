@@ -90,7 +90,7 @@ export async function markAttemptFailed({
 				{
 					actorType: "system",
 					organizationId: session.organizationId,
-					event: "session.failed",
+					event: "session.attempt.failed",
 					targetId: session.id,
 					targetType: "verification_session",
 					metadata: { failure_code: failureCode, attempt_id: attemptId },
@@ -111,6 +111,26 @@ export async function markAttemptFailed({
 				);
 
 			const exhaustedRetryLimit = failedAttempts.length >= MAX_FAILED_ATTEMPTS;
+
+			if (exhaustedRetryLimit) {
+				// Session-level terminal failure — the retry budget is exhausted and
+				// no attempt succeeded. Emitted in addition to the per-attempt row
+				// above so admins can filter on session-level outcomes alone.
+				await recordAuditLog(
+					{
+						actorType: "system",
+						organizationId: session.organizationId,
+						event: "session.failed",
+						targetId: session.id,
+						targetType: "verification_session",
+						metadata: {
+							failure_code: failureCode,
+							failed_attempts: failedAttempts.length,
+						},
+					},
+					tx,
+				);
+			}
 
 			const [updatedSession] = await tx
 				.update(verification_sessions)

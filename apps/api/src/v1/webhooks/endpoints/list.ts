@@ -17,6 +17,7 @@ import {
 const listAndCreateEndpoints = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
+		apiKeyId?: string;
 		organizationId: string;
 		type: "api" | "session";
 		userId?: string;
@@ -71,6 +72,7 @@ listAndCreateEndpoints.openapi(listWebhookEndpoints, async (c) => {
 listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
 	const userId = c.get("userId");
+	const apiKeyId = c.get("apiKeyId");
 	const body = c.req.valid("json");
 
 	const enabled = body.enabled ?? true;
@@ -100,10 +102,16 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 		})
 		.returning();
 
+	// Webhook endpoints can be managed via a dashboard session or an API key
+	// (`/v1/webhooks/*` accepts both). We attribute the row to the actual
+	// actor — a session caller is `user`, an API-key caller is `api_key`
+	// (NOT `system` — the system actor is reserved for cron/background work).
 	await recordAuditLogSafe({
 		...(userId
 			? { actorType: "user" as const, actorUserId: userId }
-			: { actorType: "system" as const }),
+			: apiKeyId
+				? { actorType: "api_key" as const, actorApiKeyId: apiKeyId }
+				: { actorType: "system" as const }),
 		organizationId,
 		event: "webhook_endpoint.created",
 		targetId: id,

@@ -9,6 +9,7 @@ import { mapEndpointRowToResponse } from "./utils";
 const updateEndpoint = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: {
+		apiKeyId?: string;
 		organizationId: string;
 		type: "api" | "session";
 		userId?: string;
@@ -18,6 +19,7 @@ const updateEndpoint = new OpenAPIHono<{
 updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
 	const userId = c.get("userId");
+	const apiKeyId = c.get("apiKeyId");
 	const params = c.req.valid("param");
 	const body = c.req.valid("json");
 
@@ -92,10 +94,13 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 		.where(eq(webhook_endpoints.id, row.id))
 		.limit(1);
 
+	// See list.ts for the actor-type policy across session vs API-key callers.
 	await recordAuditLogSafe({
 		...(userId
 			? { actorType: "user" as const, actorUserId: userId }
-			: { actorType: "system" as const }),
+			: apiKeyId
+				? { actorType: "api_key" as const, actorApiKeyId: apiKeyId }
+				: { actorType: "system" as const }),
 		organizationId,
 		event: "webhook_endpoint.updated",
 		targetId: row.id,

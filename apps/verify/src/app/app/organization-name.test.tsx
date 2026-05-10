@@ -72,6 +72,7 @@ function createOrganization(
 		name: "Acme Corp",
 		ownerIdCheckCompleted: true,
 		verifiedApexDomains: ["acme.example"],
+		businessType: null,
 		logo: null,
 		businessName: null,
 		businessJurisdiction: null,

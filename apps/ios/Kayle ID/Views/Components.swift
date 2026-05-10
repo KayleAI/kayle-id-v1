@@ -57,18 +57,18 @@ struct ActionButton: View {
   private var foregroundColor: Color {
     switch style {
     case .primary:
-      return .white
+      return Color(.systemBackground)
     case .secondary:
-      return .black.opacity(isDimmed ? 0.45 : 1)
+      return .primary.opacity(isDimmed ? 0.45 : 1)
     }
   }
 
   private var backgroundColor: Color {
     switch style {
     case .primary:
-      return Color.black.opacity(isDimmed ? 0.35 : 1)
+      return .primary.opacity(isDimmed ? 0.35 : 1)
     case .secondary:
-      return .white
+      return Color(.systemBackground)
     }
   }
 
@@ -77,7 +77,7 @@ struct ActionButton: View {
     case .primary:
       return .clear
     case .secondary:
-      return Color.black.opacity(0.2)
+      return .primary.opacity(0.2)
     }
   }
 
@@ -140,7 +140,7 @@ struct StepScreen<Header: View, Content: View, Footer: View>: View {
 
   var body: some View {
     ZStack {
-      Color.white.ignoresSafeArea()
+      Color(.systemBackground).ignoresSafeArea()
 
       switch layout {
       case .centered:
@@ -230,7 +230,7 @@ private struct StepBackButton: View {
         Text("Back")
           .font(.system(.body, weight: .medium))
       }
-      .foregroundStyle(.black)
+      .foregroundStyle(.primary)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
@@ -243,7 +243,7 @@ struct StepHero: View {
   let visual: StepHeroVisual?
   let title: String
   var subtitle: String? = nil
-  var visualColor: Color = .black
+  var visualColor: Color = .primary
 
   var body: some View {
     VStack(spacing: StepScreenMetrics.heroSpacing) {
@@ -253,13 +253,13 @@ struct StepHero: View {
 
       Text(title)
         .font(titleFont)
-        .foregroundStyle(.black)
+        .foregroundStyle(.primary)
         .multilineTextAlignment(.center)
 
       if let subtitle, !subtitle.isEmpty {
         Text(subtitle)
           .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
+          .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
       }
     }
@@ -297,7 +297,7 @@ private struct AppLogoBadgeView: View {
       .clipShape(RoundedRectangle(cornerRadius: 20))
       .overlay {
         RoundedRectangle(cornerRadius: 20)
-          .stroke(Color.black.opacity(0.1), lineWidth: 1)
+          .stroke(.primary.opacity(0.1), lineWidth: 1)
       }
   }
 }
@@ -325,13 +325,13 @@ struct SurfaceRow<Accessory: View>: View {
       VStack(alignment: .leading, spacing: 4) {
         Text(title)
           .font(.headline)
-          .foregroundStyle(.black)
+          .foregroundStyle(.primary)
           .fixedSize(horizontal: false, vertical: true)
 
         if let subtitle, !subtitle.isEmpty {
           Text(subtitle)
             .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.6))
+            .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
       }
@@ -342,7 +342,7 @@ struct SurfaceRow<Accessory: View>: View {
     }
     .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
     .padding(StepScreenMetrics.rowPadding)
-    .background(Color.black.opacity(0.03))
+    .background(Color(.secondarySystemBackground))
     .clipShape(
       RoundedRectangle(
         cornerRadius: StepScreenMetrics.rowCornerRadius,
@@ -389,7 +389,7 @@ struct LoadingStatusRow: View {
   private var tintColor: Color {
     switch tone {
     case .dark:
-      return .black
+      return .primary
     case .light:
       return .white
     }
@@ -398,7 +398,7 @@ struct LoadingStatusRow: View {
   private var textColor: Color {
     switch tone {
     case .dark:
-      return .black.opacity(0.7)
+      return .primary.opacity(0.7)
     case .light:
       return .white
     }
@@ -430,10 +430,10 @@ struct StatusProgressBar: View {
 
       ZStack(alignment: .leading) {
         Capsule()
-          .fill(Color.black.opacity(0.1))
+          .fill(.primary.opacity(0.1))
 
         Capsule()
-          .fill(Color.black)
+          .fill(.primary)
           .frame(width: geometry.size.width * clampedProgress)
       }
     }

@@ -76,7 +76,6 @@ export function useDemoStepProgression({
 
 export function useDemoStepScroll({ openStep }: { openStep: DemoStepId }) {
 	const hasMountedRef = useRef(false);
-	const hasProgressedRef = useRef(false);
 
 	useEffect(() => {
 		if (!hasMountedRef.current) {
@@ -84,11 +83,11 @@ export function useDemoStepScroll({ openStep }: { openStep: DemoStepId }) {
 			return;
 		}
 
-		if (!hasProgressedRef.current && openStep === "step-1") {
+		// Auto-scroll only matters on small viewports where the demo panels don't
+		// all fit on screen. On lg+ screens every panel is visible at once, so
+		// scrolling on step changes just yanks the user away from where they were.
+		if (window.matchMedia("(min-width: 1024px)").matches) {
 			return;
-		}
-		if (openStep === "step-2") {
-			hasProgressedRef.current = true;
 		}
 
 		const panel = document.getElementById(getDemoStepSectionId(openStep));

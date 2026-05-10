@@ -24,7 +24,7 @@ struct ShareDetailsView: View {
     StepScreen(layout: .topAlignedScrollable) {
       Text("Choose what to share")
         .font(.title3).bold()
-        .foregroundStyle(.black)
+        .foregroundStyle(.primary)
     } content: {
       LazyVStack(alignment: .leading, spacing: 20) {
         shareFieldSection(
@@ -189,11 +189,11 @@ struct ShareDetailsView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(title)
             .font(.headline)
-            .foregroundStyle(.black)
+            .foregroundStyle(.primary)
 
           Text(description)
             .font(.subheadline)
-            .foregroundStyle(.black.opacity(0.6))
+            .foregroundStyle(.secondary)
         }
 
         LazyVStack(spacing: 12) {

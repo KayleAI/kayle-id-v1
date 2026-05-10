@@ -71,7 +71,7 @@ export function SessionConsent({
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
-			<div className="w-full max-w-md space-y-8">
+			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
 				{/* Header */}
 				<div>
 					<div className="mb-8">
@@ -84,7 +84,7 @@ export function SessionConsent({
 				</div>
 
 				{/* Body */}
-				<div className="space-y-4">
+				<div className="my-8 flex-1 space-y-4">
 					<ul className="list-disc space-y-2 pl-5 text-base text-muted-foreground">
 						{bullets.map((bullet, index) => (
 							// biome-ignore lint/suspicious/noArrayIndexKey: bullets are a static, ordered, never-reordered list
@@ -111,7 +111,11 @@ export function SessionConsent({
 									className="inline-block h-fit! p-0 text-foreground text-sm!"
 									nativeButton={false}
 									render={
-										<a href="/terms" rel="noopener noreferrer" target="_blank">
+										<a
+											href="https://kayle.id/terms"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
 											Terms of Service
 										</a>
 									}
@@ -125,7 +129,7 @@ export function SessionConsent({
 									nativeButton={false}
 									render={
 										<a
-											href="/privacy"
+											href="https://kayle.id/privacy"
 											rel="noopener noreferrer"
 											target="_blank"
 										>

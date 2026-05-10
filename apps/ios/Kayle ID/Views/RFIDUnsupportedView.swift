@@ -32,7 +32,7 @@ struct RFIDUnsupportedView: View {
 
         Text("If you have another supported \(documentName), you can scan that instead.")
           .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
+          .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
           .padding(.horizontal, 32)
       }

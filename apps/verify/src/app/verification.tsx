@@ -11,7 +11,7 @@ export function VerificationApp() {
 	});
 
 	return (
-		<Layout className="lg:rounded-[1.75rem]! lg:border-neutral-200/80! lg:bg-white/94! lg:shadow-[0_24px_80px_-48px_rgba(15,23,42,0.16)]! lg:backdrop-blur-xl!">
+		<Layout className="lg:rounded-[1.75rem]! lg:border-neutral-200/80! lg:bg-white/94! lg:shadow-[0_24px_80px_-48px_rgba(15,23,42,0.16)]! lg:backdrop-blur-xl! dark:lg:border-neutral-800/80! dark:lg:bg-neutral-900/94! dark:lg:shadow-[0_24px_80px_-48px_rgba(0,0,0,0.6)]!">
 			<SessionProvider sessionId={sessionId}>
 				<SessionApp />
 				<SessionError />

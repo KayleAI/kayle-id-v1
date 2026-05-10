@@ -35,7 +35,7 @@ struct NFCReadingView: View {
 
           Text("\(Int((uploadProgress * 100).rounded()))% uploaded")
             .font(.caption)
-            .foregroundStyle(.black.opacity(0.5))
+            .foregroundStyle(.secondary)
         }
       }
     } footer: {

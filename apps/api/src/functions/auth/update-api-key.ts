@@ -1,3 +1,4 @@
+import { recordAuditLog, recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
@@ -36,6 +37,10 @@ export async function updateApiKey(
 		metadata,
 	};
 
+	const updatedFields = Object.entries(values)
+		.filter(([, value]) => value !== undefined)
+		.map(([key]) => key);
+
 	const updated = actorUserId
 		? await db.transaction(async (tx) => {
 				await assertCanManageApiKeys(tx, {
@@ -54,6 +59,24 @@ export async function updateApiKey(
 					.returning({
 						updatedId: api_keys.id,
 					});
+
+				if (row) {
+					await recordAuditLog(
+						{
+							actorType: "user",
+							actorUserId,
+							organizationId,
+							event: "api_key.updated",
+							targetId: row.updatedId,
+							targetType: "api_key",
+							metadata: {
+								updated_fields: updatedFields,
+								...(enabled !== undefined ? { enabled } : {}),
+							},
+						},
+						tx,
+					);
+				}
 
 				return row;
 			})
@@ -77,6 +100,20 @@ export async function updateApiKey(
 			status: "error",
 			message: "API key not found",
 		};
+	}
+
+	if (!actorUserId) {
+		await recordAuditLogSafe({
+			actorType: "system",
+			organizationId,
+			event: "api_key.updated",
+			targetId: updated.updatedId,
+			targetType: "api_key",
+			metadata: {
+				updated_fields: updatedFields,
+				...(enabled !== undefined ? { enabled } : {}),
+			},
+		});
 	}
 
 	return {

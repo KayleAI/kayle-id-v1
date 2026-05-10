@@ -38,6 +38,7 @@ import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organi
 import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
 import { Route as AppOrganizationsDomainsRouteImport } from './routes/_app/organizations/domains'
 import { Route as AppOrganizationsBusinessRouteImport } from './routes/_app/organizations/business'
+import { Route as AppOrganizationsAuditLogsRouteImport } from './routes/_app/organizations/audit-logs'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
@@ -191,6 +192,12 @@ const AppOrganizationsBusinessRoute =
     path: '/organizations/business',
     getParentRoute: () => AppRoute,
   } as any)
+const AppOrganizationsAuditLogsRoute =
+  AppOrganizationsAuditLogsRouteImport.update({
+    id: '/organizations/audit-logs',
+    path: '/organizations/audit-logs',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   id: '/api-keys/$key',
   path: '/api-keys/$key',
@@ -252,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
   '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
@@ -287,6 +295,7 @@ export interface FileRoutesByTo {
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
   '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
@@ -328,6 +337,7 @@ export interface FileRoutesById {
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/_app/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/_app/organizations/business': typeof AppOrganizationsBusinessRoute
   '/_app/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/_app/organizations/members': typeof AppOrganizationsMembersRoute
@@ -366,6 +376,7 @@ export interface FileRouteTypes {
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
+    | '/organizations/audit-logs'
     | '/organizations/business'
     | '/organizations/domains'
     | '/organizations/members'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
+    | '/organizations/audit-logs'
     | '/organizations/business'
     | '/organizations/domains'
     | '/organizations/members'
@@ -441,6 +453,7 @@ export interface FileRouteTypes {
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
     | '/_app/api-keys/$key'
+    | '/_app/organizations/audit-logs'
     | '/_app/organizations/business'
     | '/_app/organizations/domains'
     | '/_app/organizations/members'
@@ -683,6 +696,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrganizationsBusinessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/organizations/audit-logs': {
+      id: '/_app/organizations/audit-logs'
+      path: '/organizations/audit-logs'
+      fullPath: '/organizations/audit-logs'
+      preLoaderRoute: typeof AppOrganizationsAuditLogsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-keys/$key': {
       id: '/_app/api-keys/$key'
       path: '/api-keys/$key'
@@ -767,6 +787,7 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
+  AppOrganizationsAuditLogsRoute: typeof AppOrganizationsAuditLogsRoute
   AppOrganizationsBusinessRoute: typeof AppOrganizationsBusinessRoute
   AppOrganizationsDomainsRoute: typeof AppOrganizationsDomainsRoute
   AppOrganizationsMembersRoute: typeof AppOrganizationsMembersRoute
@@ -784,6 +805,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
+  AppOrganizationsAuditLogsRoute: AppOrganizationsAuditLogsRoute,
   AppOrganizationsBusinessRoute: AppOrganizationsBusinessRoute,
   AppOrganizationsDomainsRoute: AppOrganizationsDomainsRoute,
   AppOrganizationsMembersRoute: AppOrganizationsMembersRoute,

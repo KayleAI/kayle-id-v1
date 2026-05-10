@@ -25,6 +25,7 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
+import { recordAuditLogSafe } from "./audit-logs";
 import { isSafeAuthCallbackPath } from "./callback-url";
 import { magic } from "./magic";
 import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
@@ -519,6 +520,94 @@ const plugins = [
           throw new Error("Organization is scheduled for deletion.");
         }
         normalizeOrganizationRoleInput(invitation.role);
+      },
+      // After-hooks emit audit-log rows so org admins can review who joined
+      // or left, and how roles changed. We never let an audit write fail the
+      // request itself — `recordAuditLogSafe` swallows insert errors.
+      afterUpdateOrganization: async ({ organization: org, user }) => {
+        if (!org) {
+          return;
+        }
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "organization.public_details.updated",
+          targetId: org.id,
+          targetType: "organization",
+        });
+      },
+      afterAddMember: async ({ member, organization: org, user }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.joined",
+          targetId: member.id,
+          targetType: "member",
+          metadata: { user_id: member.userId, role: member.role },
+        });
+      },
+      afterRemoveMember: async ({ member, organization: org, user }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.removed",
+          targetId: member.id,
+          targetType: "member",
+          metadata: { user_id: member.userId, role: member.role },
+        });
+      },
+      afterUpdateMemberRole: async ({
+        member,
+        previousRole,
+        organization: org,
+        user,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.role.changed",
+          targetId: member.id,
+          targetType: "member",
+          metadata: {
+            user_id: member.userId,
+            previous_role: previousRole,
+            new_role: member.role,
+          },
+        });
+      },
+      afterCreateInvitation: async ({
+        invitation,
+        organization: org,
+        inviter,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: inviter.id,
+          organizationId: org.id,
+          event: "member.invited",
+          targetId: invitation.id,
+          targetType: "invitation",
+          metadata: { email: invitation.email, role: invitation.role },
+        });
+      },
+      afterCancelInvitation: async ({
+        invitation,
+        organization: org,
+        cancelledBy,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: cancelledBy.id,
+          organizationId: org.id,
+          event: "member.invitation.cancelled",
+          targetId: invitation.id,
+          targetType: "invitation",
+          metadata: { email: invitation.email, role: invitation.role },
+        });
       },
     },
   }),

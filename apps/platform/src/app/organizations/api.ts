@@ -4,7 +4,11 @@ import {
 	parseStoredOrganizationMetadata,
 } from "@kayle-id/auth/organization-metadata";
 import type { Organization } from "@kayle-id/auth/types";
-import { requestApiResource } from "@/utils/api-client";
+import {
+	type Pagination,
+	requestApiResource,
+	requestApiResourcePage,
+} from "@/utils/api-client";
 
 const ORG_DELETE_BASE_PATH = "/api/auth/orgs";
 
@@ -461,4 +465,51 @@ export async function removeRedirectUri(input: { id: string }): Promise<void> {
 		const body = await response.text();
 		throw new Error(body || "Failed to remove redirect URI.");
 	}
+}
+
+const ORG_AUDIT_LOGS_BASE_PATH = "/api/auth/orgs";
+export const ORGANIZATION_AUDIT_LOGS_QUERY_KEY = [
+	"organization",
+	"audit-logs",
+] as const;
+
+export interface AuditLogActor {
+	id: string | null;
+	type: "user" | "system";
+	name: string | null;
+	email: string | null;
+}
+
+export interface AuditLogEntry {
+	id: string;
+	event: string;
+	actor: AuditLogActor;
+	targetId: string | null;
+	targetType: string | null;
+	metadata: Record<string, unknown>;
+	createdAt: string;
+}
+
+export interface AuditLogPage {
+	data: AuditLogEntry[];
+	pagination: Pagination;
+}
+
+export async function listAuditLogs(input?: {
+	limit?: number;
+	startingAfter?: string;
+	event?: string;
+}): Promise<AuditLogPage> {
+	const result = await requestApiResourcePage<AuditLogEntry>({
+		basePath: ORG_AUDIT_LOGS_BASE_PATH,
+		method: "GET",
+		path: "/audit-logs",
+		query: {
+			limit: input?.limit,
+			starting_after: input?.startingAfter,
+			event: input?.event,
+		},
+		unexpectedMessage: "Failed to load audit logs.",
+	});
+	return result;
 }

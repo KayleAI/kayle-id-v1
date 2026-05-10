@@ -1,3 +1,4 @@
+import { recordAuditLog, recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
@@ -32,6 +33,20 @@ export async function deleteApiKey(
 						deletedId: api_keys.id,
 					});
 
+				if (row) {
+					await recordAuditLog(
+						{
+							actorType: "user",
+							actorUserId,
+							organizationId,
+							event: "api_key.deleted",
+							targetId: row.deletedId,
+							targetType: "api_key",
+						},
+						tx,
+					);
+				}
+
 				return row;
 			})
 		: (
@@ -53,6 +68,16 @@ export async function deleteApiKey(
 			status: "error",
 			message: "API key not found",
 		};
+	}
+
+	if (!actorUserId) {
+		await recordAuditLogSafe({
+			actorType: "system",
+			organizationId,
+			event: "api_key.deleted",
+			targetId: deleted.deletedId,
+			targetType: "api_key",
+		});
 	}
 
 	return { status: "success", message: "API key deleted successfully" };

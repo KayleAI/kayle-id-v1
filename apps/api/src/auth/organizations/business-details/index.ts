@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import {
 	normalizeOrganizationBusinessJurisdiction,
 	normalizeOrganizationBusinessName,
@@ -210,6 +211,18 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 			},
 			event: "organizations.business_details.updated",
 		});
+
+		if (Object.keys(updates).length > 0) {
+			await recordAuditLogSafe({
+				actorType: "user",
+				actorUserId: userId,
+				organizationId,
+				event: "organization.business_details.updated",
+				targetId: organizationId,
+				targetType: "organization",
+				metadata: { updated_fields: Object.keys(updates) },
+			});
+		}
 
 		return c.json(
 			{

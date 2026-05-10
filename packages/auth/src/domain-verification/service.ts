@@ -9,6 +9,7 @@ import {
   type OrganizationDomainVerificationMethod,
 } from "@kayle-id/database/schema/auth";
 import { and, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
+import { recordAuditLogSafe } from "../audit-logs";
 import { hasOrgRole } from "../permissions";
 import { ApexExtractionError, hostnameToApex } from "./apex";
 import { type DohFetch, lookupTxt } from "./doh";
@@ -783,6 +784,17 @@ async function processDueRow({
         updatedAt: now,
       })
       .where(eq(auth_organization_verified_domains.id, row.id));
+    await recordAuditLogSafe({
+      actorType: "system",
+      organizationId: row.organizationId,
+      event: "domain.downgraded",
+      targetId: row.id,
+      targetType: "verified_domain",
+      metadata: {
+        apex_domain: row.apexDomain,
+        consecutive_failed_checks: nextFailures,
+      },
+    });
     return {
       outcome: { kind: "downgraded" },
       downgraded: {

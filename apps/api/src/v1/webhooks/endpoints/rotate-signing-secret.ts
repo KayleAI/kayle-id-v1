@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { webhook_endpoints } from "@kayle-id/database/schema/webhooks";
@@ -12,6 +13,7 @@ const rotateSigningSecretEndpoint = new OpenAPIHono<{
 	Variables: {
 		organizationId: string;
 		type: "api" | "session";
+		userId?: string;
 	};
 }>();
 
@@ -19,6 +21,7 @@ rotateSigningSecretEndpoint.openapi(
 	rotateWebhookEndpointSigningSecret,
 	async (c) => {
 		const organizationId = c.get("organizationId");
+		const userId = c.get("userId");
 		const params = c.req.valid("param");
 
 		const [endpoint] = await db
@@ -60,6 +63,16 @@ rotateSigningSecretEndpoint.openapi(
 				signingSecretCiphertext,
 			})
 			.where(eq(webhook_endpoints.id, endpoint.id));
+
+		await recordAuditLogSafe({
+			...(userId
+				? { actorType: "user" as const, actorUserId: userId }
+				: { actorType: "system" as const }),
+			organizationId,
+			event: "webhook_endpoint.signing_secret.rotated",
+			targetId: endpoint.id,
+			targetType: "webhook_endpoint",
+		});
 
 		return c.json(
 			{

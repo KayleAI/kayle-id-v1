@@ -1,3 +1,4 @@
+import { recordAuditLog } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
@@ -152,6 +153,21 @@ async function insertVerificationSessionRow(
 		throw new Error("verification_session_create_returned_no_row");
 	}
 
+	await recordAuditLog(
+		{
+			actorType: "system",
+			organizationId: created.organizationId,
+			event: "session.created",
+			targetId: created.id,
+			targetType: "verification_session",
+			metadata: {
+				is_age_only: created.isAgeOnly,
+				share_field_count: Object.keys(input.shareFields).length,
+			},
+		},
+		tx,
+	);
+
 	return { row: created, cancelToken };
 }
 
@@ -283,6 +299,17 @@ export async function cancelVerificationSession({
 			triggerType: "verification_session",
 		});
 
+		await recordAuditLog(
+			{
+				actorType: "system",
+				organizationId: cancelled.organizationId,
+				event: "session.cancelled",
+				targetId: cancelled.id,
+				targetType: "verification_session",
+			},
+			tx,
+		);
+
 		return {
 			contractVersion: cancelled.contractVersion,
 			organizationId: cancelled.organizationId,
@@ -372,6 +399,17 @@ export async function expireVerificationSessionIfNeeded({
 			triggerId: expired.id,
 			triggerType: "verification_session",
 		});
+
+		await recordAuditLog(
+			{
+				actorType: "system",
+				organizationId: expired.organizationId,
+				event: "session.expired",
+				targetId: expired.id,
+				targetType: "verification_session",
+			},
+			tx,
+		);
 
 		return {
 			session: expired,

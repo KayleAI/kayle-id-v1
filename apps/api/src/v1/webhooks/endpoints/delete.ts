@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import { webhook_endpoints } from "@kayle-id/database/schema/webhooks";
 import { and, eq } from "drizzle-orm";
@@ -9,11 +10,13 @@ const deleteEndpoint = new OpenAPIHono<{
 	Variables: {
 		organizationId: string;
 		type: "api" | "session";
+		userId?: string;
 	};
 }>();
 
 deleteEndpoint.openapi(deleteWebhookEndpoint, async (c) => {
 	const organizationId = c.get("organizationId");
+	const userId = c.get("userId");
 	const params = c.req.valid("param");
 
 	const [deleted] = await db
@@ -42,6 +45,16 @@ deleteEndpoint.openapi(deleteWebhookEndpoint, async (c) => {
 			404,
 		);
 	}
+
+	await recordAuditLogSafe({
+		...(userId
+			? { actorType: "user" as const, actorUserId: userId }
+			: { actorType: "system" as const }),
+		organizationId,
+		event: "webhook_endpoint.deleted",
+		targetId: deleted.id,
+		targetType: "webhook_endpoint",
+	});
 
 	return c.json(
 		{

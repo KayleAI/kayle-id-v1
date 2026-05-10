@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import {
 	ApexExtractionError,
 	hostnameToApex,
@@ -206,6 +207,19 @@ redirectUris.openapi(addRedirectUriRoute, async (c) => {
 			},
 			event: "organizations.redirect_uri.added",
 		});
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: actor.actor.userId,
+			organizationId: actor.actor.organizationId,
+			event: "redirect_uri.added",
+			targetId: result.id,
+			targetType: "redirect_uri",
+			metadata: {
+				pattern,
+				apex_domain: apex,
+				verified_domain_id: result.verifiedDomainId,
+			},
+		});
 		return c.json(
 			{
 				data: {
@@ -270,6 +284,14 @@ redirectUris.openapi(removeRedirectUriRoute, async (c) => {
 				redirect_uri_id: id,
 			},
 			event: "organizations.redirect_uri.removed",
+		});
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: actor.actor.userId,
+			organizationId: actor.actor.organizationId,
+			event: "redirect_uri.removed",
+			targetId: id,
+			targetType: "redirect_uri",
 		});
 		return c.body(null, 204);
 	} catch (error) {

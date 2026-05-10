@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { env } from "@kayle-id/config/env";
 import { logSafeError } from "@kayle-id/config/logging";
 import {
@@ -46,6 +47,15 @@ uploadLogoRoute.openapi(internalUploadOrganizationLogo, async (c) => {
 		const logoUrl = await uploadOrganizationLogo({
 			logo,
 			storage: env.STORAGE,
+		});
+
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: userId,
+			organizationId,
+			event: "organization.logo.updated",
+			targetId: organizationId,
+			targetType: "organization",
 		});
 
 		return c.json(

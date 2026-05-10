@@ -1,3 +1,4 @@
+import { recordAuditLog } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
@@ -84,6 +85,18 @@ export async function markAttemptFailed({
 				triggerId: attemptId,
 				triggerType: "verification_attempt",
 			});
+
+			await recordAuditLog(
+				{
+					actorType: "system",
+					organizationId: session.organizationId,
+					event: "session.failed",
+					targetId: session.id,
+					targetType: "verification_session",
+					metadata: { failure_code: failureCode, attempt_id: attemptId },
+				},
+				tx,
+			);
 
 			const failedAttempts = await tx
 				.select({
@@ -263,6 +276,18 @@ export async function markAttemptSucceeded({
 			triggerId: session.id,
 			triggerType: "verification_session",
 		});
+
+		await recordAuditLog(
+			{
+				actorType: "system",
+				organizationId: session.organizationId,
+				event: "session.succeeded",
+				targetId: session.id,
+				targetType: "verification_session",
+				metadata: { attempt_id: attemptId },
+			},
+			tx,
+		);
 
 		return {
 			attemptSucceededEventId,

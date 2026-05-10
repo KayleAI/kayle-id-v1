@@ -82,6 +82,14 @@ type VerifySessionDetailsResponse = {
 	data: {
 		organization_name: string;
 		organization_verified: boolean;
+		organization_logo: string | null;
+		organization_business_name: string | null;
+		organization_business_jurisdiction: string | null;
+		organization_business_registration_number: string | null;
+		organization_privacy_policy_url: string | null;
+		organization_terms_of_service_url: string | null;
+		organization_website: string | null;
+		organization_description: string | null;
 		session_id: string;
 		is_age_only: boolean;
 		age_threshold: number | null;
@@ -444,6 +452,14 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(payload.data).toEqual({
 				organization_name: "Test Organization",
 				organization_verified: true,
+				organization_logo: null,
+				organization_business_name: null,
+				organization_business_jurisdiction: null,
+				organization_business_registration_number: null,
+				organization_privacy_policy_url: null,
+				organization_terms_of_service_url: null,
+				organization_website: null,
+				organization_description: null,
 				session_id: sessionId,
 				is_age_only: false,
 				age_threshold: null,

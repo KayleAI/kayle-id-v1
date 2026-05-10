@@ -25,7 +25,11 @@ import {
 	uploadOrganizationLogo,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
-import { parsePublicWebsiteUrl } from "./website-url";
+import {
+	parsePublicPrivacyPolicyUrl,
+	parsePublicTermsOfServiceUrl,
+	parsePublicWebsiteUrl,
+} from "./website-url";
 
 const MAX_LOGO_BYTES = 1024 * 1024;
 
@@ -64,6 +68,12 @@ function PublicDetailsForm({
 		organization.metadata?.description ?? "",
 	);
 	const [website, setWebsite] = useState(organization.metadata?.website ?? "");
+	const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState(
+		organization.metadata?.privacyPolicyUrl ?? "",
+	);
+	const [termsOfServiceUrl, setTermsOfServiceUrl] = useState(
+		organization.metadata?.termsOfServiceUrl ?? "",
+	);
 	const [logoPreview, setLogoPreview] = useState<string | null>(
 		organization.logo ?? null,
 	);
@@ -76,6 +86,8 @@ function PublicDetailsForm({
 		setName(organization.name);
 		setDescription(organization.metadata?.description ?? "");
 		setWebsite(organization.metadata?.website ?? "");
+		setPrivacyPolicyUrl(organization.metadata?.privacyPolicyUrl ?? "");
+		setTermsOfServiceUrl(organization.metadata?.termsOfServiceUrl ?? "");
 		setLogoPreview(organization.logo ?? null);
 		setPendingLogo(undefined);
 		setErrorMessage("");
@@ -84,6 +96,8 @@ function PublicDetailsForm({
 		organization.logo,
 		organization.metadata?.description,
 		organization.metadata?.website,
+		organization.metadata?.privacyPolicyUrl,
+		organization.metadata?.termsOfServiceUrl,
 	]);
 
 	const saveMutation = useMutation({
@@ -91,7 +105,15 @@ function PublicDetailsForm({
 			const trimmedName = name.trim();
 			const trimmedWebsite = website.trim();
 			const trimmedDescription = description.trim();
+			const trimmedPrivacyPolicyUrl = privacyPolicyUrl.trim();
+			const trimmedTermsOfServiceUrl = termsOfServiceUrl.trim();
 			const parsedWebsite = parsePublicWebsiteUrl(trimmedWebsite);
+			const parsedPrivacyPolicyUrl = parsePublicPrivacyPolicyUrl(
+				trimmedPrivacyPolicyUrl,
+			);
+			const parsedTermsOfServiceUrl = parsePublicTermsOfServiceUrl(
+				trimmedTermsOfServiceUrl,
+			);
 
 			let logoPayload: string | undefined;
 			if (pendingLogo === null) {
@@ -111,6 +133,8 @@ function PublicDetailsForm({
 				metadata: {
 					description: trimmedDescription ? trimmedDescription : null,
 					website: parsedWebsite?.href ?? null,
+					privacyPolicyUrl: parsedPrivacyPolicyUrl?.href ?? null,
+					termsOfServiceUrl: parsedTermsOfServiceUrl?.href ?? null,
 				},
 				...(logoPayload === undefined ? {} : { logo: logoPayload }),
 			});
@@ -173,10 +197,16 @@ function PublicDetailsForm({
 	const trimmedName = name.trim();
 	const trimmedWebsite = website.trim();
 	const trimmedDescription = description.trim();
+	const trimmedPrivacyPolicyUrl = privacyPolicyUrl.trim();
+	const trimmedTermsOfServiceUrl = termsOfServiceUrl.trim();
 	const isDirty =
 		trimmedName !== organization.name ||
 		trimmedDescription !== (organization.metadata?.description ?? "") ||
 		trimmedWebsite !== (organization.metadata?.website ?? "") ||
+		trimmedPrivacyPolicyUrl !==
+			(organization.metadata?.privacyPolicyUrl ?? "") ||
+		trimmedTermsOfServiceUrl !==
+			(organization.metadata?.termsOfServiceUrl ?? "") ||
 		pendingLogo !== undefined;
 
 	const isSaving = saveMutation.isPending;
@@ -193,6 +223,24 @@ function PublicDetailsForm({
 		if (trimmedWebsite && !parsePublicWebsiteUrl(trimmedWebsite)) {
 			setErrorMessage(
 				"Website must be a valid http:// or https:// URL without embedded credentials.",
+			);
+			return;
+		}
+		if (
+			trimmedPrivacyPolicyUrl &&
+			!parsePublicPrivacyPolicyUrl(trimmedPrivacyPolicyUrl)
+		) {
+			setErrorMessage(
+				"Privacy policy link must be a valid http:// or https:// URL without embedded credentials.",
+			);
+			return;
+		}
+		if (
+			trimmedTermsOfServiceUrl &&
+			!parsePublicTermsOfServiceUrl(trimmedTermsOfServiceUrl)
+		) {
+			setErrorMessage(
+				"Terms of service link must be a valid http:// or https:// URL without embedded credentials.",
 			);
 			return;
 		}
@@ -327,6 +375,48 @@ function PublicDetailsForm({
 							Shown to users when they're asked to verify with your
 							organization.
 						</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Legal links</CardTitle>
+					<CardDescription>
+						Linked from the relying-party dialog so users can review your
+						privacy policy and terms of service before sharing their identity.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="space-y-2">
+						<Label htmlFor="public-privacy-policy">Privacy policy URL</Label>
+						<Input
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="public-privacy-policy"
+							inputMode="url"
+							name="privacyPolicyUrl"
+							onChange={(event) => setPrivacyPolicyUrl(event.target.value)}
+							placeholder="https://acme.example/privacy"
+							type="url"
+							value={privacyPolicyUrl}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="public-terms-of-service">
+							Terms of service URL
+						</Label>
+						<Input
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="public-terms-of-service"
+							inputMode="url"
+							name="termsOfServiceUrl"
+							onChange={(event) => setTermsOfServiceUrl(event.target.value)}
+							placeholder="https://acme.example/terms"
+							type="url"
+							value={termsOfServiceUrl}
+						/>
 					</div>
 				</CardContent>
 			</Card>

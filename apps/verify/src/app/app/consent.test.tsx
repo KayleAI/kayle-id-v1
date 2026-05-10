@@ -64,7 +64,46 @@ vi.mock("@kayleai/ui/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
+vi.mock("@kayleai/ui/dialog", () => ({
+	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	DialogTrigger: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+	}) => (
+		<button className={className} type="button">
+			{children}
+		</button>
+	),
+	DialogContent: () => null,
+	DialogHeader: () => null,
+	DialogTitle: () => null,
+	DialogDescription: () => null,
+	DialogFooter: () => null,
+}));
+
 import { SessionConsent } from "./consent";
+import type { Organization } from "./organization-name";
+
+function createOrganization(
+	overrides: Partial<Organization> = {},
+): Organization {
+	return {
+		name: "Test Organization",
+		verified: true,
+		logo: null,
+		businessName: null,
+		businessJurisdiction: null,
+		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
+		...overrides,
+	};
+}
 
 beforeEach(() => {
 	useVerificationStore.setState({ step: "consent" });
@@ -77,7 +116,7 @@ afterEach(() => {
 
 describe("SessionConsent", () => {
 	test("advances the browser flow into the handoff step after consent", () => {
-		render(<SessionConsent />);
+		render(<SessionConsent organization={createOrganization()} />);
 
 		fireEvent.click(screen.getByRole("checkbox"));
 		fireEvent.click(screen.getByRole("button", { name: "Start verification" }));
@@ -86,14 +125,14 @@ describe("SessionConsent", () => {
 	});
 
 	test("renders the organization name in the consent copy", () => {
-		render(<SessionConsent organizationName="Test Organization" />);
+		render(<SessionConsent organization={createOrganization()} />);
 
 		expect(screen.getByText("Test Organization")).not.toBeNull();
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
 
 	test("renders the default heading and start label for identity sessions", () => {
-		render(<SessionConsent organizationName="Test Organization" />);
+		render(<SessionConsent organization={createOrganization()} />);
 
 		expect(
 			screen.getByRole("heading", { name: "Your consent is required" }),
@@ -108,7 +147,7 @@ describe("SessionConsent", () => {
 			<SessionConsent
 				ageThreshold={18}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 
@@ -127,7 +166,7 @@ describe("SessionConsent", () => {
 			<SessionConsent
 				ageThreshold={null}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 

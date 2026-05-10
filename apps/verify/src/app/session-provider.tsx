@@ -17,6 +17,7 @@ import {
 import { buildCancelledSessionStatus } from "@/utils/cancel";
 import { useDevice } from "@/utils/use-device";
 import { useVerificationStore } from "../stores/session";
+import type { Organization } from "./app/organization-name";
 import {
 	bootstrapSupportedSession,
 	closeSessionStub,
@@ -27,8 +28,7 @@ import {
 
 type SessionContextType = {
 	isSessionDetailsReady: boolean;
-	organizationName: string | null;
-	organizationVerified: boolean;
+	organization: Organization;
 	isAgeOnly: boolean;
 	ageThreshold: number | null;
 	sessionStatus: VerifySessionStatusPayload | null;
@@ -36,6 +36,19 @@ type SessionContextType = {
 	error: SessionError | null;
 	onError: (callback: (sessionError: SessionError) => void) => () => void;
 	markSessionCancelled: () => void;
+};
+
+const EMPTY_ORGANIZATION: Organization = {
+	name: null,
+	verified: false,
+	logo: null,
+	businessName: null,
+	businessJurisdiction: null,
+	businessRegistrationNumber: null,
+	privacyPolicyUrl: null,
+	termsOfServiceUrl: null,
+	website: null,
+	description: null,
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -48,8 +61,8 @@ type SessionProviderProps = {
 export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	const { supported: deviceSupported } = useDevice();
 	const [isSessionDetailsReady, setIsSessionDetailsReady] = useState(false);
-	const [organizationName, setOrganizationName] = useState<string | null>(null);
-	const [organizationVerified, setOrganizationVerified] = useState(false);
+	const [organization, setOrganization] =
+		useState<Organization>(EMPTY_ORGANIZATION);
 	const [isAgeOnly, setIsAgeOnly] = useState(false);
 	const [ageThreshold, setAgeThreshold] = useState<number | null>(null);
 	const [sessionStatus, setSessionStatus] =
@@ -103,8 +116,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		let isStale = false;
 
 		setIsSessionDetailsReady(false);
-		setOrganizationName(null);
-		setOrganizationVerified(false);
+		setOrganization(EMPTY_ORGANIZATION);
 		setIsAgeOnly(false);
 		setAgeThreshold(null);
 		setSessionStatus(null);
@@ -118,8 +130,19 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 					return;
 				}
 
-				setOrganizationName(details.organization_name);
-				setOrganizationVerified(details.organization_verified);
+				setOrganization({
+					name: details.organization_name,
+					verified: details.organization_verified,
+					logo: details.organization_logo,
+					businessName: details.organization_business_name,
+					businessJurisdiction: details.organization_business_jurisdiction,
+					businessRegistrationNumber:
+						details.organization_business_registration_number,
+					privacyPolicyUrl: details.organization_privacy_policy_url,
+					termsOfServiceUrl: details.organization_terms_of_service_url,
+					website: details.organization_website,
+					description: details.organization_description,
+				});
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);
 				setSessionStatus(nextSessionStatus);
@@ -182,8 +205,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	const value: SessionContextType = useMemo(
 		() => ({
 			isSessionDetailsReady,
-			organizationName,
-			organizationVerified,
+			organization,
 			isAgeOnly,
 			ageThreshold,
 			sessionStatus,
@@ -194,8 +216,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		}),
 		[
 			isSessionDetailsReady,
-			organizationName,
-			organizationVerified,
+			organization,
 			isAgeOnly,
 			ageThreshold,
 			sessionStatus,

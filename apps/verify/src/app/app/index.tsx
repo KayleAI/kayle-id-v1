@@ -15,7 +15,7 @@ export function SessionApp() {
 		error,
 		isAgeOnly,
 		isSessionDetailsReady,
-		organizationName,
+		organization,
 		session,
 	} = useSession();
 	const step = useVerificationStore((state) => state.step);
@@ -34,13 +34,13 @@ export function SessionApp() {
 
 	switch (step) {
 		case "unverified_org_warning":
-			return <UnverifiedOrgWarning organizationName={organizationName} />;
+			return <UnverifiedOrgWarning organization={organization} />;
 		case "explain":
 			return (
 				<SessionExplain
 					ageThreshold={ageThreshold}
 					isAgeOnly={isAgeOnly}
-					organizationName={organizationName}
+					organization={organization}
 				/>
 			);
 		case "consent":
@@ -48,7 +48,7 @@ export function SessionApp() {
 				<SessionConsent
 					ageThreshold={ageThreshold}
 					isAgeOnly={isAgeOnly}
-					organizationName={organizationName}
+					organization={organization}
 				/>
 			);
 		case "handoff":

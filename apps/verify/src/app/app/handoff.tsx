@@ -89,7 +89,6 @@ export function Handoff() {
 	const [handoffPayload, setHandoffPayload] = useState<HandoffPayload | null>(
 		null,
 	);
-	const [handoffLoading, setHandoffLoading] = useState(false);
 	const [handoffError, setHandoffError] = useState<string | null>(null);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(prefetchedSessionStatus);
@@ -146,7 +145,6 @@ export function Handoff() {
 			if (!shouldShowHandoff(nextStatus)) {
 				setHandoffPayload(null);
 				setHandoffError(null);
-				setHandoffLoading(false);
 			}
 
 			return nextStatus;
@@ -157,7 +155,6 @@ export function Handoff() {
 	}, [sessionId]);
 
 	const fetchHandoffPayload = useCallback(async () => {
-		setHandoffLoading(true);
 		setHandoffError(null);
 		setHandoffPayload(null);
 
@@ -176,8 +173,6 @@ export function Handoff() {
 
 			setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
 			return null;
-		} finally {
-			setHandoffLoading(false);
 		}
 	}, [pollSessionStatus, sessionId]);
 
@@ -243,7 +238,6 @@ export function Handoff() {
 			setIsCancelDialogOpen(false);
 			setHandoffPayload(null);
 			setHandoffError(null);
-			setHandoffLoading(false);
 			setStatusLoading(false);
 			setSessionStatus(
 				buildCancelledSessionStatus({
@@ -422,7 +416,6 @@ export function Handoff() {
 		stateContent = (
 			<HandoffState
 				handoffError={handoffError}
-				handoffLoading={handoffLoading || statusLoading}
 				handoffUrl={handoffUrl}
 				onRetry={loadHandoffState}
 				os={os}

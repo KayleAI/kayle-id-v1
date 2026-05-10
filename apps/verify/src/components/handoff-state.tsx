@@ -6,7 +6,6 @@ import { QRCodeSVG } from "qrcode.react";
 
 type HandoffStateProps = {
 	handoffError: string | null;
-	handoffLoading: boolean;
 	handoffUrl: string | null;
 	onRetry: () => void | Promise<void>;
 	os: string | null;
@@ -14,20 +13,10 @@ type HandoffStateProps = {
 
 export function HandoffState({
 	handoffError,
-	handoffLoading,
 	handoffUrl,
 	onRetry,
 	os,
 }: HandoffStateProps) {
-	if (handoffLoading) {
-		return (
-			<div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
-				<Spinner className="size-5" />
-				<p>{VERIFY_HANDOFF_COPY.handoff.loadingDescription}</p>
-			</div>
-		);
-	}
-
 	if (handoffError) {
 		return (
 			<div className="space-y-4 pt-2 text-sm">
@@ -42,18 +31,9 @@ export function HandoffState({
 		);
 	}
 
-	if (!handoffUrl) {
-		return (
-			<div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
-				<Spinner className="size-5" />
-				<p>{VERIFY_HANDOFF_COPY.handoff.waitingDescription}</p>
-			</div>
-		);
-	}
-
 	return (
 		<div className="space-y-4 pt-2">
-			{os === "ios" ? (
+			{os === "ios" && handoffUrl ? (
 				<Button
 					className="w-full"
 					nativeButton={false}
@@ -68,14 +48,20 @@ export function HandoffState({
 			) : null}
 			<div className="flex justify-center">
 				<div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5 dark:ring-white/10">
-					<QRCodeSVG
-						bgColor="white"
-						className="text-slate-950"
-						fgColor="currentColor"
-						level="M"
-						size={216}
-						value={handoffUrl}
-					/>
+					{handoffUrl ? (
+						<QRCodeSVG
+							bgColor="white"
+							className="text-slate-950"
+							fgColor="currentColor"
+							level="M"
+							size={216}
+							value={handoffUrl}
+						/>
+					) : (
+						<div className="flex size-[216px] items-center justify-center text-slate-600">
+							<Spinner className="size-6" />
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

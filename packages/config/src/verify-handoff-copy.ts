@@ -16,10 +16,8 @@ export const VERIFY_HANDOFF_COPY = {
 
   handoff: {
     cancelError: "Unable to cancel.",
-    loadingDescription: "Preparing a secure connection for your phone.",
     loadStatusError: "Unable to load status.",
     refreshError: "Unable to generate QR code.",
-    waitingDescription: "Waiting for connection details.",
   },
 
   screens: {

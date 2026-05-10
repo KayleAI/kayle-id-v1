@@ -36,25 +36,30 @@ interface InfoCardProps {
 
 const ICONS = {
   red: <OctagonAlert className="size-5 text-red-400" />,
-  blue: <OctagonInfo className="size-5 text-blue-800" />,
-  emerald: <OctagonCheck className="size-5 text-emerald-800" />,
+  blue: <OctagonInfo className="size-5 text-blue-800 dark:text-blue-300" />,
+  emerald: (
+    <OctagonCheck className="size-5 text-emerald-800 dark:text-emerald-300" />
+  ),
 };
 
 const COLOUR_CLASSES = {
   red: {
-    container: "bg-red-50 border border-red-200",
-    title: "text-red-800",
-    description: "text-red-700",
+    container:
+      "bg-red-50 border border-red-200 dark:bg-red-950/40 dark:border-red-900",
+    title: "text-red-800 dark:text-red-200",
+    description: "text-red-700 dark:text-red-300",
   },
   blue: {
-    container: "bg-blue-50 border border-blue-200",
-    title: "text-blue-800",
-    description: "text-blue-700",
+    container:
+      "bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-900",
+    title: "text-blue-800 dark:text-blue-200",
+    description: "text-blue-700 dark:text-blue-300",
   },
   emerald: {
-    container: "bg-emerald-50 border border-emerald-200",
-    title: "text-emerald-800",
-    description: "text-emerald-700",
+    container:
+      "bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900",
+    title: "text-emerald-800 dark:text-emerald-200",
+    description: "text-emerald-700 dark:text-emerald-300",
   },
 };
 

@@ -50,16 +50,16 @@ export function UnverifiedOrgWarning({
 					</p>
 				</div>
 
-				<div className="rounded-lg border border-red-200 bg-red-50 p-4">
+				<div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
 					<div className="flex items-start">
 						<div className="mt-0.5 shrink-0">
 							<OctagonWarning className="size-5 text-red-400" />
 						</div>
 						<div className="ml-3">
-							<h3 className="font-medium text-red-800 text-sm">
+							<h3 className="font-medium text-red-800 text-sm dark:text-red-200">
 								What this means
 							</h3>
-							<ul className="mt-2 list-disc space-y-1 pl-4 text-red-700 text-sm">
+							<ul className="mt-2 list-disc space-y-1 pl-4 text-red-700 text-sm dark:text-red-300">
 								<li>
 									Kayle ID has not independently verified the people running
 									this organization.

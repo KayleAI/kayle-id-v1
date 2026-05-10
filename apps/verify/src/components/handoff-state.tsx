@@ -31,7 +31,7 @@ export function HandoffState({
 	if (handoffError) {
 		return (
 			<div className="space-y-4 pt-2 text-sm">
-				<div className="flex items-center gap-3 text-red-700">
+				<div className="flex items-center gap-3 text-red-700 dark:text-red-400">
 					<OctagonWarning className="size-5 shrink-0" />
 					<p>{handoffError}</p>
 				</div>
@@ -67,7 +67,7 @@ export function HandoffState({
 				</Button>
 			) : null}
 			<div className="flex justify-center">
-				<div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5">
+				<div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5 dark:ring-white/10">
 					<QRCodeSVG
 						bgColor="white"
 						className="text-slate-950"

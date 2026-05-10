@@ -7,7 +7,6 @@ struct Main: App {
   var body: some Scene {
     WindowGroup {
       ContentView(pendingQRCode: $pendingQRCode)
-        .preferredColorScheme(.light)
         .onOpenURL { url in
           // Handle kayle-id:// URL scheme
           handleIncomingURL(url)

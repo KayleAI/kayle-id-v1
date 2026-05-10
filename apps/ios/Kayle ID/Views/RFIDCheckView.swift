@@ -24,7 +24,7 @@ struct RFIDCheckView: View {
 
         Text("Look for this symbol on \(rfidSymbolLocationDescription).")
           .font(.subheadline)
-          .foregroundStyle(.black.opacity(0.6))
+          .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
           .padding(.horizontal, 32)
       }

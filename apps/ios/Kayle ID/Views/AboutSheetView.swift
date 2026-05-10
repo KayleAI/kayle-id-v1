@@ -62,7 +62,7 @@ struct AboutSheetView: View {
         ToolbarItem(placement: .principal) {
           Text("About")
             .font(.system(.body, weight: .semibold))
-            .foregroundStyle(.black)
+            .foregroundStyle(.primary)
         }
 
         ToolbarItem(placement: .topBarTrailing) {
@@ -70,7 +70,7 @@ struct AboutSheetView: View {
             dismiss()
           }
           .font(.system(.body, weight: .medium))
-          .foregroundStyle(.black)
+          .foregroundStyle(.primary)
         }
       }
     }
@@ -100,7 +100,7 @@ private struct AboutLinkRow: View {
     SurfaceRow(title: title, subtitle: subtitle) {
       Image(systemName: destination == nil ? "exclamationmark.circle" : "arrow.up.right")
         .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.black.opacity(0.5))
+        .foregroundStyle(.secondary)
     }
   }
 }

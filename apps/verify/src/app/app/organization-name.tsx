@@ -203,19 +203,19 @@ function OrganizationIdentityCard({
 function VerifiedDomainBadge({ apexDomains }: { apexDomains: string[] }) {
 	const isPlural = apexDomains.length > 1;
 	return (
-		<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+		<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
 			<OctagonCheck
 				aria-hidden="true"
-				className="mt-0.5 size-5 shrink-0 text-emerald-700"
+				className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-400"
 			/>
 			<div className="min-w-0 flex-1">
-				<p className="font-medium text-emerald-800 text-sm">
+				<p className="font-medium text-emerald-800 text-sm dark:text-emerald-200">
 					{isPlural ? "Verified domains" : "Verified domain"}
 				</p>
-				<p className="mt-1 break-all font-mono text-emerald-700 text-sm">
+				<p className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
 					{apexDomains.join(", ")}
 				</p>
-				<p className="mt-1 text-emerald-700 text-xs">
+				<p className="mt-1 text-emerald-700 text-xs dark:text-emerald-300">
 					{isPlural
 						? "Kayle ID confirmed control of these domains. The website and policy links shown here all point to them."
 						: "Kayle ID confirmed control of this domain. The website and policy links shown here all point to it."}
@@ -370,16 +370,16 @@ function VerificationStatusCallout({
 }) {
 	if (verified) {
 		return (
-			<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+			<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
 				<OctagonCheck
 					aria-hidden="true"
-					className="mt-0.5 size-5 shrink-0 text-emerald-700"
+					className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-400"
 				/>
 				<div className="min-w-0 flex-1">
-					<p className="font-medium text-emerald-800 text-sm">
+					<p className="font-medium text-emerald-800 text-sm dark:text-emerald-200">
 						Owner ID check completed
 					</p>
-					<p className="mt-1 text-emerald-700 text-sm">
+					<p className="mt-1 text-emerald-700 text-sm dark:text-emerald-300">
 						The people running this organization have completed Kayle ID's owner
 						identity check.
 					</p>
@@ -393,16 +393,16 @@ function VerificationStatusCallout({
 	// Soften the warning to amber to match that risk level.
 	if (isAgeOnly) {
 		return (
-			<div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+			<div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
 				<OctagonWarning
 					aria-hidden="true"
 					className="mt-0.5 size-5 shrink-0 text-amber-500"
 				/>
 				<div className="min-w-0 flex-1">
-					<p className="font-medium text-amber-800 text-sm">
+					<p className="font-medium text-amber-800 text-sm dark:text-amber-200">
 						Owner ID check not completed
 					</p>
-					<p className="mt-1 text-amber-700 text-sm text-pretty">
+					<p className="mt-1 text-amber-700 text-sm text-pretty dark:text-amber-300">
 						Kayle ID has not independently verified the people running this
 						organization. Only continue if you trust this request.
 					</p>
@@ -412,16 +412,16 @@ function VerificationStatusCallout({
 	}
 
 	return (
-		<div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
+		<div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50/60 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
 			<OctagonWarning
 				aria-hidden="true"
 				className="mt-0.5 size-5 shrink-0 text-red-500"
 			/>
 			<div className="min-w-0 flex-1">
-				<p className="font-medium text-red-800 text-sm">
+				<p className="font-medium text-red-800 text-sm dark:text-red-200">
 					Owner ID check not completed
 				</p>
-				<p className="mt-1 text-red-700 text-sm text-pretty">
+				<p className="mt-1 text-red-700 text-sm text-pretty dark:text-red-300">
 					Kayle ID has not independently verified the people running this
 					organization. Only continue if you trust this request.
 				</p>

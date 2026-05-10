@@ -4,7 +4,10 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import appCss from "@/routes/styles.css?url";
+
+const colorSchemeScript = `(function(){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})();`;
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -52,9 +55,23 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
+	useEffect(() => {
+		const media = window.matchMedia("(prefers-color-scheme: dark)");
+		const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+			document.documentElement.classList.toggle("dark", e.matches);
+		};
+		handleChange(media);
+		media.addEventListener("change", handleChange);
+		return () => media.removeEventListener("change", handleChange);
+	}, []);
+
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
+				<script
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: inline script must run before paint to avoid a light-mode flash for dark-mode users
+					dangerouslySetInnerHTML={{ __html: colorSchemeScript }}
+				/>
 				<HeadContent />
 			</head>
 			<body className="isolate font-sans antialiased">

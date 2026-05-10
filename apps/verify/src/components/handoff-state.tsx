@@ -1,59 +1,25 @@
 import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
-import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
+import ArrowRotateCw from "@kayle-id/ui/icons/arrow-rotate-cw";
 import Spinner from "@kayle-id/ui/icons/spinner";
 import { Button } from "@kayleai/ui/button";
 import { QRCodeSVG } from "qrcode.react";
 
 type HandoffStateProps = {
 	handoffError: string | null;
-	handoffLoading: boolean;
 	handoffUrl: string | null;
-	onRetry: () => void | Promise<void>;
+	onRetry: () => void;
 	os: string | null;
 };
 
 export function HandoffState({
 	handoffError,
-	handoffLoading,
 	handoffUrl,
 	onRetry,
 	os,
 }: HandoffStateProps) {
-	if (handoffLoading) {
-		return (
-			<div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
-				<Spinner className="size-5" />
-				<p>{VERIFY_HANDOFF_COPY.handoff.loadingDescription}</p>
-			</div>
-		);
-	}
-
-	if (handoffError) {
-		return (
-			<div className="space-y-4 pt-2 text-sm">
-				<div className="flex items-center gap-3 text-red-700">
-					<OctagonWarning className="size-5 shrink-0" />
-					<p>{handoffError}</p>
-				</div>
-				<Button className="w-full" onClick={onRetry} type="button">
-					{VERIFY_HANDOFF_COPY.actions.tryAgain}
-				</Button>
-			</div>
-		);
-	}
-
-	if (!handoffUrl) {
-		return (
-			<div className="flex items-center gap-3 pt-2 text-muted-foreground text-sm">
-				<Spinner className="size-5" />
-				<p>{VERIFY_HANDOFF_COPY.handoff.waitingDescription}</p>
-			</div>
-		);
-	}
-
 	return (
 		<div className="space-y-4 pt-2">
-			{os === "ios" ? (
+			{os === "ios" && handoffUrl ? (
 				<Button
 					className="w-full"
 					nativeButton={false}
@@ -67,16 +33,35 @@ export function HandoffState({
 				</Button>
 			) : null}
 			<div className="flex justify-center">
-				<div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5">
-					<QRCodeSVG
-						bgColor="white"
-						className="text-slate-950"
-						fgColor="currentColor"
-						level="M"
-						size={216}
-						value={handoffUrl}
-					/>
-				</div>
+				{handoffError ? (
+					<button
+						aria-label={VERIFY_HANDOFF_COPY.actions.tryAgain}
+						className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5 transition-colors hover:bg-slate-50 active:bg-slate-100 dark:ring-white/10"
+						onClick={onRetry}
+						type="button"
+					>
+						<div className="flex size-[216px] items-center justify-center text-slate-600">
+							<ArrowRotateCw className="size-6" />
+						</div>
+					</button>
+				) : (
+					<div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5 dark:ring-white/10">
+						{handoffUrl ? (
+							<QRCodeSVG
+								bgColor="white"
+								className="text-slate-950"
+								fgColor="currentColor"
+								level="M"
+								size={216}
+								value={handoffUrl}
+							/>
+						) : (
+							<div className="flex size-[216px] items-center justify-center text-slate-600">
+								<Spinner className="size-6" />
+							</div>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);

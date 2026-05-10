@@ -488,7 +488,10 @@ describe("Handoff", () => {
 		const view = render(<Handoff />);
 
 		expect(
-			await view.findByText(VERIFY_HANDOFF_COPY.handoff.refreshError),
+			await view.findByText(VERIFY_HANDOFF_COPY.handoff.errorMessageTitle),
+		).not.toBeNull();
+		expect(
+			view.getByText(VERIFY_HANDOFF_COPY.handoff.errorMessageDescription),
 		).not.toBeNull();
 		expect(
 			view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel }),

@@ -150,7 +150,7 @@ struct ContentView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        Color.white.ignoresSafeArea()
+        Color(.systemBackground).ignoresSafeArea()
 
         GeometryReader { geometry in
           let width = geometry.size.width
@@ -173,7 +173,7 @@ struct ContentView: View {
         }
       }
     }
-    .tint(.black)
+    .tint(.primary)
     .onAppear {
       lastStep = session.step
       syncIdleTimerState()
@@ -251,7 +251,7 @@ struct ContentView: View {
         } message: {
           Text("This will stop the current verification on this device.")
         }
-        .tint(.black)
+        .tint(.primary)
     }
     .onChange(of: pendingQRCode) { newCode in
       guard let code = newCode, !code.isEmpty else {

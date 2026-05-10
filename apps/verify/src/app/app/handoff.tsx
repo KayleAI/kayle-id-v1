@@ -89,7 +89,6 @@ export function Handoff() {
 	const [handoffPayload, setHandoffPayload] = useState<HandoffPayload | null>(
 		null,
 	);
-	const [handoffLoading, setHandoffLoading] = useState(false);
 	const [handoffError, setHandoffError] = useState<string | null>(null);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(prefetchedSessionStatus);
@@ -146,7 +145,6 @@ export function Handoff() {
 			if (!shouldShowHandoff(nextStatus)) {
 				setHandoffPayload(null);
 				setHandoffError(null);
-				setHandoffLoading(false);
 			}
 
 			return nextStatus;
@@ -157,13 +155,10 @@ export function Handoff() {
 	}, [sessionId]);
 
 	const fetchHandoffPayload = useCallback(async () => {
-		setHandoffLoading(true);
-		setHandoffError(null);
-		setHandoffPayload(null);
-
 		try {
 			const payload = await requestHandoffPayload(sessionId);
 			setHandoffPayload(payload);
+			setHandoffError(null);
 		} catch (error) {
 			if (
 				isVerifyRequestError(error) &&
@@ -176,14 +171,11 @@ export function Handoff() {
 
 			setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
 			return null;
-		} finally {
-			setHandoffLoading(false);
 		}
 	}, [pollSessionStatus, sessionId]);
 
 	const loadHandoffState = useCallback(async () => {
 		setStatusLoading(true);
-		setHandoffError(null);
 
 		const nextStatus = await pollSessionStatus();
 		setStatusLoading(false);
@@ -243,7 +235,6 @@ export function Handoff() {
 			setIsCancelDialogOpen(false);
 			setHandoffPayload(null);
 			setHandoffError(null);
-			setHandoffLoading(false);
 			setStatusLoading(false);
 			setSessionStatus(
 				buildCancelledSessionStatus({
@@ -418,13 +409,18 @@ export function Handoff() {
 		  }
 		| undefined;
 
+	const handleRetry = () => {
+		loadHandoffState().catch(() => {
+			// loadHandoffState already stores the error state that the UI renders.
+		});
+	};
+
 	if (statusLoading || shouldShowHandoff(sessionStatus) || handoffError) {
 		stateContent = (
 			<HandoffState
 				handoffError={handoffError}
-				handoffLoading={handoffLoading || statusLoading}
 				handoffUrl={handoffUrl}
-				onRetry={loadHandoffState}
+				onRetry={handleRetry}
 				os={os}
 			/>
 		);
@@ -457,6 +453,19 @@ export function Handoff() {
 				},
 			},
 		};
+	} else if (handoffError) {
+		buttons = {
+			primary: {
+				label: VERIFY_HANDOFF_COPY.actions.tryAgain,
+				onClick: handleRetry,
+			},
+			secondary: {
+				label: VERIFY_HANDOFF_COPY.actions.cancel,
+				onClick: () => {
+					setIsCancelDialogOpen(true);
+				},
+			},
+		};
 	} else {
 		buttons = {
 			secondary: {
@@ -472,16 +481,25 @@ export function Handoff() {
 		<>
 			<InfoCard
 				buttons={buttons}
-				colour={screenContent.colour}
+				colour={handoffError ? "red" : screenContent.colour}
+				compact={stateContent === null}
 				footer={false}
 				header={{
 					title: screenContent.headerTitle,
 					description: screenContent.headerDescription,
 				}}
-				message={{
-					title: screenContent.messageTitle,
-					description: screenContent.messageDescription,
-				}}
+				message={
+					handoffError
+						? {
+								title: VERIFY_HANDOFF_COPY.handoff.errorMessageTitle,
+								description:
+									VERIFY_HANDOFF_COPY.handoff.errorMessageDescription,
+							}
+						: {
+								title: screenContent.messageTitle,
+								description: screenContent.messageDescription,
+							}
+				}
 			>
 				{stateContent}
 			</InfoCard>

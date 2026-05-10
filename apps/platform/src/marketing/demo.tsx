@@ -778,7 +778,7 @@ function ClaimPicker({
 								<div className="font-medium text-neutral-950 text-sm">
 									Minimum age
 								</div>
-								<div className="truncate text-neutral-500 text-xs">
+								<div className="hidden truncate text-neutral-500 text-xs sm:block">
 									Returns an over-N proof rather than the date of birth.
 								</div>
 								{ageErrorMessage ? (
@@ -830,12 +830,34 @@ function ClaimPicker({
 										{getClaimLabel(claimKey)}
 									</div>
 									{getClaimDescription(claimKey) ? (
-										<div className="truncate text-neutral-500 text-xs">
+										<div className="hidden truncate text-neutral-500 text-xs sm:block">
 											{getClaimDescription(claimKey)}
 										</div>
 									) : null}
 								</div>
-								<div className="inline-flex shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 p-0.5">
+								{/* Mobile: native select. Tooltip-style hint for the disabled
+								"Optional" option doesn't translate to a native control; the
+								option is just shown disabled. */}
+								<select
+									aria-label={`${getClaimLabel(claimKey)} mode`}
+									className="shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 px-3 py-1 font-medium text-neutral-700 text-xs sm:hidden"
+									onChange={(event) => {
+										onClaimModeChange(
+											claimKey,
+											event.target.value as DemoFieldMode,
+										);
+									}}
+									value={mode}
+								>
+									<option
+										disabled={claimKey === "date_of_birth" && isAgeSelected}
+										value="optional"
+									>
+										{getModeLabel("optional")}
+									</option>
+									<option value="required">{getModeLabel("required")}</option>
+								</select>
+								<div className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 p-0.5 sm:inline-flex">
 									{(["optional", "required"] as const).map((option) => {
 										const active = mode === option;
 										const isDisabled =
@@ -1310,7 +1332,7 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 					<DemoErrorAlert onReset={handleReset} runError={runError} />
 
 					<div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
-						<div className="lg:col-span-7">
+						<div className="min-w-0 lg:col-span-7">
 							<DemoComposerStep
 								ageThresholdText={ageThresholdText}
 								fieldModes={fieldModes}
@@ -1328,7 +1350,7 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 							/>
 						</div>
 
-						<div className="space-y-6 lg:col-span-5">
+						<div className="min-w-0 space-y-6 lg:col-span-5">
 							<DemoVerificationStep hasSession={hasSession} run={run} />
 							<DemoOutcomeStep
 								canReviewOutcome={canReviewOutcome}

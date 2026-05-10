@@ -18,7 +18,6 @@ import {
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
-	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -265,6 +264,22 @@ export function AppSidebar() {
 									/>
 								</SidebarMenuItem>
 							))}
+							{canViewAuditLogs ? (
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										isActive={currentPath.startsWith(
+											"/organizations/audit-logs",
+										)}
+										render={
+											<Link to="/organizations/audit-logs">
+												<ScrollTextIcon />
+												<span>Audit logs</span>
+											</Link>
+										}
+									/>
+								</SidebarMenuItem>
+							) : null}
 							{isPlatformAdmin ? (
 								<SidebarMenuItem>
 									<SidebarMenuButton
@@ -282,30 +297,6 @@ export function AppSidebar() {
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
-
-				{canViewAuditLogs ? (
-					<SidebarGroup className="pr-0!">
-						<SidebarGroupLabel>My Organization</SidebarGroupLabel>
-						<SidebarGroupContent>
-							<SidebarMenu>
-								<SidebarMenuItem>
-									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
-										isActive={currentPath.startsWith(
-											"/organizations/audit-logs",
-										)}
-										render={
-											<Link to="/organizations/audit-logs">
-												<ScrollTextIcon />
-												<span>Audit logs</span>
-											</Link>
-										}
-									/>
-								</SidebarMenuItem>
-							</SidebarMenu>
-						</SidebarGroupContent>
-					</SidebarGroup>
-				) : null}
 			</SidebarContent>
 
 			<SidebarFooter>

@@ -1,33 +1,22 @@
-Privacy-first identity verification.
-
 # Kayle ID
 
-Kayle ID is a project engineered by [Kayle](https://kayle.ai) to give people control over their own identity.
+Privacy-first identity verification.
 
-This open-source repository contains the official implementation of the Kayle ID system.
+## Getting Started
 
-## Local Development
+Kayle ID enables you to verify the identity or perform age verification of your users.
 
-Quick start:
+## Documentation
 
-```bash
-bun install
-bun run env:setup       # writes .env with random local secrets + dummy third-party creds
-bun run services:start  # bring up local Postgres + Redis (Upstash REST shim)
-bun run db:setup
-bun run dev
-```
+Visit [kayle.id/docs](https://kayle.id/docs) to view the full documentation.
 
-The bootstrap fills in random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, `FACE_MATCHER_SECRET`, and `ORG_VERIFICATION_PEPPER`; pins `REDIS_URL` / `REDIS_TOKEN` to the local Upstash REST shim; and writes dummy values for Google OAuth / Resend. The dev API falls back to logging magic OTPs and email bodies, so contributors do not need any third-party accounts to run the full stack.
+## Contributing
 
-`bun run services:start` is a convenience wrapper around `db:start` + `redis:start`. Both Docker Compose stacks live under [`infra/`](infra/) and can also be controlled individually (`db:logs`, `redis:stop`, `db:clean`, etc.).
+Contributions are welcome and highly appreciated! However, please read the [CONTRIBUTING.md](./CONTRIBUTING.md) file before contributing.
 
-Maintainers with Infisical access can pull the shared dev secrets instead:
+## Security
 
-```bash
-infisical login          # once per machine
-bun run env:pull         # writes the repo-root .env from Infisical
-```
+If you believe you have found a security vulnerability in Kayle ID, we encourage you to responsibly disclose this and NOT open a public issue by emailing [security@kayle.id](mailto:security@kayle.id).
 
 ## Data Processing
 

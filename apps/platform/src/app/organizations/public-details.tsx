@@ -13,12 +13,15 @@ import { Label } from "@kayleai/ui/label";
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { Textarea } from "@kayleai/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
+	listOrganizationDomains,
+	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationRole,
 	updateOrganization,
@@ -430,6 +433,32 @@ function PublicDetailsForm({
 	);
 }
 
+function UnverifiedDomainNotice() {
+	return (
+		<Alert>
+			<AlertTitle>
+				Verify a domain to surface these details to end-users
+			</AlertTitle>
+			<AlertDescription>
+				<p>
+					Until your organization has at least one verified domain, the verify
+					flow does not show your logo, legal name, jurisdiction, or
+					registration number to end-users — they could be set by anyone, so
+					Kayle hides them to protect users from impersonation.
+				</p>
+				<div className="mt-3">
+					<Link
+						className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
+						to="/organizations/domains"
+					>
+						Verify a domain
+					</Link>
+				</div>
+			</AlertDescription>
+		</Alert>
+	);
+}
+
 export function OrganizationPublicDetailsPage() {
 	const { user } = useAuth();
 	const { data, isLoading, isError, error } = useQuery({
@@ -437,10 +466,21 @@ export function OrganizationPublicDetailsPage() {
 		queryKey: ORGANIZATION_QUERY_KEY,
 		staleTime: 30_000,
 	});
+	const domainsQuery = useQuery({
+		queryFn: listOrganizationDomains,
+		queryKey: ORGANIZATION_DOMAINS_QUERY_KEY,
+		staleTime: 30_000,
+	});
 
 	const currentRole = data?.members.find((member) => member.userId === user?.id)
 		?.role as OrganizationRole | undefined;
 	const canEdit = currentRole === "owner" || currentRole === "admin";
+
+	const hasActiveVerifiedDomain = (domainsQuery.data?.domains ?? []).some(
+		(d) => d.downgradedAt === null,
+	);
+	const showUnverifiedNotice =
+		!domainsQuery.isLoading && !hasActiveVerifiedDomain;
 
 	return (
 		<OrganizationPageLayout
@@ -456,6 +496,11 @@ export function OrganizationPublicDetailsPage() {
 							: "Something went wrong while loading public details."}
 					</AlertDescription>
 				</Alert>
+			) : null}
+			{showUnverifiedNotice ? (
+				<div className="mb-6">
+					<UnverifiedDomainNotice />
+				</div>
 			) : null}
 			{isLoading ? <PublicDetailsSkeleton /> : null}
 			{data && !isError ? (

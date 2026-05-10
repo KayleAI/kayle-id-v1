@@ -194,3 +194,108 @@ export const auth_invitations = pgTable(
 		index("auth_invitations_email_idx").on(table.email),
 	],
 );
+
+export const organizationDomainVerificationMethods = ["dns_txt"] as const;
+export type OrganizationDomainVerificationMethod =
+	(typeof organizationDomainVerificationMethods)[number];
+
+export const auth_organization_verified_domains = pgTable(
+	"auth_organization_verified_domains",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		apexDomain: text("apex_domain").notNull(),
+		verifiedAt: timestamp("verified_at").notNull(),
+		verifiedVia: text("verified_via", {
+			enum: organizationDomainVerificationMethods,
+		}).notNull(),
+		verifiedBy: uuid("verified_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
+		recheckToken: text("recheck_token"),
+		lastCheckedAt: timestamp("last_checked_at"),
+		consecutiveFailedChecks: integer("consecutive_failed_checks")
+			.default(0)
+			.notNull(),
+		downgradedAt: timestamp("downgraded_at"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex("auth_org_verified_domains_org_apex_uidx").on(
+			table.organizationId,
+			table.apexDomain,
+		),
+		// Globally unique while active. Verifying an apex already held by
+		// another org goes through an explicit takeover handshake (see
+		// `verifyDnsChallenge` in domain-verification/service.ts) that
+		// downgrades the previous owner's row in the same transaction.
+		uniqueIndex("auth_org_verified_domains_active_apex_uidx")
+			.on(table.apexDomain)
+			.where(sql`${table.downgradedAt} is null`),
+		index("auth_org_verified_domains_org_idx").on(table.organizationId),
+		index("auth_org_verified_domains_downgraded_idx").on(table.downgradedAt),
+	],
+);
+
+export const auth_organization_domain_challenges = pgTable(
+	"auth_organization_domain_challenges",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		apexDomain: text("apex_domain").notNull(),
+		method: text("method", {
+			enum: organizationDomainVerificationMethods,
+		}).notNull(),
+		token: text("token").notNull(),
+		emailAddress: text("email_address"),
+		expiresAt: timestamp("expires_at").notNull(),
+		attempts: integer("attempts").default(0).notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		createdBy: uuid("created_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
+	},
+	(table) => [
+		index("auth_org_domain_challenges_org_apex_method_idx").on(
+			table.organizationId,
+			table.apexDomain,
+			table.method,
+		),
+		index("auth_org_domain_challenges_expires_idx").on(table.expiresAt),
+	],
+);
+
+export const auth_organization_redirect_uris = pgTable(
+	"auth_organization_redirect_uris",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		verifiedDomainId: uuid("verified_domain_id")
+			.notNull()
+			.references(() => auth_organization_verified_domains.id, {
+				onDelete: "cascade",
+			}),
+		pattern: text("pattern").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		createdBy: uuid("created_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
+	},
+	(table) => [
+		uniqueIndex("auth_org_redirect_uris_domain_pattern_uidx").on(
+			table.verifiedDomainId,
+			table.pattern,
+		),
+		index("auth_org_redirect_uris_org_idx").on(table.organizationId),
+	],
+);

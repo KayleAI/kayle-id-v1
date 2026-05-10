@@ -25,7 +25,9 @@ export type VerifySessionStatusPayload = {
 
 export type VerifySessionDetailsPayload = {
 	organization_name: string;
-	organization_verified: boolean;
+	organization_owner_id_check_completed: boolean;
+	organization_verified_apex_domains: string[];
+	organization_business_type: "sole" | "business" | null;
 	organization_logo: string | null;
 	organization_business_name: string | null;
 	organization_business_jurisdiction: string | null;
@@ -186,6 +188,34 @@ export async function requestVerifySessionDetails(
 		throw createVerifyRequestError(
 			payload.error?.code ?? UNKNOWN_ERROR_CODE,
 			payload.error?.message ?? SESSION_DETAILS_ERROR_MESSAGE,
+		);
+	}
+
+	return payload.data;
+}
+
+export type VerifyRedirectPermittedPayload = {
+	permitted: boolean;
+	redirect_url: string | null;
+};
+
+export async function requestVerifyRedirectPermitted(
+	sessionId: string,
+): Promise<VerifyRedirectPermittedPayload> {
+	const response = await fetch(
+		`/v1/verify/session/${sessionId}/redirect-permitted`,
+		{ method: "GET" },
+	);
+
+	const payload = await readVerifyApiResponse<VerifyRedirectPermittedPayload>(
+		response,
+		"Failed to verify redirect URL.",
+	);
+
+	if (!(response.ok && payload.data) || payload.error) {
+		throw createVerifyRequestError(
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? "Failed to verify redirect URL.",
 		);
 	}
 

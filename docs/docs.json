@@ -39,7 +39,7 @@
           },
           {
             "group": "Authentication",
-            "pages": ["auth/api-keys", "auth/scopes"]
+            "pages": ["auth/api-keys", "auth/scopes", "auth/verified-domains"]
           },
           {
             "group": "Self-hosting",

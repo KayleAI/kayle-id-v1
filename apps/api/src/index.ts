@@ -6,6 +6,10 @@ import {
 } from "@kayle-id/config/security-headers";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
+import {
+	runDomainReverificationCron,
+	shouldRunDomainReverification,
+} from "@/auth/domain-verification/recheck";
 import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
@@ -148,6 +152,13 @@ const worker = Object.assign(app, {
 		if (shouldRunReceiptRefresh(controller.scheduledTime)) {
 			await refreshAppAttestReceipts({
 				env: env as Parameters<typeof refreshAppAttestReceipts>[0]["env"],
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
+		if (shouldRunDomainReverification(controller.scheduledTime)) {
+			await runDomainReverificationCron({
+				env: env as Parameters<typeof runDomainReverificationCron>[0]["env"],
 				now: new Date(controller.scheduledTime),
 			});
 		}

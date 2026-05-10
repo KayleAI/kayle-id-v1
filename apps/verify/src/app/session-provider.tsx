@@ -40,8 +40,10 @@ type SessionContextType = {
 
 const EMPTY_ORGANIZATION: Organization = {
 	name: null,
-	verified: false,
+	ownerIdCheckCompleted: false,
+	verifiedApexDomains: [],
 	logo: null,
+	businessType: null,
 	businessName: null,
 	businessJurisdiction: null,
 	businessRegistrationNumber: null,
@@ -132,8 +134,10 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 
 				setOrganization({
 					name: details.organization_name,
-					verified: details.organization_verified,
+					ownerIdCheckCompleted: details.organization_owner_id_check_completed,
+					verifiedApexDomains: details.organization_verified_apex_domains,
 					logo: details.organization_logo,
+					businessType: details.organization_business_type,
 					businessName: details.organization_business_name,
 					businessJurisdiction: details.organization_business_jurisdiction,
 					businessRegistrationNumber:
@@ -147,7 +151,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				setAgeThreshold(details.age_threshold);
 				setSessionStatus(nextSessionStatus);
 				const showUnverifiedWarning =
-					!details.organization_verified && !details.is_age_only;
+					details.organization_verified_apex_domains.length === 0 &&
+					!details.is_age_only;
 				useVerificationStore.setState({
 					step: shouldStartInHandoff(nextSessionStatus)
 						? "handoff"

@@ -6,6 +6,7 @@ import { generateId } from "@/utils/generate-id";
 import { denyIfOrgFrozen } from "@/v1/auth";
 import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
+import { validateRedirectUrlForOrg } from "@/v1/sessions/redirect-uri-validator";
 import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 import { isAgeOnlyShareFields } from "@/v1/sessions/unverified-org-limit";
@@ -27,7 +28,33 @@ export const createSessionHandler: RouteHandler<
 		return frozenResponse;
 	}
 
-	const redirectUrl = body?.redirect_url ?? null;
+	const redirectValidation = await validateRedirectUrlForOrg({
+		organizationId,
+		raw: body?.redirect_url ?? null,
+	});
+	if (!redirectValidation.ok) {
+		logEvent(log, {
+			details: {
+				organization_id: organizationId,
+				error_code: redirectValidation.code,
+			},
+			event: "sessions.create.redirect_url_rejected",
+			level: "warn",
+		});
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: redirectValidation.code,
+					message: redirectValidation.message,
+					hint: "Verify a domain on the Domains page that covers this redirect host. Any subdomain of a verified apex is accepted by default; add explicit redirect URI patterns to narrow further.",
+					docs,
+				},
+			},
+			400,
+		);
+	}
+	const redirectUrl = redirectValidation.normalized;
 
 	const normalized = normalizeShareFields(body?.share_fields);
 	if (!normalized.ok) {

@@ -35,6 +35,8 @@ import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/
 import { Route as AppOrganizationsSettingsRouteImport } from './routes/_app/organizations/settings'
 import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organizations/public'
 import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
+import { Route as AppOrganizationsDomainsRouteImport } from './routes/_app/organizations/domains'
+import { Route as AppOrganizationsBusinessRouteImport } from './routes/_app/organizations/business'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
@@ -172,6 +174,17 @@ const AppOrganizationsMembersRoute = AppOrganizationsMembersRouteImport.update({
   path: '/organizations/members',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOrganizationsDomainsRoute = AppOrganizationsDomainsRouteImport.update({
+  id: '/organizations/domains',
+  path: '/organizations/domains',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOrganizationsBusinessRoute =
+  AppOrganizationsBusinessRouteImport.update({
+    id: '/organizations/business',
+    path: '/organizations/business',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   id: '/api-keys/$key',
   path: '/api-keys/$key',
@@ -233,6 +246,8 @@ export interface FileRoutesByFullPath {
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
   '/organizations/public': typeof AppOrganizationsPublicRoute
   '/organizations/settings': typeof AppOrganizationsSettingsRoute
@@ -265,6 +280,8 @@ export interface FileRoutesByTo {
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
   '/organizations/public': typeof AppOrganizationsPublicRoute
   '/organizations/settings': typeof AppOrganizationsSettingsRoute
@@ -303,6 +320,8 @@ export interface FileRoutesById {
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
+  '/_app/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/_app/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/_app/organizations/members': typeof AppOrganizationsMembersRoute
   '/_app/organizations/public': typeof AppOrganizationsPublicRoute
   '/_app/organizations/settings': typeof AppOrganizationsSettingsRoute
@@ -338,6 +357,8 @@ export interface FileRouteTypes {
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
+    | '/organizations/business'
+    | '/organizations/domains'
     | '/organizations/members'
     | '/organizations/public'
     | '/organizations/settings'
@@ -370,6 +391,8 @@ export interface FileRouteTypes {
     | '/api/start-org-verification'
     | '/account/security'
     | '/api-keys/$key'
+    | '/organizations/business'
+    | '/organizations/domains'
     | '/organizations/members'
     | '/organizations/public'
     | '/organizations/settings'
@@ -407,6 +430,8 @@ export interface FileRouteTypes {
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
     | '/_app/api-keys/$key'
+    | '/_app/organizations/business'
+    | '/_app/organizations/domains'
     | '/_app/organizations/members'
     | '/_app/organizations/public'
     | '/_app/organizations/settings'
@@ -625,6 +650,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrganizationsMembersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/organizations/domains': {
+      id: '/_app/organizations/domains'
+      path: '/organizations/domains'
+      fullPath: '/organizations/domains'
+      preLoaderRoute: typeof AppOrganizationsDomainsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/organizations/business': {
+      id: '/_app/organizations/business'
+      path: '/organizations/business'
+      fullPath: '/organizations/business'
+      preLoaderRoute: typeof AppOrganizationsBusinessRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-keys/$key': {
       id: '/_app/api-keys/$key'
       path: '/api-keys/$key'
@@ -709,6 +748,8 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
+  AppOrganizationsBusinessRoute: typeof AppOrganizationsBusinessRoute
+  AppOrganizationsDomainsRoute: typeof AppOrganizationsDomainsRoute
   AppOrganizationsMembersRoute: typeof AppOrganizationsMembersRoute
   AppOrganizationsPublicRoute: typeof AppOrganizationsPublicRoute
   AppOrganizationsSettingsRoute: typeof AppOrganizationsSettingsRoute
@@ -723,6 +764,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
+  AppOrganizationsBusinessRoute: AppOrganizationsBusinessRoute,
+  AppOrganizationsDomainsRoute: AppOrganizationsDomainsRoute,
   AppOrganizationsMembersRoute: AppOrganizationsMembersRoute,
   AppOrganizationsPublicRoute: AppOrganizationsPublicRoute,
   AppOrganizationsSettingsRoute: AppOrganizationsSettingsRoute,

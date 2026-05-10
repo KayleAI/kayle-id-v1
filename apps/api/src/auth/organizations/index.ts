@@ -3,10 +3,13 @@ import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
 import { acceptVerificationTerms } from "./accept-verification-terms";
+import { businessDetails } from "./business-details";
 import { cancelDelete } from "./cancel-delete";
 import { confirmDelete } from "./confirm-delete";
 import createOrganizationRoute from "./create";
+import { domains } from "./domains";
 import uploadLogoRoute from "./logo";
+import { redirectUris } from "./redirect-uris";
 import { requestDelete } from "./request-delete";
 
 const organizations = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
@@ -41,5 +44,8 @@ organizations.route("/", requestDelete);
 organizations.route("/", confirmDelete);
 organizations.route("/", cancelDelete);
 organizations.route("/", acceptVerificationTerms);
+organizations.route("/", businessDetails);
+organizations.route("/", domains);
+organizations.route("/", redirectUris);
 
 export default organizations;

@@ -1,8 +1,11 @@
 import { parseStoredOrganizationMetadata } from "@kayle-id/auth/organization-metadata";
 import { db } from "@kayle-id/database/drizzle";
-import { auth_organizations } from "@kayle-id/database/schema/auth";
+import {
+	auth_organization_verified_domains,
+	auth_organizations,
+} from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
 	isAgeOverClaim,
 	parseAgeOverThreshold,
@@ -12,8 +15,24 @@ import { isPublicVerifySessionHidden } from "./public-session-visibility";
 
 export type PublicVerifySessionDetails = {
 	organization_name: string;
-	organization_verified: boolean;
+	organization_owner_id_check_completed: boolean;
+	/**
+	 * All apex domains the org has actively verified, sorted alphabetically
+	 * for stable display. Empty when the org has no active verifications.
+	 * Used by the verify UI both to gate self-asserted business fields
+	 * (any verified apex unlocks them) and to decide whether the verified-
+	 * domain badge is appropriate (every policy/website link must point
+	 * at one of these apexes — that check happens client-side).
+	 */
+	organization_verified_apex_domains: string[];
 	organization_logo: string | null;
+	/**
+	 * `"sole"` (sole trader / individual) → relabel the business fields in
+	 * the verify-flow dialog to the individual-equivalents (Full name /
+	 * Country / Tax or trader ID). `"business"` or `null` (default) keeps
+	 * the registered-entity labels.
+	 */
+	organization_business_type: "sole" | "business" | null;
 	organization_business_name: string | null;
 	organization_business_jurisdiction: string | null;
 	organization_business_registration_number: string | null;
@@ -49,6 +68,7 @@ export async function getPublicVerifySessionDetails({
 			organizationName: auth_organizations.name,
 			organizationVerifiedAt: auth_organizations.verified_at,
 			organizationLogo: auth_organizations.logo,
+			organizationBusinessType: auth_organizations.businessType,
 			organizationBusinessName: auth_organizations.business_name,
 			organizationBusinessJurisdiction:
 				auth_organizations.business_jurisdiction,
@@ -76,19 +96,47 @@ export async function getPublicVerifySessionDetails({
 		return null;
 	}
 
+	const verifiedDomains = await db
+		.select({
+			apexDomain: auth_organization_verified_domains.apexDomain,
+		})
+		.from(auth_organization_verified_domains)
+		.where(
+			and(
+				eq(
+					auth_organization_verified_domains.organizationId,
+					session.organizationId,
+				),
+				isNull(auth_organization_verified_domains.downgradedAt),
+			),
+		)
+		.orderBy(asc(auth_organization_verified_domains.apexDomain));
+
+	const verifiedApexDomains = verifiedDomains.map((row) => row.apexDomain);
 	const metadata = parseStoredOrganizationMetadata(
 		session.organizationMetadata,
 	);
 
+	const businessFieldsAllowed = verifiedApexDomains.length > 0;
+
 	return {
 		organization_name: session.organizationName,
-		organization_verified: session.organizationVerifiedAt !== null,
-		organization_logo: session.organizationLogo,
-		organization_business_name: session.organizationBusinessName,
-		organization_business_jurisdiction:
-			session.organizationBusinessJurisdiction,
-		organization_business_registration_number:
-			session.organizationBusinessRegistrationNumber,
+		organization_owner_id_check_completed:
+			session.organizationVerifiedAt !== null,
+		organization_verified_apex_domains: verifiedApexDomains,
+		organization_logo: businessFieldsAllowed ? session.organizationLogo : null,
+		organization_business_type: businessFieldsAllowed
+			? session.organizationBusinessType
+			: null,
+		organization_business_name: businessFieldsAllowed
+			? session.organizationBusinessName
+			: null,
+		organization_business_jurisdiction: businessFieldsAllowed
+			? session.organizationBusinessJurisdiction
+			: null,
+		organization_business_registration_number: businessFieldsAllowed
+			? session.organizationBusinessRegistrationNumber
+			: null,
 		organization_privacy_policy_url: metadata?.privacyPolicyUrl ?? null,
 		organization_terms_of_service_url: metadata?.termsOfServiceUrl ?? null,
 		organization_website: metadata?.website ?? null,

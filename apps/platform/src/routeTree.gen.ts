@@ -26,6 +26,7 @@ import { Route as MarketingDemoIndexRouteImport } from './routes/_marketing/demo
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
 import { Route as AppOrganizationsIndexRouteImport } from './routes/_app/organizations/index'
 import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
+import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as MarketingDemoIdRouteImport } from './routes/_marketing/demo.id'
 import { Route as MarketingDemoAgeRouteImport } from './routes/_marketing/demo.age'
@@ -126,6 +127,11 @@ const AppOrganizationsIndexRoute = AppOrganizationsIndexRouteImport.update({
 const AppApiKeysIndexRoute = AppApiKeysIndexRouteImport.update({
   id: '/api-keys/',
   path: '/api-keys/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
   '/account/': typeof AppAccountIndexRoute
+  '/admin/': typeof AppAdminIndexRoute
   '/api-keys/': typeof AppApiKeysIndexRoute
   '/organizations/': typeof AppOrganizationsIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
   '/account': typeof AppAccountIndexRoute
+  '/admin': typeof AppAdminIndexRoute
   '/api-keys': typeof AppApiKeysIndexRoute
   '/organizations': typeof AppOrganizationsIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
@@ -331,6 +339,7 @@ export interface FileRoutesById {
   '/_marketing/demo/age': typeof MarketingDemoAgeRoute
   '/_marketing/demo/id': typeof MarketingDemoIdRoute
   '/_app/account/': typeof AppAccountIndexRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
   '/_app/organizations/': typeof AppOrganizationsIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/demo/age'
     | '/demo/id'
     | '/account/'
+    | '/admin/'
     | '/api-keys/'
     | '/organizations/'
     | '/webhooks/'
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/demo/age'
     | '/demo/id'
     | '/account'
+    | '/admin'
     | '/api-keys'
     | '/organizations'
     | '/webhooks'
@@ -441,6 +452,7 @@ export interface FileRouteTypes {
     | '/_marketing/demo/age'
     | '/_marketing/demo/id'
     | '/_app/account/'
+    | '/_app/admin/'
     | '/_app/api-keys/'
     | '/_app/organizations/'
     | '/_app/webhooks/'
@@ -585,6 +597,13 @@ declare module '@tanstack/react-router' {
       path: '/api-keys'
       fullPath: '/api-keys/'
       preLoaderRoute: typeof AppApiKeysIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/account/': {
@@ -754,6 +773,7 @@ interface AppRouteChildren {
   AppOrganizationsPublicRoute: typeof AppOrganizationsPublicRoute
   AppOrganizationsSettingsRoute: typeof AppOrganizationsSettingsRoute
   AppWebhooksEndpointRoute: typeof AppWebhooksEndpointRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
   AppApiKeysIndexRoute: typeof AppApiKeysIndexRoute
   AppOrganizationsIndexRoute: typeof AppOrganizationsIndexRoute
   AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute
@@ -770,6 +790,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrganizationsPublicRoute: AppOrganizationsPublicRoute,
   AppOrganizationsSettingsRoute: AppOrganizationsSettingsRoute,
   AppWebhooksEndpointRoute: AppWebhooksEndpointRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
   AppApiKeysIndexRoute: AppApiKeysIndexRoute,
   AppOrganizationsIndexRoute: AppOrganizationsIndexRoute,
   AppWebhooksIndexRoute: AppWebhooksIndexRoute,

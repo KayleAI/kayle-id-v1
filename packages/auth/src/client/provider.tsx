@@ -6,6 +6,7 @@ import type { Organization, Session, User } from "../types";
 interface AuthContextType {
   activeOrganization: Organization | null;
   error: Error | null;
+  isPlatformAdmin: boolean;
   organizations: Organization[];
   refresh: () => Promise<void>;
   session: Session | null;
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [activeOrganization, setActiveOrganization] =
     useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const { data, isPending, error, refetch } = client.useSession();
 
   async function refresh() {
@@ -41,8 +43,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setStatus("authenticated");
       setActiveOrganization(data?.activeOrganization ?? null);
       setOrganizations(data?.organizations ?? []);
+      setIsPlatformAdmin(Boolean(data?.isPlatformAdmin));
     } else {
       setStatus("unauthenticated");
+      setIsPlatformAdmin(false);
     }
   }, [data, isPending]);
 
@@ -53,6 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     session: data?.session ?? null,
     user: data?.user ?? null,
     error,
+    isPlatformAdmin,
     refresh,
   };
 

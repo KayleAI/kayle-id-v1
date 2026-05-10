@@ -15,6 +15,7 @@ import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import v1 from "@/v1";
+import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
 import { normalizeExpiredVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import verify from "@/v1/verify";
@@ -68,6 +69,7 @@ app.route("/v1/auth", auth);
 
 // v1
 app.route("/v1/verify", verify);
+app.route("/v1/admin", admin);
 app.route("/v1", v1);
 
 // Platform-only internal endpoints (gated by KAYLE_INTERNAL_TOKEN)

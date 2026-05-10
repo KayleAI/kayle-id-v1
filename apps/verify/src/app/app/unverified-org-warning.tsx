@@ -2,7 +2,7 @@ import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
 import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
 import { useVerificationStore } from "../../stores/session";
-import { getPlatformNameLabel } from "./platform-name";
+import { type Organization, OrganizationName } from "./organization-name";
 
 /**
  * Warning interstitial shown before `explain` when the requesting organization
@@ -13,12 +13,11 @@ import { getPlatformNameLabel } from "./platform-name";
  * identity-bearing claim) and for verified orgs.
  */
 export function UnverifiedOrgWarning({
-	organizationName,
+	organization,
 }: {
-	organizationName?: string | null;
+	organization: Organization;
 }) {
 	const goToExplain = useVerificationStore((state) => state.goToExplain);
-	const platformName = getPlatformNameLabel(organizationName);
 
 	const cancel = () => {
 		// `history.length` is at least 1 for the current entry; >1 means the
@@ -45,11 +44,9 @@ export function UnverifiedOrgWarning({
 						You are about to verify with an unverified organization
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						<span className="font-bold text-foreground underline decoration-dashed underline-offset-2">
-							{platformName}
-						</span>{" "}
-						has not completed Kayle ID's organization verification check. <br />{" "}
-						Unless you trust this request, don't continue.
+						<OrganizationName organization={organization} /> has not completed
+						Kayle ID's organization verification check. <br /> Unless you trust
+						this request, don't continue.
 					</p>
 				</div>
 
@@ -69,10 +66,8 @@ export function UnverifiedOrgWarning({
 								</li>
 								<li>
 									If you don't recognise{" "}
-									<span className="font-medium underline decoration-dashed underline-offset-2">
-										{platformName}
-									</span>{" "}
-									or didn't expect this verification request, cancel below.
+									<OrganizationName dim organization={organization} /> or didn't
+									expect this verification request, cancel below.
 								</li>
 								<li>
 									You'll only see this warning if you're about to perform an ID

@@ -30,6 +30,26 @@ vi.mock("@kayleai/ui/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
+vi.mock("@kayleai/ui/dialog", () => ({
+	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	DialogTrigger: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+	}) => (
+		<button className={className} type="button">
+			{children}
+		</button>
+	),
+	DialogContent: () => null,
+	DialogHeader: () => null,
+	DialogTitle: () => null,
+	DialogDescription: () => null,
+	DialogFooter: () => null,
+}));
+
 vi.mock("@tanstack/react-router", () => ({
 	useLoaderData: () => ({
 		sessionId: "vs_session123",
@@ -132,6 +152,25 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 });
 
 import { SessionExplain } from "./explain";
+import type { Organization } from "./organization-name";
+
+function createOrganization(
+	overrides: Partial<Organization> = {},
+): Organization {
+	return {
+		name: "Test Organization",
+		verified: true,
+		logo: null,
+		businessName: null,
+		businessJurisdiction: null,
+		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
+		...overrides,
+	};
+}
 
 beforeEach(() => {
 	markSessionCancelledMock.mockReset();
@@ -147,14 +186,14 @@ afterEach(() => {
 
 describe("SessionExplain", () => {
 	test("renders the organization name in the share copy", () => {
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(screen.getByText("Test Organization")).not.toBeNull();
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
 
 	test("renders the identity-verification heading by default", () => {
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(
 			screen.getByRole("heading", {
@@ -168,7 +207,7 @@ describe("SessionExplain", () => {
 			<SessionExplain
 				ageThreshold={21}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 
@@ -186,7 +225,7 @@ describe("SessionExplain", () => {
 			<SessionExplain
 				ageThreshold={null}
 				isAgeOnly
-				organizationName="Test Organization"
+				organization={createOrganization()}
 			/>,
 		);
 
@@ -198,7 +237,7 @@ describe("SessionExplain", () => {
 	test("cancels the session and transitions to handoff when the user confirms cancel", async () => {
 		requestCancelVerifySessionMock.mockResolvedValue(undefined);
 
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(screen.queryByTestId("cancel-dialog")).toBeNull();
 
@@ -229,7 +268,7 @@ describe("SessionExplain", () => {
 	});
 
 	test("dismisses the cancel dialog without cancelling the session", () => {
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		act(() => {
 			screen
@@ -254,7 +293,7 @@ describe("SessionExplain", () => {
 	test("shows an error and skips the API call when no cancel token is in the URL", async () => {
 		window.history.replaceState({}, "", "/");
 
-		render(<SessionExplain organizationName="Test Organization" />);
+		render(<SessionExplain organization={createOrganization()} />);
 
 		act(() => {
 			screen

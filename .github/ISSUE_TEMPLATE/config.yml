@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://kayle.id/security
+    about: Please do not open a public issue. Email security@kayle.id with full details.
+  - name: Documentation issue
+    url: https://docs.kayle.id
+    about: For typos and small docs fixes, prefer opening a PR directly against the docs/ folder.

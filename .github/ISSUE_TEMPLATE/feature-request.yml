@@ -1,0 +1,72 @@
+name: Feature request
+description: Propose new functionality or an enhancement to existing behaviour.
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature. The triage team reviews requests weekly. Please fill in every section so a maintainer can assess scope and priority without a back-and-forth.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: |
+        Why does this matter? What problem are you trying to solve, and how do you solve it today (if you do)?
+        If this is for an integration partner or a specific compliance requirement, mention it here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: |
+        Sketch the API, UI, or behaviour you have in mind. Pseudo-code or a request/response example is welcome.
+        It's fine to describe more than one option — just be clear which one you'd prefer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider, and why didn't they work?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      description: Which part of the stack would this live in?
+      options:
+        - API (apps/api)
+        - Platform (apps/platform)
+        - Verify web app (apps/verify)
+        - Face matcher (infra/face-matcher)
+        - iOS app (apps/ios)
+        - SDK / public API contract
+        - Local dev tooling / scripts
+        - Documentation (docs/)
+        - Cross-cutting / not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched [existing issues](https://github.com/KayleAI/kayle-id/issues) and confirmed this isn't a duplicate.
+          required: true

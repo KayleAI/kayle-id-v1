@@ -23,6 +23,11 @@ const buildEnv =
 NODE_ENV=development
 DATABASE_URL=postgres://postgres:postgres@localhost:6432/kayle-id
 
+# Redis — matches infra/redis/compose.yml. The Upstash REST shim runs on
+# port 8079 with a pinned token so every contributor hits the same URL.
+REDIS_URL=http://localhost:8079
+REDIS_TOKEN=a-super-secret-token
+
 # Random secrets — generated locally, no third-party account required.
 AUTH_SECRET=${generateSecret()}
 KAYLE_INTERNAL_TOKEN=${generateSecret()}
@@ -31,6 +36,10 @@ ORG_VERIFICATION_PEPPER=${generateSecret()}
 
 # Public auth URL — the platform app proxies auth through localhost:3000.
 PUBLIC_AUTH_URL=https://localhost:3000
+
+# Email — the dev API logs the magic OTP and email body instead of calling
+# Resend, so the from-address is only used to populate Better Auth payloads.
+EMAIL_FROM_ADDRESS="Kayle ID <auth@kayle.id>"
 
 # Dummy third-party credentials — the dev API logs the magic OTP and email
 # body instead of calling Google or Resend, so these can stay as dummies
@@ -55,12 +64,14 @@ const main = async (): Promise<void> => {
     [
       `Created ${relativeEnvPath}.`,
       "Random hex was used for AUTH_SECRET, KAYLE_INTERNAL_TOKEN, FACE_MATCHER_SECRET, and ORG_VERIFICATION_PEPPER.",
+      "REDIS_URL/REDIS_TOKEN point at the local Upstash REST shim (infra/redis/compose.yml).",
       "Google and Resend credentials are dummies — the dev API logs the magic OTP and email body instead of calling those services.",
       "",
       "Next steps:",
-      "  bun run db:start    # bring up local Postgres",
-      "  bun run db:setup    # apply migrations",
-      "  bun run dev         # start every service",
+      "  bun run db:start       # bring up local Postgres",
+      "  bun run redis:start    # bring up local Redis + Upstash shim",
+      "  bun run db:setup       # apply migrations",
+      "  bun run dev            # start every service",
       "",
     ].join("\n")
   );

@@ -1,18 +1,11 @@
 import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & {
-  secondaryfill?: string;
   strokewidth?: number;
   title?: string;
 };
 
-function ArrowRotateCw({
-  fill = "currentColor",
-  secondaryfill,
-  ...props
-}: IconProps) {
-  secondaryfill = secondaryfill || fill;
-
+function ArrowRotateCw({ fill = "currentColor", ...props }: IconProps) {
   return (
     <svg
       height="18"

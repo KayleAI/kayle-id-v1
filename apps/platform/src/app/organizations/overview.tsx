@@ -89,12 +89,13 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 				</CardHeader>
 				<CardContent>
 					<div className="flex items-center gap-4">
-						<Avatar className="size-16 rounded-lg">
+						<Avatar className="size-16 rounded-lg! after:rounded-lg!">
 							<AvatarImage
 								alt={organization.name}
+								className="rounded-lg!"
 								src={organization.logo ?? undefined}
 							/>
-							<AvatarFallback className="rounded-lg text-lg">
+							<AvatarFallback className="rounded-lg! text-lg">
 								{organization.name.charAt(0).toUpperCase()}
 							</AvatarFallback>
 						</Avatar>
@@ -198,12 +199,13 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 									key={member.id}
 								>
 									<div className="flex min-w-0 items-center gap-3">
-										<Avatar className="size-8">
+										<Avatar className="size-8 rounded-lg! after:rounded-lg!">
 											<AvatarImage
 												alt={member.user.name}
+												className="rounded-lg!"
 												src={member.user.image ?? undefined}
 											/>
-											<AvatarFallback className="text-xs">
+											<AvatarFallback className="rounded-lg! text-xs">
 												{(member.user.name || member.user.email)
 													.charAt(0)
 													.toUpperCase()}

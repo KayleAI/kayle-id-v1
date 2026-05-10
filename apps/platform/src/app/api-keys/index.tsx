@@ -47,9 +47,9 @@ export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 	});
 
 	return (
-		<div className="overflow-hidden rounded-md border">
+		<div className="overflow-hidden rounded-md border border-border/70">
 			<Table>
-				<TableHeader className="sticky top-0 z-10 bg-muted">
+				<TableHeader className="bg-muted/40">
 					<TableRow>
 						<TableHead>Name</TableHead>
 						<TableHead>Status</TableHead>

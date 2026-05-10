@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
+import { AppHeading } from "@/components/app-shell/heading";
 import { RelativeTime } from "@/components/relative-time";
 import {
 	type AuditLogEntry,
@@ -56,7 +57,6 @@ import {
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationRole,
 } from "./api";
-import { OrganizationPageLayout } from "./layout";
 
 /**
  * Mirrors `react-day-picker`'s `DateRange` so we don't have to add the
@@ -714,27 +714,29 @@ function AuditLogsTable({ entries }: { entries: AuditLogEntry[] }) {
 		);
 	}
 	return (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead>Event</TableHead>
-					<TableHead>Actor</TableHead>
-					<TableHead className="text-right">When</TableHead>
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{entries.map((entry) => (
-					<AuditLogRow
-						entry={entry}
-						key={entry.id}
-						onToggle={() =>
-							setOpenId((current) => (current === entry.id ? null : entry.id))
-						}
-						open={openId === entry.id}
-					/>
-				))}
-			</TableBody>
-		</Table>
+		<div className="overflow-hidden rounded-md border border-border/70">
+			<Table>
+				<TableHeader className="bg-muted/40">
+					<TableRow>
+						<TableHead>Event</TableHead>
+						<TableHead>Actor</TableHead>
+						<TableHead className="text-right">When</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{entries.map((entry) => (
+						<AuditLogRow
+							entry={entry}
+							key={entry.id}
+							onToggle={() =>
+								setOpenId((current) => (current === entry.id ? null : entry.id))
+							}
+							open={openId === entry.id}
+						/>
+					))}
+				</TableBody>
+			</Table>
+		</div>
 	);
 }
 
@@ -1221,10 +1223,10 @@ export function OrganizationAuditLogsPage() {
 	};
 
 	return (
-		<OrganizationPageLayout
-			description="Every state-changing action against this organization, recorded for compliance and incident review."
-			title="Audit logs"
-		>
+		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
+			<AppHeading title="Audit logs" />
+			<hr className="my-8" />
+
 			{!canView && orgQuery.data ? (
 				<Card>
 					<CardHeader>
@@ -1284,6 +1286,6 @@ export function OrganizationAuditLogsPage() {
 					) : null}
 				</div>
 			) : null}
-		</OrganizationPageLayout>
+		</div>
 	);
 }

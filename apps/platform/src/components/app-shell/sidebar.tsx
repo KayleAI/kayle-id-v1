@@ -131,12 +131,13 @@ export function AppSidebar() {
 							<DropdownMenuTrigger
 								render={
 									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5">
-										<Avatar className="size-7 rounded-md">
+										<Avatar className="size-7 rounded-md! after:rounded-md!">
 											<AvatarImage
 												alt={orgName}
+												className="rounded-md!"
 												src={activeOrganization?.logo ?? undefined}
 											/>
-											<AvatarFallback className="rounded-md text-[11px]">
+											<AvatarFallback className="rounded-md! text-[11px]">
 												{orgInitial}
 											</AvatarFallback>
 										</Avatar>
@@ -213,12 +214,13 @@ export function AppSidebar() {
 															);
 														}}
 													>
-														<Avatar className="size-5 rounded-md">
+														<Avatar className="size-5 rounded-md! after:rounded-md!">
 															<AvatarImage
 																alt={org.name}
+																className="rounded-md!"
 																src={org.logo ?? undefined}
 															/>
-															<AvatarFallback className="rounded-md text-[10px]">
+															<AvatarFallback className="rounded-md! text-[10px]">
 																{org.name.charAt(0).toUpperCase()}
 															</AvatarFallback>
 														</Avatar>
@@ -342,12 +344,13 @@ export function AppSidebar() {
 										className="h-12 data-open:bg-secondary-foreground/5"
 										tooltip={userName}
 									>
-										<Avatar className="size-7 rounded-md">
+										<Avatar className="size-7 rounded-md! after:rounded-md!">
 											<AvatarImage
 												alt={user?.name}
+												className="rounded-md!"
 												src={user?.image ?? undefined}
 											/>
-											<AvatarFallback className="rounded-md text-[11px]">
+											<AvatarFallback className="rounded-md! text-[11px]">
 												{userInitial}
 											</AvatarFallback>
 										</Avatar>

@@ -127,12 +127,13 @@ function MemberRow({
 		<TableRow>
 			<TableCell className="font-medium">
 				<div className="flex items-center gap-3">
-					<Avatar className="size-8">
+					<Avatar className="size-8 rounded-lg! after:rounded-lg!	">
 						<AvatarImage
 							alt={member.user.name}
+							className="rounded-lg!"
 							src={member.user.image ?? undefined}
 						/>
-						<AvatarFallback className="text-xs">
+						<AvatarFallback className="rounded-lg! text-xs">
 							{(member.user.name || member.user.email).charAt(0).toUpperCase()}
 						</AvatarFallback>
 					</Avatar>
@@ -234,12 +235,13 @@ function SuspendedMemberRow({
 		<TableRow>
 			<TableCell className="font-medium">
 				<div className="flex items-center gap-3">
-					<Avatar className="size-8 opacity-60">
+					<Avatar className="size-8 opacity-60 rounded-lg! after:rounded-lg!">
 						<AvatarImage
 							alt={member.user.name}
+							className="rounded-lg!"
 							src={member.user.image ?? undefined}
 						/>
-						<AvatarFallback className="text-xs">
+						<AvatarFallback className="rounded-lg! text-xs">
 							{(member.user.name || member.user.email).charAt(0).toUpperCase()}
 						</AvatarFallback>
 					</Avatar>
@@ -483,9 +485,9 @@ function MembersBody({
 					</div>
 					<InviteMemberDialog canInvite={canInvite} />
 				</header>
-				<div className="overflow-hidden rounded-md border">
+				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
-						<TableHeader className="sticky top-0 z-10 bg-muted">
+						<TableHeader className="bg-muted/40">
 							<TableRow>
 								<TableHead>Member</TableHead>
 								<TableHead>Role</TableHead>
@@ -521,9 +523,9 @@ function MembersBody({
 							to them. Reinstate to restore access.
 						</p>
 					</header>
-					<div className="overflow-hidden rounded-md border">
+					<div className="overflow-hidden rounded-md border border-border/70">
 						<Table>
-							<TableHeader className="sticky top-0 z-10 bg-muted">
+							<TableHeader className="bg-muted/40">
 								<TableRow>
 									<TableHead>Member</TableHead>
 									<TableHead>Role at suspension</TableHead>
@@ -561,9 +563,9 @@ function MembersBody({
 						No pending invitations.
 					</p>
 				) : (
-					<div className="overflow-hidden rounded-md border">
+					<div className="overflow-hidden rounded-md border border-border/70">
 						<Table>
-							<TableHeader className="sticky top-0 z-10 bg-muted">
+							<TableHeader className="bg-muted/40">
 								<TableRow>
 									<TableHead>Email</TableHead>
 									<TableHead>Role</TableHead>

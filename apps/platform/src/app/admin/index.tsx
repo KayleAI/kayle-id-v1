@@ -17,10 +17,7 @@ export function AdminPage() {
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
-			<AppHeading
-				description="Platform-wide administrative tools. Visible only to the organization configured as the platform admin."
-				title="Admin"
-			/>
+			<AppHeading title="Administrative Tools" />
 
 			<div className="mt-8 flex-1">
 				<Card>

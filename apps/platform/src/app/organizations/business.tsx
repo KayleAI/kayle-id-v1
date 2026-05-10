@@ -176,10 +176,8 @@ function BusinessDetailsForm({
 			<CardHeader>
 				<CardTitle>Business details</CardTitle>
 				<CardDescription>
-					Your registered legal entity, or the individual operating it. End
-					users see these in the verify dialog alongside the verified-domain
-					badge — they're hidden until your organization has at least one
-					verified domain. Owner-only.
+					Your registered legal entity, or the individual operating it. Your
+					users will be able to see these.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -307,8 +305,8 @@ export function OrganizationBusinessPage() {
 
 	return (
 		<OrganizationPageLayout
-			description="The legal entity (or individual) behind the organization. Shown to end users alongside the verified-domain badge."
-			title="Business"
+			description="The legal entity (or individual) behind the organization."
+			title="Business Details"
 		>
 			{isError ? (
 				<Alert variant="destructive">

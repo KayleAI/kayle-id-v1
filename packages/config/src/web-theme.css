@@ -18,6 +18,17 @@
     background: oklch(0.9 0.08 154.8);
   }
 
+  /* Dark-mode selection: the light-mint highlight from the base rule blows
+   * out against a dark surface and renders foreground text as white-on-
+   * light-mint, which is unreadable. Drop the L channel so the highlight
+   * reads as a dim emerald patch behind the white foreground. Same hue
+   * and chroma as the light-mode version so the brand colour relationship
+   * stays intact. */
+  .dark ::selection {
+    color: var(--foreground);
+    background: oklch(0.35 0.12 154.8);
+  }
+
   * {
     scrollbar-color: var(--secondary-foreground) transparent;
     scrollbar-width: thin;

@@ -53,7 +53,6 @@ import {
 	type ActiveDomainChallenge,
 	addRedirectUri,
 	type DnsChallengeStarted,
-	type DomainVerificationMethod,
 	fetchFullOrganization,
 	listOrganizationDomains,
 	listRedirectUris,
@@ -78,17 +77,12 @@ function DomainsSkeleton() {
 	);
 }
 
-function methodLabel(method: DomainVerificationMethod): string {
-	return method === "dns_txt" ? "DNS TXT" : "Email OTP";
-}
-
 type DomainStatus = "verified" | "pending" | "lost";
 
 interface DomainTableRow {
 	key: string;
 	apexDomain: string;
 	status: DomainStatus;
-	method: DomainVerificationMethod;
 	verifiedAt: string | null;
 	lastCheckedAt: string | null;
 	domainId: string | null;
@@ -111,7 +105,6 @@ function buildDomainRows(
 			key: `domain:${d.id}`,
 			apexDomain: d.apexDomain,
 			status,
-			method: d.verifiedVia,
 			verifiedAt: d.verifiedAt,
 			lastCheckedAt: d.lastCheckedAt,
 			domainId: d.id,
@@ -127,7 +120,6 @@ function buildDomainRows(
 			key: `challenge:${c.id}`,
 			apexDomain: c.apexDomain,
 			status: "pending",
-			method: c.method,
 			verifiedAt: null,
 			lastCheckedAt: null,
 			domainId: existing?.domainId ?? null,
@@ -138,16 +130,21 @@ function buildDomainRows(
 }
 
 function StatusBadge({ status }: { status: DomainStatus }) {
+	// Semi-transparent fills follow the same pattern as the webhook status
+	// badges (see BADGE_PALETTE in apps/platform/src/app/webhooks/utils.ts):
+	// `<color>-500/10` over a light surface in light mode, `<color>-500/20`
+	// over a dark surface in dark mode, with `text-<color>-700` flipping to
+	// `text-<color>-400` so the foreground stays readable in both themes.
 	if (status === "verified") {
 		return (
-			<Badge className="border-emerald-200 bg-emerald-50 text-emerald-800">
+			<Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
 				Verified
 			</Badge>
 		);
 	}
 	if (status === "pending") {
 		return (
-			<Badge className="border-amber-200 bg-amber-50 text-amber-900">
+			<Badge className="border-amber-500/20 bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
 				Pending verification
 			</Badge>
 		);
@@ -213,13 +210,12 @@ function VerifiedDomainsCard({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				<div className="overflow-hidden rounded-md border">
+				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
-						<TableHeader className="bg-muted">
+						<TableHeader className="bg-muted/40">
 							<TableRow>
 								<TableHead>Domain</TableHead>
 								<TableHead>Status</TableHead>
-								<TableHead>Method</TableHead>
 								<TableHead>Verified</TableHead>
 								<TableHead>Last re-checked</TableHead>
 								<TableHead>
@@ -232,7 +228,7 @@ function VerifiedDomainsCard({
 								<TableRow>
 									<TableCell
 										className="text-center text-muted-foreground text-sm"
-										colSpan={6}
+										colSpan={5}
 									>
 										You have not verified any domains yet.
 									</TableCell>
@@ -245,9 +241,6 @@ function VerifiedDomainsCard({
 										</TableCell>
 										<TableCell>
 											<StatusBadge status={row.status} />
-										</TableCell>
-										<TableCell className="text-muted-foreground text-sm">
-											{methodLabel(row.method)}
 										</TableCell>
 										<TableCell className="text-muted-foreground text-sm">
 											{row.verifiedAt ? (
@@ -910,9 +903,9 @@ function RedirectUrisCard({
 				{redirectQuery.isLoading ? (
 					<Skeleton className="h-24 w-full" />
 				) : (
-					<div className="overflow-hidden rounded-md border">
+					<div className="overflow-hidden rounded-md border border-border/70">
 						<Table>
-							<TableHeader className="bg-muted">
+							<TableHeader className="bg-muted/40">
 								<TableRow>
 									<TableHead>Pattern</TableHead>
 									<TableHead>Domain</TableHead>

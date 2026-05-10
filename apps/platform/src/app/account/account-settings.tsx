@@ -191,12 +191,12 @@ export function AccountSettingsPage() {
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<div className="flex items-center gap-4">
-							<Avatar className="size-16 rounded-lg">
+							<Avatar className="size-16 rounded-lg! after:rounded-lg!">
 								<AvatarImage
 									alt={user?.name ?? "Profile picture"}
 									src={imagePreview ?? undefined}
 								/>
-								<AvatarFallback className="rounded-full text-lg">
+								<AvatarFallback className="rounded-lg! text-lg">
 									{initial}
 								</AvatarFallback>
 							</Avatar>
@@ -394,10 +394,7 @@ function EmailCard() {
 									className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
 									variant="outline"
 								>
-									<CheckCircle2Icon
-										aria-hidden="true"
-										className="mr-1 size-3"
-									/>
+									<CheckCircle2Icon aria-hidden="true" className="size-3" />
 									Verified
 								</Badge>
 							) : (

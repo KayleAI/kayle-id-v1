@@ -19,8 +19,7 @@ interface TabDefinition {
 		| "/organizations/settings"
 		| "/organizations/public"
 		| "/organizations/business"
-		| "/organizations/domains"
-		| "/organizations/audit-logs";
+		| "/organizations/domains";
 	label: string;
 	requiresRole?: "admin";
 }
@@ -31,11 +30,6 @@ const TABS: readonly TabDefinition[] = [
 	{ href: "/organizations/public", label: "Public details" },
 	{ href: "/organizations/business", label: "Business" },
 	{ href: "/organizations/domains", label: "Domains" },
-	{
-		href: "/organizations/audit-logs",
-		label: "Audit logs",
-		requiresRole: "admin",
-	},
 	{ href: "/organizations/settings", label: "Settings" },
 ] as const;
 
@@ -91,7 +85,7 @@ export function OrganizationPageLayout({
 
 			<nav
 				aria-label="Organization sections"
-				className="mt-8 border-b border-border/70"
+				className="mt-6 border-b border-border/70"
 			>
 				<ul className="-mb-px flex flex-wrap gap-x-6">
 					{visibleTabs.map((tab) => {

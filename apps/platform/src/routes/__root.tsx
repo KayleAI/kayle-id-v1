@@ -6,7 +6,14 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import appCss from "@/routes/styles.css?url";
+
+// Sets the `dark` class on `<html>` before React mounts so dark-mode users
+// don't see a light-mode flash on first paint. Mirrors the verify app
+// (apps/verify/src/routes/__root.tsx); the `useEffect` below picks up
+// changes after mount.
+const colorSchemeScript = `(function(){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})();`;
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -56,9 +63,23 @@ export const Route = createRootRoute({
 function RootDocument() {
 	const queryClient = new QueryClient();
 
+	useEffect(() => {
+		const media = window.matchMedia("(prefers-color-scheme: dark)");
+		const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+			document.documentElement.classList.toggle("dark", event.matches);
+		};
+		handleChange(media);
+		media.addEventListener("change", handleChange);
+		return () => media.removeEventListener("change", handleChange);
+	}, []);
+
 	return (
-		<html className="overscroll-none" lang="en">
+		<html className="overscroll-none" lang="en" suppressHydrationWarning>
 			<head>
+				<script
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: inline script must run before paint to avoid a light-mode flash for dark-mode users
+					dangerouslySetInnerHTML={{ __html: colorSchemeScript }}
+				/>
 				<HeadContent />
 			</head>
 			<body className="overscroll-none font-sans antialiased">

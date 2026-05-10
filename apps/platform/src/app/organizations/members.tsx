@@ -30,8 +30,13 @@ import {
 	TableRow,
 } from "@kayleai/ui/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EllipsisVerticalIcon, ShieldIcon, TrashIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	EllipsisVerticalIcon,
+	RotateCcwIcon,
+	ShieldIcon,
+	UserMinusIcon,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/format-date";
 import {
@@ -43,7 +48,8 @@ import {
 	type OrganizationInvitation,
 	type OrganizationMember,
 	type OrganizationRole,
-	removeOrganizationMember,
+	reinstateOrganizationMember,
+	suspendOrganizationMember,
 	updateOrganizationMemberRole,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
@@ -81,8 +87,8 @@ function MemberRow({
 		(currentUserRole === "owner" ||
 			(currentUserRole === "admin" && member.role !== "owner"));
 
-	const removeMutation = useMutation({
-		mutationFn: () => removeOrganizationMember({ memberIdOrEmail: member.id }),
+	const suspendMutation = useMutation({
+		mutationFn: () => suspendOrganizationMember({ memberId: member.id }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 		},
@@ -108,12 +114,12 @@ function MemberRow({
 		});
 	};
 
-	const handleRemove = () => {
-		toast.promise(removeMutation.mutateAsync(), {
-			loading: "Removing member...",
-			success: "Member removed",
+	const handleSuspend = () => {
+		toast.promise(suspendMutation.mutateAsync(), {
+			loading: "Suspending member...",
+			success: "Member suspended",
 			error: (err) =>
-				err instanceof Error ? err.message : "Failed to remove member",
+				err instanceof Error ? err.message : "Failed to suspend member",
 		});
 	};
 
@@ -183,16 +189,89 @@ function MemberRow({
 								render={
 									<Button
 										className="flex w-full items-center justify-start"
-										onClick={handleRemove}
+										onClick={handleSuspend}
 										variant="destructive"
 									/>
 								}
 							>
-								<TrashIcon className="size-4" />
-								Remove from organization
+								<UserMinusIcon className="size-4" />
+								Suspend from organization
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+				) : null}
+			</TableCell>
+		</TableRow>
+	);
+}
+
+function SuspendedMemberRow({
+	canManage,
+	member,
+}: {
+	canManage: boolean;
+	member: OrganizationMember;
+}) {
+	const queryClient = useQueryClient();
+
+	const reinstateMutation = useMutation({
+		mutationFn: () => reinstateOrganizationMember({ memberId: member.id }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+		},
+	});
+
+	const handleReinstate = () => {
+		toast.promise(reinstateMutation.mutateAsync(), {
+			loading: "Reinstating member...",
+			success: "Member reinstated",
+			error: (err) =>
+				err instanceof Error ? err.message : "Failed to reinstate member",
+		});
+	};
+
+	return (
+		<TableRow>
+			<TableCell className="font-medium">
+				<div className="flex items-center gap-3">
+					<Avatar className="size-8 opacity-60">
+						<AvatarImage
+							alt={member.user.name}
+							src={member.user.image ?? undefined}
+						/>
+						<AvatarFallback className="text-xs">
+							{(member.user.name || member.user.email).charAt(0).toUpperCase()}
+						</AvatarFallback>
+					</Avatar>
+					<div className="min-w-0">
+						<p className="truncate text-foreground">
+							{member.user.name || member.user.email}
+						</p>
+						<p className="truncate text-muted-foreground text-xs">
+							{member.user.email}
+						</p>
+					</div>
+				</div>
+			</TableCell>
+			<TableCell>
+				<Badge className="capitalize" variant="outline">
+					{member.role}
+				</Badge>
+			</TableCell>
+			<TableCell className="text-muted-foreground">
+				{member.suspendedAt ? formatDate(member.suspendedAt) : "—"}
+			</TableCell>
+			<TableCell className="text-right">
+				{canManage ? (
+					<Button
+						disabled={reinstateMutation.isPending}
+						onClick={handleReinstate}
+						size="sm"
+						variant="outline"
+					>
+						<RotateCcwIcon className="size-3.5" />
+						Reinstate
+					</Button>
 				) : null}
 			</TableCell>
 		</TableRow>
@@ -374,9 +453,23 @@ function MembersBody({
 	organization: FullOrganization;
 }) {
 	const canInvite = currentUserRole === "owner" || currentUserRole === "admin";
+	const canManageSuspended = canInvite;
 	const pendingInvitations = organization.invitations.filter(
 		(invitation) => invitation.status === "pending",
 	);
+
+	const { activeMembers, suspendedMembers } = useMemo(() => {
+		const active: OrganizationMember[] = [];
+		const suspended: OrganizationMember[] = [];
+		for (const member of organization.members) {
+			if (member.suspendedAt) {
+				suspended.push(member);
+			} else {
+				active.push(member);
+			}
+		}
+		return { activeMembers: active, suspendedMembers: suspended };
+	}, [organization.members]);
 
 	return (
 		<div className="space-y-10">
@@ -403,7 +496,7 @@ function MembersBody({
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{organization.members.map((member) => (
+							{activeMembers.map((member) => (
 								<MemberRow
 									currentUserId={currentUserId}
 									currentUserRole={currentUserRole}
@@ -415,6 +508,44 @@ function MembersBody({
 					</Table>
 				</div>
 			</section>
+
+			{suspendedMembers.length > 0 ? (
+				<section className="space-y-4">
+					<header>
+						<h2 className="font-medium text-foreground text-lg">
+							Suspended members
+						</h2>
+						<p className="text-muted-foreground text-sm">
+							These members no longer have access. Their membership rows are
+							preserved so audit-log entries can keep attributing past actions
+							to them. Reinstate to restore access.
+						</p>
+					</header>
+					<div className="overflow-hidden rounded-md border">
+						<Table>
+							<TableHeader className="sticky top-0 z-10 bg-muted">
+								<TableRow>
+									<TableHead>Member</TableHead>
+									<TableHead>Role at suspension</TableHead>
+									<TableHead>Suspended</TableHead>
+									<TableHead>
+										<span className="sr-only">Actions</span>
+									</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{suspendedMembers.map((member) => (
+									<SuspendedMemberRow
+										canManage={canManageSuspended}
+										key={member.id}
+										member={member}
+									/>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				</section>
+			) : null}
 
 			<section className="space-y-4">
 				<header>

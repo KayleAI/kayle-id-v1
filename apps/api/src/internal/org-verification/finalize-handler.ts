@@ -278,6 +278,7 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 										auth_organizations.id,
 									),
 									eq(auth_organization_members.userId, body.owner_user_id),
+									isNull(auth_organization_members.suspendedAt),
 									memberHasOwnerRoleSql(),
 								),
 							),

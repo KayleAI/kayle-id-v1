@@ -3,12 +3,14 @@ import { auth, getActiveOrganizationId } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { unauthorized } from "@/v1/auth";
 import { acceptVerificationTerms } from "./accept-verification-terms";
+import { auditLogs } from "./audit-logs";
 import { businessDetails } from "./business-details";
 import { cancelDelete } from "./cancel-delete";
 import { confirmDelete } from "./confirm-delete";
 import createOrganizationRoute from "./create";
 import { domains } from "./domains";
 import uploadLogoRoute from "./logo";
+import { members } from "./members";
 import { redirectUris } from "./redirect-uris";
 import { requestDelete } from "./request-delete";
 
@@ -47,5 +49,7 @@ organizations.route("/", acceptVerificationTerms);
 organizations.route("/", businessDetails);
 organizations.route("/", domains);
 organizations.route("/", redirectUris);
+organizations.route("/", auditLogs);
+organizations.route("/", members);
 
 export default organizations;

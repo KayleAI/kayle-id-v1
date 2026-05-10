@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import {
 	DomainVerificationError,
 	listOrganizationDomains,
@@ -238,6 +239,19 @@ domains.openapi(startDnsChallengeRoute, async (c) => {
 			},
 			event: "organizations.domain_challenge.dns.started",
 		});
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: actor.actor.userId,
+			organizationId: actor.actor.organizationId,
+			event: "domain.challenge.started",
+			targetId: result.challengeId,
+			targetType: "domain_challenge",
+			metadata: {
+				method: "dns_txt",
+				apex_domain: apex_domain,
+				has_conflict: result.conflict !== null,
+			},
+		});
 		return c.json(
 			{
 				data: {
@@ -309,6 +323,20 @@ domains.openapi(verifyDnsChallengeRoute, async (c) => {
 			event: result.takeoverFrom
 				? "organizations.domain_verified.dns.takeover"
 				: "organizations.domain_verified.dns",
+		});
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: actor.actor.userId,
+			organizationId: actor.actor.organizationId,
+			event: "domain.verified",
+			targetId: result.domainId,
+			targetType: "verified_domain",
+			metadata: {
+				apex_domain: result.apexDomain,
+				method: "dns_txt",
+				takeover_from_organization_id:
+					result.takeoverFrom?.organizationId ?? null,
+			},
 		});
 		if (result.takeoverFrom) {
 			const takeoverPromise = notifyTakeover({
@@ -436,6 +464,14 @@ domains.openapi(removeDomainRoute, async (c) => {
 				domain_id: id,
 			},
 			event: "organizations.domain_revoked",
+		});
+		await recordAuditLogSafe({
+			actorType: "user",
+			actorUserId: actor.actor.userId,
+			organizationId: actor.actor.organizationId,
+			event: "domain.removed",
+			targetId: id,
+			targetType: "verified_domain",
 		});
 		return c.body(null, 204);
 	} catch (error) {

@@ -9,6 +9,7 @@ import {
   type OrganizationDomainVerificationMethod,
 } from "@kayle-id/database/schema/auth";
 import { and, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
+import { recordAuditLogSafe } from "../audit-logs";
 import { hasOrgRole } from "../permissions";
 import { ApexExtractionError, hostnameToApex } from "./apex";
 import { type DohFetch, lookupTxt } from "./doh";
@@ -108,7 +109,8 @@ async function assertOwner({
     .where(
       and(
         eq(auth_organization_members.organizationId, organizationId),
-        eq(auth_organization_members.userId, userId)
+        eq(auth_organization_members.userId, userId),
+        isNull(auth_organization_members.suspendedAt)
       )
     )
     .limit(1);
@@ -783,6 +785,17 @@ async function processDueRow({
         updatedAt: now,
       })
       .where(eq(auth_organization_verified_domains.id, row.id));
+    await recordAuditLogSafe({
+      actorType: "system",
+      organizationId: row.organizationId,
+      event: "domain.downgraded",
+      targetId: row.id,
+      targetType: "verified_domain",
+      metadata: {
+        apex_domain: row.apexDomain,
+        consecutive_failed_checks: nextFailures,
+      },
+    });
     return {
       outcome: { kind: "downgraded" },
       downgraded: {
@@ -925,7 +938,12 @@ export async function listOrgOwnerEmails(
     })
     .from(auth_organization_members)
     .innerJoin(auth_users, eq(auth_users.id, auth_organization_members.userId))
-    .where(eq(auth_organization_members.organizationId, organizationId));
+    .where(
+      and(
+        eq(auth_organization_members.organizationId, organizationId),
+        isNull(auth_organization_members.suspendedAt)
+      )
+    );
 
   return rows
     .filter((r) => hasOrgRole(r.role, "owner"))

@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import {
 	normalizeOrganizationBusinessJurisdiction,
 	normalizeOrganizationBusinessName,
@@ -18,7 +19,7 @@ import {
 	auth_organization_members,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getRequestLogger } from "@/logging";
 import { updateOrganizationBusinessDetailsRoute } from "./openapi";
 
@@ -88,6 +89,7 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 			and(
 				eq(auth_organization_members.organizationId, organizationId),
 				eq(auth_organization_members.userId, userId),
+				isNull(auth_organization_members.suspendedAt),
 			),
 		)
 		.limit(1);
@@ -210,6 +212,18 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 			},
 			event: "organizations.business_details.updated",
 		});
+
+		if (Object.keys(updates).length > 0) {
+			await recordAuditLogSafe({
+				actorType: "user",
+				actorUserId: userId,
+				organizationId,
+				event: "organization.business_details.updated",
+				targetId: organizationId,
+				targetType: "organization",
+				metadata: { updated_fields: Object.keys(updates) },
+			});
+		}
 
 		return c.json(
 			{

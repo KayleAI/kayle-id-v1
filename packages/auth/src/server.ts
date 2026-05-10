@@ -24,7 +24,8 @@ import {
   organization,
   twoFactor,
 } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { recordAuditLogSafe } from "./audit-logs";
 import { isSafeAuthCallbackPath } from "./callback-url";
 import { magic } from "./magic";
 import { hardDeleteOrganizations, isOrgFrozen } from "./organization-deletion";
@@ -46,13 +47,71 @@ import {
   OrganizationSlugError,
 } from "./organization-slug";
 import { findSoleOwnedOrganizations } from "./owned-organizations";
-import { normalizeOrgRoleSet, OrganizationRoleError } from "./permissions";
+import {
+  hasOrgRole,
+  normalizeOrgRoleSet,
+  OrganizationRoleError,
+} from "./permissions";
 import { normalizeProfileImage, ProfileImageError } from "./profile-image";
 import type { Organization } from "./types";
 
 const TWO_FACTOR_COOKIE_NAME = "two_factor";
 const TWO_FACTOR_COOKIE_MAX_AGE_SECONDS = 10 * 60; // 10 minutes
 const TWO_FACTOR_VERIFICATION_PREFIX = "2fa-";
+
+/**
+ * Bridge between `beforeUpdateOrganization` and `afterUpdateOrganization`.
+ *
+ * Better-auth's update hooks fire on either side of the row write, but the
+ * after-hook only sees the resulting row — not the keys the caller actually
+ * submitted. Without those keys we can't write a meaningful `updated_fields`
+ * onto the audit-log entry, and we can't dedupe trivial logo-only updates
+ * against the standalone logo-upload audit row.
+ *
+ * The map is keyed by `${userId}:${organizationId}` and entries expire after
+ * a short TTL so a hook that throws between before and after doesn't leak.
+ */
+interface PendingOrgUpdate {
+  expiresAt: number;
+  submittedKeys: string[];
+}
+const PENDING_ORG_UPDATE_TTL_MS = 60_000;
+const pendingOrgUpdates = new Map<string, PendingOrgUpdate>();
+
+function pendingOrgUpdateKey(userId: string, organizationId: string): string {
+  return `${userId}:${organizationId}`;
+}
+
+function recordPendingOrgUpdateKeys(
+  userId: string,
+  organizationId: string,
+  submittedKeys: string[]
+): void {
+  const now = Date.now();
+  // Drop expired entries opportunistically so the map can't grow unbounded.
+  for (const [k, v] of pendingOrgUpdates) {
+    if (v.expiresAt < now) {
+      pendingOrgUpdates.delete(k);
+    }
+  }
+  pendingOrgUpdates.set(pendingOrgUpdateKey(userId, organizationId), {
+    expiresAt: now + PENDING_ORG_UPDATE_TTL_MS,
+    submittedKeys,
+  });
+}
+
+function takePendingOrgUpdateKeys(
+  userId: string,
+  organizationId: string
+): string[] | null {
+  const key = pendingOrgUpdateKey(userId, organizationId);
+  const entry = pendingOrgUpdates.get(key);
+  pendingOrgUpdates.delete(key);
+  if (!entry || entry.expiresAt < Date.now()) {
+    return null;
+  }
+  return entry.submittedKeys;
+}
 
 // Paths handled outside better-auth's built-in sign-in endpoints (magic-link
 // verification + Google OAuth callback). The twoFactor plugin's after-hook
@@ -448,7 +507,7 @@ const plugins = [
       // hooks an admin/owner could add members, change roles, send invites,
       // or rename the org during the 48h freeze window.
       // biome-ignore lint/suspicious/useAwait: required
-      beforeUpdateOrganization: async ({ organization: org }) => {
+      beforeUpdateOrganization: async ({ organization: org, user, member }) => {
         if (
           isOrgFrozen(
             org as unknown as { pendingDeletionAt: Date | null | undefined }
@@ -461,7 +520,20 @@ const plugins = [
           assertOrganizationSlugInput(org.slug);
         }
 
-        return normalizeOrganizationPolicyInput(org);
+        const normalized = normalizeOrganizationPolicyInput(org);
+        // Capture the set of fields the caller actually submitted so the
+        // matching `afterUpdateOrganization` hook can include them in the
+        // audit-log metadata. Better-auth's after-hook only sees the resulting
+        // row, not the input, so we bridge them via a small per-user map.
+        const submittedKeys = Object.keys(org).filter(
+          (key) => (org as Record<string, unknown>)[key] !== undefined
+        );
+        recordPendingOrgUpdateKeys(
+          user.id,
+          member.organizationId,
+          submittedKeys
+        );
+        return normalized;
       },
       // biome-ignore lint/suspicious/useAwait: required
       beforeAddMember: async ({ member, organization: org }) => {
@@ -519,6 +591,127 @@ const plugins = [
           throw new Error("Organization is scheduled for deletion.");
         }
         normalizeOrganizationRoleInput(invitation.role);
+      },
+      // After-hooks emit audit-log rows so org admins can review who joined
+      // or left, and how roles changed. We never let an audit write fail the
+      // request itself — `recordAuditLogSafe` swallows insert errors.
+      afterUpdateOrganization: async ({ organization: org, user }) => {
+        if (!org) {
+          return;
+        }
+        const submittedKeys = takePendingOrgUpdateKeys(user.id, org.id) ?? [];
+        // A logo-only update is already captured by the dedicated logo-upload
+        // route's `organization.logo.updated` row; emitting a second
+        // `public_details.updated` row for the same user action would be noise.
+        const isLogoOnlyUpdate =
+          submittedKeys.length === 1 && submittedKeys[0] === "logo";
+        if (isLogoOnlyUpdate) {
+          return;
+        }
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "organization.public_details.updated",
+          targetId: org.id,
+          targetType: "organization",
+          metadata: {
+            updated_fields: submittedKeys,
+          },
+        });
+      },
+      afterAddMember: async ({ member, organization: org, user }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.joined",
+          targetId: member.id,
+          targetType: "member",
+          metadata: { user_id: member.userId, role: member.role },
+        });
+      },
+      afterRemoveMember: async ({ member, organization: org, user }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.removed",
+          targetId: member.id,
+          targetType: "member",
+          metadata: { user_id: member.userId, role: member.role },
+        });
+      },
+      afterUpdateMemberRole: async ({
+        member,
+        previousRole,
+        organization: org,
+        user,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: user.id,
+          organizationId: org.id,
+          event: "member.role.changed",
+          targetId: member.id,
+          targetType: "member",
+          metadata: {
+            user_id: member.userId,
+            previous_role: previousRole,
+            new_role: member.role,
+          },
+        });
+        // Surface ownership transfer as a distinct event so the audit-log UI
+        // can render it on its own row (and admins can filter on it). We still
+        // emit `member.role.changed` above because that's the more general
+        // record of what changed.
+        const previousIsOwner = hasOrgRole(previousRole, "owner");
+        const nextIsOwner = hasOrgRole(member.role, "owner");
+        if (!previousIsOwner && nextIsOwner) {
+          await recordAuditLogSafe({
+            actorType: "user",
+            actorUserId: user.id,
+            organizationId: org.id,
+            event: "organization.ownership.assigned",
+            targetId: member.id,
+            targetType: "member",
+            metadata: {
+              user_id: member.userId,
+              previous_role: previousRole,
+              new_role: member.role,
+            },
+          });
+        }
+      },
+      afterCreateInvitation: async ({
+        invitation,
+        organization: org,
+        inviter,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: inviter.id,
+          organizationId: org.id,
+          event: "member.invited",
+          targetId: invitation.id,
+          targetType: "invitation",
+          metadata: { email: invitation.email, role: invitation.role },
+        });
+      },
+      afterCancelInvitation: async ({
+        invitation,
+        organization: org,
+        cancelledBy,
+      }) => {
+        await recordAuditLogSafe({
+          actorType: "user",
+          actorUserId: cancelledBy.id,
+          organizationId: org.id,
+          event: "member.invitation.cancelled",
+          targetId: invitation.id,
+          targetType: "invitation",
+          metadata: { email: invitation.email, role: invitation.role },
+        });
       },
     },
   }),
@@ -804,7 +997,14 @@ export const auth = betterAuth({
             auth_organization_members,
             eq(auth_organizations.id, auth_organization_members.organizationId)
           )
-          .where(eq(auth_organization_members.userId, authUser.id));
+          .where(
+            and(
+              eq(auth_organization_members.userId, authUser.id),
+              // Suspended memberships keep the audit-log trail but the user
+              // should not see the org in their session's orgs list.
+              isNull(auth_organization_members.suspendedAt)
+            )
+          );
 
         const organizations: Organization[] = orgRows.map((row) => ({
           id: row.id,

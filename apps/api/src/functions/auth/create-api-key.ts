@@ -1,3 +1,4 @@
+import { recordAuditLog, recordAuditLogSafe } from "@kayle-id/auth/audit-logs";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import { api_keys } from "@kayle-id/database/schema/core";
@@ -49,7 +50,20 @@ export async function createApiKey({
 				const [row] = await tx.insert(api_keys).values(values).returning({
 					id: api_keys.id,
 				});
-
+				if (row) {
+					await recordAuditLog(
+						{
+							actorType: "user",
+							actorUserId,
+							organizationId,
+							event: "api_key.created",
+							targetId: row.id,
+							targetType: "api_key",
+							metadata: { name, permissions },
+						},
+						tx,
+					);
+				}
 				return row;
 			})
 		: (
@@ -60,6 +74,17 @@ export async function createApiKey({
 
 	if (!created?.id) {
 		throw new Error("Failed to create API key");
+	}
+
+	if (!actorUserId) {
+		await recordAuditLogSafe({
+			actorType: "system",
+			organizationId,
+			event: "api_key.created",
+			targetId: created.id,
+			targetType: "api_key",
+			metadata: { name, permissions },
+		});
 	}
 
 	return {

@@ -203,19 +203,19 @@ function OrganizationIdentityCard({
 function VerifiedDomainBadge({ apexDomains }: { apexDomains: string[] }) {
 	const isPlural = apexDomains.length > 1;
 	return (
-		<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+		<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
 			<OctagonCheck
 				aria-hidden="true"
-				className="mt-0.5 size-5 shrink-0 text-emerald-700"
+				className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-400"
 			/>
 			<div className="min-w-0 flex-1">
-				<p className="font-medium text-emerald-800 text-sm">
+				<p className="font-medium text-emerald-800 text-sm dark:text-emerald-200">
 					{isPlural ? "Verified domains" : "Verified domain"}
 				</p>
-				<p className="mt-1 break-all font-mono text-emerald-700 text-sm">
+				<p className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
 					{apexDomains.join(", ")}
 				</p>
-				<p className="mt-1 text-emerald-700 text-xs">
+				<p className="mt-1 text-emerald-700 text-xs dark:text-emerald-300">
 					{isPlural
 						? "Kayle ID confirmed control of these domains. The website and policy links shown here all point to them."
 						: "Kayle ID confirmed control of this domain. The website and policy links shown here all point to it."}

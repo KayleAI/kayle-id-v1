@@ -111,7 +111,11 @@ export function SessionConsent({
 									className="inline-block h-fit! p-0 text-foreground text-sm!"
 									nativeButton={false}
 									render={
-										<a href="/terms" rel="noopener noreferrer" target="_blank">
+										<a
+											href="https://kayle.id/terms"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
 											Terms of Service
 										</a>
 									}
@@ -125,7 +129,7 @@ export function SessionConsent({
 									nativeButton={false}
 									render={
 										<a
-											href="/privacy"
+											href="https://kayle.id/privacy"
 											rel="noopener noreferrer"
 											target="_blank"
 										>

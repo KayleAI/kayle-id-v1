@@ -23,7 +23,7 @@ import { LaptopIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { TwoFactorAuthSection } from "@/app/account/two-factor";
 import { PasskeysList } from "@/app/passkeys";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 
 const SESSIONS_QUERY_KEY = ["account", "sessions"] as const;
 
@@ -269,7 +269,7 @@ function SessionRow({
 					</div>
 					<p className="truncate text-muted-foreground text-xs tabular-nums">
 						{session.ipAddress ? `${session.ipAddress} · ` : ""}
-						Last active {formatDate(toIsoString(session.updatedAt))}
+						Last active <RelativeTime iso={toIsoString(session.updatedAt)} />
 					</p>
 				</div>
 			</div>

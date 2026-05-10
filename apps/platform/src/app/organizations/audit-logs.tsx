@@ -31,12 +31,6 @@ import {
 	TableRow,
 } from "@kayleai/ui/table";
 import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@kayleai/ui/tooltip";
-import {
 	type InfiniteData,
 	useInfiniteQuery,
 	useQuery,
@@ -51,7 +45,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	type AuditLogEntry,
 	type AuditLogPage,
@@ -259,120 +253,6 @@ function endOfDayISO(date: Date): string {
 	const d = new Date(date);
 	d.setHours(23, 59, 59, 999);
 	return d.toISOString();
-}
-
-const SHORT_DATE_NO_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	day: "numeric",
-	month: "short",
-});
-const SHORT_DATE_WITH_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	day: "numeric",
-	month: "short",
-	year: "numeric",
-});
-const TOOLTIP_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	day: "numeric",
-	month: "short",
-	year: "numeric",
-});
-const TOOLTIP_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	hour: "2-digit",
-	hour12: true,
-	minute: "2-digit",
-	second: "2-digit",
-});
-const TOOLTIP_DATE_UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	day: "numeric",
-	month: "short",
-	timeZone: "UTC",
-	year: "numeric",
-});
-const TOOLTIP_TIME_UTC_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	hour: "2-digit",
-	hour12: true,
-	minute: "2-digit",
-	second: "2-digit",
-	timeZone: "UTC",
-});
-
-const SECOND = 1000;
-const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-/**
- * Compact relative-time label for the audit-log row's "When" cell. Follows
- * the spec from
- * https://x.com/steventey/status/<…>:
- * - <1s → "Just now"
- * - 1-59s → "5s ago"
- * - 1-59m → "5m ago"
- * - 1-23h → "5h ago"
- * - >24h → "May 30" (current year) / "Dec 12, 2024" (older years)
- *
- * Future timestamps (clock skew) format like the present.
- */
-function formatRelative(iso: string, now: Date = new Date()): string {
-	const then = new Date(iso);
-	const delta = now.getTime() - then.getTime();
-	if (delta < SECOND) {
-		return "Just now";
-	}
-	if (delta < MINUTE) {
-		return `${Math.floor(delta / SECOND)}s ago`;
-	}
-	if (delta < HOUR) {
-		return `${Math.floor(delta / MINUTE)}m ago`;
-	}
-	if (delta < DAY) {
-		return `${Math.floor(delta / HOUR)}h ago`;
-	}
-	return then.getFullYear() === now.getFullYear()
-		? SHORT_DATE_NO_YEAR_FORMATTER.format(then)
-		: SHORT_DATE_WITH_YEAR_FORMATTER.format(then);
-}
-
-/**
- * Long-form "N days, N hours, N minutes ago" for the tooltip header. Drops
- * trailing zero units so a fresh row reads "5 minutes ago" rather than
- * "0 days, 0 hours, 5 minutes ago".
- */
-function formatTooltipDuration(iso: string, now: Date = new Date()): string {
-	const then = new Date(iso);
-	const delta = Math.max(0, now.getTime() - then.getTime());
-	if (delta < 5 * SECOND) {
-		return "Just now";
-	}
-	const days = Math.floor(delta / DAY);
-	const hours = Math.floor((delta % DAY) / HOUR);
-	const minutes = Math.floor((delta % HOUR) / MINUTE);
-	const seconds = Math.floor((delta % MINUTE) / SECOND);
-
-	const parts: string[] = [];
-	if (days > 0) {
-		parts.push(`${days} day${days === 1 ? "" : "s"}`);
-	}
-	if (hours > 0) {
-		parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
-	}
-	if (minutes > 0) {
-		parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
-	}
-	if (parts.length === 0) {
-		return `${seconds} second${seconds === 1 ? "" : "s"} ago`;
-	}
-	return `${parts.join(", ")} ago`;
-}
-
-/**
- * Returns the local timezone's short label (e.g. "PDT", "BST", "GMT+1").
- * Falls back to "Local" if the runtime can't surface one.
- */
-function getLocalTimezoneLabel(now: Date = new Date()): string {
-	const parts = new Intl.DateTimeFormat("en-US", {
-		timeZoneName: "short",
-	}).formatToParts(now);
-	return parts.find((p) => p.type === "timeZoneName")?.value ?? "Local";
 }
 
 function metadataString(
@@ -696,16 +576,7 @@ interface AuditLogRowProps {
 function AuditLogRow({ entry, onToggle, open }: AuditLogRowProps) {
 	const { label } = describeEvent(entry.event);
 	const summary = summariseEntry(entry);
-	const absoluteTime = formatDate(entry.createdAt);
-	const relativeTime = formatRelative(entry.createdAt);
 	const metadataKeys = Object.keys(entry.metadata);
-	const createdAtDate = new Date(entry.createdAt);
-	const tooltipDuration = formatTooltipDuration(entry.createdAt);
-	const utcDate = TOOLTIP_DATE_UTC_FORMATTER.format(createdAtDate);
-	const utcTime = TOOLTIP_TIME_UTC_FORMATTER.format(createdAtDate);
-	const localDate = TOOLTIP_DATE_FORMATTER.format(createdAtDate);
-	const localTime = TOOLTIP_TIME_FORMATTER.format(createdAtDate);
-	const localTimezone = getLocalTimezoneLabel(createdAtDate);
 
 	return (
 		<>
@@ -748,43 +619,12 @@ function AuditLogRow({ entry, onToggle, open }: AuditLogRowProps) {
 					<ActorCell entry={entry} />
 				</TableCell>
 				<TableCell className="whitespace-nowrap text-right align-top text-muted-foreground text-sm">
-					<Tooltip>
-						<TooltipTrigger
-							className="cursor-default"
-							onClick={(event) => event.stopPropagation()}
-							render={<span>{relativeTime}</span>}
-						/>
-						{/* Override the upstream `bg-foreground text-background` tooltip
-						 * styling — that gives a dark tooltip even in light mode, which
-						 * inverts contrast against the page surface. The popover tokens
-						 * follow the active theme, so the tooltip matches the dashboard.
-						 * The trailing `[&>.rotate-45]` rules retheme the upstream Arrow,
-						 * which is the only direct child with that class. */}
-						<TooltipContent
-							className="min-w-[260px] border border-border bg-popover p-3 text-left text-popover-foreground shadow-md ring-1 ring-foreground/5 [&>.rotate-45]:border [&>.rotate-45]:border-border [&>.rotate-45]:bg-popover [&>.rotate-45]:fill-popover"
-							side="left"
-						>
-							<div className="font-medium text-foreground text-sm">
-								{tooltipDuration}
-							</div>
-							<dl className="mt-2 grid items-baseline gap-x-4 gap-y-1 text-xs sm:grid-cols-[auto_1fr_auto]">
-								<dt className="font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-wider">
-									UTC
-								</dt>
-								<dd className="text-muted-foreground">{utcDate}</dd>
-								<dd className="text-right text-muted-foreground tabular-nums">
-									{utcTime}
-								</dd>
-								<dt className="font-medium font-mono text-[11px] text-muted-foreground uppercase tracking-wider">
-									{localTimezone}
-								</dt>
-								<dd className="text-muted-foreground">{localDate}</dd>
-								<dd className="text-right text-muted-foreground tabular-nums">
-									{localTime}
-								</dd>
-							</dl>
-						</TooltipContent>
-					</Tooltip>
+					<RelativeTime
+						className="cursor-default"
+						iso={entry.createdAt}
+						onClick={(event) => event.stopPropagation()}
+						side="left"
+					/>
 				</TableCell>
 			</TableRow>
 			{open ? (
@@ -795,7 +635,9 @@ function AuditLogRow({ entry, onToggle, open }: AuditLogRowProps) {
 							<dd className="break-all font-mono">{entry.event}</dd>
 
 							<dt className="text-muted-foreground">When</dt>
-							<dd>{absoluteTime}</dd>
+							<dd>
+								<RelativeTime format="absolute" iso={entry.createdAt} />
+							</dd>
 
 							{entry.targetType ? (
 								<>
@@ -1383,68 +1225,65 @@ export function OrganizationAuditLogsPage() {
 			description="Every state-changing action against this organization, recorded for compliance and incident review."
 			title="Audit logs"
 		>
-			<TooltipProvider delay={150}>
-				{!canView && orgQuery.data ? (
-					<Card>
-						<CardHeader>
-							<CardTitle>Restricted</CardTitle>
-							<CardDescription>
-								Audit logs are visible to organization owners and admins only.
-								Ask an owner or admin of this organization to share the log with
-								you.
-							</CardDescription>
-						</CardHeader>
-					</Card>
-				) : null}
+			{!canView && orgQuery.data ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>Restricted</CardTitle>
+						<CardDescription>
+							Audit logs are visible to organization owners and admins only. Ask
+							an owner or admin of this organization to share the log with you.
+						</CardDescription>
+					</CardHeader>
+				</Card>
+			) : null}
 
-				{canView ? (
-					<div className="space-y-4">
-						<FilterToolbar
-							actorFilter={actorFilter}
-							apiKeyOptions={apiKeyOptions}
-							dateRange={dateRange}
-							eventFilter={eventFilter}
-							hasAnyActiveFilter={hasAnyActiveFilter}
-							memberOptions={memberOptions}
-							onActorChange={setActorFilter}
-							onClearAll={handleClearAll}
-							onDateRangeChange={setDateRange}
-							onEventChange={setEventFilter}
-							onSearchChange={setSearchInput}
-							searchInput={searchInput}
-						/>
+			{canView ? (
+				<div className="space-y-4">
+					<FilterToolbar
+						actorFilter={actorFilter}
+						apiKeyOptions={apiKeyOptions}
+						dateRange={dateRange}
+						eventFilter={eventFilter}
+						hasAnyActiveFilter={hasAnyActiveFilter}
+						memberOptions={memberOptions}
+						onActorChange={setActorFilter}
+						onClearAll={handleClearAll}
+						onDateRangeChange={setDateRange}
+						onEventChange={setEventFilter}
+						onSearchChange={setSearchInput}
+						searchInput={searchInput}
+					/>
 
-						{auditQuery.isError ? (
-							<Alert variant="destructive">
-								<AlertTitle>Failed to load audit logs</AlertTitle>
-								<AlertDescription>
-									{auditQuery.error instanceof Error
-										? auditQuery.error.message
-										: "Something went wrong while loading audit logs."}
-								</AlertDescription>
-							</Alert>
-						) : null}
+					{auditQuery.isError ? (
+						<Alert variant="destructive">
+							<AlertTitle>Failed to load audit logs</AlertTitle>
+							<AlertDescription>
+								{auditQuery.error instanceof Error
+									? auditQuery.error.message
+									: "Something went wrong while loading audit logs."}
+							</AlertDescription>
+						</Alert>
+					) : null}
 
-						{auditQuery.isLoading ? (
-							<AuditLogsSkeleton />
-						) : (
-							<AuditLogsTable entries={entries} />
-						)}
+					{auditQuery.isLoading ? (
+						<AuditLogsSkeleton />
+					) : (
+						<AuditLogsTable entries={entries} />
+					)}
 
-						{auditQuery.hasNextPage ? (
-							<div className="flex justify-center">
-								<Button
-									disabled={auditQuery.isFetchingNextPage}
-									onClick={() => auditQuery.fetchNextPage()}
-									variant="outline"
-								>
-									{auditQuery.isFetchingNextPage ? "Loading..." : "Load more"}
-								</Button>
-							</div>
-						) : null}
-					</div>
-				) : null}
-			</TooltipProvider>
+					{auditQuery.hasNextPage ? (
+						<div className="flex justify-center">
+							<Button
+								disabled={auditQuery.isFetchingNextPage}
+								onClick={() => auditQuery.fetchNextPage()}
+								variant="outline"
+							>
+								{auditQuery.isFetchingNextPage ? "Loading..." : "Load more"}
+							</Button>
+						</div>
+					) : null}
+				</div>
+			) : null}
 		</OrganizationPageLayout>
 	);
 }

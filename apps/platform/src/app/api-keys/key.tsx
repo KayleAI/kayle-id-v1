@@ -28,7 +28,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
@@ -220,13 +220,17 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">Created</Label>
-								<p className="font-medium">{formatDate(apiKey.createdAt)}</p>
+								<p className="font-medium">
+									<RelativeTime iso={apiKey.createdAt} />
+								</p>
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">
 									Last Updated
 								</Label>
-								<p className="font-medium">{formatDate(apiKey.updatedAt)}</p>
+								<p className="font-medium">
+									<RelativeTime iso={apiKey.updatedAt} />
+								</p>
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">Key ID</Label>

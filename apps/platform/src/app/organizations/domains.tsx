@@ -48,6 +48,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	type ActiveDomainChallenge,
 	addRedirectUri,
@@ -75,18 +76,6 @@ function DomainsSkeleton() {
 			<Skeleton className="h-44 w-full" />
 		</div>
 	);
-}
-
-function formatDate(iso: string): string {
-	try {
-		return new Date(iso).toLocaleDateString(undefined, {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		});
-	} catch {
-		return iso;
-	}
 }
 
 function methodLabel(method: DomainVerificationMethod): string {
@@ -261,10 +250,18 @@ function VerifiedDomainsCard({
 											{methodLabel(row.method)}
 										</TableCell>
 										<TableCell className="text-muted-foreground text-sm">
-											{row.verifiedAt ? formatDate(row.verifiedAt) : "—"}
+											{row.verifiedAt ? (
+												<RelativeTime iso={row.verifiedAt} />
+											) : (
+												"—"
+											)}
 										</TableCell>
 										<TableCell className="text-muted-foreground text-sm">
-											{row.lastCheckedAt ? formatDate(row.lastCheckedAt) : "—"}
+											{row.lastCheckedAt ? (
+												<RelativeTime iso={row.lastCheckedAt} />
+											) : (
+												"—"
+											)}
 										</TableCell>
 										<TableCell className="text-right">
 											{canManage && row.originalDomain ? (
@@ -946,7 +943,7 @@ function RedirectUrisCard({
 												{row.apexDomain}
 											</TableCell>
 											<TableCell className="text-muted-foreground text-sm">
-												{formatDate(row.createdAt)}
+												<RelativeTime iso={row.createdAt} />
 											</TableCell>
 											<TableCell className="text-right">
 												{canManage ? (

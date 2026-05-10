@@ -1,12 +1,5 @@
 import { Link } from "@tanstack/react-router";
-
-function formatDeadline(iso: string): string {
-	try {
-		return new Date(iso).toLocaleString();
-	} catch {
-		return iso;
-	}
-}
+import { RelativeTime } from "@/components/relative-time";
 
 export function PendingDeletionBanner({
 	pendingDeletionAt,
@@ -17,7 +10,7 @@ export function PendingDeletionBanner({
 		<div className="mb-6 flex items-center justify-between gap-4 rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 			<div>
 				<strong>Scheduled for deletion.</strong> This organization will be
-				permanently deleted at {formatDeadline(pendingDeletionAt)}. API keys,
+				permanently deleted <RelativeTime iso={pendingDeletionAt} />. API keys,
 				webhooks, and verification flows are disabled until the deletion is
 				canceled.
 			</div>

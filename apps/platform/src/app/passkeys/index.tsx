@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
@@ -142,11 +142,13 @@ export function PasskeysList() {
 											: "Synced"}
 									</TableCell>
 									<TableCell className="text-muted-foreground">
-										{formatDate(
-											typeof passkey.createdAt === "string"
-												? passkey.createdAt
-												: passkey.createdAt.toISOString(),
-										)}
+										<RelativeTime
+											iso={
+												typeof passkey.createdAt === "string"
+													? passkey.createdAt
+													: passkey.createdAt.toISOString()
+											}
+										/>
 									</TableCell>
 									<TableCell className="text-right">
 										<Button

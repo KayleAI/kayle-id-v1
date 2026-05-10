@@ -10,7 +10,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { WebhookEvent } from "@/app/webhooks/api";
 import { getEventTriggerLabel } from "@/app/webhooks/utils";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { LoadingState, QueryErrorAlert, SectionMessage } from "../shared";
 import { EventDeliverySummary } from "./pieces";
 
@@ -77,7 +77,7 @@ export function EventsTabContent({
 								</TableCell>
 								<TableCell>
 									<div className="truncate text-muted-foreground text-sm tabular-nums">
-										{formatDate(event.created_at)}
+										<RelativeTime iso={event.created_at} />
 									</div>
 								</TableCell>
 							</TableRow>

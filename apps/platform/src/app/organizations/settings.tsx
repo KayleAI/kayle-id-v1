@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	cancelOrganizationDeletion,
 	confirmOrganizationDeletion,
@@ -225,26 +226,6 @@ function LeaveCard({
 	);
 }
 
-function formatDeadline(iso: string): string {
-	try {
-		return new Date(iso).toLocaleString();
-	} catch {
-		return iso;
-	}
-}
-
-function formatVerifiedAt(iso: string): string {
-	try {
-		return new Date(iso).toLocaleDateString(undefined, {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
-	} catch {
-		return iso;
-	}
-}
-
 function VerificationCard({
 	canStartVerification,
 	organization,
@@ -269,7 +250,7 @@ function VerificationCard({
 				<div className="flex items-center justify-between gap-4">
 					{isVerified ? (
 						<p className="text-muted-foreground text-sm">
-							Verified on {formatVerifiedAt(organization.verifiedAt as string)}.
+							Verified <RelativeTime iso={organization.verifiedAt as string} />.
 						</p>
 					) : (
 						<p className="text-muted-foreground text-sm">
@@ -318,9 +299,7 @@ function PendingDeletionCard({
 		},
 	});
 
-	const deadline = organization.pendingDeletionAt
-		? formatDeadline(organization.pendingDeletionAt)
-		: null;
+	const deadline = organization.pendingDeletionAt;
 
 	return (
 		<Card className="border-destructive/30">
@@ -329,9 +308,15 @@ function PendingDeletionCard({
 					Scheduled for deletion
 				</CardTitle>
 				<CardDescription>
-					{deadline
-						? `This organization will be permanently deleted at ${deadline}. API keys, webhooks, and verification flows are disabled until the deletion is canceled.`
-						: "This organization is scheduled for deletion."}
+					{deadline ? (
+						<>
+							This organization will be permanently deleted{" "}
+							<RelativeTime iso={deadline} />. API keys, webhooks, and
+							verification flows are disabled until the deletion is canceled.
+						</>
+					) : (
+						"This organization is scheduled for deletion."
+					)}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>

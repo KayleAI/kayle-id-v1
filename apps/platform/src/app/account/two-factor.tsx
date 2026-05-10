@@ -209,6 +209,9 @@ function ScanStep({
 				etc.) and scan the QR code below.
 			</p>
 			<div className="flex justify-center">
+				{/* `bg-white` here is intentional — QR code scanners need a
+				 * high-contrast static white background regardless of the
+				 * active theme; the SVG modules are black-on-white. */}
 				<div className="rounded-lg border bg-white p-4">
 					<QRCodeSVG
 						aria-label="Two-factor authentication QR code"

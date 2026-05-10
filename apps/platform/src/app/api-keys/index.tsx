@@ -25,7 +25,7 @@ import {
 	TrashIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
@@ -88,7 +88,7 @@ export function ApiKeysTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 								{key.requestCount.toLocaleString()}
 							</TableCell>
 							<TableCell className="text-muted-foreground">
-								{formatDate(key.createdAt)}
+								<RelativeTime iso={key.createdAt} />
 							</TableCell>
 							<TableCell className="text-right text-muted-foreground">
 								<DropdownMenu>

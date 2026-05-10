@@ -33,7 +33,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	listOwnedOrganizations,
 	OWNED_ORGS_QUERY_KEY,
@@ -284,9 +284,11 @@ export function AccountSettingsPage() {
 							Member since
 						</Label>
 						<p className="font-medium">
-							{user?.createdAt
-								? formatDate(new Date(user.createdAt).toISOString())
-								: "—"}
+							{user?.createdAt ? (
+								<RelativeTime iso={new Date(user.createdAt).toISOString()} />
+							) : (
+								"—"
+							)}
 						</p>
 					</div>
 				</CardContent>

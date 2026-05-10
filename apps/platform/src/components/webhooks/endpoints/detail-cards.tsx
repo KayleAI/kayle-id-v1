@@ -15,7 +15,7 @@ import {
 	getEndpointDisplayName,
 	getEventSubscriptionSummary,
 } from "@/app/webhooks/utils";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import { CreateKeyDialog } from "../keys/create-dialog";
 import {
@@ -405,7 +405,7 @@ export function EndpointKeysCard({
 
 						<div className="flex items-center justify-between gap-3">
 							<p className="text-muted-foreground text-xs tabular-nums">
-								{formatDate(key.created_at)}
+								<RelativeTime iso={key.created_at} />
 							</p>
 							<Button
 								disabled={isUpdating}

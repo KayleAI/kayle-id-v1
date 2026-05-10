@@ -54,7 +54,7 @@ export function SelectOrganizations() {
 
 				{/* Error Message */}
 				{error && (
-					<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm">
+					<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 						{error}
 					</div>
 				)}

@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
@@ -157,7 +157,7 @@ function MemberRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{formatDate(member.createdAt)}
+				<RelativeTime iso={member.createdAt} />
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (
@@ -259,7 +259,7 @@ function SuspendedMemberRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{member.suspendedAt ? formatDate(member.suspendedAt) : "—"}
+				{member.suspendedAt ? <RelativeTime iso={member.suspendedAt} /> : "—"}
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (
@@ -314,7 +314,7 @@ function InvitationRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{formatDate(invitation.expiresAt)}
+				<RelativeTime iso={invitation.expiresAt} />
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (

@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
@@ -144,7 +144,7 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 						<div className="space-y-1">
 							<dt className="font-medium text-foreground">Created</dt>
 							<dd className="text-muted-foreground">
-								{formatDate(organization.createdAt)}
+								<RelativeTime iso={organization.createdAt} />
 							</dd>
 						</div>
 						<div className="space-y-1">

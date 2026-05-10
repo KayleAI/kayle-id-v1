@@ -11,10 +11,10 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { WebhookDelivery, WebhookEndpoint } from "@/app/webhooks/api";
 import {
-	formatOptionalDate,
 	getEndpointDisplayName,
 	getEndpointSecondaryLabel,
 } from "@/app/webhooks/utils";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	LoadingState,
 	QueryErrorAlert,
@@ -140,7 +140,11 @@ export function DeliveriesTabContent({
 										<ResponseCodeBadge statusCode={delivery.last_status_code} />
 									</TableCell>
 									<TableCell className="text-muted-foreground text-sm tabular-nums">
-										{formatOptionalDate(delivery.last_attempt_at)}
+										{delivery.last_attempt_at ? (
+											<RelativeTime iso={delivery.last_attempt_at} />
+										) : (
+											"Never"
+										)}
 									</TableCell>
 									<TableCell className="text-right">
 										<Button

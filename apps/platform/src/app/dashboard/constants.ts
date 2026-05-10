@@ -61,7 +61,10 @@ export const METRIC_CONFIG: Record<DisplayMetricKey, MetricConfig> = {
 	},
 	cancelled: {
 		description: "Sessions that were actively cancelled before completion.",
-		dotClassName: "bg-slate-400",
+		// Match the chart line `stroke` exactly so the legend dot reads as
+		// the same colour in both light and dark themes (Tailwind's slate-400
+		// shifts in dark mode, which made the dot drift from the line).
+		dotClassName: "bg-[#94a3b8]",
 		label: "Cancelled",
 		stroke: "#94a3b8",
 		title: "Cancelled sessions",

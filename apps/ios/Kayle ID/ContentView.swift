@@ -171,7 +171,13 @@ struct ContentView: View {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .clipped()
         }
+
+        if session.isReconnecting {
+          BlockingLoadingOverlay(message: "Reconnecting to verification…")
+            .transition(.opacity)
+        }
       }
+      .animation(.easeInOut(duration: 0.2), value: session.isReconnecting)
     }
     .tint(.primary)
     .onAppear {

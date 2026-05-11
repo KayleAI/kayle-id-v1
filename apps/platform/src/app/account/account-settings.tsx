@@ -33,7 +33,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { RelativeTime } from "@/components/relative-time";
 import {
 	listOwnedOrganizations,
 	OWNED_ORGS_QUERY_KEY,
@@ -266,33 +265,6 @@ export function AccountSettingsPage() {
 			</form>
 
 			<EmailCard />
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Account information</CardTitle>
-					<CardDescription>
-						Read-only details about your account.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-					<div className="space-y-1">
-						<Label className="text-muted-foreground text-sm">Account ID</Label>
-						<p className="font-medium font-mono text-sm">{user?.id ?? "—"}</p>
-					</div>
-					<div className="space-y-1">
-						<Label className="text-muted-foreground text-sm">
-							Member since
-						</Label>
-						<p className="font-medium">
-							{user?.createdAt ? (
-								<RelativeTime iso={new Date(user.createdAt).toISOString()} />
-							) : (
-								"—"
-							)}
-						</p>
-					</div>
-				</CardContent>
-			</Card>
 
 			<DeleteAccountCard />
 		</div>

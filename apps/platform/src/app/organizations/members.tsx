@@ -558,35 +558,40 @@ function MembersBody({
 						Invitations that have been sent but not yet accepted.
 					</p>
 				</header>
-				{pendingInvitations.length === 0 ? (
-					<p className="text-muted-foreground text-sm">
-						No pending invitations.
-					</p>
-				) : (
-					<div className="overflow-hidden rounded-md border border-border/70">
-						<Table>
-							<TableHeader className="bg-muted/40">
+				<div className="overflow-hidden rounded-md border border-border/70">
+					<Table>
+						<TableHeader className="bg-muted/40">
+							<TableRow>
+								<TableHead>Email</TableHead>
+								<TableHead>Role</TableHead>
+								<TableHead>Expires</TableHead>
+								<TableHead>
+									<span className="sr-only">Actions</span>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{pendingInvitations.length === 0 ? (
 								<TableRow>
-									<TableHead>Email</TableHead>
-									<TableHead>Role</TableHead>
-									<TableHead>Expires</TableHead>
-									<TableHead>
-										<span className="sr-only">Actions</span>
-									</TableHead>
+									<TableCell
+										className="text-center text-muted-foreground text-sm"
+										colSpan={4}
+									>
+										No pending invitations.
+									</TableCell>
 								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{pendingInvitations.map((invitation) => (
+							) : (
+								pendingInvitations.map((invitation) => (
 									<InvitationRow
 										canManage={canInvite}
 										invitation={invitation}
 										key={invitation.id}
 									/>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				)}
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>
 			</section>
 		</div>
 	);

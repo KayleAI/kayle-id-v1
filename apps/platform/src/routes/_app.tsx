@@ -1,5 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Toaster } from "@kayleai/ui/sonner";
+import { TooltipProvider } from "@kayleai/ui/tooltip";
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { AppLayout } from "@/components/app-shell/layout";
 import { Loading } from "@/components/loading";
@@ -12,7 +13,7 @@ function AppLayoutRoute() {
 	const { status, activeOrganization } = useAuth();
 
 	if (status === "loading") {
-		return <Loading layout />;
+		return <Loading fullscreen />;
 	}
 
 	if (status === "unauthenticated") {
@@ -24,9 +25,11 @@ function AppLayoutRoute() {
 	}
 
 	return (
-		<AppLayout>
-			<Outlet />
-			<Toaster />
-		</AppLayout>
+		<TooltipProvider delay={150}>
+			<AppLayout>
+				<Outlet />
+				<Toaster />
+			</AppLayout>
+		</TooltipProvider>
 	);
 }

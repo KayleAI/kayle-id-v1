@@ -253,11 +253,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 	}
 
 	if (endpointsQuery.isLoading && !endpointsQuery.data) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	if (endpointsQuery.error) {

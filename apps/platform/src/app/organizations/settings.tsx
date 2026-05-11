@@ -22,10 +22,13 @@ import {
 import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
 import { Skeleton } from "@kayleai/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	cancelOrganizationDeletion,
 	confirmOrganizationDeletion,
@@ -161,38 +164,62 @@ function LeaveCard({
 		},
 	});
 
+	const leaveButton = (
+		<Button
+			disabled={isLastOwner || leaveMutation.isPending}
+			onClick={() => setOpen(true)}
+			type="button"
+			variant="outline"
+		>
+			Leave organization
+		</Button>
+	);
+
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Leave organization</CardTitle>
-				<CardDescription>
-					You will lose access to this organization. An owner can re-invite you.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				{isLastOwner ? (
-					<Alert>
-						<AlertTitle>You're the only owner</AlertTitle>
-						<AlertDescription>
-							Promote another member to owner on the Members page before
-							leaving, or delete the organization instead.
-						</AlertDescription>
-					</Alert>
-				) : null}
-				<div className="flex items-center justify-between gap-4">
-					<p className="text-muted-foreground text-sm">
-						You'll be redirected to your other organizations after leaving.
-					</p>
-					<Button
-						disabled={isLastOwner || leaveMutation.isPending}
-						onClick={() => setOpen(true)}
-						type="button"
-						variant="outline"
-					>
-						Leave
-					</Button>
-				</div>
-			</CardContent>
+		<>
+			<Card>
+				<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="space-y-1.5">
+						<CardTitle>Leave organization</CardTitle>
+						<CardDescription>
+							You will lose access to this organization.
+						</CardDescription>
+					</div>
+					{isLastOwner ? (
+						<Tooltip>
+							{/* `<span>` wrapper is required because disabled buttons swallow
+							 * pointer events, so the trigger never fires the hover state.
+							 * tabIndex=0 keeps the tooltip reachable by keyboard. */}
+							<TooltipTrigger
+								render={
+									<span
+										className="inline-flex"
+										// biome-ignore lint/a11y/noNoninteractiveTabindex: we want to keep the tooltip reachable by keyboard
+										tabIndex={0}
+									>
+										{leaveButton}
+									</span>
+								}
+							/>
+							<TooltipContent
+								className="max-w-xs border border-border bg-popover text-left text-popover-foreground shadow-md ring-1 ring-foreground/5 [&>.rotate-45]:border [&>.rotate-45]:border-border [&>.rotate-45]:bg-popover [&>.rotate-45]:fill-popover"
+								side="left"
+							>
+								<p className="font-medium text-foreground text-sm">
+									You're the only owner
+								</p>
+								<p className="mt-1 text-muted-foreground text-xs">
+									Promote another member to owner on the Members page before
+									leaving, or delete the organization instead.
+								</p>
+							</TooltipContent>
+						</Tooltip>
+					) : (
+						leaveButton
+					)}
+				</CardHeader>
+			</Card>
+
 			<AlertDialog onOpenChange={setOpen} open={open}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
@@ -221,28 +248,8 @@ function LeaveCard({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</Card>
+		</>
 	);
-}
-
-function formatDeadline(iso: string): string {
-	try {
-		return new Date(iso).toLocaleString();
-	} catch {
-		return iso;
-	}
-}
-
-function formatVerifiedAt(iso: string): string {
-	try {
-		return new Date(iso).toLocaleDateString(undefined, {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
-	} catch {
-		return iso;
-	}
 }
 
 function VerificationCard({
@@ -259,31 +266,39 @@ function VerificationCard({
 		<Card>
 			<CardHeader>
 				<CardTitle>Verification</CardTitle>
-				<CardDescription>
-					{isVerified
-						? "An owner has completed an identity check and this organization is verified."
-						: "Verifying lifts the unverified-org rate limit and removes the warning shown to your end-users."}
-				</CardDescription>
+				{!isVerified ? (
+					<CardDescription>
+						Verifying lifts the unverified-org rate limit and removes the
+						warning shown to your end-users.
+					</CardDescription>
+				) : null}
 			</CardHeader>
 			<CardContent>
-				<div className="flex items-center justify-between gap-4">
-					{isVerified ? (
-						<p className="text-muted-foreground text-sm">
-							Verified on {formatVerifiedAt(organization.verifiedAt as string)}.
-						</p>
-					) : (
+				{isVerified ? (
+					<div className="flex items-start gap-3 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+						<ShieldCheckIcon aria-hidden className="mt-0.5 size-5 shrink-0" />
+						<div className="text-sm">
+							<p className="font-medium">Verified organization</p>
+							<p className="text-emerald-700/80 dark:text-emerald-400/80">
+								An owner completed an identity check{" "}
+								<RelativeTime iso={organization.verifiedAt as string} />.
+							</p>
+						</div>
+					</div>
+				) : (
+					<div className="flex items-center justify-between gap-4">
 						<p className="text-muted-foreground text-sm">
 							{canStartVerification
 								? "You'll be redirected to complete a one-time identity check."
 								: "Only an owner can start the verification flow."}
 						</p>
-					)}
-					{!isVerified && canStartVerification ? (
-						<Button onClick={() => setDialogOpen(true)} type="button">
-							Start verification
-						</Button>
-					) : null}
-				</div>
+						{canStartVerification ? (
+							<Button onClick={() => setDialogOpen(true)} type="button">
+								Start verification
+							</Button>
+						) : null}
+					</div>
+				)}
 			</CardContent>
 			{!isVerified && canStartVerification ? (
 				<StartVerificationDialog
@@ -318,9 +333,7 @@ function PendingDeletionCard({
 		},
 	});
 
-	const deadline = organization.pendingDeletionAt
-		? formatDeadline(organization.pendingDeletionAt)
-		: null;
+	const deadline = organization.pendingDeletionAt;
 
 	return (
 		<Card className="border-destructive/30">
@@ -329,9 +342,15 @@ function PendingDeletionCard({
 					Scheduled for deletion
 				</CardTitle>
 				<CardDescription>
-					{deadline
-						? `This organization will be permanently deleted at ${deadline}. API keys, webhooks, and verification flows are disabled until the deletion is canceled.`
-						: "This organization is scheduled for deletion."}
+					{deadline ? (
+						<>
+							This organization will be permanently deleted{" "}
+							<RelativeTime iso={deadline} />. API keys, webhooks, and
+							verification flows are disabled until the deletion is canceled.
+						</>
+					) : (
+						"This organization is scheduled for deletion."
+					)}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -409,30 +428,30 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 	};
 
 	return (
-		<Card className="border-destructive/30">
-			<CardHeader>
-				<CardTitle className="text-destructive">Delete organization</CardTitle>
-				<CardDescription>
-					Schedule permanent deletion. We'll email an 8-character confirmation
-					code; entering it freezes the organization for 48 hours before it's
-					permanently deleted.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div className="flex items-center justify-between gap-4">
-					<p className="text-muted-foreground text-sm">
-						All members, invitations, API keys, and webhooks will be removed.
-					</p>
+		<>
+			<Card>
+				<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="space-y-1.5">
+						<CardTitle className="text-destructive">
+							Delete organization
+						</CardTitle>
+						<CardDescription>
+							Once deleted, this organization and everything inside it —
+							members, invitations, API keys, and webhooks — cannot be
+							recovered.
+						</CardDescription>
+					</div>
 					<Button
 						disabled={isPending}
 						onClick={handleStartFlow}
 						type="button"
 						variant="destructive"
 					>
-						Delete
+						Delete organization
 					</Button>
-				</div>
-			</CardContent>
+				</CardHeader>
+			</Card>
+
 			<AlertDialog onOpenChange={handleOpenChange} open={open}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
@@ -487,7 +506,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</Card>
+		</>
 	);
 }
 

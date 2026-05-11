@@ -126,7 +126,7 @@ export function SignIn() {
 				{/* Sign In Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
-						<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm">
+						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 							{error}
 						</div>
 					)}
@@ -161,7 +161,7 @@ export function SignIn() {
 
 				{/* Passkey Sign In */}
 				<Button
-					className="flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white px-4 py-3 font-medium text-neutral-900 text-sm transition-all duration-200 ease-in-out hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
 					onClick={handlePasskeySignIn}
 					variant="outline"
@@ -172,7 +172,7 @@ export function SignIn() {
 
 				{/* Google Sign In */}
 				<Button
-					className="flex w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white px-4 py-3 font-medium text-neutral-900 text-sm transition-all duration-200 ease-in-out hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
 					onClick={handleGoogleSignIn}
 					variant="outline"

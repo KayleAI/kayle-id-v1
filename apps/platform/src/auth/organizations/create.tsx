@@ -156,11 +156,7 @@ export function CreateOrganization() {
 	};
 
 	if (created) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	return (
@@ -261,14 +257,14 @@ export function CreateOrganization() {
 				{/* Create Organization Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
-						<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm">
+						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 							{error}
 						</div>
 					)}
 
 					{/* Name Field */}
 					<fieldset>
-						<legend className="mb-2 text-neutral-500">
+						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Organization name</span>
 						</legend>
 						<Input
@@ -287,7 +283,7 @@ export function CreateOrganization() {
 
 					{/* Slug Field */}
 					<fieldset>
-						<legend className="mb-2 text-neutral-500">
+						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Organization slug</span>
 						</legend>
 						<Input

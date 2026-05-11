@@ -33,7 +33,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
 import {
 	listOwnedOrganizations,
 	OWNED_ORGS_QUERY_KEY,
@@ -191,12 +190,12 @@ export function AccountSettingsPage() {
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<div className="flex items-center gap-4">
-							<Avatar className="size-16 rounded-lg">
+							<Avatar className="size-16 rounded-lg! after:rounded-lg!">
 								<AvatarImage
 									alt={user?.name ?? "Profile picture"}
 									src={imagePreview ?? undefined}
 								/>
-								<AvatarFallback className="rounded-full text-lg">
+								<AvatarFallback className="rounded-lg! text-lg">
 									{initial}
 								</AvatarFallback>
 							</Avatar>
@@ -266,31 +265,6 @@ export function AccountSettingsPage() {
 			</form>
 
 			<EmailCard />
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Account information</CardTitle>
-					<CardDescription>
-						Read-only details about your account.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-					<div className="space-y-1">
-						<Label className="text-muted-foreground text-sm">Account ID</Label>
-						<p className="font-medium font-mono text-sm">{user?.id ?? "—"}</p>
-					</div>
-					<div className="space-y-1">
-						<Label className="text-muted-foreground text-sm">
-							Member since
-						</Label>
-						<p className="font-medium">
-							{user?.createdAt
-								? formatDate(new Date(user.createdAt).toISOString())
-								: "—"}
-						</p>
-					</div>
-				</CardContent>
-			</Card>
 
 			<DeleteAccountCard />
 		</div>
@@ -392,10 +366,7 @@ function EmailCard() {
 									className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
 									variant="outline"
 								>
-									<CheckCircle2Icon
-										aria-hidden="true"
-										className="mr-1 size-3"
-									/>
+									<CheckCircle2Icon aria-hidden="true" className="size-3" />
 									Verified
 								</Badge>
 							) : (

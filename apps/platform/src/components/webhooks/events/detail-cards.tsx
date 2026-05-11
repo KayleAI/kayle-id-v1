@@ -13,14 +13,13 @@ import type { ReactNode } from "react";
 import type { WebhookEndpoint, WebhookEvent } from "@/app/webhooks/api";
 import {
 	formatCount,
-	formatOptionalDate,
 	getAttachedEndpointIds,
 	getEndpointDisplayName,
 	getEndpointSecondaryLabel,
 	getEventTriggerLabel,
 	getWebhookEventReplayDisabledReason,
 } from "@/app/webhooks/utils";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	QueryErrorAlert,
 	ResponseCodeBadge,
@@ -101,7 +100,11 @@ export function EventAttachedEndpointsCard({
 										<ResponseCodeBadge statusCode={delivery.last_status_code} />
 									</TableCell>
 									<TableCell className="text-muted-foreground text-sm tabular-nums">
-										{formatOptionalDate(delivery.last_attempt_at)}
+										{delivery.last_attempt_at ? (
+											<RelativeTime iso={delivery.last_attempt_at} />
+										) : (
+											"Never"
+										)}
 									</TableCell>
 								</TableRow>
 							);
@@ -156,7 +159,7 @@ export function EventOverviewCard({
 				<div className="flex items-center justify-between gap-4">
 					<dt className="text-muted-foreground">Created</dt>
 					<dd className="text-right text-muted-foreground tabular-nums">
-						{formatDate(event.created_at)}
+						<RelativeTime iso={event.created_at} />
 					</dd>
 				</div>
 			</dl>

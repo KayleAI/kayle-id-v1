@@ -28,7 +28,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
@@ -220,13 +220,17 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">Created</Label>
-								<p className="font-medium">{formatDate(apiKey.createdAt)}</p>
+								<p className="font-medium">
+									<RelativeTime iso={apiKey.createdAt} />
+								</p>
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">
 									Last Updated
 								</Label>
-								<p className="font-medium">{formatDate(apiKey.updatedAt)}</p>
+								<p className="font-medium">
+									<RelativeTime iso={apiKey.updatedAt} />
+								</p>
 							</div>
 							<div className="space-y-1">
 								<Label className="text-muted-foreground text-sm">Key ID</Label>
@@ -271,27 +275,23 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 				</Card>
 
 				<Card>
-					<CardHeader>
-						<CardTitle className="text-destructive">Danger Zone</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="flex items-center justify-between">
-							<div className="space-y-0.5">
-								<Label>Delete API Key</Label>
-								<p className="text-muted-foreground text-sm">
-									Once deleted, this API key cannot be recovered
-								</p>
-							</div>
-							<Button
-								disabled={deleteMutation.isPending}
-								onClick={() => setIsDeleteDialogOpen(true)}
-								type="button"
-								variant="destructive"
-							>
-								Delete
-							</Button>
+					<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div className="space-y-1.5">
+							<CardTitle className="text-destructive">Delete API key</CardTitle>
+							<CardDescription>
+								Once deleted, this API key cannot be recovered. Any integrations
+								still using it will start failing immediately.
+							</CardDescription>
 						</div>
-					</CardContent>
+						<Button
+							disabled={deleteMutation.isPending}
+							onClick={() => setIsDeleteDialogOpen(true)}
+							type="button"
+							variant="destructive"
+						>
+							Delete API key
+						</Button>
+					</CardHeader>
 				</Card>
 			</div>
 

@@ -1,5 +1,4 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
-import { formatDate } from "@/utils/format-date";
 import {
 	type DeliveryStatus,
 	parsePublicKeyInput,
@@ -61,10 +60,6 @@ export const TAB_OPTIONS: Array<{
 ];
 
 const WWW_PREFIX_REGEX = /^www\./;
-
-export function formatOptionalDate(dateString: string | null): string {
-	return dateString ? formatDate(dateString) : "Never";
-}
 
 export function formatCount(value: number): string {
 	return value.toLocaleString();

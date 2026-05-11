@@ -60,10 +60,7 @@ export function Dashboard() {
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
-			<AppHeading
-				description="Your organisation's dashboard for Kayle ID."
-				title="Dashboard"
-			/>
+			<AppHeading title="Dashboard" />
 			<hr className="my-8" />
 
 			<UnverifiedOrgBanner />

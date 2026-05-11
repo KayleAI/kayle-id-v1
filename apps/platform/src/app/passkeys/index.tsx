@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
@@ -95,9 +95,9 @@ export function PasskeysList() {
 					</Alert>
 				) : null}
 
-				<div className="overflow-hidden rounded-md border">
+				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
-						<TableHeader className="bg-muted">
+						<TableHeader className="bg-muted/40">
 							<TableRow>
 								<TableHead>Name</TableHead>
 								<TableHead>Device</TableHead>
@@ -142,11 +142,13 @@ export function PasskeysList() {
 											: "Synced"}
 									</TableCell>
 									<TableCell className="text-muted-foreground">
-										{formatDate(
-											typeof passkey.createdAt === "string"
-												? passkey.createdAt
-												: passkey.createdAt.toISOString(),
-										)}
+										<RelativeTime
+											iso={
+												typeof passkey.createdAt === "string"
+													? passkey.createdAt
+													: passkey.createdAt.toISOString()
+											}
+										/>
 									</TableCell>
 									<TableCell className="text-right">
 										<Button

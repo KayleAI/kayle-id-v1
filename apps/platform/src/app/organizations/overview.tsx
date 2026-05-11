@@ -11,14 +11,12 @@ import {
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { formatDate } from "@/utils/format-date";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
 	ORGANIZATION_QUERY_KEY,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
-import { parsePublicWebsiteUrl } from "./website-url";
 
 function OverviewSkeleton() {
 	return (
@@ -76,25 +74,19 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 	const ownerCount = organization.members.filter(
 		(member) => member.role === "owner",
 	).length;
-	const websiteUrl = parsePublicWebsiteUrl(organization.metadata?.website);
 
 	return (
 		<div className="space-y-6">
 			<Card>
-				<CardHeader>
-					<CardTitle>Identity</CardTitle>
-					<CardDescription>
-						This is the public identity of your organization.
-					</CardDescription>
-				</CardHeader>
 				<CardContent>
 					<div className="flex items-center gap-4">
-						<Avatar className="size-16 rounded-lg">
+						<Avatar className="size-16 rounded-lg! after:rounded-lg!">
 							<AvatarImage
 								alt={organization.name}
+								className="rounded-lg!"
 								src={organization.logo ?? undefined}
 							/>
-							<AvatarFallback className="rounded-lg text-lg">
+							<AvatarFallback className="rounded-lg! text-lg">
 								{organization.name.charAt(0).toUpperCase()}
 							</AvatarFallback>
 						</Avatar>
@@ -102,11 +94,8 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 							<p className="truncate font-medium text-foreground text-lg">
 								{organization.name}
 							</p>
-							<p className="truncate text-muted-foreground text-sm">
-								{organization.slug}
-							</p>
 							{organization.metadata?.description ? (
-								<p className="mt-2 max-w-[60ch] text-pretty text-muted-foreground text-sm">
+								<p className="mt-1 max-w-[60ch] text-pretty text-muted-foreground text-sm">
 									{organization.metadata.description}
 								</p>
 							) : null}
@@ -123,50 +112,6 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 				/>
 				<StatCard label="Owners" value={ownerCount.toLocaleString()} />
 			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Details</CardTitle>
-					<CardDescription>Internal organization metadata.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-						<div className="space-y-1">
-							<dt className="font-medium text-foreground">Identifier</dt>
-							<dd className="font-mono text-muted-foreground text-xs break-all">
-								{organization.id}
-							</dd>
-						</div>
-						<div className="space-y-1">
-							<dt className="font-medium text-foreground">Slug</dt>
-							<dd className="text-muted-foreground">{organization.slug}</dd>
-						</div>
-						<div className="space-y-1">
-							<dt className="font-medium text-foreground">Created</dt>
-							<dd className="text-muted-foreground">
-								{formatDate(organization.createdAt)}
-							</dd>
-						</div>
-						<div className="space-y-1">
-							<dt className="font-medium text-foreground">Website</dt>
-							<dd className="text-muted-foreground">
-								{websiteUrl ? (
-									<a
-										className="text-foreground hover:underline"
-										href={websiteUrl.href}
-										rel="noopener noreferrer"
-										target="_blank"
-									>
-										{websiteUrl.label}
-									</a>
-								) : (
-									<span className="italic">Not set</span>
-								)}
-							</dd>
-						</div>
-					</dl>
-				</CardContent>
-			</Card>
 
 			<Card>
 				<CardHeader className="flex-row items-center justify-between gap-4">
@@ -198,12 +143,13 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 									key={member.id}
 								>
 									<div className="flex min-w-0 items-center gap-3">
-										<Avatar className="size-8">
+										<Avatar className="size-8 rounded-lg! after:rounded-lg!">
 											<AvatarImage
 												alt={member.user.name}
+												className="rounded-lg!"
 												src={member.user.image ?? undefined}
 											/>
-											<AvatarFallback className="text-xs">
+											<AvatarFallback className="rounded-lg! text-xs">
 												{(member.user.name || member.user.email)
 													.charAt(0)
 													.toUpperCase()}

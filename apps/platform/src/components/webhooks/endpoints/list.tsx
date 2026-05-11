@@ -28,12 +28,12 @@ import type { WebhookEndpoint } from "@/app/webhooks/api";
 import {
 	EMPTY_ENDPOINT_DELIVERY_STATS,
 	type EndpointDeliveryStats,
-	formatOptionalDate,
 	getEndpointDisplayName,
 	getEndpointSecondaryLabel,
 	getEventSubscriptionSummary,
 	TAB_OPTIONS,
 } from "@/app/webhooks/utils";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	QueryErrorAlert,
 	ResponseCodeBadge,
@@ -243,7 +243,11 @@ export function EndpointListCard({
 								<TableCell className="w-[16%]">
 									<div className="flex items-center gap-2">
 										<div className="truncate text-muted-foreground text-sm tabular-nums">
-											{formatOptionalDate(deliveryStats.lastAttemptAt)}
+											{deliveryStats.lastAttemptAt ? (
+												<RelativeTime iso={deliveryStats.lastAttemptAt} />
+											) : (
+												"Never"
+											)}
 										</div>
 										<ResponseCodeBadge
 											statusCode={deliveryStats.lastStatusCode}

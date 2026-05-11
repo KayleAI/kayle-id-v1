@@ -17,11 +17,7 @@ function ApiKeyLayout() {
 	});
 
 	if (isLoading) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	if (isError) {

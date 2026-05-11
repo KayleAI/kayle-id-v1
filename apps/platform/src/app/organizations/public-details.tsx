@@ -322,7 +322,7 @@ function PublicDetailsForm({
 							</p>
 							<p className="text-muted-foreground text-sm">
 								{canEdit
-									? "Click the placeholder to choose an image. Changes apply when you save."
+									? "Click the placeholder to choose an image."
 									: "Only owners and admins can change the logo."}
 							</p>
 						</div>

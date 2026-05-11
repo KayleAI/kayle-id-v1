@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/utils/format-date";
+import { RelativeTime } from "@/components/relative-time";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
@@ -127,12 +127,13 @@ function MemberRow({
 		<TableRow>
 			<TableCell className="font-medium">
 				<div className="flex items-center gap-3">
-					<Avatar className="size-8">
+					<Avatar className="size-8 rounded-lg! after:rounded-lg!	">
 						<AvatarImage
 							alt={member.user.name}
+							className="rounded-lg!"
 							src={member.user.image ?? undefined}
 						/>
-						<AvatarFallback className="text-xs">
+						<AvatarFallback className="rounded-lg! text-xs">
 							{(member.user.name || member.user.email).charAt(0).toUpperCase()}
 						</AvatarFallback>
 					</Avatar>
@@ -157,7 +158,7 @@ function MemberRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{formatDate(member.createdAt)}
+				<RelativeTime iso={member.createdAt} />
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (
@@ -234,12 +235,13 @@ function SuspendedMemberRow({
 		<TableRow>
 			<TableCell className="font-medium">
 				<div className="flex items-center gap-3">
-					<Avatar className="size-8 opacity-60">
+					<Avatar className="size-8 opacity-60 rounded-lg! after:rounded-lg!">
 						<AvatarImage
 							alt={member.user.name}
+							className="rounded-lg!"
 							src={member.user.image ?? undefined}
 						/>
-						<AvatarFallback className="text-xs">
+						<AvatarFallback className="rounded-lg! text-xs">
 							{(member.user.name || member.user.email).charAt(0).toUpperCase()}
 						</AvatarFallback>
 					</Avatar>
@@ -259,7 +261,7 @@ function SuspendedMemberRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{member.suspendedAt ? formatDate(member.suspendedAt) : "—"}
+				{member.suspendedAt ? <RelativeTime iso={member.suspendedAt} /> : "—"}
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (
@@ -314,7 +316,7 @@ function InvitationRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-muted-foreground">
-				{formatDate(invitation.expiresAt)}
+				<RelativeTime iso={invitation.expiresAt} />
 			</TableCell>
 			<TableCell className="text-right">
 				{canManage ? (
@@ -483,9 +485,9 @@ function MembersBody({
 					</div>
 					<InviteMemberDialog canInvite={canInvite} />
 				</header>
-				<div className="overflow-hidden rounded-md border">
+				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
-						<TableHeader className="sticky top-0 z-10 bg-muted">
+						<TableHeader className="bg-muted/40">
 							<TableRow>
 								<TableHead>Member</TableHead>
 								<TableHead>Role</TableHead>
@@ -521,9 +523,9 @@ function MembersBody({
 							to them. Reinstate to restore access.
 						</p>
 					</header>
-					<div className="overflow-hidden rounded-md border">
+					<div className="overflow-hidden rounded-md border border-border/70">
 						<Table>
-							<TableHeader className="sticky top-0 z-10 bg-muted">
+							<TableHeader className="bg-muted/40">
 								<TableRow>
 									<TableHead>Member</TableHead>
 									<TableHead>Role at suspension</TableHead>
@@ -556,35 +558,40 @@ function MembersBody({
 						Invitations that have been sent but not yet accepted.
 					</p>
 				</header>
-				{pendingInvitations.length === 0 ? (
-					<p className="text-muted-foreground text-sm">
-						No pending invitations.
-					</p>
-				) : (
-					<div className="overflow-hidden rounded-md border">
-						<Table>
-							<TableHeader className="sticky top-0 z-10 bg-muted">
+				<div className="overflow-hidden rounded-md border border-border/70">
+					<Table>
+						<TableHeader className="bg-muted/40">
+							<TableRow>
+								<TableHead>Email</TableHead>
+								<TableHead>Role</TableHead>
+								<TableHead>Expires</TableHead>
+								<TableHead>
+									<span className="sr-only">Actions</span>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{pendingInvitations.length === 0 ? (
 								<TableRow>
-									<TableHead>Email</TableHead>
-									<TableHead>Role</TableHead>
-									<TableHead>Expires</TableHead>
-									<TableHead>
-										<span className="sr-only">Actions</span>
-									</TableHead>
+									<TableCell
+										className="text-center text-muted-foreground text-sm"
+										colSpan={4}
+									>
+										No pending invitations.
+									</TableCell>
 								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{pendingInvitations.map((invitation) => (
+							) : (
+								pendingInvitations.map((invitation) => (
 									<InvitationRow
 										canManage={canInvite}
 										invitation={invitation}
 										key={invitation.id}
 									/>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				)}
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>
 			</section>
 		</div>
 	);

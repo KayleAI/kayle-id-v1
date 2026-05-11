@@ -17,11 +17,7 @@ function ApiKeysLayout() {
 	});
 
 	if (isLoading) {
-		return (
-			<div className="fixed inset-0">
-				<Loading layout />
-			</div>
-		);
+		return <Loading />;
 	}
 
 	if (isError) {
@@ -42,11 +38,7 @@ function ApiKeysLayout() {
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
-			<AppHeading
-				button={<CreateApiKey />}
-				description="Manage your API keys"
-				title="API Keys"
-			/>
+			<AppHeading button={<CreateApiKey />} title="API Keys" />
 			<hr className="my-8" />
 			<ApiKeysTable apiKeys={data?.data ?? []} />
 		</div>

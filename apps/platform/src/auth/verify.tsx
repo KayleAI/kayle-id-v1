@@ -89,13 +89,13 @@ export function Verify() {
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
 					</div>
-					<h1 className="mb-4 font-light text-3xl text-neutral-900 tracking-tight">
+					<h1 className="mb-4 font-light text-3xl text-foreground tracking-tight">
 						Check your email
 					</h1>
-					<p className="text-lg text-neutral-600">
+					<p className="text-lg text-muted-foreground">
 						We&apos;ve sent a 6-digit verification code to{" "}
 						{email && (
-							<span className="font-medium text-neutral-950">{email}</span>
+							<span className="font-medium text-foreground">{email}</span>
 						)}
 					</p>
 				</div>
@@ -103,14 +103,14 @@ export function Verify() {
 				{/* OTP Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
-						<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-600 text-sm">
+						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 							{error}
 						</div>
 					)}
 
 					{/* OTP Input Fields */}
 					<fieldset>
-						<legend className="mb-2 text-neutral-500">
+						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Verification code</span>
 						</legend>
 						<InputOTP

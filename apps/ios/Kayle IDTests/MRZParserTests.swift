@@ -100,4 +100,104 @@ final class MRZParserTests: XCTestCase {
     XCTAssertTrue(parsed.checks.isValid)
     XCTAssertTrue(parsed.checks.compositeOK)
   }
+
+  // MARK: - Document category copy
+
+  func testTD3PassportCategoryAndCopy() throws {
+    let td3 =
+      """
+      P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<
+      L898902C36UTO7408122F1204159ZE184226B<<<<<10
+      """
+
+    let parsed = try MRZParser.parseAndValidate(td3)
+
+    XCTAssertEqual(parsed.documentCategory, .passport)
+    XCTAssertEqual(parsed.userFacingDocumentName, "passport")
+    XCTAssertEqual(parsed.userFacingDocumentNameWithArticle, "a passport")
+    XCTAssertEqual(parsed.userFacingRFIDSymbolLocationDescription, "your passport")
+    XCTAssertEqual(parsed.userFacingDocumentChipName, "passport chip")
+  }
+
+  func testTD1IdCardCategoryAndCopy() throws {
+    let td1 =
+      """
+      I<UTOD231458907<<<<<<<<<<<<<<<
+      7408122F1204159UTO<<<<<<<<<<<6
+      ERIKSSON<<ANNA<MARIA<<<<<<<<<<
+      """
+
+    let parsed = try MRZParser.parseAndValidate(td1)
+
+    XCTAssertEqual(parsed.documentCategory, .idCard)
+    XCTAssertEqual(parsed.userFacingDocumentName, "ID card")
+    XCTAssertEqual(parsed.userFacingDocumentNameWithArticle, "an ID card")
+    XCTAssertEqual(parsed.userFacingRFIDSymbolLocationDescription, "your ID card")
+    XCTAssertEqual(parsed.userFacingDocumentChipName, "ID card chip")
+  }
+
+  func testResidencePermitCategoryAndCopy() {
+    let result = MRZResultFixture.make(documentType: "IR")
+
+    XCTAssertEqual(result.documentCategory, .residencePermit)
+    XCTAssertEqual(result.userFacingDocumentName, "residence permit")
+    XCTAssertEqual(result.userFacingDocumentNameWithArticle, "a residence permit")
+    XCTAssertEqual(result.userFacingRFIDSymbolLocationDescription, "your residence permit")
+    XCTAssertEqual(result.userFacingDocumentChipName, "residence permit chip")
+  }
+
+  func testCrewCertificateMapsToIdCardCopy() {
+    let result = MRZResultFixture.make(documentType: "AC")
+
+    XCTAssertEqual(result.documentCategory, .idCard)
+    XCTAssertEqual(result.userFacingDocumentName, "ID card")
+  }
+
+  func testUnknownDocumentTypeFallsBackToDocumentCopy() {
+    let result = MRZResultFixture.make(documentType: "V<")
+
+    XCTAssertEqual(result.documentCategory, .other)
+    XCTAssertEqual(result.userFacingDocumentName, "document")
+    XCTAssertEqual(result.userFacingDocumentNameWithArticle, "a document")
+    XCTAssertEqual(result.userFacingRFIDSymbolLocationDescription, "your document")
+    XCTAssertEqual(result.userFacingDocumentChipName, "document chip")
+  }
+
+  func testPassportFillerCharactersStillResolveToPassport() {
+    let result = MRZResultFixture.make(documentType: "P<")
+
+    XCTAssertEqual(result.documentCategory, .passport)
+    XCTAssertEqual(result.userFacingDocumentName, "passport")
+  }
+}
+
+private enum MRZResultFixture {
+  static func make(documentType: String) -> MRZResult {
+    MRZResult(
+      format: .td1,
+      documentType: documentType,
+      issuingCountry: "UTO",
+      surnames: "DOE",
+      givenNames: "JANE",
+      documentNumber: "000000000",
+      documentNumberRaw: "000000000",
+      documentNumberCheckDigit: "0",
+      nationality: "UTO",
+      birthDateYYMMDD: "000101",
+      birthDateCheckDigit: "0",
+      sex: "F",
+      expiryDateYYMMDD: "300101",
+      expiryDateCheckDigit: "0",
+      optionalData: "",
+      checks: MRZResult.Checks(
+        lineLengthsOK: true,
+        charsetOK: true,
+        documentNumberOK: true,
+        birthDateOK: true,
+        expiryDateOK: true,
+        optionalDataOK: true,
+        compositeOK: true
+      )
+    )
+  }
 }

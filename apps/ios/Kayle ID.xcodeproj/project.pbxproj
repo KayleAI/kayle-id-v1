@@ -73,6 +73,7 @@
 			);
 			outputPaths = (
 				"$(SRCROOT)/Kayle ID/Localizable.xcstrings",
+				"$(SRCROOT)/Kayle ID/InfoPlist.xcstrings",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

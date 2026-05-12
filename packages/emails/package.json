@@ -3,7 +3,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "email dev --dir ./emails --port 3002"
+    "dev": "email dev --dir ./emails --port 3002",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@react-email/preview-server": "5.2.10",

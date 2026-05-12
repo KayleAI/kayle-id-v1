@@ -1,0 +1,70 @@
+name: Typecheck
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: api
+            working-directory: apps/api
+            generate-capnp: "true"
+          - workspace: platform
+            working-directory: apps/platform
+            generate-capnp: "false"
+          - workspace: verify
+            working-directory: apps/verify
+            generate-capnp: "true"
+          - workspace: face-matcher
+            working-directory: infra/face-matcher
+            generate-capnp: "false"
+          - workspace: auth
+            working-directory: packages/auth
+            generate-capnp: "false"
+          - workspace: capnp
+            working-directory: packages/capnp
+            generate-capnp: "true"
+          - workspace: config
+            working-directory: packages/config
+            generate-capnp: "false"
+          - workspace: database
+            working-directory: packages/database
+            generate-capnp: "false"
+          - workspace: emails
+            working-directory: packages/emails
+            generate-capnp: "false"
+          - workspace: translations
+            working-directory: packages/translations
+            generate-capnp: "false"
+          - workspace: trust-store
+            working-directory: packages/trust-store
+            generate-capnp: "false"
+          - workspace: ui
+            working-directory: packages/ui
+            generate-capnp: "false"
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Set up Bun workspace
+        uses: ./.github/actions/setup-bun
+        with:
+          generate-capnp-ts: ${{ matrix.generate-capnp }}
+
+      - name: Typecheck
+        working-directory: ${{ matrix.working-directory }}
+        run: bun run typecheck

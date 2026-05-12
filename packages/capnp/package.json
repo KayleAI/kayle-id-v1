@@ -13,7 +13,8 @@
     }
   },
   "scripts": {
-    "capnp:regen": "bash scripts/regen.sh"
+    "capnp:regen": "bash scripts/regen.sh",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "typescript": "^5"

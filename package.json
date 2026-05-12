@@ -29,6 +29,7 @@
     "dev:ios": "turbo run dev --filter=kayle-id-ios",
     "dev:android": "turbo run dev --filter=kayle-id-android",
     "lint": "bun run lint:format && bun run lint:runtime-logs && bun run lint:actions",
+    "typecheck": "turbo run typecheck",
     "lint:format": "ultracite check",
     "lint:runtime-logs": "bun ./scripts/check-runtime-console.ts",
     "lint:actions": "bun ./scripts/check-github-actions-pinned.ts",

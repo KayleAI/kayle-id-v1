@@ -4,6 +4,7 @@
 	"scripts": {
 		"dev": "bunx wrangler dev --env-file ../../.env --ip 0.0.0.0 --port 8787 --inspector-port 9230",
 		"test": "bun test ./tests/functions ./tests/internal",
+		"typecheck": "tsc --noEmit",
 		"deploy": "bunx wrangler deploy --minify --env production",
 		"cf:types": "bunx wrangler types --env-file .env.example --env-interface CloudflareBindings cloudflare-env.d.ts"
 	},

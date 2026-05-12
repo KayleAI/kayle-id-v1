@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { DEFAULT_LOCALE } from "@kayle-id/config/i18n";
+import { DEFAULT_LOCALE } from "@kayle-id/translations/i18n";
 import { describe, expect, test } from "vitest";
 import {
 	negotiateInitialLocale,

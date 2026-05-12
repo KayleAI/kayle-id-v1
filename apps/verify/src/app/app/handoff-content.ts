@@ -1,4 +1,4 @@
-import type { VerifyHandoffCopy } from "@kayle-id/config/verify-handoff-copy";
+import type { VerifyHandoffCopy } from "@kayle-id/translations/verify-handoff-copy";
 import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,

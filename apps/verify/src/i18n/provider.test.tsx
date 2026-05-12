@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
-import { DEFAULT_LOCALE } from "@kayle-id/config/i18n";
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
+import { DEFAULT_LOCALE } from "@kayle-id/translations/i18n";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/translations/verify-handoff-copy";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vitest";
 import {

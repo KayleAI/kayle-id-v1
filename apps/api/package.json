@@ -15,6 +15,7 @@
 		"@kayle-id/config": "*",
 		"@kayle-id/database": "*",
 		"@kayle-id/emails": "*",
+		"@kayle-id/translations": "*",
 		"@scalar/hono-api-reference": "0.9.25",
 		"asn1js": "3.0.7",
 		"capnp-es": "0.0.14",

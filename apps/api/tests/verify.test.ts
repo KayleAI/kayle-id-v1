@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { ClientMessage, DataKind, ServerMessage } from "@kayle-id/capnp";
 import { env } from "@kayle-id/config/env";
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import { Message } from "capnp-es";
 import { eq } from "drizzle-orm";
 import type z from "zod";

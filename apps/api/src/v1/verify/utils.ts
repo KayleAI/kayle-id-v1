@@ -1,5 +1,5 @@
 import { encodeServerError } from "@kayle-id/capnp/verify-codec";
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import type { Context } from "hono";
 
 type WebSocketPairFactory = new () => {

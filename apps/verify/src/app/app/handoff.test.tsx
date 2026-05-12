@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/translations/verify-handoff-copy";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { JSDOM } from "jsdom";
 import type React from "react";

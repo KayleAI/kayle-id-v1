@@ -1,12 +1,12 @@
 import {
 	type ErrorMessages,
 	getErrorMessages,
-} from "@kayle-id/config/error-messages";
-import { DEFAULT_LOCALE, type Locale } from "@kayle-id/config/i18n";
+} from "@kayle-id/translations/error-messages";
+import { DEFAULT_LOCALE, type Locale } from "@kayle-id/translations/i18n";
 import {
 	getVerifyHandoffCopy,
 	type VerifyHandoffCopy,
-} from "@kayle-id/config/verify-handoff-copy";
+} from "@kayle-id/translations/verify-handoff-copy";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
 type I18nContextValue = {

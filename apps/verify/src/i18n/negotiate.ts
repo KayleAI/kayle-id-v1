@@ -3,7 +3,7 @@ import {
 	type Locale,
 	negotiateLocale,
 	parseAcceptLanguage,
-} from "@kayle-id/config/i18n";
+} from "@kayle-id/translations/i18n";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 /**

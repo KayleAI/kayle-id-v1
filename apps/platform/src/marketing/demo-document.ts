@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import { buildDocumentMachineReadableZone } from "@/marketing/demo-mrz";
 
 export { buildDocumentMachineReadableZone } from "@/marketing/demo-mrz";

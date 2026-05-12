@@ -22,6 +22,7 @@ export const IOS_COPY_EN = {
   "Authenticating with document…": "Authenticating with document…",
   Back: "Back",
   Cancel: "Cancel",
+  "Capturing %lld of %lld": "Capturing %lld of %lld",
   "Checking verification…": "Checking verification…",
   "Choose at least one verification detail before continuing.":
     "Choose at least one verification detail before continuing.",
@@ -41,6 +42,7 @@ export const IOS_COPY_EN = {
     "Follow the NFC prompt and hold the top of your iPhone against the chip.",
   "Get Started": "Get Started",
   "Given Names": "Given Names",
+  "Hold still...": "Hold still...",
   "Hold your iPhone near your document.":
     "Hold your iPhone near your document.",
   "How Kayle ID collects, uses, and protects your information.":
@@ -65,15 +67,21 @@ export const IOS_COPY_EN = {
     "Let’s verify your identity in a few quick steps.",
   "Look for this symbol on %@.": "Look for this symbol on %@.",
   "MRZ Optional Data": "MRZ Optional Data",
+  "Make sure your face is well-lit and clearly visible":
+    "Make sure your face is well-lit and clearly visible",
   Male: "Male",
   "NFC read failed.": "NFC read failed.",
   "Nationality Code": "Nationality Code",
   "Next, take a quick selfie": "Next, take a quick selfie",
   "Optional Details": "Optional Details",
+  "Perfect! Stay still to capture": "Perfect! Stay still to capture",
   "Photo securely read from your document chip.":
     "Photo securely read from your document chip.",
+  "Please wait while we securely upload your photos":
+    "Please wait while we securely upload your photos",
   "Point your camera at the QR code on the screen":
     "Point your camera at the QR code on the screen",
+  "Position your face in the frame": "Position your face in the frame",
   "Press your document against your device and hold still to read the chip.":
     "Press your document against your device and hold still to read the chip.",
   "Privacy Policy": "Privacy Policy",
@@ -130,6 +138,7 @@ export const IOS_COPY_EN = {
     "Unexpected share selection response from the server.",
   "Unexpected verification phase response from the server.":
     "Unexpected verification phase response from the server.",
+  "Uploading selfies...": "Uploading selfies...",
   "Uploading your %@ securely": "Uploading your %@ securely",
   "Use your camera to scan the printed code on your document, then read the chip if it has one.":
     "Use your camera to scan the printed code on your document, then read the chip if it has one.",

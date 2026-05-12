@@ -13,6 +13,7 @@ export const IOS_COPY_FR: IosCopy = {
   "Authenticating with document…": "Authentification avec le document…",
   Back: "Retour",
   Cancel: "Annuler",
+  "Capturing %lld of %lld": "Capture %lld sur %lld",
   "Checking verification…": "Vérification en cours…",
   "Choose at least one verification detail before continuing.":
     "Choisissez au moins une information de vérification pour continuer.",
@@ -32,6 +33,7 @@ export const IOS_COPY_FR: IosCopy = {
     "Suivez l’invite NFC et maintenez le haut de votre iPhone contre la puce.",
   "Get Started": "Commencer",
   "Given Names": "Prénoms",
+  "Hold still...": "Restez immobile…",
   "Hold your iPhone near your document.":
     "Tenez votre iPhone près de votre document.",
   "How Kayle ID collects, uses, and protects your information.":
@@ -56,15 +58,21 @@ export const IOS_COPY_FR: IosCopy = {
     "Vérifions votre identité en quelques étapes rapides.",
   "Look for this symbol on %@.": "Cherchez ce symbole sur %@.",
   "MRZ Optional Data": "Données facultatives MRZ",
+  "Make sure your face is well-lit and clearly visible":
+    "Assurez-vous que votre visage est bien éclairé et clairement visible",
   Male: "Homme",
   "NFC read failed.": "Échec de la lecture NFC.",
   "Nationality Code": "Code de nationalité",
   "Next, take a quick selfie": "Ensuite, prenez un selfie rapide",
   "Optional Details": "Informations facultatives",
+  "Perfect! Stay still to capture": "Parfait ! Restez immobile pour la capture",
   "Photo securely read from your document chip.":
     "Photo lue en toute sécurité depuis la puce de votre document.",
+  "Please wait while we securely upload your photos":
+    "Veuillez patienter pendant que nous téléversons vos photos en toute sécurité",
   "Point your camera at the QR code on the screen":
     "Pointez votre appareil photo vers le code QR à l’écran",
+  "Position your face in the frame": "Positionnez votre visage dans le cadre",
   "Press your document against your device and hold still to read the chip.":
     "Appuyez votre document contre votre appareil et restez immobile pour lire la puce.",
   "Privacy Policy": "Politique de confidentialité",
@@ -121,6 +129,7 @@ export const IOS_COPY_FR: IosCopy = {
     "Réponse inattendue du serveur lors de la sélection des informations à partager.",
   "Unexpected verification phase response from the server.":
     "Réponse inattendue du serveur pour la phase de vérification.",
+  "Uploading selfies...": "Téléversement des selfies…",
   "Uploading your %@ securely": "Téléversement de votre %@ en toute sécurité",
   "Use your camera to scan the printed code on your document, then read the chip if it has one.":
     "Utilisez votre appareil photo pour scanner le code imprimé sur votre document, puis lisez la puce s’il en a une.",

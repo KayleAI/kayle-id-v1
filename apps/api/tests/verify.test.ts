@@ -2136,6 +2136,15 @@ describe("Verification Flows", () => {
 			socketTwo.send(hello);
 			expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
 
+			// Restream NFC first — buildMissingDataMessage on selfie_complete now
+			// checks NFC presence before selfies, so without this the server would
+			// report NFC_REQUIRED_DATA_MISSING instead of the SELFIE one this test
+			// is trying to exercise.
+			await sendNfcArtifacts({
+				socket: socketTwo,
+				artifacts,
+			});
+
 			socketTwo.send(encodePhaseMessage("selfie_complete"));
 			const response = await awaitServerMessage(socketTwo);
 

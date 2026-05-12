@@ -612,11 +612,15 @@ final class VerificationSession: ObservableObject {
 
     // The server's per-socket VerifyTransferState resets on reconnect, so any
     // chunks in flight over the previous socket are gone; clear upload
-    // bookkeeping so the next retap streams cleanly. Captured data
-    // (mrzResult, nfcResult, selfieImages, activeAuthChallenge) survives:
-    // the AA challenge is deterministic per attemptId, so the chip-signed
-    // bytes in nfcResult remain valid against the re-derived expectedChallenge.
+    // bookkeeping so the next retap streams cleanly. mrzResult, nfcResult,
+    // and activeAuthChallenge survive because the AA challenge is
+    // deterministic per attemptId — the chip-signed bytes in nfcResult are
+    // still valid against the re-derived expectedChallenge. selfieImages do
+    // NOT survive: an interrupted selfie session must be restarted from
+    // scratch, so the user is sent back through the capture flow rather than
+    // resuming against stale partial state.
     resetNFCUploadState()
+    selfieImages = []
     selfieUploadInFlight = false
     selfieUploadCancelled = false
     selfieUploadsExpected = 0

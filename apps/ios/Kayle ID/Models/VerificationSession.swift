@@ -37,53 +37,6 @@ nonisolated func describeUnexpectedServerMessage(
   return fallback
 }
 
-/// The current step in the verification flow.
-enum VerificationStep: Int, CaseIterable {
-  case welcome        // Landing screen
-  case scanning       // Scanning QR code
-  case mrz            // Scanning document MRZ
-  case rfidCheck      // Asking if document has RFID (required, no skip)
-  case rfidUnsupported // Document does not support RFID/NFC
-  case nfc            // Reading NFC chip
-  case selfieIntro    // Preparing the user for selfie capture
-  case selfie         // Taking selfie
-  case shareDetails   // Review requested fields
-  case complete       // Verification complete
-  case error          // Error state
-
-  var title: String {
-    switch self {
-    case .welcome: return "Welcome"
-    case .scanning: return "Scan QR Code"
-    case .mrz: return "Scan Document"
-    case .rfidCheck: return "RFID Check"
-    case .rfidUnsupported: return "Unsupported Document"
-    case .nfc: return "Read Chip"
-    case .selfieIntro: return "Selfie Instructions"
-    case .selfie: return "Take Selfie"
-    case .shareDetails: return "Review Details"
-    case .complete: return "Complete"
-    case .error: return "Error"
-    }
-  }
-}
-
-/// Attempt phase values matching the API.
-/// These correspond to `AttemptPhase` in `packages/config/src/e2ee-types.ts`.
-enum AttemptPhase: String, Codable {
-  case initialized = "initialized"
-  case mobileConnected = "mobile_connected"
-  case mrzScanning = "mrz_scanning"
-  case mrzComplete = "mrz_complete"
-  case nfcReading = "nfc_reading"
-  case nfcComplete = "nfc_complete"
-  case selfieCapturing = "selfie_capturing"
-  case selfieComplete = "selfie_complete"
-  case uploading = "uploading"
-  case complete = "complete"
-  case error = "error"
-}
-
 /// Observable session state for the verification flow.
 @MainActor
 final class VerificationSession: ObservableObject {
@@ -91,6 +44,12 @@ final class VerificationSession: ObservableObject {
   @Published var payload: QRCodePayload?
   @Published var errorMessage: String?
   @Published var isRetryingVerification = false
+  @Published var isReconnecting = false
+  /// Bumped whenever the selfie session must restart from scratch (e.g. after
+  /// a reconnect). Applied as `.id()` to the SelfieCaptureView so SwiftUI
+  /// remounts it and resets its internal isProcessing/capturedImages state,
+  /// instead of leaving the "Uploading selfies…" overlay stuck on screen.
+  @Published var selfieCaptureGeneration = UUID()
   @Published var verdict: VerifyServerVerdict?
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
@@ -119,10 +78,14 @@ final class VerificationSession: ObservableObject {
   private var selfieUploadCancelled = false
   private var selfieUploadInFlight = false
   private var pendingPhaseUpdateTask: Task<Void, Never>?
+  private var reconnectTask: Task<Void, Never>?
   private let nfcChunkSize = 64 * 1024
   private let selfieChunkSize = 128 * 1024
   private let selfieCompressionQuality: CGFloat = 0.72
   private let requiredSelfieTotal = 3
+  private let maxReconnectAttempts = 5
+  // 1s base, exponential up to ~16s — total budget ~30s before giving up.
+  private let reconnectBaseDelayNs: UInt64 = 1_000_000_000
 
   private struct NFCUploadPlan {
     let kind: VerifyDataKind
@@ -280,6 +243,14 @@ final class VerificationSession: ObservableObject {
 
   /// Handle an error during verification.
   func handleError(_ error: Error, forAttemptId attemptId: String? = nil) {
+    handleError(error, forAttemptId: attemptId, attemptReconnect: true)
+  }
+
+  private func handleError(
+    _ error: Error,
+    forAttemptId attemptId: String?,
+    attemptReconnect: Bool
+  ) {
     if let attemptId {
       guard
         shouldHandleAttemptScopedEvent(
@@ -295,8 +266,35 @@ final class VerificationSession: ObservableObject {
       return
     }
 
+    let socketError = error as? VerifyWebSocketError
+    let isTransientConnectionLoss =
+      socketError.map { isVerificationSessionConnectionLoss($0) } ?? false
+    let isAuthFailure = socketError?.isNonRetryableAuthFailure ?? false
+
+    // Transient socket drops (background, network blip, idle close) lose state
+    // the user has built up — scanned QR, captured MRZ, etc. Re-handshake
+    // instead of dumping them on the "Start Again" screen. Only fall through
+    // to the terminal error UI when reconnection isn't viable (no payload to
+    // resume, step isn't reconnectable, or the failure is a permanent auth
+    // rejection).
+    if
+      attemptReconnect,
+      isTransientConnectionLoss,
+      !isAuthFailure,
+      let activePayload = payload,
+      isVerificationStepReconnectable(step)
+    {
+      if !isReconnecting {
+        scheduleReconnect(forAttemptId: attemptId ?? activePayload.attemptId)
+      }
+      return
+    }
+
     let resolvedError = resolveDisplayError(error)
     let terminalAttemptId = attemptId ?? payload?.attemptId
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    isReconnecting = false
     verdict = nil
     errorMessage = resolvedError.localizedDescription
     isRetryingVerification = false
@@ -400,13 +398,33 @@ final class VerificationSession: ObservableObject {
   }
 
   private func bootstrapAttempt(with payload: QRCodePayload) async throws {
+    let service = makeWebSocketService(for: payload)
+
+    do {
+      try service.connect()
+      try await service.sendHello()
+    } catch {
+      service.disconnect()
+      throw error
+    }
+
+    let activeWebSocketService = webSocketService
+    resetAttemptState(clearPayload: false)
+    activeWebSocketService?.disconnect()
+    self.payload = payload
+    webSocketService = service
+    await updatePhase(.mobileConnected)
+  }
+
+  private func makeWebSocketService(
+    for payload: QRCodePayload
+  ) -> VerifyWebSocketService {
     let baseURL = APIService.baseURL(from: payload.sessionId)
     let attemptId = payload.attemptId
-
     let attestChallenge = payload.attestHelloChallenge
       .flatMap { Data(base64URLEncodedString: $0) }
 
-    let service = VerifyWebSocketService(
+    return VerifyWebSocketService(
       sessionId: payload.sessionId,
       attemptId: payload.attemptId,
       mobileWriteToken: payload.mobileWriteToken,
@@ -455,21 +473,6 @@ final class VerificationSession: ObservableObject {
         }
       }
     )
-
-    do {
-      try service.connect()
-      try await service.sendHello()
-    } catch {
-      service.disconnect()
-      throw error
-    }
-
-    let activeWebSocketService = webSocketService
-    resetAttemptState(clearPayload: false)
-    activeWebSocketService?.disconnect()
-    self.payload = payload
-    webSocketService = service
-    await updatePhase(.mobileConnected)
   }
 
   private func resetAttemptState(clearPayload: Bool) {
@@ -480,6 +483,7 @@ final class VerificationSession: ObservableObject {
     verdict = nil
     errorMessage = nil
     isRetryingVerification = false
+    isReconnecting = false
     shareRequest = nil
     selectedShareFieldKeys = []
     shareSelectionErrorMessage = nil
@@ -497,6 +501,8 @@ final class VerificationSession: ObservableObject {
     resetNFCUploadState()
     pendingPhaseUpdateTask?.cancel()
     pendingPhaseUpdateTask = nil
+    reconnectTask?.cancel()
+    reconnectTask = nil
   }
 
   private func teardownAttemptState(clearPayload: Bool) {
@@ -510,8 +516,149 @@ final class VerificationSession: ObservableObject {
     webSocketService = nil
     pendingPhaseUpdateTask?.cancel()
     pendingPhaseUpdateTask = nil
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    isReconnecting = false
     resetNFCUploadState()
     activeWebSocketService?.disconnect()
+  }
+
+  private func scheduleReconnect(forAttemptId attemptId: String) {
+    reconnectTask?.cancel()
+    isReconnecting = true
+
+    let maxAttempts = maxReconnectAttempts
+    let baseDelay = reconnectBaseDelayNs
+
+    reconnectTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      var lastError: Error?
+      var lastErrorCode: String?
+
+      for attempt in 1...maxAttempts {
+        if Task.isCancelled { return }
+
+        guard
+          let activePayload = self.payload,
+          activePayload.attemptId == attemptId
+        else {
+          self.isReconnecting = false
+          return
+        }
+
+        guard isVerificationStepReconnectable(self.step) else {
+          self.isReconnecting = false
+          return
+        }
+
+        if attempt > 1 {
+          let exponent = min(attempt - 1, 4)
+          let delayNs = baseDelay * UInt64(1 << exponent)
+          do {
+            try await Task.sleep(nanoseconds: delayNs)
+          } catch {
+            return
+          }
+          if Task.isCancelled { return }
+        }
+
+        do {
+          try await self.performReconnect(with: activePayload)
+          self.isReconnecting = false
+          self.errorMessage = nil
+          return
+        } catch {
+          lastError = error
+          if let socketError = error as? VerifyWebSocketError {
+            lastErrorCode = socketError.serverErrorCode
+            if socketError.isNonRetryableAuthFailure {
+              break
+            }
+          }
+
+          if !shouldRetryReconnect(
+            isAuthenticated: true,
+            lastErrorCode: lastErrorCode,
+            attempt: attempt,
+            maxAttempts: maxAttempts
+          ) {
+            break
+          }
+        }
+      }
+
+      // Reconnect exhausted — clear the reconnecting flag and route to the
+      // terminal error UI. Pass attemptReconnect:false so handleError doesn't
+      // loop back into scheduleReconnect for the same connection-loss error.
+      self.isReconnecting = false
+      self.reconnectTask = nil
+      self.handleError(
+        lastError ?? VerifyWebSocketError.reconnectFailed,
+        forAttemptId: attemptId,
+        attemptReconnect: false
+      )
+    }
+  }
+
+  private func performReconnect(with payload: QRCodePayload) async throws {
+    let service = makeWebSocketService(for: payload)
+
+    do {
+      try service.connect()
+      try await service.sendHello()
+    } catch {
+      service.disconnect()
+      throw error
+    }
+
+    let previousService = webSocketService
+    webSocketService = service
+    previousService?.disconnect()
+
+    // The server's per-socket VerifyTransferState resets on reconnect, so any
+    // chunks in flight over the previous socket are gone; clear upload
+    // bookkeeping so the next retap streams cleanly. mrzResult, nfcResult,
+    // and activeAuthChallenge survive because the AA challenge is
+    // deterministic per attemptId — the chip-signed bytes in nfcResult are
+    // still valid against the re-derived expectedChallenge. selfieImages do
+    // NOT survive: an interrupted selfie session must be restarted from
+    // scratch, so the user is sent back through the capture flow rather than
+    // resuming against stale partial state.
+    resetNFCUploadState()
+    selfieImages = []
+    selfieUploadInFlight = false
+    selfieUploadCancelled = false
+    selfieUploadsExpected = 0
+    selfieSentIndices.removeAll()
+    selfiePayloadsByIndex.removeAll()
+    selfieCaptureGeneration = UUID()
+
+    // Re-stream NFC artifacts so the server can face-match selfies against
+    // dg2. Without this, the next phase=selfie_complete would silently advance
+    // with empty transfer state because face validation early-returns when
+    // dg2 is missing, leaving the attempt in a corrupted phase.
+    if let nfcResult {
+      try await restreamNFCArtifacts(
+        nfcResult: nfcResult,
+        via: service
+      )
+    }
+  }
+
+  /// Re-push the cached NFC artifacts onto a freshly connected socket. Used
+  /// from the reconnect path (proactive) and from a server-issued
+  /// NFC_REQUIRED_DATA_MISSING on selfie_complete (reactive). Bytes are the
+  /// same ones the chip signed; AA/CA signatures still verify against the
+  /// server's deterministic per-attempt challenge, so this is a pure replay
+  /// of validated material, not a fresh trust decision.
+  private func restreamNFCArtifacts(
+    nfcResult: DocumentReadResult,
+    via webSocketService: VerifyWebSocketService
+  ) async throws {
+    let plans = try buildNFCUploadPlans(from: nfcResult)
+    for plan in plans {
+      try await uploadNFCPlan(plan, via: webSocketService)
+    }
   }
 
   private func handleVerdict(_ verdict: VerifyServerVerdict) {
@@ -766,6 +913,23 @@ final class VerificationSession: ObservableObject {
       } catch let socketError as VerifyWebSocketError {
         guard case .serverError(let code, let message) = socketError else {
           throw socketError
+        }
+
+        // Server-side transfer state can be missing NFC bytes if the socket
+        // reconnected and the proactive re-stream hasn't run (or was raced).
+        // Re-stream the cached NFC artifacts and retry selfie_complete.
+        if
+          parseMissingNFCDataInstruction(
+            errorCode: code,
+            errorMessage: message
+          ) != nil,
+          let nfcResult
+        {
+          try await restreamNFCArtifacts(
+            nfcResult: nfcResult,
+            via: webSocketService
+          )
+          continue
         }
 
         guard

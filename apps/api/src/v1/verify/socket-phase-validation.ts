@@ -45,25 +45,21 @@ export function buildMissingDataMessage(
 } | null {
 	if (nextPhase === "nfc_complete") {
 		const status = getNfcTransferStatus(context.state.transfer);
-
-		return status.complete
-			? null
-			: {
-					code: "NFC_REQUIRED_DATA_MISSING",
-					message: JSON.stringify({
-						missing_artifacts: status.missingArtifacts,
-						missing_chunks: status.missingChunks.map((chunk) => ({
-							kind: chunk.kind,
-							index: chunk.index,
-							chunk_total: chunk.chunkTotal,
-							missing_chunk_indices: chunk.missingChunkIndices,
-						})),
-					}),
-				};
+		return status.complete ? null : buildMissingNfcDataMessage(status);
 	}
 
 	if (nextPhase !== "selfie_complete") {
 		return null;
+	}
+
+	// Face matching needs dg2 from the NFC scan, but the transfer state is
+	// per-socket — on reconnect the prior socket's chunks are gone. Catch the
+	// missing-NFC case here and surface it so the client can re-stream,
+	// instead of letting runPhaseValidation silently early-return null and
+	// the phase machinery advance to selfie_complete with no validation.
+	const nfcStatus = getNfcTransferStatus(context.state.transfer);
+	if (!nfcStatus.complete) {
+		return buildMissingNfcDataMessage(nfcStatus);
 	}
 
 	const status = getSelfieTransferStatus(context.state.transfer);
@@ -83,6 +79,23 @@ export function buildMissingDataMessage(
 					})),
 				}),
 			};
+}
+
+function buildMissingNfcDataMessage(
+	status: ReturnType<typeof getNfcTransferStatus>,
+): { code: "NFC_REQUIRED_DATA_MISSING"; message: string } {
+	return {
+		code: "NFC_REQUIRED_DATA_MISSING",
+		message: JSON.stringify({
+			missing_artifacts: status.missingArtifacts,
+			missing_chunks: status.missingChunks.map((chunk) => ({
+				kind: chunk.kind,
+				index: chunk.index,
+				chunk_total: chunk.chunkTotal,
+				missing_chunk_indices: chunk.missingChunkIndices,
+			})),
+		}),
+	};
 }
 
 async function rejectAttemptWithVerdict({

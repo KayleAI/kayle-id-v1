@@ -171,7 +171,13 @@ struct ContentView: View {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .clipped()
         }
+
+        if session.isReconnecting {
+          BlockingLoadingOverlay(message: "Reconnecting…")
+            .transition(.opacity)
+        }
       }
+      .animation(.easeInOut(duration: 0.2), value: session.isReconnecting)
     }
     .tint(.primary)
     .onAppear {
@@ -653,6 +659,10 @@ struct ContentView: View {
         }
       }
     )
+    // Force a remount on reconnect-driven selfie restart so the view's local
+    // @State (capturedImages, isProcessing) resets and the "Uploading
+    // selfies…" overlay doesn't stay stuck after the upload Task threw.
+    .id(session.selfieCaptureGeneration)
   }
 
   private var completionMessage: String {

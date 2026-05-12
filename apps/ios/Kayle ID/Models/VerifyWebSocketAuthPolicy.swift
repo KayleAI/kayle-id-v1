@@ -59,31 +59,31 @@ nonisolated private enum PublicShareFieldVisibility {
 nonisolated private func shareFieldDisplayName(_ key: String) -> String? {
   switch key {
   case "document_type_code":
-    return "Document Type Code"
+    return String(localized: "Document Type Code")
   case "issuing_country_code":
-    return "Issuing Country Code"
+    return String(localized: "Issuing Country Code")
   case "family_name":
-    return "Family Name"
+    return String(localized: "Family Name")
   case "given_names":
-    return "Given Names"
+    return String(localized: "Given Names")
   case "document_number":
-    return "Document Number"
+    return String(localized: "Document Number")
   case "nationality_code":
-    return "Nationality Code"
+    return String(localized: "Nationality Code")
   case "date_of_birth":
-    return "Date of Birth"
+    return String(localized: "Date of Birth")
   case "sex_marker":
-    return "Sex Marker"
+    return String(localized: "Sex Marker")
   case "document_expiry_date":
-    return "Expiry Date"
+    return String(localized: "Expiry Date")
   case "mrz_optional_data":
-    return "MRZ Optional Data"
+    return String(localized: "MRZ Optional Data")
   case "document_photo":
-    return "Document Photo"
+    return String(localized: "Document Photo")
   case "kayle_document_id":
-    return "Kayle Document ID"
+    return String(localized: "Kayle Document ID")
   case "kayle_human_id":
-    return "Kayle Human ID"
+    return String(localized: "Kayle Human ID")
   default:
     return nil
   }
@@ -719,11 +719,11 @@ nonisolated private func ageInYears(from birthDate: Date, referenceDate: Date) -
 nonisolated private func formatSex(_ value: String) -> String {
   switch value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
   case "M":
-    return "Male"
+    return String(localized: "Male")
   case "F":
-    return "Female"
+    return String(localized: "Female")
   case "X":
-    return "Unspecified"
+    return String(localized: "Unspecified")
   default:
     return value
   }
@@ -736,19 +736,21 @@ nonisolated func shareFieldDetailText(
 ) -> String {
   let key = field.key
 
+  let verifiedFromDocument = String(localized: "Verified from your document.")
+
   switch key {
   case "document_type_code":
-    return previewContext?.documentType ?? "Verified from your document."
+    return previewContext?.documentType ?? verifiedFromDocument
   case "issuing_country_code":
-    return previewContext?.issuingCountry ?? "Verified from your document."
+    return previewContext?.issuingCountry ?? verifiedFromDocument
   case "family_name":
-    return previewContext?.surname ?? "Verified from your document."
+    return previewContext?.surname ?? verifiedFromDocument
   case "given_names":
-    return previewContext?.givenNames ?? "Verified from your document."
+    return previewContext?.givenNames ?? verifiedFromDocument
   case "document_number":
-    return previewContext?.documentNumber ?? "Verified from your document."
+    return previewContext?.documentNumber ?? verifiedFromDocument
   case "nationality_code":
-    return previewContext?.nationality ?? "Verified from your document."
+    return previewContext?.nationality ?? verifiedFromDocument
   case "date_of_birth":
     if
       let birthDate = previewContext?.birthDate,
@@ -760,12 +762,12 @@ nonisolated func shareFieldDetailText(
     {
       return formattedDate
     }
-    return previewContext?.birthDate ?? "Verified from your document."
+    return previewContext?.birthDate ?? verifiedFromDocument
   case "sex_marker":
     if let sex = previewContext?.sex {
       return formatSex(sex)
     }
-    return "Verified from your document."
+    return verifiedFromDocument
   case "document_expiry_date":
     if
       let expiryDate = previewContext?.expiryDate,
@@ -777,15 +779,18 @@ nonisolated func shareFieldDetailText(
     {
       return formattedDate
     }
-    return previewContext?.expiryDate ?? "Verified from your document."
+    return previewContext?.expiryDate ?? verifiedFromDocument
   case "mrz_optional_data":
-    return previewContext?.optionalData ?? "Additional machine-readable document data."
+    return previewContext?.optionalData
+      ?? String(localized: "Additional machine-readable document data.")
   case "document_photo":
-    return "Photo securely read from your document chip."
+    return String(localized: "Photo securely read from your document chip.")
   case "kayle_document_id":
-    return "Required security identifier for this verified document."
+    return String(
+      localized: "Required security identifier for this verified document."
+    )
   case "kayle_human_id":
-    return "Reserved placeholder for a future human identifier."
+    return String(localized: "Reserved placeholder for a future human identifier.")
   default:
     if let threshold = parseAgeOverThreshold(key) {
       if
@@ -802,11 +807,19 @@ nonisolated func shareFieldDetailText(
         ) >= threshold
 
         return meetsThreshold
-          ? "Will share that you meet the \(threshold)+ age requirement."
-          : "Will share that you do not meet the \(threshold)+ age requirement."
+          ? String(
+              localized:
+                "Will share that you meet the \(threshold)+ age requirement."
+            )
+          : String(
+              localized:
+                "Will share that you do not meet the \(threshold)+ age requirement."
+            )
       }
 
-      return "Shares whether you meet the \(threshold)+ age requirement."
+      return String(
+        localized: "Shares whether you meet the \(threshold)+ age requirement."
+      )
     }
 
     return field.reason

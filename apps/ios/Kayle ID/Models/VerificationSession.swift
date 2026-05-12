@@ -738,8 +738,9 @@ final class VerificationSession: ObservableObject {
     )
 
     guard !orderedSelectedFieldKeys.isEmpty else {
-      shareSelectionErrorMessage =
-        "Choose at least one verification detail before continuing."
+      shareSelectionErrorMessage = String(
+        localized: "Choose at least one verification detail before continuing."
+      )
       return
     }
 
@@ -763,7 +764,9 @@ final class VerificationSession: ObservableObject {
       throw VerifyWebSocketError.unexpectedServerResponse(
         describeUnexpectedServerMessage(
           response,
-          fallback: "Unexpected share selection response from the server."
+          fallback: String(
+            localized: "Unexpected share selection response from the server."
+          )
         )
       )
     } catch let socketError as VerifyWebSocketError {
@@ -857,7 +860,9 @@ final class VerificationSession: ObservableObject {
           throw VerifyWebSocketError.unexpectedServerResponse(
             describeUnexpectedServerMessage(
               response,
-              fallback: "Unexpected selfie upload response from the server."
+              fallback: String(
+                localized: "Unexpected selfie upload response from the server."
+              )
             )
           )
         }
@@ -907,7 +912,9 @@ final class VerificationSession: ObservableObject {
         throw VerifyWebSocketError.unexpectedServerResponse(
           describeUnexpectedServerMessage(
             response,
-            fallback: "Unexpected selfie completion response from the server."
+            fallback: String(
+              localized: "Unexpected selfie completion response from the server."
+            )
           )
         )
       } catch let socketError as VerifyWebSocketError {
@@ -1154,7 +1161,9 @@ final class VerificationSession: ObservableObject {
           throw VerifyWebSocketError.unexpectedServerResponse(
             describeUnexpectedServerMessage(
               response,
-              fallback: "Unexpected NFC upload response from the server."
+              fallback: String(
+                localized: "Unexpected NFC upload response from the server."
+              )
             )
           )
         }
@@ -1212,7 +1221,9 @@ final class VerificationSession: ObservableObject {
         throw VerifyWebSocketError.unexpectedServerResponse(
           describeUnexpectedServerMessage(
             response,
-            fallback: "Unexpected NFC completion response from the server."
+            fallback: String(
+              localized: "Unexpected NFC completion response from the server."
+            )
           )
         )
       } catch let socketError as VerifyWebSocketError {

@@ -2,10 +2,9 @@
  * English source-of-truth for iOS user-facing strings.
  *
  * Keys mirror the English source string, matching Apple's String Catalog
- * convention. Strings containing `%@` are positional parameters substituted
- * by Swift's `String(format:)` (Swift's string-interpolation literals like
- * `String(localized: "… \(name) …")` collapse to `"… %@ …"` at the catalog
- * key boundary, so the catalog key always uses `%@`).
+ * convention. Strings containing `%@` (string interpolation, e.g.
+ * `\(documentName)`) or `%lld` (Int interpolation, e.g. `\(count)`) are
+ * positional parameters substituted by Swift's `String(format:)`.
  *
  * When you add a `String(localized:)`, `Text("…")`, or
  * `Button("…", role:)` literal in Swift, add it here too and run
@@ -14,6 +13,8 @@
 export const IOS_COPY_EN = {
   "%@ uploaded": "%@ uploaded",
   About: "About",
+  "Additional machine-readable document data.":
+    "Additional machine-readable document data.",
   "Align the printed code within the box.":
     "Align the printed code within the box.",
   "An unexpected error occurred.": "An unexpected error occurred.",
@@ -22,14 +23,24 @@ export const IOS_COPY_EN = {
   Back: "Back",
   Cancel: "Cancel",
   "Checking verification…": "Checking verification…",
+  "Choose at least one verification detail before continuing.":
+    "Choose at least one verification detail before continuing.",
   "Choose what to share": "Choose what to share",
   Continue: "Continue",
+  "Date of Birth": "Date of Birth",
   "Do you see this symbol?": "Do you see this symbol?",
+  "Document Number": "Document Number",
+  "Document Photo": "Document Photo",
+  "Document Type Code": "Document Type Code",
   "Document read complete.": "Document read complete.",
   Done: "Done",
+  "Expiry Date": "Expiry Date",
+  "Family Name": "Family Name",
+  Female: "Female",
   "Follow the NFC prompt and hold the top of your iPhone against the chip.":
     "Follow the NFC prompt and hold the top of your iPhone against the chip.",
   "Get Started": "Get Started",
+  "Given Names": "Given Names",
   "Hold your iPhone near your document.":
     "Hold your iPhone near your document.",
   "How Kayle ID collects, uses, and protects your information.":
@@ -40,6 +51,9 @@ export const IOS_COPY_EN = {
   "Initializing NFC reader...": "Initializing NFC reader...",
   "Invalid MRZ key format. Please scan your document again.":
     "Invalid MRZ key format. Please scan your document again.",
+  "Issuing Country Code": "Issuing Country Code",
+  "Kayle Document ID": "Kayle Document ID",
+  "Kayle Human ID": "Kayle Human ID",
   "Kayle ID": "Kayle ID",
   "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone.":
     "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone.",
@@ -50,8 +64,14 @@ export const IOS_COPY_EN = {
   "Let’s verify your identity in a few quick steps.":
     "Let’s verify your identity in a few quick steps.",
   "Look for this symbol on %@.": "Look for this symbol on %@.",
+  "MRZ Optional Data": "MRZ Optional Data",
+  Male: "Male",
   "NFC read failed.": "NFC read failed.",
+  "Nationality Code": "Nationality Code",
   "Next, take a quick selfie": "Next, take a quick selfie",
+  "Optional Details": "Optional Details",
+  "Photo securely read from your document chip.":
+    "Photo securely read from your document chip.",
   "Point your camera at the QR code on the screen":
     "Point your camera at the QR code on the screen",
   "Press your document against your device and hold still to read the chip.":
@@ -59,23 +79,57 @@ export const IOS_COPY_EN = {
   "Privacy Policy": "Privacy Policy",
   "Reading data groups…": "Reading data groups…",
   "Reconnecting…": "Reconnecting…",
+  "Required Details": "Required Details",
+  "Required security identifier for this verified document.":
+    "Required security identifier for this verified document.",
+  "Reserved placeholder for a future human identifier.":
+    "Reserved placeholder for a future human identifier.",
   "Retry Verification": "Retry Verification",
   "Scan QR Code": "Scan QR Code",
   "Scan not valid.": "Scan not valid.",
   "Scan the QR code": "Scan the QR code",
   "Scan your document": "Scan your document",
+  "Security Details": "Security Details",
+  "Sex Marker": "Sex Marker",
+  "Share all details": "Share all details",
+  "Share all details?": "Share all details?",
+  "Shares whether you meet the %lld+ age requirement.":
+    "Shares whether you meet the %lld+ age requirement.",
   "Start Again": "Start Again",
   "Start Scanning": "Start Scanning",
   "Stay here": "Stay here",
+  "Submitting your selection…": "Submitting your selection…",
+  "Submitting...": "Submitting...",
   "Terms for using Kayle ID and its identity verification features.":
     "Terms for using Kayle ID and its identity verification features.",
   "Terms of Service": "Terms of Service",
+  "These details are required and will be shared if you continue.":
+    "These details are required and will be shared if you continue.",
+  "These identifiers are always included to protect services from abuse.":
+    "These identifiers are always included to protect services from abuse.",
   "This %@ doesn't appear to support NFC":
     "This %@ doesn't appear to support NFC",
+  "This will also select %lld optional details. Required and security details are already included.":
+    "This will also select %lld optional details. Required and security details are already included.",
+  "This will also select 1 optional detail. Required and security details are already included.":
+    "This will also select 1 optional detail. Required and security details are already included.",
   "This will stop the current verification on this device.":
     "This will stop the current verification on this device.",
   "Try Again": "Try Again",
   "Try Another Document": "Try Another Document",
+  Unspecified: "Unspecified",
+  "Unexpected NFC completion response from the server.":
+    "Unexpected NFC completion response from the server.",
+  "Unexpected NFC upload response from the server.":
+    "Unexpected NFC upload response from the server.",
+  "Unexpected selfie completion response from the server.":
+    "Unexpected selfie completion response from the server.",
+  "Unexpected selfie upload response from the server.":
+    "Unexpected selfie upload response from the server.",
+  "Unexpected share selection response from the server.":
+    "Unexpected share selection response from the server.",
+  "Unexpected verification phase response from the server.":
+    "Unexpected verification phase response from the server.",
   "Uploading your %@ securely": "Uploading your %@ securely",
   "Use your camera to scan the printed code on your document, then read the chip if it has one.":
     "Use your camera to scan the printed code on your document, then read the chip if it has one.",
@@ -83,13 +137,20 @@ export const IOS_COPY_EN = {
     "Use your camera to scan the QR code from your browser and begin verification.",
   "Verification Complete": "Verification Complete",
   "Verification Failed": "Verification Failed",
+  "Verified from your document.": "Verified from your document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "We couldn't use this scan to read the chip. Try scanning again.",
   "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.":
     "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
     "When you're ready, tap Start Scanning and follow the NFC prompt.",
+  "Will share that you do not meet the %lld+ age requirement.":
+    "Will share that you do not meet the %lld+ age requirement.",
+  "Will share that you meet the %lld+ age requirement.":
+    "Will share that you meet the %lld+ age requirement.",
   "Yes, I see it": "Yes, I see it",
+  "You can optionally choose to share these details.":
+    "You can optionally choose to share these details.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
     "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.",
 } as const;

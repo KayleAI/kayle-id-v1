@@ -4,7 +4,7 @@ import UIKit
 enum CameraCaptureDrawer: String, Identifiable {
   case qr
   case mrz
-  case selfie
+  case liveness
 
   var id: String {
     rawValue
@@ -352,7 +352,7 @@ struct ContentView: View {
             do {
               let shouldContinue = try await session.uploadNFCData()
               if shouldContinue {
-                session.moveToStep(.selfieIntro)
+                session.moveToStep(.livenessIntro)
               }
             } catch {
               session.handleError(error, forAttemptId: attemptId)
@@ -361,10 +361,10 @@ struct ContentView: View {
         }
       )
       )
-    case .selfieIntro:
-      return AnyView(SelfieIntroView(onContinue: startSelfieCapture))
-    case .selfie:
-      return AnyView(SelfieIntroView(onContinue: presentSelfieDrawer))
+    case .livenessIntro:
+      return AnyView(LivenessIntroView(onContinue: startLivenessCapture))
+    case .liveness:
+      return AnyView(LivenessIntroView(onContinue: presentLivenessDrawer))
     case .shareDetails:
       return AnyView(
         ShareDetailsView(
@@ -474,8 +474,8 @@ struct ContentView: View {
       } else {
         return AnyView(Color.clear)
       }
-    case .selfieIntro, .selfie:
-      return AnyView(SelfieIntroView(onContinue: {}))
+    case .livenessIntro, .liveness:
+      return AnyView(LivenessIntroView(onContinue: {}))
     case .shareDetails:
       if let shareDetailsSnapshot = snapshot.shareDetails {
         return AnyView(FrozenShareDetailsView(snapshot: shareDetailsSnapshot))
@@ -571,11 +571,11 @@ struct ContentView: View {
       }) {
         mrzScannerDrawer
       }
-    case .selfie:
+    case .liveness:
       CameraPermissionGate(onCancel: {
         activeCameraDrawer = nil
       }) {
-        selfieCaptureDrawer
+        livenessCaptureDrawer
       }
     }
   }
@@ -641,28 +641,25 @@ struct ContentView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
-  private var selfieCaptureDrawer: some View {
-    SelfieCaptureView(
-      onCapture: { images in
-        session.selfieImages = images
+  private var livenessCaptureDrawer: some View {
+    LivenessCaptureView(
+      onComplete: {
+        activeCameraDrawer = nil
       },
-      onPhotoCaptured: { image, index, total in
-        session.selfieImages.append(image)
+      onRejected: {
+        activeCameraDrawer = nil
+      },
+      onError: { error in
         let attemptId = session.payload?.attemptId
-
-        Task {
-          do {
-            _ = try await session.sendSelfieImage(image, index: index, total: total)
-          } catch {
-            session.handleError(error, forAttemptId: attemptId)
-          }
-        }
+        activeCameraDrawer = nil
+        session.handleError(error, forAttemptId: attemptId)
       }
     )
-    // Force a remount on reconnect-driven selfie restart so the view's local
+    .environmentObject(session)
+    // Force a remount on reconnect-driven liveness restart so the view's local
     // @State (capturedImages, isProcessing) resets and the "Uploading
-    // selfies…" overlay doesn't stay stuck after the upload Task threw.
-    .id(session.selfieCaptureGeneration)
+    // upload overlay doesn't stay stuck after the upload Task threw.
+    .id(session.livenessCaptureGeneration)
   }
 
   private var completionMessage: String {
@@ -811,16 +808,16 @@ struct ContentView: View {
     didTriggerMRZ = false
   }
 
-  private func startSelfieCapture() {
-    session.moveToStep(.selfie)
-    presentSelfieDrawer()
+  private func startLivenessCapture() {
+    session.moveToStep(.liveness)
+    presentLivenessDrawer()
     Task {
-      await session.updatePhase(.selfieCapturing)
+      await session.updatePhase(.livenessCapturing)
     }
   }
 
-  private func presentSelfieDrawer() {
-    activeCameraDrawer = .selfie
+  private func presentLivenessDrawer() {
+    activeCameraDrawer = .liveness
   }
 
   private func startNFCScan() {
@@ -904,10 +901,10 @@ struct ContentView: View {
           result: nfcReader.result
         )
       )
-    case .selfieIntro:
-      return StepRenderSnapshot(step: .selfieIntro)
-    case .selfie:
-      return StepRenderSnapshot(step: .selfie)
+    case .livenessIntro:
+      return StepRenderSnapshot(step: .livenessIntro)
+    case .liveness:
+      return StepRenderSnapshot(step: .liveness)
     case .shareDetails:
       return StepRenderSnapshot(
         step: .shareDetails,
@@ -1000,8 +997,8 @@ struct ContentView: View {
       return step == .scanning
     case .mrz:
       return step == .mrz
-    case .selfie:
-      return step == .selfie
+    case .liveness:
+      return step == .liveness
     }
   }
 }

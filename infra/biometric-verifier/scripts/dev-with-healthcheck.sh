@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PORT="${FACE_MATCHER_PORT:-8788}"
+PORT="${BIOMETRIC_VERIFIER_PORT:-8788}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 STARTUP_TIMEOUT_SECONDS=30
 
@@ -23,7 +23,7 @@ START_TIME=$(date +%s)
 while true; do
   if ! kill -0 "${WRANGLER_PID}" 2>/dev/null; then
     wait "${WRANGLER_PID}" || true
-    echo "Face matcher failed before becoming healthy." >&2
+    echo "Biometric verifier failed before becoming healthy." >&2
     exit 1
   fi
 
@@ -35,7 +35,7 @@ while true; do
 
   CURRENT_TIME=$(date +%s)
   if [ $((CURRENT_TIME - START_TIME)) -ge "${STARTUP_TIMEOUT_SECONDS}" ]; then
-    echo "Face matcher did not become healthy within ${STARTUP_TIMEOUT_SECONDS} seconds." >&2
+    echo "Biometric verifier did not become healthy within ${STARTUP_TIMEOUT_SECONDS} seconds." >&2
     exit 1
   fi
 

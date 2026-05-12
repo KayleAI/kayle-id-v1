@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "kayle-id-face-matcher",
+  "name": "kayle-id-biometric-verifier",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-20",
   "preview_urls": false,
@@ -14,12 +14,12 @@
   },
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "FACE_MATCHER_ALLOW_PIXEL_FALLBACK": "1"
+    "BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK": "1"
   },
   "containers": [
     {
-      "name": "kayle-id-face-matcher-facematchercontainer",
-      "class_name": "FaceMatcherContainer",
+      "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
+      "class_name": "BiometricVerifierContainer",
       "image": "./Dockerfile",
       "max_instances": 2
     }
@@ -27,8 +27,8 @@
   "durable_objects": {
     "bindings": [
       {
-        "class_name": "FaceMatcherContainer",
-        "name": "FACE_MATCHER_CONTAINER"
+        "class_name": "BiometricVerifierContainer",
+        "name": "BIOMETRIC_VERIFIER_CONTAINER"
       }
     ]
   },
@@ -36,15 +36,24 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["FaceMatcherContainer"]
+    },
+    {
+      "tag": "v2",
+      "renamed_classes": [
+        {
+          "from": "FaceMatcherContainer",
+          "to": "BiometricVerifierContainer"
+        }
+      ]
     }
   ],
   "env": {
     "production": {
-      "name": "kayle-id-face-matcher",
+      "name": "kayle-id-biometric-verifier",
       "containers": [
         {
-          "name": "kayle-id-face-matcher-facematchercontainer",
-          "class_name": "FaceMatcherContainer",
+          "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
+          "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
           "max_instances": 2
         }
@@ -52,8 +61,8 @@
       "durable_objects": {
         "bindings": [
           {
-            "class_name": "FaceMatcherContainer",
-            "name": "FACE_MATCHER_CONTAINER"
+            "class_name": "BiometricVerifierContainer",
+            "name": "BIOMETRIC_VERIFIER_CONTAINER"
           }
         ]
       },
@@ -61,10 +70,19 @@
         {
           "tag": "v1",
           "new_sqlite_classes": ["FaceMatcherContainer"]
+        },
+        {
+          "tag": "v2",
+          "renamed_classes": [
+            {
+              "from": "FaceMatcherContainer",
+              "to": "BiometricVerifierContainer"
+            }
+          ]
         }
       ],
       "secrets": {
-        "required": ["FACE_MATCHER_SECRET"]
+        "required": ["BIOMETRIC_VERIFIER_SECRET"]
       }
     },
     "staging": {

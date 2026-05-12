@@ -65,7 +65,7 @@ export async function handlePhaseMessage(
 	}
 
 	const verdict =
-		nextPhase === "nfc_complete" || nextPhase === "selfie_complete"
+		nextPhase === "nfc_complete" || nextPhase === "liveness_complete"
 			? await runPhaseValidation(context, state.attemptId, nextPhase)
 			: null;
 
@@ -84,7 +84,7 @@ export async function handlePhaseMessage(
 		state.currentPhase = transition.nextPhase;
 	}
 
-	if (nextPhase === "selfie_complete" && verdict) {
+	if (nextPhase === "liveness_complete" && verdict) {
 		transport.sendVerdict(verdict);
 		transport.sendShareRequest(context.shareRequestPayload);
 		state.shareRequestSent = true;

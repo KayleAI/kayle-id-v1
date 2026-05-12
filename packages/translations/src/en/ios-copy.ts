@@ -17,12 +17,12 @@ export const IOS_COPY_EN = {
     "Additional machine-readable document data.",
   "Align the printed code within the box.":
     "Align the printed code within the box.",
+  "Almost done…": "Almost done…",
   "An unexpected error occurred.": "An unexpected error occurred.",
   "Authenticating data…": "Authenticating data…",
   "Authenticating with document…": "Authenticating with document…",
   Back: "Back",
   Cancel: "Cancel",
-  "Capturing %lld of %lld": "Capturing %lld of %lld",
   "Checking verification…": "Checking verification…",
   "Choose at least one verification detail before continuing.":
     "Choose at least one verification detail before continuing.",
@@ -42,7 +42,7 @@ export const IOS_COPY_EN = {
     "Follow the NFC prompt and hold the top of your iPhone against the chip.",
   "Get Started": "Get Started",
   "Given Names": "Given Names",
-  "Hold still...": "Hold still...",
+  "Hold still for a moment": "Hold still for a moment",
   "Hold your iPhone near your document.":
     "Hold your iPhone near your document.",
   "How Kayle ID collects, uses, and protects your information.":
@@ -70,18 +70,19 @@ export const IOS_COPY_EN = {
   "Make sure your face is well-lit and clearly visible":
     "Make sure your face is well-lit and clearly visible",
   Male: "Male",
+  "Move slowly so the arcs around your face fill up":
+    "Move slowly so the arcs around your face fill up",
   "NFC read failed.": "NFC read failed.",
   "Nationality Code": "Nationality Code",
-  "Next, take a quick selfie": "Next, take a quick selfie",
+  "Next, a quick liveness check": "Next, a quick liveness check",
   "Optional Details": "Optional Details",
-  "Perfect! Stay still to capture": "Perfect! Stay still to capture",
   "Photo securely read from your document chip.":
     "Photo securely read from your document chip.",
-  "Please wait while we securely upload your photos":
-    "Please wait while we securely upload your photos",
   "Point your camera at the QR code on the screen":
     "Point your camera at the QR code on the screen",
   "Position your face in the frame": "Position your face in the frame",
+  "Position your face in the frame, then slowly turn your head to the left and right. Make sure your face is well-lit and clearly visible.":
+    "Position your face in the frame, then slowly turn your head to the left and right. Make sure your face is well-lit and clearly visible.",
   "Press your document against your device and hold still to read the chip.":
     "Press your document against your device and hold still to read the chip.",
   "Privacy Policy": "Privacy Policy",
@@ -125,20 +126,21 @@ export const IOS_COPY_EN = {
     "This will stop the current verification on this device.",
   "Try Again": "Try Again",
   "Try Another Document": "Try Another Document",
+  "Turn your head left and right": "Turn your head left and right",
   Unspecified: "Unspecified",
   "Unexpected NFC completion response from the server.":
     "Unexpected NFC completion response from the server.",
   "Unexpected NFC upload response from the server.":
     "Unexpected NFC upload response from the server.",
-  "Unexpected selfie completion response from the server.":
-    "Unexpected selfie completion response from the server.",
-  "Unexpected selfie upload response from the server.":
-    "Unexpected selfie upload response from the server.",
+  "Unexpected liveness completion response from the server.":
+    "Unexpected liveness completion response from the server.",
+  "Unexpected liveness upload response from the server.":
+    "Unexpected liveness upload response from the server.",
   "Unexpected share selection response from the server.":
     "Unexpected share selection response from the server.",
   "Unexpected verification phase response from the server.":
     "Unexpected verification phase response from the server.",
-  "Uploading selfies...": "Uploading selfies...",
+  "Uploading…": "Uploading…",
   "Uploading your %@ securely": "Uploading your %@ securely",
   "Use your camera to scan the printed code on your document, then read the chip if it has one.":
     "Use your camera to scan the printed code on your document, then read the chip if it has one.",
@@ -149,8 +151,6 @@ export const IOS_COPY_EN = {
   "Verified from your document.": "Verified from your document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "We couldn't use this scan to read the chip. Try scanning again.",
-  "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.":
-    "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
     "When you're ready, tap Start Scanning and follow the NFC prompt.",
   "Will share that you do not meet the %lld+ age requirement.":

@@ -1,12 +1,12 @@
-import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import {
-  createFaceMatcherResponse,
-  FACE_MATCHER_AUTH_HEADER,
-  FACE_MATCHER_MAX_REQUEST_BYTES,
-  type FaceMatcherMultipartPayload,
-  faceMatcherResponseSchema,
-  parseFaceMatcherRequestFormData,
-} from "@kayle-id/config/face-matcher";
+  BIOMETRIC_VERIFIER_AUTH_HEADER,
+  BIOMETRIC_VERIFIER_MAX_REQUEST_BYTES,
+  type BiometricVerifierMultipartPayload,
+  biometricVerifierResponseSchema,
+  createBiometricVerifierResponse,
+  parseBiometricVerifierRequestFormData,
+} from "@kayle-id/config/biometric-verifier";
+import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import {
   createSafeRequestLogger,
   emitSafeRequestLog,
@@ -20,11 +20,11 @@ import {
   readRequestBytesWithLimit,
 } from "@kayle-id/config/request-body";
 import pkg from "../../../package.json" with { type: "json" };
-import { matchFacesWithContainer } from "./matcher";
+import { verifyLivenessWithContainer } from "./matcher";
 
-export const FACE_MATCHER_MODEL_PATH =
+export const BIOMETRIC_VERIFIER_MODEL_PATH =
   "/app/models/face_recognition_sface_2021dec.onnx";
-export const FACE_MATCHER_DETECTOR_PATH =
+export const BIOMETRIC_VERIFIER_DETECTOR_PATH =
   "/app/models/face_detection_yunet_2023mar.onnx";
 
 export type FetchLike = (
@@ -36,9 +36,9 @@ export interface ContainerFetcher {
 }
 
 type GetContainer = (env: unknown) => Promise<ContainerFetcher | null>;
-type FaceMatcherRequestLogger = SafeRequestLogger;
+type BiometricVerifierRequestLogger = SafeRequestLogger;
 
-interface FaceMatcherWorkerOptions {
+interface BiometricVerifierWorkerOptions {
   emitRequestLogs?: boolean;
   getContainer?: GetContainer;
 }
@@ -64,9 +64,9 @@ type InternalAuthOutcome =
 
 function authorizeInternalRequest(
   request: Request,
-  matcherSecret?: string
+  verifierSecret?: string
 ): InternalAuthOutcome {
-  if (!(typeof matcherSecret === "string" && matcherSecret.length > 0)) {
+  if (!(typeof verifierSecret === "string" && verifierSecret.length > 0)) {
     return { ok: false, reason: "secret_missing" };
   }
 
@@ -74,11 +74,13 @@ function authorizeInternalRequest(
   const bearerToken = authHeader?.startsWith("Bearer ")
     ? authHeader.slice("Bearer ".length).trim()
     : null;
-  const sharedSecretHeader = request.headers.get(FACE_MATCHER_AUTH_HEADER);
+  const sharedSecretHeader = request.headers.get(
+    BIOMETRIC_VERIFIER_AUTH_HEADER
+  );
   const headerMatch = [sharedSecretHeader, bearerToken].some(
     (candidate) =>
       typeof candidate === "string" &&
-      constantTimeStringEqual(candidate, matcherSecret)
+      constantTimeStringEqual(candidate, verifierSecret)
   );
 
   return headerMatch
@@ -99,27 +101,27 @@ function resolveStringEnvValue(env: unknown, key: string): string | null {
 
 async function proxyHealth(
   container: ContainerFetcher | null,
-  logger: FaceMatcherRequestLogger
+  logger: BiometricVerifierRequestLogger
 ): Promise<Response> {
   if (!container) {
     logEvent(logger, {
       details: {
-        error_code: "face_matcher_container_binding_missing",
+        error_code: "biometric_verifier_container_binding_missing",
       },
-      event: "face_matcher.health_unavailable",
+      event: "biometric_verifier.health_unavailable",
       level: "warn",
     });
 
     return jsonResponse(
       {
         data: {
-          modelPath: FACE_MATCHER_MODEL_PATH,
+          modelPath: BIOMETRIC_VERIFIER_MODEL_PATH,
           ready: false,
           status: "unhealthy",
         },
         error: {
-          code: "MATCHER_UNAVAILABLE",
-          message: "Face matcher container binding is unavailable.",
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier container binding is unavailable.",
         },
       },
       503
@@ -130,23 +132,23 @@ async function proxyHealth(
     return await container.fetch("http://container/health");
   } catch (error) {
     logSafeError(logger, {
-      code: "face_matcher_health_unavailable",
+      code: "biometric_verifier_health_unavailable",
       error,
-      event: "face_matcher.health_unavailable",
-      message: "Face matcher health check failed.",
+      event: "biometric_verifier.health_unavailable",
+      message: "Biometric verifier health check failed.",
       status: 503,
     });
 
     return jsonResponse(
       {
         data: {
-          modelPath: FACE_MATCHER_MODEL_PATH,
+          modelPath: BIOMETRIC_VERIFIER_MODEL_PATH,
           ready: false,
           status: "unhealthy",
         },
         error: {
-          code: "MATCHER_UNAVAILABLE",
-          message: "Face matcher health check failed.",
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier health check failed.",
         },
       },
       503
@@ -154,22 +156,22 @@ async function proxyHealth(
   }
 }
 
-async function parseMatchPayload({
+async function parseLivenessPayload({
   request,
   logger,
 }: {
   request: Request;
-  logger: FaceMatcherRequestLogger;
-}): Promise<FaceMatcherMultipartPayload | Response> {
+  logger: BiometricVerifierRequestLogger;
+}): Promise<BiometricVerifierMultipartPayload | Response> {
   try {
     const contentType = request.headers.get("content-type");
     if (!contentType) {
-      throw new Error("face_matcher_content_type_missing");
+      throw new Error("biometric_verifier_content_type_missing");
     }
 
     const bodyBytes = await readRequestBytesWithLimit(
       request,
-      FACE_MATCHER_MAX_REQUEST_BYTES
+      BIOMETRIC_VERIFIER_MAX_REQUEST_BYTES
     );
     const boundedRequest = new Request(request.url, {
       body: bodyBytes as unknown as BodyInit,
@@ -179,7 +181,7 @@ async function parseMatchPayload({
       method: request.method,
     });
 
-    return await parseFaceMatcherRequestFormData(
+    return await parseBiometricVerifierRequestFormData(
       await boundedRequest.formData()
     );
   } catch (error) {
@@ -188,15 +190,15 @@ async function parseMatchPayload({
 
     logSafeError(logger, {
       code: bodyTooLarge
-        ? "face_matcher_request_too_large"
-        : "face_matcher_invalid_request",
+        ? "biometric_verifier_request_too_large"
+        : "biometric_verifier_invalid_request",
       error,
       event: bodyTooLarge
-        ? "face_matcher.request_too_large"
-        : "face_matcher.invalid_request",
+        ? "biometric_verifier.request_too_large"
+        : "biometric_verifier.invalid_request",
       message: bodyTooLarge
-        ? "Face matcher request payload is too large."
-        : "Face matcher request payload is invalid.",
+        ? "Biometric verifier request payload is too large."
+        : "Biometric verifier request payload is invalid.",
       status,
     });
 
@@ -205,8 +207,8 @@ async function parseMatchPayload({
         error: {
           code: bodyTooLarge ? "PAYLOAD_TOO_LARGE" : "INVALID_REQUEST",
           message: bodyTooLarge
-            ? "Face matcher request payload is too large."
-            : "Face matcher request payload is invalid.",
+            ? "Biometric verifier request payload is too large."
+            : "Biometric verifier request payload is invalid.",
         },
       },
       status
@@ -214,20 +216,20 @@ async function parseMatchPayload({
   }
 }
 
-async function handleMatchRequest({
+async function handleLivenessRequest({
   env,
   getContainer,
   request,
   logger,
 }: {
-  env: FaceMatcherBindings;
+  env: BiometricVerifierBindings;
   getContainer: GetContainer;
   request: Request;
-  logger: FaceMatcherRequestLogger;
+  logger: BiometricVerifierRequestLogger;
 }): Promise<Response> {
-  const matcherSecret =
-    resolveStringEnvValue(env, "FACE_MATCHER_SECRET") ?? undefined;
-  const authOutcome = authorizeInternalRequest(request, matcherSecret);
+  const verifierSecret =
+    resolveStringEnvValue(env, "BIOMETRIC_VERIFIER_SECRET") ?? undefined;
+  const authOutcome = authorizeInternalRequest(request, verifierSecret);
 
   if (!authOutcome.ok) {
     if (authOutcome.reason === "secret_missing") {
@@ -237,18 +239,18 @@ async function handleMatchRequest({
       // header" and alert on it.
       logEvent(logger, {
         details: {
-          error_code: "face_matcher_secret_missing",
+          error_code: "biometric_verifier_secret_missing",
           status: 503,
         },
-        event: "face_matcher.misconfigured",
+        event: "biometric_verifier.misconfigured",
         level: "warn",
       });
 
       return jsonResponse(
         {
           error: {
-            code: "MATCHER_MISCONFIGURED",
-            message: "Face matcher is missing its shared secret.",
+            code: "BIOMETRIC_VERIFIER_MISCONFIGURED",
+            message: "Biometric verifier is missing its shared secret.",
           },
         },
         503
@@ -257,10 +259,10 @@ async function handleMatchRequest({
 
     logEvent(logger, {
       details: {
-        error_code: "face_matcher_unauthorized",
+        error_code: "biometric_verifier_unauthorized",
         status: 401,
       },
-      event: "face_matcher.unauthorized",
+      event: "biometric_verifier.unauthorized",
       level: "warn",
     });
 
@@ -268,14 +270,14 @@ async function handleMatchRequest({
       {
         error: {
           code: "UNAUTHORIZED",
-          message: "Unauthorized matcher request.",
+          message: "Unauthorized biometric verifier request.",
         },
       },
       401
     );
   }
 
-  const payload = await parseMatchPayload({
+  const payload = await parseLivenessPayload({
     request,
     logger,
   });
@@ -286,7 +288,7 @@ async function handleMatchRequest({
 
   const container = await getContainer(env);
   const startedAt = Date.now();
-  const result = await matchFacesWithContainer({
+  const result = await verifyLivenessWithContainer({
     container: container ?? {
       fetch: async () =>
         new Response(null, {
@@ -294,39 +296,40 @@ async function handleMatchRequest({
         }),
     },
     dg2Image: payload.dg2Image,
-    selfies: payload.selfies,
-    threshold: payload.threshold,
+    video: payload.video,
+    poseSequence: payload.poseSequence,
+    challengeNonce: payload.challengeNonce,
+    faceMatchThreshold: payload.faceMatchThreshold,
   });
-  const response = faceMatcherResponseSchema.parse(
-    createFaceMatcherResponse(result)
+  const response = biometricVerifierResponseSchema.parse(
+    createBiometricVerifierResponse(result)
   );
 
   logEvent(logger, {
     details: {
       duration_ms: Date.now() - startedAt,
       dg2_bytes: payload.dg2Image.length,
-      selfie_count: payload.selfies.length,
-      selfie_bytes: payload.selfies.reduce(
-        (total: number, selfie: Uint8Array) => total + selfie.length,
-        0
-      ),
-      threshold: payload.threshold ?? null,
-      face_score: response.faceScore,
-      passed: response.passed,
+      video_bytes: payload.video.length,
+      pose_sequence_length: payload.poseSequence?.length ?? 0,
+      face_match_threshold: payload.faceMatchThreshold ?? null,
+      face_match_passed: response.faceMatchPassed,
+      face_match_score: response.faceMatchScore,
+      liveness_passed: response.livenessPassed,
+      liveness_score: response.livenessScore,
       used_fallback: response.usedFallback,
       reason: response.reason ?? null,
     },
-    event: "face_matcher.completed",
+    event: "biometric_verifier.completed",
   });
 
   return jsonResponse(response);
 }
 
-export function createFaceMatcherWorker({
+export function createBiometricVerifierWorker({
   emitRequestLogs = true,
   getContainer = async () => null,
-}: FaceMatcherWorkerOptions = {}): Required<
-  Pick<ExportedHandler<FaceMatcherBindings>, "fetch">
+}: BiometricVerifierWorkerOptions = {}): Required<
+  Pick<ExportedHandler<BiometricVerifierBindings>, "fetch">
 > {
   return {
     fetch: async (request, env) => {
@@ -344,8 +347,8 @@ export function createFaceMatcherWorker({
           return response;
         }
 
-        if (request.method === "POST" && url.pathname === "/match") {
-          const response = await handleMatchRequest({
+        if (request.method === "POST" && url.pathname === "/verify_liveness") {
+          const response = await handleLivenessRequest({
             env,
             getContainer,
             logger,
@@ -357,10 +360,10 @@ export function createFaceMatcherWorker({
 
         logEvent(logger, {
           details: {
-            error_code: "face_matcher_route_not_found",
+            error_code: "biometric_verifier_route_not_found",
             status: 404,
           },
-          event: "face_matcher.not_found",
+          event: "biometric_verifier.not_found",
           level: "warn",
         });
 
@@ -368,7 +371,7 @@ export function createFaceMatcherWorker({
           {
             error: {
               code: "NOT_FOUND",
-              message: "Face matcher route was not found.",
+              message: "Biometric verifier route was not found.",
             },
           },
           404
@@ -377,10 +380,10 @@ export function createFaceMatcherWorker({
         return response;
       } catch (error) {
         logSafeError(logger, {
-          code: "face_matcher_request_failed",
+          code: "biometric_verifier_request_failed",
           error,
-          event: "face_matcher.request_failed",
-          message: "Face matcher request failed.",
+          event: "biometric_verifier.request_failed",
+          message: "Biometric verifier request failed.",
           status: 500,
         });
         emitRequestLog(500);

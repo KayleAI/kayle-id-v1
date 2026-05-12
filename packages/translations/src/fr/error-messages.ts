@@ -123,14 +123,14 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "Terminez le scan de votre document pour continuer.",
   },
 
-  SELFIE_DATA_PHASE_REQUIRED: {
-    title: "Selfie requis",
-    description: "Prenez un selfie pour continuer.",
+  LIVENESS_DATA_PHASE_REQUIRED: {
+    title: "Vérification de présence requise",
+    description: "Suivez les instructions de mouvement de tête pour continuer.",
   },
 
-  SELFIE_REQUIRED_DATA_MISSING: {
-    title: "Selfie manquant",
-    description: "Prenez un selfie pour continuer.",
+  LIVENESS_REQUIRED_DATA_MISSING: {
+    title: "Vérification de présence incomplète",
+    description: "Enregistrez les mouvements de tête demandés pour continuer.",
   },
 
   SHARE_SELECTION_REQUIRED: {
@@ -177,6 +177,12 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
   selfie_face_mismatch: {
     title: "Le visage ne correspond pas",
     description:
-      "Votre selfie ne correspond pas à la photo de votre document. Réessayez.",
+      "Votre visage ne correspond pas à la photo de votre document. Réessayez.",
+  },
+
+  liveness_failed: {
+    title: "Échec de la vérification de présence",
+    description:
+      "Nous n’avons pas pu confirmer la présence d’une personne en direct. Réessayez en suivant les instructions de mouvement de tête.",
   },
 };

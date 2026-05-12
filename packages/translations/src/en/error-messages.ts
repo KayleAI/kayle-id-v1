@@ -118,14 +118,14 @@ export const ERROR_MESSAGES = {
     description: "Finish scanning your document to continue.",
   },
 
-  SELFIE_DATA_PHASE_REQUIRED: {
-    title: "Selfie needed",
-    description: "Take a selfie to continue.",
+  LIVENESS_DATA_PHASE_REQUIRED: {
+    title: "Liveness check needed",
+    description: "Follow the head-movement prompts to continue.",
   },
 
-  SELFIE_REQUIRED_DATA_MISSING: {
-    title: "Selfie missing",
-    description: "Take a selfie to continue.",
+  LIVENESS_REQUIRED_DATA_MISSING: {
+    title: "Liveness check incomplete",
+    description: "Record the head-movement prompts to continue.",
   },
 
   SHARE_SELECTION_REQUIRED: {
@@ -170,6 +170,12 @@ export const ERROR_MESSAGES = {
 
   selfie_face_mismatch: {
     title: "Face doesn’t match",
-    description: "Your selfie doesn’t match your document photo. Try again.",
+    description: "Your face doesn’t match your document photo. Try again.",
+  },
+
+  liveness_failed: {
+    title: "Liveness check failed",
+    description:
+      "We couldn’t confirm the camera was on a live person. Try again and follow the head-movement prompts.",
   },
 } as const;

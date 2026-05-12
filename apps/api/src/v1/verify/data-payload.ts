@@ -7,12 +7,14 @@ type RequiredNfcArtifact = "dg1" | "dg2" | "sod";
 const DG1_KIND = 0;
 const DG2_KIND = 1;
 const SOD_KIND = 2;
-const SELFIE_KIND = 3;
+// Field number 3 (legacy three-stills selfie) is reserved in the Cap'n Proto
+// schema. The server rejects this kind during validation.
+const LEGACY_SELFIE_KIND = 3;
 const DG14_KIND = 4;
 const DG15_KIND = 5;
 const ACTIVE_AUTH_KIND = 6;
 const CHIP_AUTH_KIND = 7;
-const REQUIRED_SELFIE_TOTAL = 3;
+const LIVENESS_VIDEO_KIND = 8;
 const ACTIVE_AUTH_CHALLENGE_BYTES = 8;
 
 // Size caps for inbound verify uploads. These are intentionally conservative
@@ -21,8 +23,10 @@ const ACTIVE_AUTH_CHALLENGE_BYTES = 8;
 // prevent slow-loris-style streaming exhaustion of a Worker isolate.
 export const MAX_FRAME_BYTES = 256 * 1024;
 export const MAX_CHUNKS_PER_KEY = 256;
-export const MAX_KIND_BYTES = 8 * 1024 * 1024;
-export const MAX_TOTAL_TRANSFER_BYTES = 32 * 1024 * 1024;
+// Sized for H.264 baseline @ 720×1280 @ 1.6 Mbps × ~8 s liveness clip with
+// codec-overshoot headroom; passport DG2 portraits fit well under this.
+export const MAX_KIND_BYTES = 16 * 1024 * 1024;
+export const MAX_TOTAL_TRANSFER_BYTES = 48 * 1024 * 1024;
 
 export type MissingTransferChunk = {
 	kind: number;
@@ -39,10 +43,9 @@ export type NfcTransferStatus = {
 	missingChunks: MissingNfcChunk[];
 };
 
-export type SelfieTransferStatus = {
+export type LivenessTransferStatus = {
 	complete: boolean;
-	requiredTotal: number;
-	missingSelfieIndexes: number[];
+	receivedBytes: number;
 	missingChunks: MissingTransferChunk[];
 };
 
@@ -61,7 +64,7 @@ export type VerifyTransferState = {
 	 * field; consumed once by `runAttestationValidation` ahead of PA/CA/AA.
 	 */
 	nfcAttestAssertion?: Uint8Array;
-	selfies: Map<number, Uint8Array>;
+	livenessVideo?: Uint8Array;
 	chunks: Map<string, VerifyChunkEntry>;
 	/** Cumulative bytes received across all chunks/artifacts for this attempt. */
 	bytesReceived: number;
@@ -84,19 +87,18 @@ type DataResult = {
 	};
 	authenticityReady: boolean;
 	nfcStatus: NfcTransferStatus;
-	selfieStatus: SelfieTransferStatus;
+	livenessStatus: LivenessTransferStatus;
 };
 
 export function createTransferState(): VerifyTransferState {
 	return {
-		selfies: new Map(),
 		chunks: new Map(),
 		bytesReceived: 0,
 	};
 }
 
 export function resetTransferState(state: VerifyTransferState): void {
-	state.selfies.clear();
+	state.livenessVideo = undefined;
 	state.dg1 = undefined;
 	state.dg2 = undefined;
 	state.sod = undefined;
@@ -167,16 +169,16 @@ export function isNfcDataKind(kind: number): boolean {
 	);
 }
 
-export function isSelfieDataKind(kind: number): boolean {
-	return kind === SELFIE_KIND;
+export function isLivenessVideoDataKind(kind: number): boolean {
+	return kind === LIVENESS_VIDEO_KIND;
+}
+
+function isLegacySelfieDataKind(kind: number): boolean {
+	return kind === LEGACY_SELFIE_KIND;
 }
 
 function isSupportedDataKind(kind: number): boolean {
-	return isNfcDataKind(kind) || isSelfieDataKind(kind);
-}
-
-function isRequiredSelfieIndex(index: number): boolean {
-	return index >= 0 && index < REQUIRED_SELFIE_TOTAL;
+	return isNfcDataKind(kind) || isLivenessVideoDataKind(kind);
 }
 
 export function getNfcTransferStatus(
@@ -222,26 +224,14 @@ export function getNfcTransferStatus(
 	};
 }
 
-export function getSelfieTransferStatus(
+export function getLivenessTransferStatus(
 	state: VerifyTransferState,
-): SelfieTransferStatus {
-	const missingSelfieIndexes: number[] = [];
-
-	for (let index = 0; index < REQUIRED_SELFIE_TOTAL; index += 1) {
-		if (!state.selfies.has(index)) {
-			missingSelfieIndexes.push(index);
-		}
-	}
-
+): LivenessTransferStatus {
 	const missingChunks: MissingTransferChunk[] = [];
 
 	for (const [key, entry] of state.chunks.entries()) {
 		const parsed = parseChunkKey(key);
-		if (!(parsed && isSelfieDataKind(parsed.kind))) {
-			continue;
-		}
-
-		if (!isRequiredSelfieIndex(parsed.index)) {
+		if (!(parsed && isLivenessVideoDataKind(parsed.kind))) {
 			continue;
 		}
 
@@ -258,10 +248,11 @@ export function getSelfieTransferStatus(
 		});
 	}
 
+	const receivedBytes = state.livenessVideo?.length ?? 0;
+
 	return {
-		complete: missingSelfieIndexes.length === 0 && missingChunks.length === 0,
-		requiredTotal: REQUIRED_SELFIE_TOTAL,
-		missingSelfieIndexes,
+		complete: Boolean(state.livenessVideo) && missingChunks.length === 0,
+		receivedBytes,
 		missingChunks,
 	};
 }
@@ -374,7 +365,6 @@ function storeActiveAuthData(
 function storeData({
 	state,
 	kind,
-	index,
 	data,
 }: {
 	state: VerifyTransferState;
@@ -400,9 +390,6 @@ function storeData({
 		case SOD_KIND:
 			state.sod = data;
 			return { ok: true };
-		case SELFIE_KIND:
-			state.selfies.set(index, data);
-			return { ok: true };
 		case DG14_KIND:
 			state.dg14 = data;
 			return { ok: true };
@@ -413,6 +400,9 @@ function storeData({
 			return storeActiveAuthData(state, data);
 		case CHIP_AUTH_KIND:
 			state.chipAuthTranscript = data;
+			return { ok: true };
+		case LIVENESS_VIDEO_KIND:
+			state.livenessVideo = data;
 			return { ok: true };
 		default:
 			return {
@@ -476,7 +466,7 @@ function createErrorResult({
 		},
 		authenticityReady: false,
 		nfcStatus: getNfcTransferStatus(state),
-		selfieStatus: getSelfieTransferStatus(state),
+		livenessStatus: getLivenessTransferStatus(state),
 	};
 }
 
@@ -523,7 +513,24 @@ function validateDataPayload({
 		});
 	}
 
-	if (!(isNonNegativeInteger(kind) && isSupportedDataKind(kind))) {
+	if (!isNonNegativeInteger(kind)) {
+		return createErrorResult({
+			state,
+			code: "UNKNOWN_DATA_KIND",
+			message: "Unknown data kind.",
+		});
+	}
+
+	if (isLegacySelfieDataKind(kind)) {
+		return createErrorResult({
+			state,
+			code: "LEGACY_SELFIE_KIND_UNSUPPORTED",
+			message:
+				"Legacy three-still selfie uploads are no longer accepted. Upgrade the client and re-attempt verification.",
+		});
+	}
+
+	if (!isSupportedDataKind(kind)) {
 		return createErrorResult({
 			state,
 			code: "UNKNOWN_DATA_KIND",
@@ -559,23 +566,23 @@ function validateDataPayload({
 		});
 	}
 
-	if (isSelfieDataKind(kind) && total !== REQUIRED_SELFIE_TOTAL) {
+	if (isLivenessVideoDataKind(kind) && total !== 1) {
 		return createChunkRetryResult({
 			state,
 			kind,
 			index,
 			chunkIndex,
-			reason: "invalid_selfie_total",
+			reason: "invalid_liveness_total",
 		});
 	}
 
-	if (isSelfieDataKind(kind) && !isRequiredSelfieIndex(index)) {
+	if (isLivenessVideoDataKind(kind) && index !== 0) {
 		return createChunkRetryResult({
 			state,
 			kind,
 			index,
 			chunkIndex,
-			reason: "invalid_selfie_index",
+			reason: "invalid_liveness_index",
 		});
 	}
 
@@ -649,7 +656,7 @@ export function processDataPayload({
 			],
 			authenticityReady: false,
 			nfcStatus: getNfcTransferStatus(state),
-			selfieStatus: getSelfieTransferStatus(state),
+			livenessStatus: getLivenessTransferStatus(state),
 		};
 	}
 
@@ -674,6 +681,6 @@ export function processDataPayload({
 		acks: [ack],
 		authenticityReady: isAuthenticityReady(state),
 		nfcStatus: getNfcTransferStatus(state),
-		selfieStatus: getSelfieTransferStatus(state),
+		livenessStatus: getLivenessTransferStatus(state),
 	};
 }

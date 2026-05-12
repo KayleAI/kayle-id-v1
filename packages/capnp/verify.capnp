@@ -32,11 +32,20 @@ enum DataKind {
   dg1 @0;
   dg2 @1;
   sod @2;
+  # Field number 3 was the legacy three-stills selfie kind. Cap'n Proto
+  # forbids reusing enum ordinals; the client and server reject this value.
   selfie @3;
   dg14 @4;
   dg15 @5;
   activeAuth @6;
   chipAuth @7;
+  livenessVideo @8;
+}
+
+enum LivenessPose {
+  center @0;
+  left @1;
+  right @2;
 }
 
 struct DataPayload {
@@ -105,6 +114,18 @@ struct ServerActiveAuthChallenge {
   challenge @0 :Data;
 }
 
+# Server-issued head-movement challenge sent on the nfc_complete →
+# liveness_capturing transition. The poseSequence is a per-attempt random
+# permutation of [center, left, right] derived deterministically from the
+# AUTH_SECRET so reconnects yield the same value. challengeNonce is the
+# 4-byte HMAC prefix used to seed the permutation; clients echo it back via
+# the recorded video timing so the server can detect replay.
+struct ServerLivenessChallenge {
+  poseSequence @0 :List(LivenessPose);
+  maxDurationMs @1 :UInt32;
+  challengeNonce @2 :Data;
+}
+
 struct ServerMessage {
   union {
     ack @0 :ServerAck;
@@ -113,5 +134,6 @@ struct ServerMessage {
     shareRequest @3 :ShareRequest;
     shareReady @4 :ShareReady;
     activeAuthChallenge @5 :ServerActiveAuthChallenge;
+    livenessChallenge @6 :ServerLivenessChallenge;
   }
 }

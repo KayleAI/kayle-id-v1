@@ -1,4 +1,5 @@
 import type {
+	VerifyServerLivenessChallenge,
 	VerifyServerVerdict,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
@@ -23,6 +24,7 @@ export type VerifySocketTransport = {
 	logDebug: (label: string, details?: Record<string, unknown>) => void;
 	sendAck: (message: string) => void;
 	sendActiveAuthChallenge: (challenge: Uint8Array) => void;
+	sendLivenessChallenge: (challenge: VerifyServerLivenessChallenge) => void;
 	sendAuthErrorAndClose: (
 		code:
 			| "ATTEMPT_CONNECTION_ACTIVE"

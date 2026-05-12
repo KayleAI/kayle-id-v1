@@ -45,11 +45,11 @@ final class VerificationSession: ObservableObject {
   @Published var errorMessage: String?
   @Published var isRetryingVerification = false
   @Published var isReconnecting = false
-  /// Bumped whenever the selfie session must restart from scratch (e.g. after
-  /// a reconnect). Applied as `.id()` to the SelfieCaptureView so SwiftUI
-  /// remounts it and resets its internal isProcessing/capturedImages state,
-  /// instead of leaving the "Uploading selfies…" overlay stuck on screen.
-  @Published var selfieCaptureGeneration = UUID()
+  /// Bumped whenever the liveness session must restart from scratch (e.g. after
+  /// a reconnect). Applied as `.id()` to the LivenessCaptureView so SwiftUI
+  /// remounts it and resets its internal isRecording/buffered state,
+  /// instead of leaving the "Uploading…" overlay stuck on screen.
+  @Published var livenessCaptureGeneration = UUID()
   @Published var verdict: VerifyServerVerdict?
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
@@ -62,27 +62,29 @@ final class VerificationSession: ObservableObject {
   // Captured data
   @Published var mrzResult: MRZResult?
   @Published var nfcResult: DocumentReadResult?
-  @Published var selfieImages: [UIImage] = []
+  @Published var livenessVideoURL: URL?
   @Published var hasRFIDSymbol: Bool?
   /// AA challenge issued by the server. Set asynchronously after hello — must
   /// be threaded into the MRTDReader configuration so the chip signs *this*
   /// nonce, not one the client picked. Closes the Challenge Semantics
   /// weakness from ICAO 9303 Part 11 §6.1.
   @Published var activeAuthChallenge: Data?
+  /// Head-movement pose challenge issued by the server at the
+  /// nfc_complete → liveness_capturing transition. Drives the on-screen
+  /// prompts in `LivenessCaptureView`.
+  @Published var livenessChallenge: VerifyServerLivenessChallenge?
 
   // Services
   private var webSocketService: VerifyWebSocketService?
-  private var selfieUploadsExpected = 0
-  private var selfieSentIndices = Set<Int>()
-  private var selfiePayloadsByIndex: [Int: Data] = [:]
-  private var selfieUploadCancelled = false
-  private var selfieUploadInFlight = false
+  private var livenessUploadStarted = false
+  private var livenessUploadComplete = false
+  private var livenessVideoBytes: Data?
+  private var livenessUploadCancelled = false
+  private var livenessUploadInFlight = false
   private var pendingPhaseUpdateTask: Task<Void, Never>?
   private var reconnectTask: Task<Void, Never>?
   private let nfcChunkSize = 64 * 1024
-  private let selfieChunkSize = 128 * 1024
-  private let selfieCompressionQuality: CGFloat = 0.72
-  private let requiredSelfieTotal = 3
+  private let livenessChunkSize = 128 * 1024
   private let maxReconnectAttempts = 5
   // 1s base, exponential up to ~16s — total budget ~30s before giving up.
   private let reconnectBaseDelayNs: UInt64 = 1_000_000_000
@@ -92,8 +94,7 @@ final class VerificationSession: ObservableObject {
     let chunks: [Data]
   }
 
-  private struct SelfieUploadPlan {
-    let index: Int
+  private struct LivenessUploadPlan {
     let chunks: [Data]
   }
 
@@ -175,11 +176,13 @@ final class VerificationSession: ObservableObject {
     }
   }
   
-  /// Send a single selfie image immediately after capture.
-  func sendSelfieImage(_ image: UIImage, index: Int, total: Int) async throws -> Bool {
-    try await waitForSelfieUploadTurn()
+  /// Upload the head-movement liveness video and advance to liveness_complete.
+  /// Returns the recorded verdict (accepted or rejected) once the server has
+  /// run the liveness + face match validation.
+  func sendLivenessVideo(_ videoURL: URL) async throws -> Bool {
+    try await waitForLivenessUploadTurn()
     defer {
-      selfieUploadInFlight = false
+      livenessUploadInFlight = false
     }
 
     guard let webSocketService else {
@@ -188,37 +191,28 @@ final class VerificationSession: ObservableObject {
 
     await waitForPendingPhaseUpdates()
 
-    if selfieUploadCancelled {
-      throw SelfieError.uploadFailed
+    if livenessUploadCancelled {
+      throw LivenessError.uploadFailed
     }
 
-    if total != requiredSelfieTotal {
-      throw SelfieError.uploadFailed
+    let videoBytes: Data
+    do {
+      videoBytes = try Data(contentsOf: videoURL, options: .mappedIfSafe)
+    } catch {
+      throw LivenessError.videoReadFailed
     }
 
-    if index < 0 || index >= requiredSelfieTotal {
-      throw SelfieError.uploadFailed
+    guard !videoBytes.isEmpty else {
+      throw LivenessError.videoEmpty
     }
 
-    if selfieUploadsExpected == 0 {
-      selfieUploadsExpected = total
-    }
+    livenessVideoBytes = videoBytes
+    livenessUploadStarted = true
 
-    guard let jpeg = image.jpegData(compressionQuality: selfieCompressionQuality) else {
-      throw SelfieError.compressionFailed
-    }
-
-    selfiePayloadsByIndex[index] = jpeg
-
-    let plans = try buildKnownSelfieUploadPlans()
-    try await uploadKnownSelfiePlans(plans, via: webSocketService)
-
-    let hasAllSelfies = selfiePayloadsByIndex.count == requiredSelfieTotal
-    guard hasAllSelfies else {
-      return false
-    }
-
-    try await completeSelfiePhase(plans: plans, via: webSocketService)
+    let plan = buildLivenessUploadPlan(from: videoBytes)
+    try await uploadLivenessPlan(plan, via: webSocketService)
+    try await completeLivenessPhase(plan: plan, via: webSocketService)
+    livenessUploadComplete = true
     return true
   }
 
@@ -299,7 +293,7 @@ final class VerificationSession: ObservableObject {
     errorMessage = resolvedError.localizedDescription
     isRetryingVerification = false
     step = .error
-    selfieUploadCancelled = true
+    livenessUploadCancelled = true
 
     Task { @MainActor [weak self] in
       guard let self else { return }
@@ -382,7 +376,9 @@ final class VerificationSession: ObservableObject {
   func clearDocumentCaptureState() {
     mrzResult = nil
     nfcResult = nil
-    selfieImages = []
+    livenessVideoURL = nil
+    livenessVideoBytes = nil
+    livenessChallenge = nil
     hasRFIDSymbol = nil
     resetNFCUploadState()
   }
@@ -471,6 +467,20 @@ final class VerificationSession: ObservableObject {
           }
           self.activeAuthChallenge = challenge
         }
+      },
+      onLivenessChallenge: { [weak self] challenge in
+        Task { @MainActor [weak self] in
+          guard
+            let self,
+            shouldHandleAttemptScopedEvent(
+              currentAttemptId: self.payload?.attemptId,
+              eventAttemptId: attemptId
+            )
+          else {
+            return
+          }
+          self.livenessChallenge = challenge
+        }
       }
     )
   }
@@ -490,14 +500,15 @@ final class VerificationSession: ObservableObject {
     isSubmittingShareSelection = false
     mrzResult = nil
     nfcResult = nil
-    selfieImages = []
+    livenessVideoURL = nil
+    livenessVideoBytes = nil
+    livenessChallenge = nil
     hasRFIDSymbol = nil
     webSocketService = nil
-    selfieUploadsExpected = 0
-    selfieSentIndices.removeAll()
-    selfiePayloadsByIndex.removeAll()
-    selfieUploadCancelled = false
-    selfieUploadInFlight = false
+    livenessUploadStarted = false
+    livenessUploadComplete = false
+    livenessUploadCancelled = false
+    livenessUploadInFlight = false
     resetNFCUploadState()
     pendingPhaseUpdateTask?.cancel()
     pendingPhaseUpdateTask = nil
@@ -620,21 +631,23 @@ final class VerificationSession: ObservableObject {
     // bookkeeping so the next retap streams cleanly. mrzResult, nfcResult,
     // and activeAuthChallenge survive because the AA challenge is
     // deterministic per attemptId — the chip-signed bytes in nfcResult are
-    // still valid against the re-derived expectedChallenge. selfieImages do
-    // NOT survive: an interrupted selfie session must be restarted from
-    // scratch, so the user is sent back through the capture flow rather than
-    // resuming against stale partial state.
+    // still valid against the re-derived expectedChallenge. livenessVideoURL
+    // does NOT survive: an interrupted liveness session must be restarted
+    // from scratch, so the user is sent back through the capture flow rather
+    // than resuming against stale partial state. The pose challenge survives
+    // because deriveLivenessChallenge is deterministic per attemptId — the
+    // server will re-issue the same sequence on the new socket.
     resetNFCUploadState()
-    selfieImages = []
-    selfieUploadInFlight = false
-    selfieUploadCancelled = false
-    selfieUploadsExpected = 0
-    selfieSentIndices.removeAll()
-    selfiePayloadsByIndex.removeAll()
-    selfieCaptureGeneration = UUID()
+    livenessVideoURL = nil
+    livenessVideoBytes = nil
+    livenessUploadStarted = false
+    livenessUploadComplete = false
+    livenessUploadInFlight = false
+    livenessUploadCancelled = false
+    livenessCaptureGeneration = UUID()
 
-    // Re-stream NFC artifacts so the server can face-match selfies against
-    // dg2. Without this, the next phase=selfie_complete would silently advance
+    // Re-stream NFC artifacts so the server can face-match against dg2.
+    // Without this, the next phase=liveness_complete would silently advance
     // with empty transfer state because face validation early-returns when
     // dg2 is missing, leaving the attempt in a corrupted phase.
     if let nfcResult {
@@ -647,7 +660,7 @@ final class VerificationSession: ObservableObject {
 
   /// Re-push the cached NFC artifacts onto a freshly connected socket. Used
   /// from the reconnect path (proactive) and from a server-issued
-  /// NFC_REQUIRED_DATA_MISSING on selfie_complete (reactive). Bytes are the
+  /// NFC_REQUIRED_DATA_MISSING on liveness_complete (reactive). Bytes are the
   /// same ones the chip signed; AA/CA signatures still verify against the
   /// server's deterministic per-attempt challenge, so this is a pure replay
   /// of validated material, not a fresh trust decision.
@@ -666,7 +679,7 @@ final class VerificationSession: ObservableObject {
     errorMessage = nil
     shareSelectionErrorMessage = nil
     isSubmittingShareSelection = false
-    selfieUploadCancelled = isRejectedVerdict(verdict)
+    livenessUploadCancelled = isRejectedVerdict(verdict)
 
     if isRejectedVerdict(verdict) {
       closeActiveAttemptConnection()
@@ -784,44 +797,14 @@ final class VerificationSession: ObservableObject {
     }
   }
 
-  private func buildKnownSelfieUploadPlans() throws -> [SelfieUploadPlan] {
-    let sortedIndexes = selfiePayloadsByIndex.keys.sorted()
-
-    guard !sortedIndexes.isEmpty else {
-      throw VerificationError.uploadFailed
-    }
-
-    let plans = sortedIndexes.compactMap { index -> SelfieUploadPlan? in
-      guard let payload = selfiePayloadsByIndex[index] else {
-        return nil
-      }
-      return SelfieUploadPlan(
-        index: index,
-        chunks: chunkData(payload, chunkSize: selfieChunkSize)
-      )
-    }
-
-    guard !plans.isEmpty else {
-      throw VerificationError.uploadFailed
-    }
-
-    return plans
+  private func buildLivenessUploadPlan(from videoBytes: Data) -> LivenessUploadPlan {
+    LivenessUploadPlan(
+      chunks: chunkData(videoBytes, chunkSize: livenessChunkSize)
+    )
   }
 
-  private func uploadKnownSelfiePlans(
-    _ plans: [SelfieUploadPlan],
-    via webSocketService: VerifyWebSocketService
-  ) async throws {
-    for plan in plans {
-      if selfieSentIndices.contains(plan.index) {
-        continue
-      }
-      try await uploadSelfiePlan(plan, via: webSocketService)
-    }
-  }
-
-  private func uploadSelfiePlan(
-    _ plan: SelfieUploadPlan,
+  private func uploadLivenessPlan(
+    _ plan: LivenessUploadPlan,
     via webSocketService: VerifyWebSocketService,
     startingAt startChunkIndex: Int = 0
   ) async throws {
@@ -834,16 +817,16 @@ final class VerificationSession: ObservableObject {
     let chunkTotal = plan.chunks.count
 
     while nextChunkIndex < chunkTotal {
-      if selfieUploadCancelled {
-        throw SelfieError.uploadFailed
+      if livenessUploadCancelled {
+        throw LivenessError.uploadFailed
       }
 
       do {
         let response = try await webSocketService.sendDataAwaitResponse(
-          kind: .selfie,
+          kind: .livenessVideo,
           raw: plan.chunks[nextChunkIndex],
-          index: plan.index,
-          total: requiredSelfieTotal,
+          index: 0,
+          total: 1,
           chunkIndex: nextChunkIndex,
           chunkTotal: chunkTotal
         )
@@ -851,8 +834,8 @@ final class VerificationSession: ObservableObject {
         guard
           isExpectedDataAck(
             ackMessage: response.ackMessage,
-            kind: VerifyDataKind.selfie.rawValue,
-            index: plan.index,
+            kind: VerifyDataKind.livenessVideo.rawValue,
+            index: 0,
             chunkIndex: nextChunkIndex,
             chunkTotal: chunkTotal
           )
@@ -861,7 +844,8 @@ final class VerificationSession: ObservableObject {
             describeUnexpectedServerMessage(
               response,
               fallback: String(
-                localized: "Unexpected selfie upload response from the server."
+                localized:
+                  "Unexpected liveness upload response from the server."
               )
             )
           )
@@ -878,8 +862,8 @@ final class VerificationSession: ObservableObject {
             errorCode: code,
             errorMessage: message
           ),
-          retryInstruction.kind == VerifyDataKind.selfie.rawValue,
-          retryInstruction.index == plan.index,
+          retryInstruction.kind == VerifyDataKind.livenessVideo.rawValue,
+          retryInstruction.index == 0,
           retryInstruction.chunkIndex >= 0,
           retryInstruction.chunkIndex < chunkTotal
         else {
@@ -889,18 +873,16 @@ final class VerificationSession: ObservableObject {
         nextChunkIndex = retryInstruction.chunkIndex
       }
     }
-
-    selfieSentIndices.insert(plan.index)
   }
 
-  private func completeSelfiePhase(
-    plans: [SelfieUploadPlan],
+  private func completeLivenessPhase(
+    plan: LivenessUploadPlan,
     via webSocketService: VerifyWebSocketService
   ) async throws {
     while true {
       do {
         let response = try await webSocketService.sendPhaseAwaitResponse(
-          .selfieComplete,
+          .livenessComplete,
           error: nil
         )
 
@@ -913,7 +895,8 @@ final class VerificationSession: ObservableObject {
           describeUnexpectedServerMessage(
             response,
             fallback: String(
-              localized: "Unexpected selfie completion response from the server."
+              localized:
+                "Unexpected liveness completion response from the server."
             )
           )
         )
@@ -924,7 +907,7 @@ final class VerificationSession: ObservableObject {
 
         // Server-side transfer state can be missing NFC bytes if the socket
         // reconnected and the proactive re-stream hasn't run (or was raced).
-        // Re-stream the cached NFC artifacts and retry selfie_complete.
+        // Re-stream the cached NFC artifacts and retry liveness_complete.
         if
           parseMissingNFCDataInstruction(
             errorCode: code,
@@ -940,7 +923,7 @@ final class VerificationSession: ObservableObject {
         }
 
         guard
-          let missingInstruction = parseMissingSelfieDataInstruction(
+          let missingInstruction = parseMissingLivenessDataInstruction(
             errorCode: code,
             errorMessage: message
           )
@@ -948,34 +931,31 @@ final class VerificationSession: ObservableObject {
           throw socketError
         }
 
-        try await resendMissingSelfieData(
+        try await resendMissingLivenessData(
           missingInstruction,
-          plans: plans,
+          plan: plan,
           via: webSocketService
         )
       }
     }
   }
 
-  private func resendMissingSelfieData(
-    _ missingInstruction: VerifyMissingSelfieDataInstruction,
-    plans: [SelfieUploadPlan],
+  private func resendMissingLivenessData(
+    _ missingInstruction: VerifyMissingLivenessDataInstruction,
+    plan: LivenessUploadPlan,
     via webSocketService: VerifyWebSocketService
   ) async throws {
-    let plansByIndex = Dictionary(uniqueKeysWithValues: plans.map { ($0.index, $0) })
-
-    for missingIndex in missingInstruction.missingSelfieIndexes.sorted() {
-      guard let plan = plansByIndex[missingIndex] else {
-        continue
-      }
-      try await uploadSelfiePlan(plan, via: webSocketService)
+    // Liveness is a single artifact (index=0, total=1). If the server says
+    // nothing arrived (receivedBytes=0 and missingChunks describes the full
+    // payload) replay the whole plan; otherwise, replay just the requested
+    // chunk indices.
+    if missingInstruction.missingChunks.isEmpty {
+      try await uploadLivenessPlan(plan, via: webSocketService)
+      return
     }
 
     for missingChunk in missingInstruction.missingChunks {
-      guard
-        missingChunk.kind == VerifyDataKind.selfie.rawValue,
-        let plan = plansByIndex[missingChunk.index]
-      else {
+      guard missingChunk.kind == VerifyDataKind.livenessVideo.rawValue else {
         continue
       }
 
@@ -983,8 +963,7 @@ final class VerificationSession: ObservableObject {
         guard chunkIndex >= 0, chunkIndex < plan.chunks.count else {
           continue
         }
-
-        try await uploadSelfiePlan(
+        try await uploadLivenessPlan(
           plan,
           via: webSocketService,
           startingAt: chunkIndex
@@ -1335,12 +1314,12 @@ final class VerificationSession: ObservableObject {
     await task?.value
   }
 
-  private func waitForSelfieUploadTurn() async throws {
-    while selfieUploadInFlight {
+  private func waitForLivenessUploadTurn() async throws {
+    while livenessUploadInFlight {
       try await Task.sleep(nanoseconds: 50_000_000)
     }
 
-    selfieUploadInFlight = true
+    livenessUploadInFlight = true
   }
 
   private func resolveDisplayError(_ error: Error) -> Error {
@@ -1388,6 +1367,26 @@ enum VerificationError: LocalizedError {
       return "Connection to the verification session was lost. Start again from the beginning."
     case .missingRequiredNFCData(let dataGroup, let documentChipName):
       return "Missing \(dataGroup) from NFC read. Please scan your \(documentChipName) again."
+    }
+  }
+}
+
+enum LivenessError: LocalizedError, Equatable {
+  case captureFailed
+  case videoReadFailed
+  case videoEmpty
+  case uploadFailed
+
+  var errorDescription: String? {
+    switch self {
+    case .captureFailed:
+      return "Liveness recording failed. Please try again."
+    case .videoReadFailed:
+      return "Could not read the recorded video. Please try again."
+    case .videoEmpty:
+      return "The recorded liveness video was empty. Please try again."
+    case .uploadFailed:
+      return "Failed to upload the liveness recording. Please try again."
     }
   }
 }

@@ -9,7 +9,7 @@ async function readProjectFile(relativePath: string): Promise<string> {
   return await readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
-describe("face-matcher supply chain pins", () => {
+describe("biometric-verifier supply chain pins", () => {
   test("pins the Docker base image to an immutable digest", async () => {
     const dockerfile = await readProjectFile("Dockerfile");
     const fromLine = dockerfile

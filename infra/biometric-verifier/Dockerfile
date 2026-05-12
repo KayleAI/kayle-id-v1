@@ -7,7 +7,7 @@ ENV UV_LINK_MODE=copy \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
+  && apt-get install -y --no-install-recommends curl ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
@@ -16,6 +16,9 @@ RUN uv sync --no-dev --no-install-project
 COPY scripts/download-models.sh ./scripts/download-models.sh
 RUN chmod +x ./scripts/download-models.sh && ./scripts/download-models.sh
 
+# ffmpeg stays installed — the /verify_liveness endpoint shells out to it for
+# frame extraction. curl is only needed during the model-download step and is
+# purged below to keep the runtime image small.
 RUN apt-get purge -y --auto-remove curl \
   && rm -rf /var/lib/apt/lists/*
 
@@ -27,8 +30,8 @@ RUN groupadd --system app \
   && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app \
   && chown -R app:app /app
 
-ENV FACE_MATCHER_DETECTOR_PATH=/app/models/face_detection_yunet_2023mar.onnx \
-    FACE_MATCHER_MODEL_PATH=/app/models/face_recognition_sface_2021dec.onnx \
+ENV BIOMETRIC_VERIFIER_DETECTOR_PATH=/app/models/face_detection_yunet_2023mar.onnx \
+    BIOMETRIC_VERIFIER_MODEL_PATH=/app/models/face_recognition_sface_2021dec.onnx \
     PATH="/app/.venv/bin:${PATH}" \
     PORT=8080
 

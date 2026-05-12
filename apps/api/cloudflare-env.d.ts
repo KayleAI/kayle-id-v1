@@ -17,11 +17,11 @@ declare namespace Cloudflare {
 		AUTH_SECRET: string;
 		GOOGLE_CLIENT_ID: string;
 		GOOGLE_CLIENT_SECRET: string;
-		FACE_MATCHER_SECRET: string;
+		BIOMETRIC_VERIFIER_SECRET: string;
 		ORG_VERIFICATION_PEPPER: string;
 		REDIS_URL: string;
 		REDIS_TOKEN: string;
-		FACE_MATCHER: Fetcher /* kayle-id-face-matcher */;
+		BIOMETRIC_VERIFIER: Fetcher /* kayle-id-biometric-verifier */;
 		WEBHOOK_DELIVERY_WORKFLOW: Workflow<Parameters<import("./src/index").WebhookDeliveryWorkflow['run']>[0]['payload']>;
 	}
 	interface TestEnv {
@@ -35,12 +35,12 @@ declare namespace Cloudflare {
 		AUTH_SECRET: string;
 		GOOGLE_CLIENT_ID: string;
 		GOOGLE_CLIENT_SECRET: string;
-		FACE_MATCHER_SECRET: string;
+		BIOMETRIC_VERIFIER_SECRET: string;
 		ORG_VERIFICATION_PEPPER: string;
 		REDIS_URL: string;
 		REDIS_TOKEN: string;
 		VERIFY_PKD_TRUST_BUNDLE_JSON: string;
-		FACE_MATCHER: Fetcher /* kayle-id-face-matcher */;
+		BIOMETRIC_VERIFIER: Fetcher /* kayle-id-biometric-verifier */;
 		WEBHOOK_DELIVERY_WORKFLOW: Workflow<Parameters<import("./src/index").WebhookDeliveryWorkflow['run']>[0]['payload']>;
 	}
 	interface Env {
@@ -55,11 +55,11 @@ declare namespace Cloudflare {
 		AUTH_SECRET?: string;
 		GOOGLE_CLIENT_ID?: string;
 		GOOGLE_CLIENT_SECRET?: string;
-		FACE_MATCHER_SECRET?: string;
+		BIOMETRIC_VERIFIER_SECRET?: string;
 		ORG_VERIFICATION_PEPPER?: string;
 		REDIS_URL?: string;
 		REDIS_TOKEN?: string;
-		FACE_MATCHER: Fetcher /* kayle-id-face-matcher */;
+		BIOMETRIC_VERIFIER: Fetcher /* kayle-id-biometric-verifier */;
 		WEBHOOK_DELIVERY_WORKFLOW: Workflow<Parameters<import("./src/index").WebhookDeliveryWorkflow['run']>[0]['payload']>;
 		VERIFY_PKD_TRUST_BUNDLE_JSON?: string;
 	}
@@ -69,7 +69,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NODE_ENV" | "PUBLIC_AUTH_URL" | "EMAIL_FROM_ADDRESS" | "KAYLE_INTERNAL_TOKEN" | "AUTH_SECRET" | "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET" | "FACE_MATCHER_SECRET" | "ORG_VERIFICATION_PEPPER" | "REDIS_URL" | "REDIS_TOKEN" | "VERIFY_PKD_TRUST_BUNDLE_JSON">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NODE_ENV" | "PUBLIC_AUTH_URL" | "EMAIL_FROM_ADDRESS" | "KAYLE_INTERNAL_TOKEN" | "AUTH_SECRET" | "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET" | "BIOMETRIC_VERIFIER_SECRET" | "ORG_VERIFICATION_PEPPER" | "REDIS_URL" | "REDIS_TOKEN" | "VERIFY_PKD_TRUST_BUNDLE_JSON">> {}
 }
 
 // Begin runtime types

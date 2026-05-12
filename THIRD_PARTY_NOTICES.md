@@ -1,7 +1,8 @@
 # Third-Party Notices
 
-This project includes third-party model artifacts used by the face matcher in
-[`infra/face-matcher/models/`](/Users/arsen/Kayle/kayle-id/infra/face-matcher/models).
+This project includes third-party model artifacts used by the biometric
+verifier in
+[`infra/biometric-verifier/models/`](/Users/arsen/Kayle/kayle-id/infra/biometric-verifier/models).
 
 ## Face Recognition: SFace
 

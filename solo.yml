@@ -8,9 +8,9 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
-  Face Matcher:
+  Biometric Verifier:
     command: ./scripts/dev-with-healthcheck.sh
-    working_dir: ./infra/face-matcher
+    working_dir: ./infra/biometric-verifier
     auto_start: false
     auto_restart: true
     restart_when_changed: []

@@ -16,7 +16,8 @@ typedef enum verify_data_kind {
   VERIFY_DATA_DG14 = 4,
   VERIFY_DATA_DG15 = 5,
   VERIFY_DATA_ACTIVE_AUTH = 6,
-  VERIFY_DATA_CHIP_AUTH = 7
+  VERIFY_DATA_CHIP_AUTH = 7,
+  VERIFY_DATA_LIVENESS_VIDEO = 8
 } verify_data_kind_t;
 
 typedef enum verify_server_message_kind {
@@ -26,8 +27,15 @@ typedef enum verify_server_message_kind {
   VERIFY_SERVER_MESSAGE_VERDICT = 3,
   VERIFY_SERVER_MESSAGE_SHARE_REQUEST = 4,
   VERIFY_SERVER_MESSAGE_SHARE_READY = 5,
-  VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE = 6
+  VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE = 6,
+  VERIFY_SERVER_MESSAGE_LIVENESS_CHALLENGE = 7
 } verify_server_message_kind_t;
+
+typedef enum verify_liveness_pose {
+  VERIFY_LIVENESS_POSE_CENTER = 0,
+  VERIFY_LIVENESS_POSE_LEFT = 1,
+  VERIFY_LIVENESS_POSE_RIGHT = 2
+} verify_liveness_pose_t;
 
 typedef enum verify_server_verdict_outcome {
   VERIFY_SERVER_VERDICT_ACCEPTED = 0,
@@ -140,6 +148,19 @@ int verify_server_message_get_active_auth_challenge(
   uint8_t* out_challenge,
   size_t out_challenge_size,
   size_t* out_challenge_length
+);
+
+// Liveness challenge: poseSequence (out_pose_buffer, out_pose_count),
+// maxDurationMs, challengeNonce (out_challenge_nonce, out_challenge_nonce_length).
+int verify_server_message_get_liveness_challenge(
+  void* message_reader,
+  int* out_pose_buffer,
+  size_t out_pose_buffer_size,
+  uint32_t* out_pose_count,
+  uint32_t* out_max_duration_ms,
+  uint8_t* out_challenge_nonce,
+  size_t out_challenge_nonce_size,
+  size_t* out_challenge_nonce_length
 );
 
 #ifdef __cplusplus

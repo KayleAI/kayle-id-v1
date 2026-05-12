@@ -1,42 +1,52 @@
 import { Container } from "@cloudflare/containers";
 import type { ContainerFetcher } from "./worker";
 import {
-  createFaceMatcherWorker,
-  FACE_MATCHER_DETECTOR_PATH,
-  FACE_MATCHER_MODEL_PATH,
+  BIOMETRIC_VERIFIER_DETECTOR_PATH,
+  BIOMETRIC_VERIFIER_MODEL_PATH,
+  createBiometricVerifierWorker,
 } from "./worker";
 
-const FACE_MATCHER_CONTAINER_COUNT = 1;
+const BIOMETRIC_VERIFIER_CONTAINER_COUNT = 1;
 const CONTAINER_HEALTH_ATTEMPTS = 3;
 const CONTAINER_HEALTH_RETRY_DELAY_MS = 250;
-const FACE_MATCHER_CONTAINER_NAME_PREFIX = "face-matcher-v3";
+// Bumped from `face-matcher-v3` so deploys land a fresh durable-object
+// instance against the ffmpeg-bearing image + the new liveness pipeline.
+// Bump again whenever the image semantics change materially (anti-spoof
+// model, codec switch, etc.) so we don't reuse a warm container whose
+// pre-loaded models or validation rules diverge from the new code.
+const BIOMETRIC_VERIFIER_CONTAINER_NAME_PREFIX = "biometric-verifier-v4";
 
 function resolveContainerBinding(
   env: unknown
-): DurableObjectNamespace<FaceMatcherContainer> | null {
+): DurableObjectNamespace<BiometricVerifierContainer> | null {
   if (!(env && typeof env === "object")) {
     return null;
   }
 
-  const candidate = Reflect.get(env, "FACE_MATCHER_CONTAINER");
+  const candidate = Reflect.get(env, "BIOMETRIC_VERIFIER_CONTAINER");
 
   return candidate
-    ? (candidate as DurableObjectNamespace<FaceMatcherContainer>)
+    ? (candidate as DurableObjectNamespace<BiometricVerifierContainer>)
     : null;
 }
 
 function createContainerFetchers(
-  binding: DurableObjectNamespace<FaceMatcherContainer>
+  binding: DurableObjectNamespace<BiometricVerifierContainer>
 ): ContainerFetcher[] {
-  return Array.from({ length: FACE_MATCHER_CONTAINER_COUNT }, (_, index) => {
-    const container = binding.get(
-      binding.idFromName(`${FACE_MATCHER_CONTAINER_NAME_PREFIX}-${index}`)
-    );
+  return Array.from(
+    { length: BIOMETRIC_VERIFIER_CONTAINER_COUNT },
+    (_, index) => {
+      const container = binding.get(
+        binding.idFromName(
+          `${BIOMETRIC_VERIFIER_CONTAINER_NAME_PREFIX}-${index}`
+        )
+      );
 
-    return {
-      fetch: (input, init) => container.fetch(input, init),
-    };
-  });
+      return {
+        fetch: (input, init) => container.fetch(input, init),
+      };
+    }
+  );
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -112,24 +122,24 @@ function resolvePixelFallbackEnv(env: unknown): Record<string, string> {
   // env explicitly sets it to "1". Production wrangler config does not set
   // this binding, so the container always runs without the fallback.
   const value = isObjectRecord(env)
-    ? Reflect.get(env, "FACE_MATCHER_ALLOW_PIXEL_FALLBACK")
+    ? Reflect.get(env, "BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK")
     : undefined;
 
-  return value === "1" ? { FACE_MATCHER_ALLOW_PIXEL_FALLBACK: "1" } : {};
+  return value === "1" ? { BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK: "1" } : {};
 }
 
-export class FaceMatcherContainer extends Container<FaceMatcherBindings> {
+export class BiometricVerifierContainer extends Container<BiometricVerifierBindings> {
   defaultPort = 8080;
   sleepAfter = "10m";
   envVars = {
-    FACE_MATCHER_DETECTOR_PATH,
-    FACE_MATCHER_MODEL_PATH,
+    BIOMETRIC_VERIFIER_DETECTOR_PATH,
+    BIOMETRIC_VERIFIER_MODEL_PATH,
     PORT: "8080",
     ...resolvePixelFallbackEnv(this.env),
   };
 }
 
-const worker = createFaceMatcherWorker({
+const worker = createBiometricVerifierWorker({
   getContainer: getContainerInstance,
 });
 

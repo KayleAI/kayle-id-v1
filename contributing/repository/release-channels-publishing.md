@@ -11,10 +11,10 @@ Kayle ID has one production environment and no preview/canary channel — the ve
 3. **Deploys to production.** When `release_allowed` is `true`, the artifacts are SLSA-attested, downloaded by the deploy jobs, and uploaded to Cloudflare with `wrangler deploy --no-bundle`. The deploy order is fixed:
 
    ```
-   face-matcher → api → platform → verify
+   biometric-verifier → api → platform → verify
    ```
 
-   `face-matcher` deploys first because the API binds to it as a service. `platform` and `verify` deploy in parallel after the API.
+   `biometric-verifier` deploys first because the API binds to it as a service. `platform` and `verify` deploy in parallel after the API.
 
 ## How to cut a release
 

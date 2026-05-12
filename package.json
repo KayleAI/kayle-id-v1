@@ -20,7 +20,7 @@
   },
   "name": "kayle-id",
   "scripts": {
-    "dev": "turbo run dev --filter=kayle-id-api --filter=kayle-id-face-matcher --filter=kayle-id-platform --filter=kayle-id-verify",
+    "dev": "turbo run dev --filter=kayle-id-api --filter=kayle-id-biometric-verifier --filter=kayle-id-platform --filter=kayle-id-verify",
     "dev:seed": "bash ./scripts/seed-local-dev.sh",
     "env:setup": "bun ./scripts/setup-env.ts",
     "env:pull": "bash ./scripts/pull-env.sh",

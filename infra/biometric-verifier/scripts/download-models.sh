@@ -79,4 +79,4 @@ download_model \
   "${MODELS_DIR}/${DETECTOR_MODEL}" \
   "${DETECTOR_MODEL_SHA256}"
 
-echo "Face matcher models are ready in ${MODELS_DIR}"
+echo "Biometric verifier models are ready in ${MODELS_DIR}"

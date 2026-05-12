@@ -31,8 +31,8 @@
 	],
 	"services": [
 		{
-			"binding": "FACE_MATCHER",
-			"service": "kayle-id-face-matcher"
+			"binding": "BIOMETRIC_VERIFIER",
+			"service": "kayle-id-biometric-verifier"
 		}
 	],
 	"r2_buckets": [
@@ -88,8 +88,8 @@
 			],
 			"services": [
 				{
-					"binding": "FACE_MATCHER",
-					"service": "kayle-id-face-matcher"
+					"binding": "BIOMETRIC_VERIFIER",
+					"service": "kayle-id-biometric-verifier"
 				}
 			],
 			"r2_buckets": [
@@ -132,7 +132,7 @@
 					"AUTH_SECRET",
 					"GOOGLE_CLIENT_ID",
 					"GOOGLE_CLIENT_SECRET",
-					"FACE_MATCHER_SECRET",
+					"BIOMETRIC_VERIFIER_SECRET",
 					"ORG_VERIFICATION_PEPPER",
 					"REDIS_URL",
 					"REDIS_TOKEN"
@@ -218,8 +218,8 @@
 			],
 			"services": [
 				{
-					"binding": "FACE_MATCHER",
-					"service": "kayle-id-face-matcher"
+					"binding": "BIOMETRIC_VERIFIER",
+					"service": "kayle-id-biometric-verifier"
 				}
 			],
 			"r2_buckets": [
@@ -250,7 +250,7 @@
 					"AUTH_SECRET",
 					"GOOGLE_CLIENT_ID",
 					"GOOGLE_CLIENT_SECRET",
-					"FACE_MATCHER_SECRET",
+					"BIOMETRIC_VERIFIER_SECRET",
 					"ORG_VERIFICATION_PEPPER",
 					"REDIS_URL",
 					"REDIS_TOKEN",

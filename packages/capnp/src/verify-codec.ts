@@ -2,9 +2,44 @@ import { Message } from "capnp-es";
 import {
   ClientMessage as CapnpClientMessage,
   DataKind as CapnpDataKind,
+  LivenessPose as CapnpLivenessPose,
   ServerMessage as CapnpServerMessage,
   VerdictOutcome as CapnpVerdictOutcome,
 } from "../generated/ts/verify.js";
+
+export const LIVENESS_POSE = {
+  CENTER: "center",
+  LEFT: "left",
+  RIGHT: "right",
+} as const;
+export type LivenessPoseValue =
+  (typeof LIVENESS_POSE)[keyof typeof LIVENESS_POSE];
+
+function toCapnpLivenessPose(
+  pose: LivenessPoseValue
+): (typeof CapnpLivenessPose)[keyof typeof CapnpLivenessPose] {
+  switch (pose) {
+    case LIVENESS_POSE.LEFT:
+      return CapnpLivenessPose.LEFT;
+    case LIVENESS_POSE.RIGHT:
+      return CapnpLivenessPose.RIGHT;
+    default:
+      return CapnpLivenessPose.CENTER;
+  }
+}
+
+function fromCapnpLivenessPose(
+  pose: (typeof CapnpLivenessPose)[keyof typeof CapnpLivenessPose]
+): LivenessPoseValue {
+  switch (pose) {
+    case CapnpLivenessPose.LEFT:
+      return LIVENESS_POSE.LEFT;
+    case CapnpLivenessPose.RIGHT:
+      return LIVENESS_POSE.RIGHT;
+    default:
+      return LIVENESS_POSE.CENTER;
+  }
+}
 
 export interface VerifyClientHello {
   appVersion?: string;
@@ -54,6 +89,11 @@ export interface VerifyServerMessage {
     code: string;
     message: string;
   };
+  livenessChallenge?: {
+    poseSequence: LivenessPoseValue[];
+    maxDurationMs: number;
+    challengeNonce: Uint8Array;
+  };
   shareReady?: {
     sessionId: string;
     selectedFieldKeys: string[];
@@ -80,6 +120,9 @@ export type VerifyServerVerdict = NonNullable<VerifyServerMessage["verdict"]>;
 export type VerifyServerActiveAuthChallenge = NonNullable<
   VerifyServerMessage["activeAuthChallenge"]
 >;
+export type VerifyServerLivenessChallenge = NonNullable<
+  VerifyServerMessage["livenessChallenge"]
+>;
 export type VerifyShareRequest = NonNullable<
   VerifyServerMessage["shareRequest"]
 >;
@@ -101,6 +144,8 @@ function toCapnpDataKind(
       return CapnpDataKind.DG2;
     case CapnpDataKind.SOD:
       return CapnpDataKind.SOD;
+    // SELFIE @3 is preserved for wire round-tripping only — the server rejects
+    // it in data-payload validation.
     case CapnpDataKind.SELFIE:
       return CapnpDataKind.SELFIE;
     case CapnpDataKind.DG14:
@@ -111,6 +156,8 @@ function toCapnpDataKind(
       return CapnpDataKind.ACTIVE_AUTH;
     case CapnpDataKind.CHIP_AUTH:
       return CapnpDataKind.CHIP_AUTH;
+    case CapnpDataKind.LIVENESS_VIDEO:
+      return CapnpDataKind.LIVENESS_VIDEO;
     default:
       return CapnpDataKind.DG1;
   }
@@ -176,6 +223,24 @@ export function encodeServerActiveAuthChallenge(
   const next = root._initActiveAuthChallenge();
   const challengeBytes = challenge.challenge ?? new Uint8Array();
   next._initChallenge(challengeBytes.length).copyBuffer(challengeBytes);
+  return new Uint8Array(packet.toArrayBuffer());
+}
+
+export function encodeServerLivenessChallenge(
+  challenge: VerifyServerLivenessChallenge
+): Uint8Array {
+  const packet = new Message();
+  const root = packet.initRoot(CapnpServerMessage);
+  const next = root._initLivenessChallenge();
+  const poseSequence = next._initPoseSequence(challenge.poseSequence.length);
+
+  for (const [index, pose] of challenge.poseSequence.entries()) {
+    poseSequence.set(index, toCapnpLivenessPose(pose));
+  }
+
+  next.maxDurationMs = challenge.maxDurationMs;
+  const nonceBytes = challenge.challengeNonce ?? new Uint8Array();
+  next._initChallengeNonce(nonceBytes.length).copyBuffer(nonceBytes);
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -257,6 +322,24 @@ export function decodeServerMessage(
             ),
           },
         };
+      case CapnpServerMessage.LIVENESS_CHALLENGE: {
+        const poseSequence = root.livenessChallenge.poseSequence;
+        const decodedPoses: LivenessPoseValue[] = [];
+
+        for (let index = 0; index < poseSequence.length; index += 1) {
+          decodedPoses.push(fromCapnpLivenessPose(poseSequence.get(index)));
+        }
+
+        return {
+          livenessChallenge: {
+            poseSequence: decodedPoses,
+            maxDurationMs: root.livenessChallenge.maxDurationMs,
+            challengeNonce: new Uint8Array(
+              root.livenessChallenge.challengeNonce.toUint8Array()
+            ),
+          },
+        };
+      }
       case CapnpServerMessage.SHARE_READY: {
         const selectedFieldKeys = root.shareReady.selectedFieldKeys;
         const decodedKeys: string[] = [];

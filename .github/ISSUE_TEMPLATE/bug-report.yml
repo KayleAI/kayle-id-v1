@@ -38,7 +38,7 @@ body:
         - API (apps/api)
         - Platform (apps/platform)
         - Verify web app (apps/verify)
-        - Face matcher (infra/face-matcher)
+        - Biometric verifier (infra/biometric-verifier)
         - iOS app (apps/ios)
         - Database / migrations
         - Local dev tooling / scripts

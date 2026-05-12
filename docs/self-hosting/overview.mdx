@@ -12,10 +12,10 @@ This page is a high-level pointer. The authoritative local-development guide is 
 
 A complete deployment runs:
 
-- **`apps/api`** — the public Cloudflare Worker. Bindings: Postgres (Hyperdrive), Cloudflare D1 (trust store), R2 (storage), the face matcher Worker. Cron-scheduled tasks for session expiry, organization deletion, and webhook delivery.
+- **`apps/api`** — the public Cloudflare Worker. Bindings: Postgres (Hyperdrive), Cloudflare D1 (trust store), R2 (storage), the biometric verifier Worker. Cron-scheduled tasks for session expiry, organization deletion, and webhook delivery.
 - **`apps/platform`** — the dashboard. Cloudflare Workers + Vite + React.
 - **`apps/verify`** — the user-facing verification web app. Cloudflare Workers + Vite + React.
-- **`infra/face-matcher`** — a Worker that fronts a container running the face-matching model. The container ships with OpenCV ONNX models downloaded on first boot.
+- **`infra/biometric-verifier`** — a Worker that fronts a container running the face-matching model. The container ships with OpenCV ONNX models downloaded on first boot.
 - **Postgres** — the application database. The repository ships a Drizzle schema and migrations.
 - **Cloudflare D1** — the ICAO PKD trust store, seeded from the published LDIF files.
 - **Email provider** — Resend or any provider compatible with the `SEND_EMAIL` Workers binding for sign-in OTPs and account emails.
@@ -57,7 +57,7 @@ The script wraps the `GET /openapi` response with a few adjustments Mintlify exp
 
 A short list of things that catch teams new to Cloudflare Workers:
 
-- **Compute time limits.** Workers have CPU-time budgets per request. The verify WebSocket holds the connection but offloads heavy work to the face matcher container, which is what makes the budget tractable. Don't add synchronous heavy work to the API path.
+- **Compute time limits.** Workers have CPU-time budgets per request. The verify WebSocket holds the connection but offloads heavy work to the biometric verifier container, which is what makes the budget tractable. Don't add synchronous heavy work to the API path.
 - **Hyperdrive connection pooling.** Use Hyperdrive in front of Postgres. Long-lived connections from a Workers context are not the right shape for most managed Postgres providers.
 - **D1 trust-store size.** The PKD compiles to tens of megabytes once unpacked. D1 holds it without trouble; planning capacity is more about the SQL bundle generation step than about runtime size.
 - **Webhook retries are CRON-driven.** The `scheduled` handler in `apps/api/src/index.ts` runs the delivery queue. Make sure your Wrangler config has the cron trigger enabled for the deployed environment.

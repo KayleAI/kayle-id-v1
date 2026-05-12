@@ -163,9 +163,72 @@ verify_server_message_kind_t verify_server_message_kind(void* message_reader) {
       return VERIFY_SERVER_MESSAGE_SHARE_READY;
     case ServerMessage::ACTIVE_AUTH_CHALLENGE:
       return VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE;
+    case ServerMessage::LIVENESS_CHALLENGE:
+      return VERIFY_SERVER_MESSAGE_LIVENESS_CHALLENGE;
     default:
       return VERIFY_SERVER_MESSAGE_NONE;
   }
+}
+
+int verify_server_message_get_liveness_challenge(
+  void* message_reader,
+  int* out_pose_buffer,
+  size_t out_pose_buffer_size,
+  uint32_t* out_pose_count,
+  uint32_t* out_max_duration_ms,
+  uint8_t* out_challenge_nonce,
+  size_t out_challenge_nonce_size,
+  size_t* out_challenge_nonce_length
+) {
+  if (
+    !message_reader ||
+    !out_pose_count ||
+    !out_max_duration_ms ||
+    !out_challenge_nonce_length
+  ) {
+    return 0;
+  }
+
+  auto* reader = reinterpret_cast<capnp::MessageReader*>(message_reader);
+  auto root = reader->getRoot<ServerMessage>();
+  if (root.which() != ServerMessage::LIVENESS_CHALLENGE) {
+    return 0;
+  }
+
+  auto challenge = root.getLivenessChallenge();
+  auto poses = challenge.getPoseSequence();
+  *out_pose_count = poses.size();
+
+  if (!out_pose_buffer || out_pose_buffer_size < poses.size()) {
+    return 0;
+  }
+
+  for (uint32_t index = 0; index < poses.size(); ++index) {
+    switch (poses[index]) {
+      case LivenessPose::CENTER:
+        out_pose_buffer[index] = VERIFY_LIVENESS_POSE_CENTER;
+        break;
+      case LivenessPose::LEFT:
+        out_pose_buffer[index] = VERIFY_LIVENESS_POSE_LEFT;
+        break;
+      case LivenessPose::RIGHT:
+        out_pose_buffer[index] = VERIFY_LIVENESS_POSE_RIGHT;
+        break;
+      default:
+        out_pose_buffer[index] = VERIFY_LIVENESS_POSE_CENTER;
+        break;
+    }
+  }
+
+  *out_max_duration_ms = challenge.getMaxDurationMs();
+  auto nonce = challenge.getChallengeNonce();
+  *out_challenge_nonce_length = nonce.size();
+
+  if (!out_challenge_nonce || out_challenge_nonce_size < nonce.size()) {
+    return 0;
+  }
+  std::memcpy(out_challenge_nonce, nonce.begin(), nonce.size());
+  return 1;
 }
 
 int verify_server_message_get_active_auth_challenge(

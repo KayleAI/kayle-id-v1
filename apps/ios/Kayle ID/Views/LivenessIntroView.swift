@@ -1,16 +1,17 @@
 import SwiftUI
 
-struct SelfieIntroView: View {
+struct LivenessIntroView: View {
   let onContinue: () -> Void
 
   var body: some View {
     StepScreen(layout: .centered) {
       StepHero(
         variant: .step,
-        visual: .systemImage(name: "person.crop.circle", size: 72),
-        title: String(localized: "Next, take a quick selfie"),
+        visual: .systemImage(name: "person.fill.viewfinder", size: 72),
+        title: String(localized: "Next, a quick liveness check"),
         subtitle: String(
-          localized: "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible."
+          localized:
+            "Position your face in the frame, then slowly turn your head to the left and right. Make sure your face is well-lit and clearly visible."
         )
       )
     } content: {

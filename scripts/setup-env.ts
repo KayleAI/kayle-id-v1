@@ -31,7 +31,7 @@ REDIS_TOKEN=a-super-secret-token
 # Random secrets — generated locally, no third-party account required.
 AUTH_SECRET=${generateSecret()}
 KAYLE_INTERNAL_TOKEN=${generateSecret()}
-FACE_MATCHER_SECRET=${generateSecret()}
+BIOMETRIC_VERIFIER_SECRET=${generateSecret()}
 ORG_VERIFICATION_PEPPER=${generateSecret()}
 
 # Public auth URL — the platform app proxies auth through localhost:3000.
@@ -67,7 +67,7 @@ const main = async (): Promise<void> => {
   process.stdout.write(
     [
       `Created ${relativeEnvPath}.`,
-      "Random hex was used for AUTH_SECRET, KAYLE_INTERNAL_TOKEN, FACE_MATCHER_SECRET, and ORG_VERIFICATION_PEPPER.",
+      "Random hex was used for AUTH_SECRET, KAYLE_INTERNAL_TOKEN, BIOMETRIC_VERIFIER_SECRET, and ORG_VERIFICATION_PEPPER.",
       "REDIS_URL/REDIS_TOKEN point at the local Upstash REST shim (infra/redis/compose.yml).",
       "Google and Resend credentials are dummies — the dev API logs the magic OTP and email body instead of calling those services.",
       "",

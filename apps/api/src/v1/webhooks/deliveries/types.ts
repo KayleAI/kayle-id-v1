@@ -39,6 +39,7 @@ export type VerificationAttemptFailedCode =
 	| "document_authenticity_failed"
 	| "document_active_authentication_failed"
 	| "document_chip_authentication_failed"
+	| "liveness_failed"
 	| "selfie_face_mismatch";
 
 export type VerificationAttemptMetadata = {

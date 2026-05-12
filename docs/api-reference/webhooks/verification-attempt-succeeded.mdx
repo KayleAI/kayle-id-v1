@@ -7,7 +7,7 @@ Emitted when an attempt finishes with all checks passing. The payload includes t
 
 ## When it fires
 
-After the verify pipeline accepts an attempt: SOD chain verified, all data-group hashes match, active and chip authentication checks pass when applicable, the face matcher accepts the selfie, and the user has consented to share at least all required fields.
+After the verify pipeline accepts an attempt: SOD chain verified, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier accepts the selfie, and the user has consented to share at least all required fields.
 
 A session can only have one accepted attempt — once this event fires, the session moves to `completed` and no further attempts are allowed.
 

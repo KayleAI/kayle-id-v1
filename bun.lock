@@ -139,8 +139,8 @@
         "wrangler": "4.83.0",
       },
     },
-    "infra/face-matcher": {
-      "name": "kayle-id-face-matcher",
+    "infra/biometric-verifier": {
+      "name": "kayle-id-biometric-verifier",
       "dependencies": {
         "@cloudflare/containers": "^0.0.25",
         "@kayle-id/config": "*",
@@ -1375,7 +1375,7 @@
 
     "kayle-id-api": ["kayle-id-api@workspace:apps/api"],
 
-    "kayle-id-face-matcher": ["kayle-id-face-matcher@workspace:infra/face-matcher"],
+    "kayle-id-biometric-verifier": ["kayle-id-biometric-verifier@workspace:infra/biometric-verifier"],
 
     "kayle-id-platform": ["kayle-id-platform@workspace:apps/platform"],
 

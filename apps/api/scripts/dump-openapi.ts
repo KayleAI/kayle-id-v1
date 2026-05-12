@@ -61,3 +61,5 @@ function patchEnvelopeErrorField(node: unknown): unknown {
 spec.paths = patchEnvelopeErrorField(spec.paths);
 
 console.log(JSON.stringify(spec, null, 2));
+
+export {};

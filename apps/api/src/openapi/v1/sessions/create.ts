@@ -77,6 +77,14 @@ export const createSession = createRoute({
 			},
 			description: "Bad request.",
 		},
+		410: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse,
+				},
+			},
+			description: "Organization is scheduled for deletion.",
+		},
 		429: {
 			content: {
 				"application/json": {

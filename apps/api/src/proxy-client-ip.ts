@@ -21,12 +21,12 @@ export function stripClientProxyHeaders(headers: Headers): void {
 
 export async function hasSignedProxyMetadata(
 	headers: Headers,
-	internalToken: string,
+	internalToken: string | undefined,
 ): Promise<boolean> {
 	const encodedCf = headers.get(CF_GEOLOCATION_HEADER);
 	const signature = headers.get(CF_SIGNATURE_HEADER);
 
-	if (!(encodedCf && signature)) {
+	if (!(encodedCf && signature && internalToken)) {
 		return false;
 	}
 
@@ -50,7 +50,7 @@ export async function resolveTrustedClientIp({
 	internalToken,
 }: {
 	headers: Headers;
-	internalToken: string;
+	internalToken: string | undefined;
 }): Promise<string | undefined> {
 	const forwardedClientIp = headers.get(FORWARDED_CLIENT_IP_HEADER)?.trim();
 	if (

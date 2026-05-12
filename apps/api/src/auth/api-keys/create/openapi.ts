@@ -44,6 +44,14 @@ export const internalCreateApiKey = createRoute({
 			},
 			description: "Forbidden.",
 		},
+		410: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse,
+				},
+			},
+			description: "Organization is scheduled for deletion.",
+		},
 		500: {
 			content: {
 				"application/json": {

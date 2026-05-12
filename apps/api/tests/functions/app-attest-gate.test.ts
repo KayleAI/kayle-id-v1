@@ -11,13 +11,15 @@ afterEach(() => {
 	if (typeof originalNodeEnv === "string") {
 		process.env.NODE_ENV = originalNodeEnv;
 	} else {
-		delete process.env.NODE_ENV;
+		(process.env as Record<string, string | undefined>).NODE_ENV = undefined;
 	}
 
 	if (typeof originalRequireAttestation === "string") {
 		process.env.VERIFY_REQUIRE_ATTESTATION = originalRequireAttestation;
 	} else {
-		delete process.env.VERIFY_REQUIRE_ATTESTATION;
+		(
+			process.env as Record<string, string | undefined>
+		).VERIFY_REQUIRE_ATTESTATION = undefined;
 	}
 });
 
@@ -26,7 +28,7 @@ test("App Attest gate is always enabled in production", () => {
 		isAttestationGateEnabled({
 			NODE_ENV: "production",
 			VERIFY_REQUIRE_ATTESTATION: "false",
-		} as CloudflareBindings),
+		} as unknown as CloudflareBindings),
 	).toBeTrue();
 });
 
@@ -35,17 +37,19 @@ test("App Attest gate can be explicitly enabled outside production", () => {
 		isAttestationGateEnabled({
 			NODE_ENV: "test",
 			VERIFY_REQUIRE_ATTESTATION: "true",
-		} as CloudflareBindings),
+		} as unknown as CloudflareBindings),
 	).toBeTrue();
 });
 
 test("App Attest gate remains off outside production unless explicitly enabled", () => {
-	delete process.env.VERIFY_REQUIRE_ATTESTATION;
+	(
+		process.env as Record<string, string | undefined>
+	).VERIFY_REQUIRE_ATTESTATION = undefined;
 
 	expect(
 		isAttestationGateEnabled({
 			NODE_ENV: "test",
-		} as CloudflareBindings),
+		} as unknown as CloudflareBindings),
 	).toBeFalse();
 });
 

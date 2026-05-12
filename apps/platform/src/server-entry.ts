@@ -9,10 +9,10 @@ export const DemoRunMailbox = WorkerDemoRunMailbox;
 
 async function fetchWithSecurityHeaders(
 	request: Request,
-	env: CloudflareBindings,
-	ctx: ExecutionContext,
+	_env: CloudflareBindings,
+	_ctx: ExecutionContext,
 ): Promise<Response> {
-	const response = await server.fetch(request, env, ctx);
+	const response = await server.fetch(request);
 
 	return withSecurityHeaders(response, {
 		includeStrictTransportSecurity: isHttpsRequest(request),

@@ -7,6 +7,7 @@
 		"build": "vite build",
 		"serve": "vite preview",
 		"test": "vitest run",
+		"typecheck": "tsc --noEmit",
 		"deploy": "wrangler deploy --minify --env production",
 		"preview": "vite preview",
 		"cf:types": "wrangler types --env-interface CloudflareBindings cloudflare-env.d.ts"

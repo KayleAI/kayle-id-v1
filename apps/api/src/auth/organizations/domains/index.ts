@@ -42,16 +42,12 @@ interface ResolvedActor {
 	userId: string;
 }
 
-function resolveActor(
-	c: DomainCtx,
-):
-	| { ok: true; actor: ResolvedActor }
-	| { ok: false; response: ReturnType<DomainCtx["json"]> } {
+function resolveActor(c: DomainCtx) {
 	const userId = c.get("userId");
 	const organizationId = c.get("organizationId");
 	if (!userId) {
 		return {
-			ok: false,
+			ok: false as const,
 			response: c.json(
 				{
 					data: null,
@@ -68,7 +64,7 @@ function resolveActor(
 	}
 	if (!organizationId) {
 		return {
-			ok: false,
+			ok: false as const,
 			response: c.json(
 				{
 					data: null,
@@ -83,13 +79,13 @@ function resolveActor(
 			),
 		};
 	}
-	return { ok: true, actor: { organizationId, userId } };
+	return {
+		ok: true as const,
+		actor: { organizationId, userId } satisfies ResolvedActor,
+	};
 }
 
-async function ensureOrgNotFrozen(
-	c: DomainCtx,
-	organizationId: string,
-): Promise<ReturnType<DomainCtx["json"]> | null> {
+async function ensureOrgNotFrozen(c: DomainCtx, organizationId: string) {
 	try {
 		await assertOrgNotFrozen(organizationId);
 		return null;
@@ -121,10 +117,7 @@ function statusCodeFromDomainError(
 		: 500;
 }
 
-function jsonFromDomainError(
-	c: DomainCtx,
-	error: DomainVerificationError,
-): ReturnType<DomainCtx["json"]> {
+function jsonFromDomainError(c: DomainCtx, error: DomainVerificationError) {
 	return c.json(
 		{
 			data: null,

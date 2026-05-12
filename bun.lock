@@ -147,6 +147,7 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@types/node": "22.19.1",
       },
     },
     "packages/auth": {

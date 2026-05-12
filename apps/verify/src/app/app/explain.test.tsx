@@ -162,6 +162,7 @@ function createOrganization(
 		ownerIdCheckCompleted: true,
 		verifiedApexDomains: ["test.example"],
 		logo: null,
+		businessType: null,
 		businessName: null,
 		businessJurisdiction: null,
 		businessRegistrationNumber: null,

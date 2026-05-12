@@ -300,10 +300,11 @@ function normalizeOrganizationPolicyInput<T extends OrganizationPolicyInput>(
   }
 }
 
-function normalizeUserProfileInput<T extends UserProfileInput>(
+// biome-ignore lint/suspicious/useAwait: better-auth's databaseHooks signature requires async.
+async function normalizeUserProfileInput<T extends UserProfileInput>(
   userData: T,
   context: unknown
-): { data: T & { image?: null | string } } | undefined {
+): Promise<{ data: T & { image?: null | string } } | undefined> {
   if (
     !(context && typeof context === "object") ||
     Reflect.get(context, "path") !== "/update-user"
@@ -807,7 +808,8 @@ const enforceTwoFactorOnNonStandardSignIns = createAuthMiddleware(
   }
 );
 
-const enforceSafeCallbackURLBodies = createAuthMiddleware((ctx) => {
+// biome-ignore lint/suspicious/useAwait: createAuthMiddleware requires an async callback signature.
+const enforceSafeCallbackURLBodies = createAuthMiddleware(async (ctx) => {
   if (!CALLBACK_URL_BODY_PATHS.has(ctx.path)) {
     return;
   }
@@ -866,7 +868,7 @@ export const auth = betterAuth({
     },
   },
   emailAndPassword: {
-    enabled: process.env.NODE_ENV === "test",
+    enabled: (process.env.NODE_ENV as string) === "test",
     autoSignIn: true,
   },
   trustedOrigins,

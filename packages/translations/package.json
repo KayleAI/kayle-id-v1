@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "test": "bun test ./src",
+    "typecheck": "tsc --noEmit",
     "gen:ios": "bun run scripts/generate-ios-catalog.ts"
   },
   "devDependencies": {

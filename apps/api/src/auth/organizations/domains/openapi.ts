@@ -43,19 +43,31 @@ const standardErrors = {
 		content: { "application/json": { schema: ErrorResponse } },
 		description: "Conflict.",
 	},
+	410: {
+		content: { "application/json": { schema: ErrorResponse } },
+		description: "Organization is scheduled for deletion.",
+	},
 	422: {
 		content: { "application/json": { schema: ErrorResponse } },
 		description: "Validation error.",
+	},
+	429: {
+		content: { "application/json": { schema: ErrorResponse } },
+		description: "Too many requests.",
 	},
 	500: {
 		content: { "application/json": { schema: ErrorResponse } },
 		description: "Internal server error.",
 	},
+	502: {
+		content: { "application/json": { schema: ErrorResponse } },
+		description: "Upstream error.",
+	},
 	503: {
 		content: { "application/json": { schema: ErrorResponse } },
 		description: "Upstream temporarily unavailable.",
 	},
-} as const;
+};
 
 export const startDnsChallengeRoute = createRoute({
 	hide: process.env.NODE_ENV === "production",

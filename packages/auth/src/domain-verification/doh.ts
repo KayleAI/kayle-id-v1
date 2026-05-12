@@ -17,7 +17,10 @@ const PRIMARY_DOH_URL = "https://cloudflare-dns.com/dns-query";
 const FALLBACK_DOH_URL = "https://dns.google/resolve";
 const DEFAULT_TIMEOUT_MS = 5000;
 
-export type DohFetch = typeof fetch;
+export type DohFetch = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
 
 export type DohLookupOutcome =
   | { ok: true; values: string[] }

@@ -41,7 +41,7 @@ const standardErrors = {
 		content: { "application/json": { schema: ErrorResponse } },
 		description: "Internal server error.",
 	},
-} as const;
+};
 
 export const listRedirectUrisRoute = createRoute({
 	hide: process.env.NODE_ENV === "production",

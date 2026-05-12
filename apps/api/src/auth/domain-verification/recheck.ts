@@ -21,7 +21,7 @@ import { eq } from "drizzle-orm";
 
 interface CronEnv {
 	EMAIL_FROM_ADDRESS: string;
-	SEND_EMAIL: import("@cloudflare/workers-types").SendEmail;
+	SEND_EMAIL: NonNullable<CloudflareBindings["SEND_EMAIL"]>;
 	PUBLIC_AUTH_URL: string;
 }
 

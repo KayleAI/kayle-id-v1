@@ -108,6 +108,7 @@ function createSessionDetails(
 		organization_owner_id_check_completed: true,
 		organization_verified_apex_domains: ["test.example"],
 		organization_logo: null,
+		organization_business_type: null,
 		organization_business_name: null,
 		organization_business_jurisdiction: null,
 		organization_business_registration_number: null,

@@ -57,9 +57,7 @@ export async function validateRedirectUrlForOrg({
 
 	let host: string;
 	try {
-		host = hostnameToApex
-			? new URL(parsed.url.toString()).hostname.toLowerCase()
-			: parsed.url.hostname.toLowerCase();
+		host = new URL(parsed.url.toString()).hostname.toLowerCase();
 	} catch {
 		return {
 			ok: false,

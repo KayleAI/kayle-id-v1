@@ -32,6 +32,22 @@ export function isTrackedAttemptPhase(
 	return phase in PHASE_INDEX;
 }
 
+/**
+ * True when the candidate phase has reached or passed the reference phase in
+ * the canonical sequence. Used to gate data uploads so a reconnect that lands
+ * on a phase past the initial gate (e.g., currentPhase=nfc_complete after the
+ * iOS app restored a session) can still re-stream artifacts.
+ */
+export function isPhaseAtOrAfter(
+	candidate: string | null,
+	reference: TrackedAttemptPhase,
+): boolean {
+	if (!(candidate && isTrackedAttemptPhase(candidate))) {
+		return false;
+	}
+	return PHASE_INDEX[candidate] >= PHASE_INDEX[reference];
+}
+
 export type PhaseValidationResult =
 	| {
 			ok: true;

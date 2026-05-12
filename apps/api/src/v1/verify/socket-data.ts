@@ -5,6 +5,7 @@ import {
 	processDataPayload,
 } from "./data-payload";
 import { resolveVerifyErrorMessage } from "./error-response";
+import { isPhaseAtOrAfter } from "./phase-state";
 import type { VerifySocketContext } from "./socket-context";
 
 export function handleDataMessage(
@@ -23,7 +24,16 @@ export function handleDataMessage(
 		chunkTotal: payload.chunkTotal ?? 0,
 	});
 
-	if (isNfcDataKind(kind) && state.currentPhase !== "nfc_reading") {
+	// Allow NFC and selfie uploads at any phase from when the user starts the
+	// corresponding step onward, not just the strict initiating phase. A
+	// reconnect restores currentPhase from the DB (e.g., nfc_complete), and
+	// the client must be able to re-stream lost in-memory artifacts before
+	// the next phase advances. Strict equality here would reject the
+	// restream and silently corrupt the attempt's validation state.
+	if (
+		isNfcDataKind(kind) &&
+		!isPhaseAtOrAfter(state.currentPhase, "nfc_reading")
+	) {
 		transport.sendError(
 			"NFC_DATA_PHASE_REQUIRED",
 			resolveVerifyErrorMessage("NFC_DATA_PHASE_REQUIRED"),
@@ -31,7 +41,10 @@ export function handleDataMessage(
 		return;
 	}
 
-	if (isSelfieDataKind(kind) && state.currentPhase !== "selfie_capturing") {
+	if (
+		isSelfieDataKind(kind) &&
+		!isPhaseAtOrAfter(state.currentPhase, "selfie_capturing")
+	) {
 		transport.sendError(
 			"SELFIE_DATA_PHASE_REQUIRED",
 			resolveVerifyErrorMessage("SELFIE_DATA_PHASE_REQUIRED"),

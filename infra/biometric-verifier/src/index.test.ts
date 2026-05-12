@@ -83,6 +83,8 @@ test("biometric verifier worker forwards liveness payload to the container", asy
             livenessScore: 0.92,
             faceMatchPassed: true,
             faceMatchScore: 0.91,
+            padPassed: true,
+            padScore: 0.85,
             usedFallback: false,
           }),
           {
@@ -136,6 +138,8 @@ test("biometric verifier worker forwards liveness payload to the container", asy
     livenessScore: 0.92,
     faceMatchPassed: true,
     faceMatchScore: 0.91,
+    padPassed: true,
+    padScore: 0.85,
     usedFallback: false,
   });
 });
@@ -237,6 +241,8 @@ test("biometric verifier worker accepts the bearer auth header", async () => {
             livenessScore: 0.9,
             faceMatchPassed: true,
             faceMatchScore: 0.9,
+            padPassed: true,
+            padScore: 0.85,
             usedFallback: false,
           }),
           {
@@ -281,6 +287,8 @@ test("biometric verifier worker rejects unauthorized requests", async () => {
             livenessScore: 0.9,
             faceMatchPassed: true,
             faceMatchScore: 0.9,
+            padPassed: true,
+            padScore: 0.85,
             usedFallback: false,
           }),
           {

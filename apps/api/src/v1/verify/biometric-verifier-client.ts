@@ -16,6 +16,8 @@ export type LivenessVerificationResult = {
 	livenessScore: number | null;
 	faceMatchPassed: boolean;
 	faceMatchScore: number | null;
+	padPassed: boolean;
+	padScore: number | null;
 	usedFallback: boolean;
 	reason?: string;
 };
@@ -26,6 +28,8 @@ function createUnavailableResult(reason: string): LivenessVerificationResult {
 		livenessScore: null,
 		faceMatchPassed: false,
 		faceMatchScore: null,
+		padPassed: false,
+		padScore: null,
 		usedFallback: true,
 		reason,
 	};
@@ -170,6 +174,8 @@ async function requestBiometricVerifier({
 				face_match_score: payload.data.faceMatchScore,
 				liveness_passed: payload.data.livenessPassed,
 				liveness_score: payload.data.livenessScore,
+				pad_passed: payload.data.padPassed,
+				pad_score: payload.data.padScore,
 				used_fallback: payload.data.usedFallback,
 				reason: payload.data.reason ?? null,
 			},
@@ -181,6 +187,8 @@ async function requestBiometricVerifier({
 			livenessScore: payload.data.livenessScore,
 			faceMatchPassed: payload.data.faceMatchPassed,
 			faceMatchScore: payload.data.faceMatchScore,
+			padPassed: payload.data.padPassed,
+			padScore: payload.data.padScore,
 			usedFallback: payload.data.usedFallback,
 			// Normalize the wire-level `null` reason (sent on the happy path)
 			// to undefined so callers can use the simple `result.reason ? …`

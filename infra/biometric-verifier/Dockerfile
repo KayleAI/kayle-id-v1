@@ -14,7 +14,18 @@ COPY pyproject.toml ./
 RUN uv sync --no-dev --no-install-project
 
 COPY scripts/download-models.sh ./scripts/download-models.sh
-RUN chmod +x ./scripts/download-models.sh && ./scripts/download-models.sh
+# Optional PAD model. Pass both build args together to bake an ONNX file
+# into the image; leave them unset to skip the download (the runtime PAD
+# gate stays disabled until both the env flag is on and a model is
+# present on disk).
+ARG BIOMETRIC_VERIFIER_PAD_MODEL_URL=""
+ARG BIOMETRIC_VERIFIER_PAD_MODEL_SHA256=""
+ARG BIOMETRIC_VERIFIER_PAD_MODEL_FILENAME="face_anti_spoofing_minifasnet.onnx"
+RUN chmod +x ./scripts/download-models.sh \
+  && BIOMETRIC_VERIFIER_PAD_MODEL_URL="${BIOMETRIC_VERIFIER_PAD_MODEL_URL}" \
+     BIOMETRIC_VERIFIER_PAD_MODEL_SHA256="${BIOMETRIC_VERIFIER_PAD_MODEL_SHA256}" \
+     BIOMETRIC_VERIFIER_PAD_MODEL_FILENAME="${BIOMETRIC_VERIFIER_PAD_MODEL_FILENAME}" \
+     ./scripts/download-models.sh
 
 # ffmpeg stays installed — the /verify_liveness endpoint shells out to it for
 # frame extraction. curl is only needed during the model-download step and is
@@ -32,6 +43,7 @@ RUN groupadd --system app \
 
 ENV BIOMETRIC_VERIFIER_DETECTOR_PATH=/app/models/face_detection_yunet_2023mar.onnx \
     BIOMETRIC_VERIFIER_MODEL_PATH=/app/models/face_recognition_sface_2021dec.onnx \
+    BIOMETRIC_VERIFIER_PAD_MODEL_PATH=/app/models/face_anti_spoofing_minifasnet.onnx \
     PATH="/app/.venv/bin:${PATH}" \
     PORT=8080
 

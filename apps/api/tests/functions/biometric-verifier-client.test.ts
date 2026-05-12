@@ -57,6 +57,8 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 					livenessScore: 0.95,
 					faceMatchPassed: true,
 					faceMatchScore: 0.91,
+					padPassed: true,
+					padScore: 0.82,
 					usedFallback: false,
 				}),
 				{
@@ -82,6 +84,8 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 
 	expect(result.livenessPassed).toBeTrue();
 	expect(result.faceMatchPassed).toBeTrue();
+	expect(result.padPassed).toBeTrue();
+	expect(result.padScore).toBe(0.82);
 	expect(
 		requireCapturedValue(capturedUrl, "biometric verifier request URL"),
 	).toBe("https://biometric-verifier.internal/verify_liveness");
@@ -111,6 +115,8 @@ test("verifyLiveness fails closed when verifier config is unavailable", async ()
 		livenessScore: null,
 		faceMatchPassed: false,
 		faceMatchScore: null,
+		padPassed: false,
+		padScore: null,
 		usedFallback: true,
 		reason: "biometric_verifier_unavailable",
 	});
@@ -129,6 +135,8 @@ test("verifyLiveness fails closed when the verifier binding is set but the secre
 					livenessScore: 0.9,
 					faceMatchPassed: true,
 					faceMatchScore: 0.9,
+					padPassed: true,
+					padScore: 0.85,
 					usedFallback: false,
 				}),
 				{

@@ -28,6 +28,12 @@ export const biometricVerifierResponseSchema = z.object({
   livenessScore: z.number().min(0).max(1).nullable(),
   faceMatchPassed: z.boolean(),
   faceMatchScore: z.number().min(0).max(1).nullable(),
+  // Presentation-attack detection. `padPassed` is true when the gate is
+  // satisfied (or when PAD is disabled / model not loaded — in which case
+  // the container also nulls out `padScore`). The verdict gate in the api
+  // requires this true alongside livenessPassed and faceMatchPassed.
+  padPassed: z.boolean(),
+  padScore: z.number().min(0).max(1).nullable(),
   usedFallback: z.boolean(),
   // The container emits `null` on the happy path (face match passed, no
   // reason to report). `.nullish()` accepts both `null` and `undefined`
@@ -267,6 +273,8 @@ export function createBiometricVerifierResponse(
     livenessScore: payload.livenessScore,
     faceMatchPassed: payload.faceMatchPassed,
     faceMatchScore: payload.faceMatchScore,
+    padPassed: payload.padPassed,
+    padScore: payload.padScore,
     usedFallback: payload.usedFallback,
     reason: payload.reason,
   };

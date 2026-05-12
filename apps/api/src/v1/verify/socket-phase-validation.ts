@@ -169,6 +169,31 @@ async function resolveLivenessVerdict(
 		return verdict;
 	}
 
+	// PAD gate. Movement coverage already passed, so a PAD failure here
+	// means the clip looks animate but the model thinks it's a spoof
+	// (printed photo, screen replay, mask, etc.). Treated as a liveness
+	// failure for the user-visible verdict so the messaging stays
+	// consistent; the specific `pad_*` reason survives in telemetry.
+	if (!result.padPassed) {
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "liveness_failed",
+			context,
+			riskScore: 1,
+		});
+		context.log.set({
+			event: "verify.ws.rejected",
+			failure_code: verdict.reasonCode,
+			liveness_reason: result.reason ?? null,
+			pad_score: result.padScore,
+			remaining_attempts: verdict.remainingAttempts,
+			retry_allowed: verdict.retryAllowed,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
 	if (
 		!result.faceMatchPassed ||
 		shouldRejectSuccessfulFallbackMatch({ result })
@@ -710,6 +735,8 @@ export async function runPhaseValidation(
 			face_match_threshold: threshold,
 			liveness_passed: result.livenessPassed,
 			liveness_score: result.livenessScore,
+			pad_passed: result.padPassed,
+			pad_score: result.padScore,
 			reason: result.reason ?? null,
 			used_fallback: result.usedFallback,
 		},

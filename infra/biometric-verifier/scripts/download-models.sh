@@ -79,4 +79,23 @@ download_model \
   "${MODELS_DIR}/${DETECTOR_MODEL}" \
   "${DETECTOR_MODEL_SHA256}"
 
+# Presentation-Attack Detection model (optional). The container's runtime
+# only engages PAD when BIOMETRIC_VERIFIER_PAD_ENABLED=1 AND the ONNX file
+# exists on disk; if either side is missing the gate is a no-op. To bake a
+# vetted ONNX into the image, set BIOMETRIC_VERIFIER_PAD_MODEL_URL and
+# BIOMETRIC_VERIFIER_PAD_MODEL_SHA256 at build time (e.g., as Docker build
+# args wired to ENV). The integration code expects a MiniFASNet-style
+# classifier (80x80 RGB input, softmax index 1 = "real").
+PAD_MODEL_FILENAME="${BIOMETRIC_VERIFIER_PAD_MODEL_FILENAME:-face_anti_spoofing_minifasnet.onnx}"
+if [ -n "${BIOMETRIC_VERIFIER_PAD_MODEL_URL:-}" ] \
+  && [ -n "${BIOMETRIC_VERIFIER_PAD_MODEL_SHA256:-}" ]; then
+  download_model \
+    "${BIOMETRIC_VERIFIER_PAD_MODEL_URL}" \
+    "${MODELS_DIR}/${PAD_MODEL_FILENAME}" \
+    "${BIOMETRIC_VERIFIER_PAD_MODEL_SHA256}"
+  echo "PAD model downloaded: ${MODELS_DIR}/${PAD_MODEL_FILENAME}"
+else
+  echo "PAD model download skipped (BIOMETRIC_VERIFIER_PAD_MODEL_URL / _SHA256 unset)"
+fi
+
 echo "Biometric verifier models are ready in ${MODELS_DIR}"

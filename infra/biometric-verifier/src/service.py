@@ -62,6 +62,33 @@ LIVENESS_MIN_POSE_FRAMES = int(
 )
 LIVENESS_FFMPEG_BIN = os.environ.get("BIOMETRIC_VERIFIER_FFMPEG_BIN", "ffmpeg")
 
+# Presentation-Attack Detection (PAD). Off by default; engages when an ONNX
+# model is present at PAD_MODEL_PATH and PAD_ENABLED is set. The model is
+# expected to be a MiniFASNet-style classifier accepting an 80x80 RGB face
+# crop and outputting per-class logits where index 1 is the "real" class
+# (Silent-Face-Anti-Spoofing convention).
+PAD_ENABLED = os.environ.get("BIOMETRIC_VERIFIER_PAD_ENABLED") == "1"
+PAD_MODEL_PATH = os.environ.get(
+    "BIOMETRIC_VERIFIER_PAD_MODEL_PATH",
+    "/app/models/face_anti_spoofing_minifasnet.onnx",
+)
+PAD_INPUT_SIZE = (80, 80)
+# Real-class probability a single frame must reach to be considered "live".
+PAD_FRAME_THRESHOLD = float(
+    os.environ.get("BIOMETRIC_VERIFIER_PAD_FRAME_THRESHOLD", "0.55")
+)
+# Fraction of face-bearing frames that must clear PAD_FRAME_THRESHOLD for
+# the clip as a whole to pass.
+PAD_PASS_FRACTION = float(
+    os.environ.get("BIOMETRIC_VERIFIER_PAD_PASS_FRACTION", "0.7")
+)
+# Crop expansion ratio around YuNet's tight face box before resize. PAD
+# models train on a bit of head/shoulders context, so a tight crop
+# under-performs.
+PAD_CROP_EXPAND = float(
+    os.environ.get("BIOMETRIC_VERIFIER_PAD_CROP_EXPAND", "0.25")
+)
+
 
 def emit_log(event: str, **details: object) -> None:
     print(
@@ -563,9 +590,132 @@ def pick_center_frame_index(timeline: list[dict]) -> Optional[int]:
     return best_index
 
 
+def crop_face_for_pad(image: np.ndarray, face: np.ndarray) -> Optional[np.ndarray]:
+    """Expand YuNet's face box by PAD_CROP_EXPAND on each side and resize to
+    the PAD model's input size. Returns None if the box is unusable.
+    """
+    height, width = image.shape[:2]
+    x, y, w, h = (float(face[0]), float(face[1]), float(face[2]), float(face[3]))
+
+    if w <= 0 or h <= 0:
+        return None
+
+    expand_x = w * PAD_CROP_EXPAND
+    expand_y = h * PAD_CROP_EXPAND
+    x0 = int(max(0.0, x - expand_x))
+    y0 = int(max(0.0, y - expand_y))
+    x1 = int(min(float(width), x + w + expand_x))
+    y1 = int(min(float(height), y + h + expand_y))
+
+    if x1 <= x0 or y1 <= y0:
+        return None
+
+    crop = image[y0:y1, x0:x1]
+    if crop.size == 0:
+        return None
+
+    return cv2.resize(crop, PAD_INPUT_SIZE)
+
+
+def predict_pad_score(net: cv2.dnn.Net, crop: np.ndarray) -> Optional[float]:
+    """Run the PAD model on a prepared face crop and return the probability
+    that the input is a real (live) face. Returns None on inference failure.
+    """
+    try:
+        blob = cv2.dnn.blobFromImage(
+            crop,
+            scalefactor=1.0 / 255.0,
+            size=PAD_INPUT_SIZE,
+            mean=(0.0, 0.0, 0.0),
+            swapRB=True,
+            crop=False,
+        )
+        net.setInput(blob)
+        logits = net.forward()
+    except cv2.error:
+        return None
+
+    flat = np.asarray(logits, dtype=np.float64).reshape(-1)
+    if flat.size < 2:
+        return None
+
+    # Numerically stable softmax over the logit vector. Silent-Face-Anti-
+    # Spoofing checkpoints place the "real" class at index 1; output of
+    # length > 2 still respects that convention (extra spoof sub-classes).
+    shifted = flat - float(flat.max())
+    exp = np.exp(shifted)
+    denominator = float(exp.sum())
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        return None
+
+    probabilities = exp / denominator
+    return clamp_score(float(probabilities[1]))
+
+
+def run_pad_over_timeline(
+    net: cv2.dnn.Net,
+    detector: cv2.FaceDetectorYN,
+    frames: list[np.ndarray],
+    timeline: list[dict],
+) -> dict:
+    """Run PAD on every frame in the timeline where YuNet detected a face.
+    Aggregates per-frame real-class probabilities into a clip-level verdict.
+    """
+    per_frame_scores: list[Optional[float]] = []
+    pass_count = 0
+    score_sum = 0.0
+    scored_count = 0
+
+    for entry in timeline:
+        if not entry["face_detected"]:
+            per_frame_scores.append(None)
+            continue
+        frame = frames[int(entry["frame_index"])]
+        face = detect_face(detector, frame)
+        if face is None:
+            per_frame_scores.append(None)
+            continue
+        crop = crop_face_for_pad(frame, face)
+        if crop is None:
+            per_frame_scores.append(None)
+            continue
+        score = predict_pad_score(net, crop)
+        per_frame_scores.append(score)
+        if score is None:
+            continue
+        scored_count += 1
+        score_sum += score
+        if score >= PAD_FRAME_THRESHOLD:
+            pass_count += 1
+
+    if scored_count == 0:
+        return {
+            "padPassed": False,
+            "padScore": None,
+            "padScoredFrames": 0,
+            "padPassingFrames": 0,
+            "padFrameScores": per_frame_scores,
+            "padReason": "liveness_pad_no_scored_frames",
+        }
+
+    mean_score = score_sum / scored_count
+    pass_fraction = pass_count / scored_count
+    passed = pass_fraction >= PAD_PASS_FRACTION
+
+    return {
+        "padPassed": passed,
+        "padScore": clamp_score(mean_score),
+        "padScoredFrames": scored_count,
+        "padPassingFrames": pass_count,
+        "padFrameScores": per_frame_scores,
+        "padReason": None if passed else "liveness_spoof_suspected",
+    }
+
+
 def verify_liveness_payload(
     detector: cv2.FaceDetectorYN,
     recognizer: cv2.FaceRecognizerSF,
+    pad_net: Optional[cv2.dnn.Net],
     payload: dict,
 ) -> dict:
     threshold = float(
@@ -638,9 +788,45 @@ def verify_liveness_payload(
             "livenessScore": liveness_score,
             "faceMatchPassed": False,
             "faceMatchScore": None,
+            "padPassed": False,
+            "padScore": None,
             "usedFallback": False,
             "reason": coverage_reason or "liveness_pose_coverage_failed",
         }
+
+    # PAD runs after movement coverage so we don't waste inference on
+    # clips that were going to fail anyway. When PAD is disabled or the
+    # model isn't loaded, padPassed defaults to True so the gate is a
+    # no-op until an ONNX file is in place.
+    if pad_net is not None:
+        pad_result = run_pad_over_timeline(pad_net, detector, frames, timeline)
+        emit_log(
+            "liveness_pad_evaluated",
+            pad_passed=pad_result["padPassed"],
+            pad_score=pad_result["padScore"],
+            pad_scored_frames=pad_result["padScoredFrames"],
+            pad_passing_frames=pad_result["padPassingFrames"],
+            pad_frame_scores=pad_result["padFrameScores"],
+            pad_frame_threshold=PAD_FRAME_THRESHOLD,
+            pad_pass_fraction=PAD_PASS_FRACTION,
+            pad_reason=pad_result["padReason"],
+        )
+        if not pad_result["padPassed"]:
+            return {
+                "livenessPassed": False,
+                "livenessScore": liveness_score,
+                "faceMatchPassed": False,
+                "faceMatchScore": None,
+                "padPassed": False,
+                "padScore": pad_result["padScore"],
+                "usedFallback": False,
+                "reason": pad_result["padReason"] or "liveness_spoof_suspected",
+            }
+        pad_passed_for_response = True
+        pad_score_for_response = pad_result["padScore"]
+    else:
+        pad_passed_for_response = True
+        pad_score_for_response = None
 
     center_index = pick_center_frame_index(timeline)
     if center_index is None:
@@ -673,6 +859,8 @@ def verify_liveness_payload(
         "livenessScore": liveness_score,
         "faceMatchPassed": bool(face_match["faceMatchPassed"]),
         "faceMatchScore": face_match["faceMatchScore"],
+        "padPassed": pad_passed_for_response,
+        "padScore": pad_score_for_response,
         "usedFallback": bool(face_match["usedFallback"]),
         "reason": face_match["reason"],
     }
@@ -690,6 +878,8 @@ def liveness_failure_response(
         "livenessScore": liveness_score,
         "faceMatchPassed": False,
         "faceMatchScore": None,
+        "padPassed": False,
+        "padScore": None,
         "usedFallback": False,
         "reason": reason,
     }
@@ -699,9 +889,12 @@ class BiometricVerifierRuntime:
     def __init__(self, detector_model_path: str, model_path: str):
         self.detector_model_path = detector_model_path
         self.model_path = model_path
+        self.pad_model_path = PAD_MODEL_PATH
         self.error: Optional[str] = None
         self.detector: Optional[cv2.FaceDetectorYN] = None
         self.recognizer: Optional[cv2.FaceRecognizerSF] = None
+        self.pad_net: Optional[cv2.dnn.Net] = None
+        self.pad_load_error: Optional[str] = None
         self._load()
 
     def _load(self) -> None:
@@ -718,10 +911,15 @@ class BiometricVerifierRuntime:
             ffmpeg_available = shutil.which(LIVENESS_FFMPEG_BIN) is not None
             if not ffmpeg_available:
                 self.error = "ffmpeg_binary_missing"
+            self._load_pad_model()
             emit_log(
                 "container_ready",
                 detector_model_path=self.detector_model_path,
                 model_path=self.model_path,
+                pad_model_path=self.pad_model_path,
+                pad_enabled=PAD_ENABLED,
+                pad_loaded=self.pad_net is not None,
+                pad_load_error=self.pad_load_error,
                 ffmpeg_available=ffmpeg_available,
             )
         except Exception as error:
@@ -732,6 +930,23 @@ class BiometricVerifierRuntime:
                 model_path=self.model_path,
                 error=self.error,
             )
+
+    def _load_pad_model(self) -> None:
+        # PAD stays opt-in: the flag must be set AND the ONNX file must
+        # exist. Either condition false leaves pad_net=None and the
+        # gate skipped, so the runtime stays serviceable while the
+        # weights are being sourced.
+        if not PAD_ENABLED:
+            self.pad_load_error = "pad_disabled"
+            return
+        if not os.path.isfile(self.pad_model_path):
+            self.pad_load_error = "pad_model_missing"
+            return
+        try:
+            self.pad_net = cv2.dnn.readNetFromONNX(self.pad_model_path)
+        except cv2.error as error:
+            self.pad_load_error = f"pad_model_load_failed:{error}"
+            self.pad_net = None
 
     @property
     def ready(self) -> bool:
@@ -746,6 +961,8 @@ class BiometricVerifierRuntime:
             "data": {
                 "detectorModelPath": self.detector_model_path,
                 "modelPath": self.model_path,
+                "padEnabled": PAD_ENABLED,
+                "padLoaded": self.pad_net is not None,
                 "ready": self.ready,
                 "status": "healthy" if self.ready else "unhealthy",
             },
@@ -766,11 +983,18 @@ class BiometricVerifierRuntime:
                 "livenessScore": None,
                 "faceMatchPassed": False,
                 "faceMatchScore": None,
+                "padPassed": False,
+                "padScore": None,
                 "usedFallback": True,
                 "reason": f"biometric_verifier_unavailable:runtime_not_ready:{reason_suffix}",
             }
 
-        return verify_liveness_payload(self.detector, self.recognizer, payload)
+        return verify_liveness_payload(
+            self.detector,
+            self.recognizer,
+            self.pad_net,
+            payload,
+        )
 
 
 RUNTIME = BiometricVerifierRuntime(DETECTOR_MODEL_PATH, MODEL_PATH)
@@ -852,6 +1076,8 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                 face_match_score=result.get("faceMatchScore"),
                 liveness_passed=result.get("livenessPassed"),
                 liveness_score=result.get("livenessScore"),
+                pad_passed=result.get("padPassed"),
+                pad_score=result.get("padScore"),
                 reason=result.get("reason"),
                 used_fallback=result.get("usedFallback"),
             )
@@ -872,6 +1098,8 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                     "livenessScore": None,
                     "faceMatchPassed": False,
                     "faceMatchScore": None,
+                    "padPassed": False,
+                    "padScore": None,
                     "usedFallback": True,
                     "reason": "biometric_verifier_unavailable:container_runtime_failed",
                 },
@@ -886,6 +1114,8 @@ def main() -> int:
         "container_listening",
         detector_model_path=DETECTOR_MODEL_PATH,
         model_path=MODEL_PATH,
+        pad_model_path=PAD_MODEL_PATH,
+        pad_enabled=PAD_ENABLED,
         port=PORT,
     )
     server.serve_forever()

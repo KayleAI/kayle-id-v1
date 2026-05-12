@@ -38,16 +38,12 @@ interface ResolvedActor {
 	userId: string;
 }
 
-function resolveActor(
-	c: RedirectUriCtx,
-):
-	| { ok: true; actor: ResolvedActor }
-	| { ok: false; response: ReturnType<RedirectUriCtx["json"]> } {
+function resolveActor(c: RedirectUriCtx) {
 	const userId = c.get("userId");
 	const organizationId = c.get("organizationId");
 	if (!userId) {
 		return {
-			ok: false,
+			ok: false as const,
 			response: c.json(
 				{
 					data: null,
@@ -64,7 +60,7 @@ function resolveActor(
 	}
 	if (!organizationId) {
 		return {
-			ok: false,
+			ok: false as const,
 			response: c.json(
 				{
 					data: null,
@@ -79,13 +75,13 @@ function resolveActor(
 			),
 		};
 	}
-	return { ok: true, actor: { organizationId, userId } };
+	return {
+		ok: true as const,
+		actor: { organizationId, userId } satisfies ResolvedActor,
+	};
 }
 
-async function ensureOrgNotFrozen(
-	c: RedirectUriCtx,
-	organizationId: string,
-): Promise<ReturnType<RedirectUriCtx["json"]> | null> {
+async function ensureOrgNotFrozen(c: RedirectUriCtx, organizationId: string) {
 	try {
 		await assertOrgNotFrozen(organizationId);
 		return null;
@@ -111,7 +107,7 @@ async function ensureOrgNotFrozen(
 function jsonFromDomainError(
 	c: RedirectUriCtx,
 	error: DomainVerificationError,
-): ReturnType<RedirectUriCtx["json"]> {
+) {
 	const allowed = [400, 403, 404, 422, 500] as const;
 	const status = (allowed as readonly number[]).includes(error.status)
 		? (error.status as (typeof allowed)[number])

@@ -84,6 +84,7 @@ type VerifySessionDetailsResponse = {
 		organization_owner_id_check_completed: boolean;
 		organization_verified_apex_domains: string[];
 		organization_logo: string | null;
+		organization_business_type: "sole" | "business" | null;
 		organization_business_name: string | null;
 		organization_business_jurisdiction: string | null;
 		organization_business_registration_number: string | null;

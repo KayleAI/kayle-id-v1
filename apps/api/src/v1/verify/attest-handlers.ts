@@ -54,7 +54,7 @@ attest.get("/challenge", async (c) => {
 			headers: c.req.raw.headers,
 			internalToken: c.env.KAYLE_INTERNAL_TOKEN,
 		}),
-		secret: c.env.AUTH_SECRET,
+		secret: c.env.AUTH_SECRET as string,
 		store: redis,
 	});
 
@@ -256,7 +256,7 @@ export async function resolveAttestChallengeRateLimitIdentity({
 	internalToken,
 }: {
 	headers: Headers;
-	internalToken: string;
+	internalToken: string | undefined;
 }): Promise<string> {
 	return (
 		(await resolveTrustedClientIp({ headers, internalToken })) ??

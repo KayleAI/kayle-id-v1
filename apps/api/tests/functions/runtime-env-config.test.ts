@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
 
+async function readWranglerConfig(): Promise<ApiWranglerConfig> {
+	const file = Bun.file(new URL("../../wrangler.jsonc", import.meta.url));
+	return JSON.parse(await file.text()) as ApiWranglerConfig;
+}
+
 type ApiWranglerConfig = {
 	routes?: Array<{
 		custom_domain?: boolean;
@@ -35,9 +40,7 @@ type ApiWranglerConfig = {
 };
 
 test("api worker config pins NODE_ENV for every deploy target", async () => {
-	const config = (await Bun.file(
-		new URL("../../wrangler.jsonc", import.meta.url),
-	).json()) as ApiWranglerConfig;
+	const config = await readWranglerConfig();
 
 	expect(config.vars?.NODE_ENV).toBe("development");
 	expect(config.env?.production?.vars?.NODE_ENV).toBe("production");
@@ -45,9 +48,7 @@ test("api worker config pins NODE_ENV for every deploy target", async () => {
 });
 
 test("api worker only binds production routes in the production deploy target", async () => {
-	const config = (await Bun.file(
-		new URL("../../wrangler.jsonc", import.meta.url),
-	).json()) as ApiWranglerConfig;
+	const config = await readWranglerConfig();
 
 	expect(config.vars?.NODE_ENV).toBe("development");
 	expect(config.routes).toBeUndefined();
@@ -66,9 +67,7 @@ test("api worker only binds production routes in the production deploy target", 
 });
 
 test("api worker deploy config requires Redis credentials", async () => {
-	const config = (await Bun.file(
-		new URL("../../wrangler.jsonc", import.meta.url),
-	).json()) as ApiWranglerConfig;
+	const config = await readWranglerConfig();
 
 	expect(config.env?.production?.secrets?.required).toContain("REDIS_URL");
 	expect(config.env?.production?.secrets?.required).toContain("REDIS_TOKEN");

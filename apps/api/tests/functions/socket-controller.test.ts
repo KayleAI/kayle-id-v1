@@ -9,7 +9,7 @@ afterEach(() => {
 		return;
 	}
 
-	delete process.env.NODE_ENV;
+	(process.env as Record<string, string | undefined>).NODE_ENV = undefined;
 });
 
 test("verify socket debug mode is disabled in production", () => {

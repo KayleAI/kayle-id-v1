@@ -87,7 +87,7 @@ async function listKeys({
 }
 
 async function generateWeakRsaPublicJwk(): Promise<JsonWebKey> {
-	const keyPair = await crypto.subtle.generateKey(
+	const keyPair = (await crypto.subtle.generateKey(
 		{
 			hash: "SHA-256",
 			modulusLength: 1024,
@@ -96,9 +96,12 @@ async function generateWeakRsaPublicJwk(): Promise<JsonWebKey> {
 		},
 		true,
 		["encrypt", "decrypt"],
-	);
+	)) as CryptoKeyPair;
 
-	return crypto.subtle.exportKey("jwk", keyPair.publicKey);
+	return (await crypto.subtle.exportKey(
+		"jwk",
+		keyPair.publicKey,
+	)) as JsonWebKey;
 }
 
 beforeAll(async () => {
@@ -116,7 +119,7 @@ describe("webhook encryption key validation", () => {
 		const publicJwk = await loadTestPublicJwk();
 		const response = await createKey({
 			endpointId,
-			jwk: publicJwk as Record<string, unknown>,
+			jwk: publicJwk as unknown as Record<string, unknown>,
 			keyId: "rsa-key-public",
 		});
 
@@ -138,7 +141,10 @@ describe("webhook encryption key validation", () => {
 
 	test("rejects private JWK material before rotating the active key", async () => {
 		const endpointId = await createEndpoint();
-		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const publicJwk = (await loadTestPublicJwk()) as unknown as Record<
+			string,
+			unknown
+		>;
 		const initialResponse = await createKey({
 			endpointId,
 			jwk: publicJwk,
@@ -183,7 +189,10 @@ describe("webhook encryption key validation", () => {
 
 	test("reactivating an old key deactivates the current active key", async () => {
 		const endpointId = await createEndpoint();
-		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const publicJwk = (await loadTestPublicJwk()) as unknown as Record<
+			string,
+			unknown
+		>;
 		const oldResponse = await createKey({
 			endpointId,
 			jwk: publicJwk,
@@ -233,7 +242,10 @@ describe("webhook encryption key validation", () => {
 
 	test("database rejects multiple active keys for one endpoint", async () => {
 		const endpointId = await createEndpoint();
-		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const publicJwk = (await loadTestPublicJwk()) as unknown as Record<
+			string,
+			unknown
+		>;
 		const initialResponse = await createKey({
 			endpointId,
 			jwk: publicJwk,
@@ -285,7 +297,10 @@ describe("webhook encryption key validation", () => {
 
 	test("rejects encryption key requests that exceed route bounds", async () => {
 		const endpointId = await createEndpoint();
-		const publicJwk = (await loadTestPublicJwk()) as Record<string, unknown>;
+		const publicJwk = (await loadTestPublicJwk()) as unknown as Record<
+			string,
+			unknown
+		>;
 		const keyIdResponse = await createKey({
 			endpointId,
 			jwk: publicJwk,
@@ -309,7 +324,7 @@ describe("webhook encryption key validation", () => {
 		const weakPublicJwk = await generateWeakRsaPublicJwk();
 		const response = await createKey({
 			endpointId,
-			jwk: weakPublicJwk as Record<string, unknown>,
+			jwk: weakPublicJwk as unknown as Record<string, unknown>,
 			keyId: "rsa-key-weak",
 		});
 

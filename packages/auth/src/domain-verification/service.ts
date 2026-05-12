@@ -198,6 +198,9 @@ export async function startDnsChallenge({
       })
       .returning({ id: auth_organization_domain_challenges.id });
 
+    if (!inserted) {
+      throw new Error("Failed to insert DNS challenge");
+    }
     return inserted.id;
   });
 
@@ -356,6 +359,10 @@ export async function verifyDnsChallenge({
         },
       })
       .returning({ id: auth_organization_verified_domains.id });
+
+    if (!inserted) {
+      throw new Error("Failed to upsert verified domain");
+    }
 
     await tx
       .delete(auth_organization_domain_challenges)

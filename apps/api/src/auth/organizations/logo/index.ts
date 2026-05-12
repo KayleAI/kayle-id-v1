@@ -32,6 +32,8 @@ uploadLogoRoute.openapi(internalUploadOrganizationLogo, async (c) => {
 				error: {
 					code: "FORBIDDEN",
 					message: "Only an owner or admin can upload an organization logo.",
+					hint: "Sign in as an organization owner or admin.",
+					docs: "https://kayle.id/docs/api/errors#forbidden",
 				} as const,
 			},
 			403,

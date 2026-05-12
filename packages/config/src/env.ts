@@ -74,5 +74,5 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
 
   // Skip validation in test environment
-  skipValidation: process.env.NODE_ENV === "test",
+  skipValidation: (process.env.NODE_ENV as string) === "test",
 });

@@ -165,7 +165,11 @@ async function generateRsaKeyPair(modulusLength: number): Promise<{
 async function ecdsaSubjectPublicKeyInfoBytes(
 	publicKey: CryptoKey,
 ): Promise<Uint8Array> {
-	return new Uint8Array(await crypto.subtle.exportKey("spki", publicKey));
+	const spki = (await crypto.subtle.exportKey(
+		"spki",
+		publicKey,
+	)) as ArrayBuffer;
+	return new Uint8Array(spki);
 }
 
 async function manuallyConvertSpkiToRsaIfNeeded(
@@ -406,7 +410,7 @@ describe("validateActiveAuthentication RSA (ISO/IEC 9796-2 DS1)", () => {
 		const { exportedPrivateJwk, keyPair } =
 			await generateRsaKeyPair(modulusLength);
 		const exportedSpki = new Uint8Array(
-			await crypto.subtle.exportKey("spki", keyPair.publicKey),
+			(await crypto.subtle.exportKey("spki", keyPair.publicKey)) as ArrayBuffer,
 		);
 		const rsaSpki = await manuallyConvertSpkiToRsaIfNeeded(exportedSpki);
 		const dg15 = buildDg15Envelope(rsaSpki);
@@ -438,7 +442,7 @@ describe("validateActiveAuthentication RSA (ISO/IEC 9796-2 DS1)", () => {
 		const { exportedPrivateJwk, keyPair } =
 			await generateRsaKeyPair(modulusLength);
 		const exportedSpki = new Uint8Array(
-			await crypto.subtle.exportKey("spki", keyPair.publicKey),
+			(await crypto.subtle.exportKey("spki", keyPair.publicKey)) as ArrayBuffer,
 		);
 		const rsaSpki = await manuallyConvertSpkiToRsaIfNeeded(exportedSpki);
 		const dg15 = buildDg15Envelope(rsaSpki);

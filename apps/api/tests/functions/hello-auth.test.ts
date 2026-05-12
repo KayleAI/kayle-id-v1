@@ -17,7 +17,7 @@ function createAttempt(
 		mobileWriteTokenConsumedAt: null,
 		mobileWriteTokenExpiresAt: new Date(Date.now() + 60_000),
 		mobileWriteTokenHash: null,
-		status: "pending",
+		status: "in_progress",
 		...overrides,
 	};
 }

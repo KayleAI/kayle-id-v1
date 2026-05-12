@@ -50,6 +50,22 @@ export const internalUploadOrganizationLogo = createRoute({
 			},
 			description: "Bad request.",
 		},
+		403: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse,
+				},
+			},
+			description: "Forbidden.",
+		},
+		410: {
+			content: {
+				"application/json": {
+					schema: ErrorResponse,
+				},
+			},
+			description: "Organization is scheduled for deletion.",
+		},
 		500: {
 			content: {
 				"application/json": {

@@ -221,10 +221,13 @@ export function forbidden(c: Context) {
 export function organizationFrozen(c: Context) {
 	return c.json(
 		{
+			data: null,
 			error: {
 				code: "ORGANIZATION_FROZEN",
 				message:
 					"This organization is scheduled for deletion. API keys and verification flows are disabled until the deletion is canceled.",
+				hint: "Cancel the pending deletion from the dashboard, then retry.",
+				docs: "https://kayle.id/docs/errors/organization-frozen",
 			},
 		},
 		410,
@@ -237,7 +240,7 @@ export function organizationFrozen(c: Context) {
  * on the context. Apply to API-key callers and verification-flow callers; the
  * dashboard owner/admin paths continue to work so they can cancel.
  */
-export async function denyIfOrgFrozen(c: Context): Promise<Response | null> {
+export async function denyIfOrgFrozen(c: Context) {
 	const orgId = c.get("organizationId") as string | undefined;
 	if (!orgId) {
 		return null;

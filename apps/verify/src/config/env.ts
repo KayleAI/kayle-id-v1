@@ -30,8 +30,12 @@ export const env = createEnv({
 	emptyStringAsUndefined: true,
 });
 
+function isDevelopment(): boolean {
+	return (process.env.NODE_ENV as string) === "development";
+}
+
 function getApiHost(): string {
-	if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+	if (isDevelopment() && typeof window !== "undefined") {
 		return `${window.location.hostname}:8787`;
 	}
 
@@ -39,10 +43,7 @@ function getApiHost(): string {
 }
 
 function getApiWebSocketProtocol(): "ws" | "wss" {
-	return (
-		env.PUBLIC_API_PROTOCOL ??
-		(process.env.NODE_ENV === "development" ? "ws" : "wss")
-	);
+	return env.PUBLIC_API_PROTOCOL ?? (isDevelopment() ? "ws" : "wss");
 }
 
 export function getApiWsBaseUrl(): string {

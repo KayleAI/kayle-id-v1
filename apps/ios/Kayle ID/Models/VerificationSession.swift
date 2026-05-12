@@ -622,6 +622,33 @@ final class VerificationSession: ObservableObject {
     selfieUploadsExpected = 0
     selfieSentIndices.removeAll()
     selfiePayloadsByIndex.removeAll()
+
+    // Re-stream NFC artifacts so the server can face-match selfies against
+    // dg2. Without this, the next phase=selfie_complete would silently advance
+    // with empty transfer state because face validation early-returns when
+    // dg2 is missing, leaving the attempt in a corrupted phase.
+    if let nfcResult {
+      try await restreamNFCArtifacts(
+        nfcResult: nfcResult,
+        via: service
+      )
+    }
+  }
+
+  /// Re-push the cached NFC artifacts onto a freshly connected socket. Used
+  /// from the reconnect path (proactive) and from a server-issued
+  /// NFC_REQUIRED_DATA_MISSING on selfie_complete (reactive). Bytes are the
+  /// same ones the chip signed; AA/CA signatures still verify against the
+  /// server's deterministic per-attempt challenge, so this is a pure replay
+  /// of validated material, not a fresh trust decision.
+  private func restreamNFCArtifacts(
+    nfcResult: DocumentReadResult,
+    via webSocketService: VerifyWebSocketService
+  ) async throws {
+    let plans = try buildNFCUploadPlans(from: nfcResult)
+    for plan in plans {
+      try await uploadNFCPlan(plan, via: webSocketService)
+    }
   }
 
   private func handleVerdict(_ verdict: VerifyServerVerdict) {
@@ -876,6 +903,23 @@ final class VerificationSession: ObservableObject {
       } catch let socketError as VerifyWebSocketError {
         guard case .serverError(let code, let message) = socketError else {
           throw socketError
+        }
+
+        // Server-side transfer state can be missing NFC bytes if the socket
+        // reconnected and the proactive re-stream hasn't run (or was raced).
+        // Re-stream the cached NFC artifacts and retry selfie_complete.
+        if
+          parseMissingNFCDataInstruction(
+            errorCode: code,
+            errorMessage: message
+          ) != nil,
+          let nfcResult
+        {
+          try await restreamNFCArtifacts(
+            nfcResult: nfcResult,
+            via: webSocketService
+          )
+          continue
         }
 
         guard

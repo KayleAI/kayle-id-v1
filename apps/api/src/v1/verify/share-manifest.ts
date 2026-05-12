@@ -2,7 +2,7 @@ import type {
 	VerifyShareReady,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import {
 	isAgeOverClaim,
 	parseAgeOverThreshold,

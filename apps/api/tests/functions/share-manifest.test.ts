@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
 import { validateAndBuildShareManifest } from "@/v1/verify/share-manifest";
 import {

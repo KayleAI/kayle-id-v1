@@ -139,7 +139,7 @@ final class DocumentNFCReader: NSObject, ObservableObject {
     activeAuthChallenge: Data? = nil
   ) {
     stop()
-    status = "Initializing NFC reader..."
+    status = String(localized: "Initializing NFC reader...")
 
     // Setup delegate first
     setupDelegate()
@@ -151,8 +151,10 @@ final class DocumentNFCReader: NSObject, ObservableObject {
 
     // Validate MRZ key format (should be around 24 characters: 9+1+6+1+6+1)
     guard mrzKey.count >= 20 else {
-      errorMessage = "Invalid MRZ key format. Please scan your document again."
-      status = "Scan not valid."
+      errorMessage = String(
+        localized: "Invalid MRZ key format. Please scan your document again."
+      )
+      status = String(localized: "Scan not valid.")
       return
     }
 
@@ -160,7 +162,10 @@ final class DocumentNFCReader: NSObject, ObservableObject {
     readTask?.cancel()
 
     // Update status before starting
-    status = "Press your document against your device and hold still to read the chip."
+    status = String(
+      localized:
+        "Press your document against your device and hold still to read the chip."
+    )
 
     // Start reading on a background task
     readTask = Task { [weak self] in
@@ -184,8 +189,10 @@ final class DocumentNFCReader: NSObject, ObservableObject {
       )
     } catch {
       result = nil
-      errorMessage = "We couldn't use this scan to read the chip. Try scanning again."
-      status = "Scan not valid."
+      errorMessage = String(
+        localized: "We couldn't use this scan to read the chip. Try scanning again."
+      )
+      status = String(localized: "Scan not valid.")
     }
   }
 
@@ -198,7 +205,10 @@ final class DocumentNFCReader: NSObject, ObservableObject {
         aaChallenge: currentActiveAuthChallenge,
         displayMessageHandler: { [weak self] message in
           self?.handleDisplayMessage(message)
-          return nil
+          // Return a localized message so iOS's NFC system dialog flips to
+          // the user's language; returning nil falls back to MRTDReader's
+          // built-in English copy.
+          return Self.localizedNFCDialogMessage(for: message)
         }
       )
       let model = try await reader.read(configuration: config)
@@ -207,13 +217,35 @@ final class DocumentNFCReader: NSObject, ObservableObject {
       guard !Task.isCancelled else { return }
       self.result = result
       self.progress = 4
-      self.status = "Document read complete."
+      self.status = String(localized: "Document read complete.")
     } catch is CancellationError {
       return
     } catch {
       guard !Task.isCancelled else { return }
       self.errorMessage = error.localizedDescription
-      self.status = "NFC read failed."
+      self.status = String(localized: "NFC read failed.")
+    }
+  }
+
+  private static func localizedNFCDialogMessage(
+    for message: NFCViewDisplayMessage
+  ) -> String? {
+    switch message {
+    case .requestPresentPassport:
+      return String(localized: "Hold your iPhone near your document.")
+    case .authenticatingWithPassport:
+      return String(localized: "Authenticating with document…")
+    case .readingDataGroupProgress:
+      return String(localized: "Reading data groups…")
+    case .activeAuthentication:
+      return String(localized: "Authenticating data…")
+    case .successfulRead:
+      return String(localized: "Document read complete.")
+    case .error:
+      // Let MRTDReader format error messages — they include
+      // already-localized OS errors and detailed diagnostic copy that
+      // would be brittle to mirror manually.
+      return nil
     }
   }
 
@@ -223,19 +255,19 @@ final class DocumentNFCReader: NSObject, ObservableObject {
       switch message {
       case .requestPresentPassport:
         self.progress = 0
-        self.status = "Hold your iPhone near your document."
+        self.status = String(localized: "Hold your iPhone near your document.")
       case .authenticatingWithPassport:
         self.progress = 2
-        self.status = "Authenticating with document…"
+        self.status = String(localized: "Authenticating with document…")
       case .readingDataGroupProgress:
         self.progress = 3
-        self.status = "Reading data groups…"
+        self.status = String(localized: "Reading data groups…")
       case .activeAuthentication:
         self.progress = 3
-        self.status = "Authenticating data…"
+        self.status = String(localized: "Authenticating data…")
       case .successfulRead:
         self.progress = 4
-        self.status = "Document read complete."
+        self.status = String(localized: "Document read complete.")
       case .error(let error):
         self.status = error.localizedDescription
       }

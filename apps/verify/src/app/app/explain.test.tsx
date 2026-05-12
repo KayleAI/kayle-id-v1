@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
+import { VERIFY_HANDOFF_COPY } from "@kayle-id/translations/verify-handoff-copy";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";

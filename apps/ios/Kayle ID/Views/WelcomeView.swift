@@ -9,14 +9,22 @@ struct WelcomeView: View {
       StepHero(
         variant: .brand,
         visual: .logo,
-        title: "Kayle ID",
-        subtitle: "Let’s verify your identity in a few quick steps."
+        title: String(localized: "Kayle ID"),
+        subtitle: String(localized: "Let’s verify your identity in a few quick steps.")
       )
     } content: {
       EmptyView()
     } footer: {
-      ActionButton(style: .primary, title: "Get Started", action: onGetStarted)
-      ActionButton(style: .secondary, title: "About", action: onAbout)
+      ActionButton(
+        style: .primary,
+        title: String(localized: "Get Started"),
+        action: onGetStarted
+      )
+      ActionButton(
+        style: .secondary,
+        title: String(localized: "About"),
+        action: onAbout
+      )
     }
   }
 }

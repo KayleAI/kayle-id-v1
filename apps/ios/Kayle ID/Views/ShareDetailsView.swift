@@ -28,25 +28,35 @@ struct ShareDetailsView: View {
     } content: {
       LazyVStack(alignment: .leading, spacing: 20) {
         shareFieldSection(
-          title: "Security Details",
-          description: "These identifiers are always included to protect services from abuse.",
+          title: String(localized: "Security Details"),
+          description: String(
+            localized:
+              "These identifiers are always included to protect services from abuse."
+          ),
           fields: kayleFields
         )
 
         shareFieldSection(
-          title: "Required Details",
-          description: "These details are required and will be shared if you continue.",
+          title: String(localized: "Required Details"),
+          description: String(
+            localized:
+              "These details are required and will be shared if you continue."
+          ),
           fields: requiredFields
         )
 
         shareFieldSection(
-          title: "Optional Details",
-          description: "You can optionally choose to share these details.",
+          title: String(localized: "Optional Details"),
+          description: String(
+            localized: "You can optionally choose to share these details."
+          ),
           fields: optionalFields
         )
 
         if session.isSubmittingShareSelection {
-          LoadingStatusRow(message: "Submitting your selection…")
+          LoadingStatusRow(
+            message: String(localized: "Submitting your selection…")
+          )
         }
 
         if let errorMessage = session.shareSelectionErrorMessage {
@@ -59,7 +69,7 @@ struct ShareDetailsView: View {
       if !optionalFields.isEmpty && session.canSelectAllAvailableShareFields() {
         ActionButton(
           style: .secondary,
-          title: "Share all details",
+          title: String(localized: "Share all details"),
           isDisabled: session.isSubmittingShareSelection
         ) {
           isShareAllConfirmationPresented = true
@@ -68,15 +78,19 @@ struct ShareDetailsView: View {
 
       ActionButton(
         style: .primary,
-        title: "Continue",
+        title: String(localized: "Continue"),
         isDisabled: !session.canSubmitShareSelection(),
         isLoading: session.isSubmittingShareSelection,
-        loadingTitle: "Submitting..."
+        loadingTitle: String(localized: "Submitting...")
       ) {
         onSubmit()
       }
 
-      ActionButton(style: .secondary, title: "Cancel", action: onCancel)
+      ActionButton(
+        style: .secondary,
+        title: String(localized: "Cancel"),
+        action: onCancel
+      )
     }
     .confirmationDialog(
       "Share all details?",
@@ -102,9 +116,16 @@ struct ShareDetailsView: View {
   }
 
   private var shareAllConfirmationMessage: String {
-    let detailLabel = unselectedOptionalFieldCount == 1 ? "optional detail" : "optional details"
-    return
-      "This will also select \(unselectedOptionalFieldCount) \(detailLabel). Required and security details are already included."
+    if unselectedOptionalFieldCount == 1 {
+      return String(
+        localized:
+          "This will also select 1 optional detail. Required and security details are already included."
+      )
+    }
+    return String(
+      localized:
+        "This will also select \(unselectedOptionalFieldCount) optional details. Required and security details are already included."
+    )
   }
 
   private func shareFieldRow(_ field: VerifyShareRequestField) -> some View {

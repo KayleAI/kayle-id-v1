@@ -1,9 +1,11 @@
+import { interpolate } from "@kayle-id/translations/i18n";
 import { Button } from "@kayleai/ui/button";
 import { Checkbox } from "@kayleai/ui/checkbox";
 import { Label } from "@kayleai/ui/label";
 import { Logo } from "@kayleai/ui/logo";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { useVerificationStore } from "../../stores/session";
 import { type Organization, OrganizationName } from "./organization-name";
 
@@ -26,6 +28,9 @@ export function SessionConsent({
 	const [consentChecked, setConsentChecked] = useState(false);
 	const goToHandoff = useVerificationStore((state) => state.goToHandoff);
 	const goToExplain = useVerificationStore((state) => state.goToExplain);
+	const copy = useVerifyHandoffCopy();
+	const consentCopy = copy.screens.consent;
+	const ageOnlyCopy = copy.screens.explain.ageOnly;
 
 	const handleStartVerification = () => {
 		if (consentChecked) {
@@ -34,40 +39,48 @@ export function SessionConsent({
 	};
 
 	const ageLabel =
-		ageThreshold !== null ? `over ${ageThreshold}` : "old enough";
+		ageThreshold !== null
+			? interpolate(ageOnlyCopy.ageLabelWithThreshold, {
+					threshold: ageThreshold,
+				})
+			: ageOnlyCopy.ageLabelGeneric;
 
-	const heading = "Your consent is required";
+	const heading = consentCopy.heading;
 	const subheading = isAgeOnly
-		? "To prove your age, you must agree to the following:"
-		: "To continue, you must agree to the following:";
+		? consentCopy.subheadingAgeOnly
+		: consentCopy.subheadingFull;
+
+	const shareAgeOnlyMiddle = interpolate(consentCopy.bulletShareAgeOnlyMiddle, {
+		ageLabel,
+	});
 
 	const bullets: ReactNode[] = isAgeOnly
 		? [
-				<>I allow Kayle ID to read my document to check my age</>,
+				consentCopy.bulletReadDocAgeOnly,
+				consentCopy.bulletSelfie,
 				<>
-					I allow Kayle ID to capture a selfie to confirm I am the document
-					holder
-				</>,
-				<>
-					I allow Kayle ID to share <span className="font-medium">only</span>{" "}
-					whether I am {ageLabel} with{" "}
-					<OrganizationName isAgeOnly organization={organization} /> — no other
-					details
+					{consentCopy.bulletShareAgeOnlyPrefix}
+					<span className="font-medium">
+						{consentCopy.bulletShareAgeOnlyEmphasis}
+					</span>
+					{shareAgeOnlyMiddle}
+					<OrganizationName isAgeOnly organization={organization} />
+					{consentCopy.bulletShareAgeOnlySuffix}
 				</>,
 			]
 		: [
-				<>I allow Kayle ID to read data from my document</>,
+				consentCopy.bulletReadDocFull,
+				consentCopy.bulletSelfie,
 				<>
-					I allow Kayle ID to capture a selfie to confirm I am the document
-					holder
-				</>,
-				<>
-					I allow Kayle ID to share the verification result and details I choose
-					to share with <OrganizationName organization={organization} />
+					{consentCopy.bulletShareFullPrefix}
+					<OrganizationName organization={organization} />
+					{consentCopy.bulletShareFullSuffix}
 				</>,
 			];
 
-	const startLabel = isAgeOnly ? "Confirm my age" : "Start verification";
+	const startLabel = isAgeOnly
+		? consentCopy.startButtonAgeOnly
+		: consentCopy.startButtonFull;
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
@@ -106,7 +119,7 @@ export function SessionConsent({
 								className="block font-normal text-muted-foreground! text-sm leading-normal"
 								htmlFor="consent"
 							>
-								I agree to the{" "}
+								{consentCopy.agreementPrefix}
 								<Button
 									className="inline-block h-fit! p-0 text-foreground text-sm!"
 									nativeButton={false}
@@ -116,14 +129,14 @@ export function SessionConsent({
 											rel="noopener noreferrer"
 											target="_blank"
 										>
-											Terms of Service
+											{consentCopy.termsOfServiceLink}
 										</a>
 									}
 									variant="link"
 								>
-									Terms of Service
-								</Button>{" "}
-								and{" "}
+									{consentCopy.termsOfServiceLink}
+								</Button>
+								{consentCopy.agreementMiddle}
 								<Button
 									className="inline-block h-fit! p-0 text-foreground text-sm!"
 									nativeButton={false}
@@ -133,14 +146,14 @@ export function SessionConsent({
 											rel="noopener noreferrer"
 											target="_blank"
 										>
-											Privacy Notice
+											{consentCopy.privacyNoticeLink}
 										</a>
 									}
 									variant="link"
 								>
-									Privacy Notice
-								</Button>{" "}
-								and consent to identity verification.
+									{consentCopy.privacyNoticeLink}
+								</Button>
+								{consentCopy.agreementSuffix}
 							</Label>
 						</div>
 					</div>
@@ -156,7 +169,7 @@ export function SessionConsent({
 						{startLabel}
 					</Button>
 					<Button onClick={goToExplain} type="button" variant="outline">
-						Back
+						{consentCopy.backButton}
 					</Button>
 				</div>
 			</div>

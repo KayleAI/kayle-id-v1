@@ -38,10 +38,7 @@ struct SelfieCaptureView: View {
   var body: some View {
     ZStack {
       if PreviewSupport.isRunningInXcodePreview {
-        PreviewCameraSurfaceView(
-          title: "Selfie camera preview",
-          subtitle: "Canvas shows a placeholder instead of the front camera."
-        )
+        Color.black.ignoresSafeArea()
       } else {
         SelfieCameraView(
           faceInBox: $faceInBox,
@@ -70,7 +67,9 @@ struct SelfieCaptureView: View {
       )
 
       if isProcessing {
-        BlockingLoadingOverlay(message: "Uploading selfies...")
+        BlockingLoadingOverlay(
+          message: String(localized: "Uploading selfies...")
+        )
       }
     }
     .onChange(of: capturedImages) { images in
@@ -83,23 +82,27 @@ struct SelfieCaptureView: View {
 
   private var displayText: String {
     if isProcessing {
-      return "Uploading selfies..."
+      return String(localized: "Uploading selfies...")
     } else if isCapturing {
-      return "Hold still..."
+      return String(localized: "Hold still...")
     } else if faceInBox {
-      return "Perfect! Stay still to capture"
+      return String(localized: "Perfect! Stay still to capture")
     } else {
-      return "Position your face in the frame"
+      return String(localized: "Position your face in the frame")
     }
   }
 
   private var subtitleText: String {
     if isProcessing {
-      return "Please wait while we securely upload your photos"
+      return String(
+        localized: "Please wait while we securely upload your photos"
+      )
     } else if isCapturing {
-      return "Capturing \(captureProgress + 1) of \(SelfieCaptureConstants.captureCount)"
+      let current = captureProgress + 1
+      let total = SelfieCaptureConstants.captureCount
+      return String(localized: "Capturing \(current) of \(total)")
     } else {
-      return "Make sure your face is well-lit and clearly visible"
+      return String(localized: "Make sure your face is well-lit and clearly visible")
     }
   }
 }

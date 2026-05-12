@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
+import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 
 export function resolveVerifyErrorMessage(
 	code: keyof typeof ERROR_MESSAGES,

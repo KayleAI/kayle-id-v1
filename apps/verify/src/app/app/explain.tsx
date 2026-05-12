@@ -1,4 +1,4 @@
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
+import { interpolate } from "@kayle-id/translations/i18n";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -14,6 +14,7 @@ import { Logo } from "@kayleai/ui/logo";
 import { useLoaderData } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { requestCancelVerifySession } from "@/config/handoff";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { readCancelTokenFromLocation } from "@/utils/cancel";
 import { useVerificationStore } from "../../stores/session";
 import { useSession } from "../session-provider";
@@ -36,6 +37,7 @@ export function SessionExplain({
 	ageThreshold = null,
 }: SessionExplainProps) {
 	const goToConsent = useVerificationStore((state) => state.goToConsent);
+	const copy = useVerifyHandoffCopy();
 
 	if (isAgeOnly) {
 		return (
@@ -47,6 +49,8 @@ export function SessionExplain({
 		);
 	}
 
+	const explainCopy = copy.screens.explain;
+
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
 			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
@@ -56,38 +60,36 @@ export function SessionExplain({
 						<Logo className="" title="Kayle ID" />
 					</div>
 					<h1 className="mb-4 font-light text-3xl text-foreground tracking-tight">
-						Verify your identity with Kayle ID
+						{explainCopy.headline}
 					</h1>
-					<p className="text-lg text-muted-foreground">
-						Kayle ID lets you verify your identity using your document's chip
-						and a selfie.
-					</p>
+					<p className="text-lg text-muted-foreground">{explainCopy.intro}</p>
 				</div>
 
 				{/* Body */}
 				<div className="my-8 flex-1 space-y-6">
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
-							This process:
+							{explainCopy.processTitle}
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Confirms that your document is genuine</li>
-							<li>Confirms that you are the document holder</li>
+							<li>{explainCopy.processBulletAuthentic}</li>
+							<li>{explainCopy.processBulletHolder}</li>
 							<li>
-								Shares only the verification result and details you choose to
-								share with <OrganizationName organization={organization} />
+								{explainCopy.processBulletSharingPrefix}
+								<OrganizationName organization={organization} />
+								{explainCopy.processBulletSharingSuffix}
 							</li>
 						</ul>
 					</div>
 
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
-							Kayle ID:
+							{explainCopy.kayleIdTitle}
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Does not store your document or selfie</li>
-							<li>Does not create an account for you</li>
-							<li>Processes data only for this verification session</li>
+							<li>{explainCopy.kayleIdBulletNoStorage}</li>
+							<li>{explainCopy.kayleIdBulletNoAccount}</li>
+							<li>{explainCopy.kayleIdBulletSessionScoped}</li>
 						</ul>
 					</div>
 				</div>
@@ -95,7 +97,7 @@ export function SessionExplain({
 				{/* Action Buttons */}
 				<div className="flex flex-col space-y-4">
 					<Button onClick={goToConsent} type="button">
-						Continue
+						{explainCopy.continueButton}
 					</Button>
 					<CancelExplainAction />
 				</div>
@@ -113,12 +115,26 @@ function AgeOnlyExplain({
 	goToConsent: () => void;
 	organization: Organization;
 }) {
+	const copy = useVerifyHandoffCopy();
+	const explainCopy = copy.screens.explain;
+	const ageOnlyCopy = explainCopy.ageOnly;
+
 	const ageLabel =
-		ageThreshold !== null ? `over ${ageThreshold}` : "old enough";
+		ageThreshold !== null
+			? interpolate(ageOnlyCopy.ageLabelWithThreshold, {
+					threshold: ageThreshold,
+				})
+			: ageOnlyCopy.ageLabelGeneric;
 	const headline =
 		ageThreshold !== null
-			? `Confirm you're over ${ageThreshold}`
-			: "Confirm your age";
+			? interpolate(ageOnlyCopy.headlineWithThreshold, {
+					threshold: ageThreshold,
+				})
+			: ageOnlyCopy.headlineGeneric;
+	const introSuffix = interpolate(ageOnlyCopy.introSuffix, { ageLabel });
+	const yesNoQuestion = interpolate(ageOnlyCopy.yesNoBulletQuestion, {
+		ageLabel,
+	});
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
@@ -131,47 +147,43 @@ function AgeOnlyExplain({
 						{headline}
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						<OrganizationName isAgeOnly organization={organization} /> only
-						needs to know whether you're {ageLabel} — not your name, date of
-						birth, or any other personal details. Kayle ID lets you prove that
-						privately, using your document and a selfie.
+						{ageOnlyCopy.introPrefix}
+						<OrganizationName isAgeOnly organization={organization} />
+						{introSuffix}
 					</p>
 				</div>
 
 				<div className="my-8 flex-1 space-y-6">
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
-							What gets shared:
+							{ageOnlyCopy.whatGetsSharedTitle}
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
 							<li>
-								A single yes-or-no answer:{" "}
+								{ageOnlyCopy.yesNoBulletPrefix}
 								<span className="font-medium text-foreground">
-									are you {ageLabel}?
+									{yesNoQuestion}
 								</span>
 							</li>
-							<li>
-								Nothing else — not your name, date of birth, document number,
-								nationality, or photo
-							</li>
+							<li>{ageOnlyCopy.nothingElseBullet}</li>
 						</ul>
 					</div>
 
 					<div>
 						<h3 className="mb-2 font-medium text-base text-foreground">
-							Kayle ID:
+							{explainCopy.kayleIdTitle}
 						</h3>
 						<ul className="list-disc space-y-1 pl-5 text-base text-muted-foreground">
-							<li>Does not store your document or selfie</li>
-							<li>Does not create an account for you</li>
-							<li>Processes data only for this verification session</li>
+							<li>{explainCopy.kayleIdBulletNoStorage}</li>
+							<li>{explainCopy.kayleIdBulletNoAccount}</li>
+							<li>{explainCopy.kayleIdBulletSessionScoped}</li>
 						</ul>
 					</div>
 				</div>
 
 				<div className="flex flex-col space-y-4">
 					<Button onClick={goToConsent} type="button">
-						Continue
+						{explainCopy.continueButton}
 					</Button>
 					<CancelExplainAction />
 				</div>
@@ -181,6 +193,7 @@ function AgeOnlyExplain({
 }
 
 function CancelExplainAction() {
+	const copy = useVerifyHandoffCopy();
 	const { sessionId } = useLoaderData({ from: "/$" });
 	const { markSessionCancelled } = useSession();
 	const goToHandoff = useVerificationStore((state) => state.goToHandoff);
@@ -192,7 +205,7 @@ function CancelExplainAction() {
 		const cancelToken = readCancelTokenFromLocation();
 		if (!cancelToken) {
 			setIsDialogOpen(false);
-			setCancelError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setCancelError(copy.handoff.cancelError);
 			return;
 		}
 
@@ -205,11 +218,11 @@ function CancelExplainAction() {
 			goToHandoff();
 		} catch {
 			setIsDialogOpen(false);
-			setCancelError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setCancelError(copy.handoff.cancelError);
 		} finally {
 			setIsCancelInFlight(false);
 		}
-	}, [goToHandoff, markSessionCancelled, sessionId]);
+	}, [copy.handoff.cancelError, goToHandoff, markSessionCancelled, sessionId]);
 
 	return (
 		<>
@@ -218,7 +231,7 @@ function CancelExplainAction() {
 				type="button"
 				variant="outline"
 			>
-				{VERIFY_HANDOFF_COPY.actions.cancel}
+				{copy.actions.cancel}
 			</Button>
 			{cancelError ? (
 				<p className="text-center text-destructive text-sm" role="alert">
@@ -236,16 +249,14 @@ function CancelExplainAction() {
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>
-							{VERIFY_HANDOFF_COPY.cancelDialog.title}
-						</AlertDialogTitle>
+						<AlertDialogTitle>{copy.cancelDialog.title}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{VERIFY_HANDOFF_COPY.cancelDialog.description}
+							{copy.cancelDialog.description}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isCancelInFlight}>
-							{VERIFY_HANDOFF_COPY.cancelDialog.dismiss}
+							{copy.cancelDialog.dismiss}
 						</AlertDialogCancel>
 						<AlertDialogAction
 							disabled={isCancelInFlight}
@@ -256,7 +267,7 @@ function CancelExplainAction() {
 							}}
 							variant="destructive"
 						>
-							{VERIFY_HANDOFF_COPY.cancelDialog.confirm}
+							{copy.cancelDialog.confirm}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

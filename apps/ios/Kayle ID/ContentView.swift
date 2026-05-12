@@ -173,7 +173,7 @@ struct ContentView: View {
         }
 
         if session.isReconnecting {
-          BlockingLoadingOverlay(message: "Reconnecting…")
+          BlockingLoadingOverlay(message: String(localized: "Reconnecting…"))
             .transition(.opacity)
         }
       }
@@ -408,8 +408,8 @@ struct ContentView: View {
       return AnyView(
         CompletionView(
         isSuccess: false,
-        message: session.errorMessage ?? "An unexpected error occurred.",
-        primaryButtonTitle: "Start Again",
+        message: session.errorMessage ?? String(localized: "An unexpected error occurred."),
+        primaryButtonTitle: String(localized: "Start Again"),
         onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
         onSecondaryAction: nil
@@ -587,7 +587,7 @@ struct ContentView: View {
       }
 
       if isResolvingQRCode {
-        BlockingLoadingOverlay(message: "Checking verification…")
+        BlockingLoadingOverlay(message: String(localized: "Checking verification…"))
       }
     }
   }
@@ -629,8 +629,8 @@ struct ContentView: View {
           aspectRatio: 0.75,
           cornerRadius: 12
         ),
-        title: "Scan your document",
-        subtitle: "Align the printed code within the box.",
+        title: String(localized: "Scan your document"),
+        subtitle: String(localized: "Align the printed code within the box."),
         borderColor: isMRZLocked ? .green : .white,
         borderWidth: 6,
         overlayOpacity: 0.55,
@@ -667,11 +667,11 @@ struct ContentView: View {
 
   private var completionMessage: String {
     guard let verdict = session.verdict else {
-      return "Your identity verification data has been securely transmitted. You can now close this app and return to your browser."
+      return String(localized: "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.")
     }
 
     if isAcceptedVerdict(verdict) {
-      return "Your identity verification data has been securely transmitted. You can now close this app and return to your browser."
+      return String(localized: "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.")
     }
 
     if
@@ -688,14 +688,14 @@ struct ContentView: View {
 
   private var completionPrimaryButtonTitle: String {
     guard let verdict = session.verdict else {
-      return "Done"
+      return String(localized: "Done")
     }
 
     if isRejectedVerdict(verdict), verdict.retryAllowed {
-      return "Retry Verification"
+      return String(localized: "Retry Verification")
     }
 
-    return "Done"
+    return String(localized: "Done")
   }
 
   private var completionSecondaryButtonTitle: String? {
@@ -935,8 +935,8 @@ struct ContentView: View {
         step: .error,
         completion: CompletionRenderSnapshot(
           isSuccess: false,
-          message: session.errorMessage ?? "An unexpected error occurred.",
-          primaryButtonTitle: "Start Again",
+          message: session.errorMessage ?? String(localized: "An unexpected error occurred."),
+          primaryButtonTitle: String(localized: "Start Again"),
           secondaryButtonTitle: nil
         )
       )

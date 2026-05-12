@@ -33,7 +33,8 @@ struct NFCReadingView: View {
             .padding(.top, 16)
             .padding(.horizontal, 32)
 
-          Text("\(Int((uploadProgress * 100).rounded()))% uploaded")
+          let percentText = "\(Int((uploadProgress * 100).rounded()))%"
+          Text(String(localized: "\(percentText) uploaded"))
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -42,7 +43,9 @@ struct NFCReadingView: View {
       if !isUploading {
         ActionButton(
           style: .primary,
-          title: nfcReader.errorMessage == nil ? "Start Scanning" : "Try Again",
+          title: nfcReader.errorMessage == nil
+            ? String(localized: "Start Scanning")
+            : String(localized: "Try Again"),
           action: onStart
         )
       }
@@ -56,21 +59,29 @@ struct NFCReadingView: View {
 
   private var primaryStatusText: String {
     if isUploading {
-      return "Uploading your \(documentName) securely"
+      return String(localized: "Uploading your \(documentName) securely")
     }
 
-    return "Keep your iPhone close to your \(documentName)."
+    return String(localized: "Keep your iPhone close to your \(documentName).")
   }
 
   private var secondaryStatusText: String {
     if isUploading {
-      return "Keep this screen open while we finish the secure transfer."
+      return String(
+        localized: "Keep this screen open while we finish the secure transfer."
+      )
     }
 
     if hasStarted {
-      return "Follow the NFC prompt and hold the top of your iPhone against the chip."
+      return String(
+        localized:
+          "Follow the NFC prompt and hold the top of your iPhone against the chip."
+      )
     }
 
-    return "When you're ready, tap Start Scanning and follow the NFC prompt."
+    return String(
+      localized:
+        "When you're ready, tap Start Scanning and follow the NFC prompt."
+    )
   }
 }

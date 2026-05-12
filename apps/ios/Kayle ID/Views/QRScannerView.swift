@@ -12,10 +12,7 @@ struct QRScannerView: View {
   var body: some View {
     ZStack {
       if PreviewSupport.isRunningInXcodePreview {
-        PreviewCameraSurfaceView(
-          title: "QR camera preview",
-          subtitle: "Camera input is not available in Xcode Canvas."
-        )
+        Color.black.ignoresSafeArea()
       } else {
         QRScannerViewController(
           onScan: { code in
@@ -30,8 +27,10 @@ struct QRScannerView: View {
 
       ScannerOverlayView(
         cutout: .centeredSquare(size: 250, cornerRadius: 24),
-        title: "Scan QR Code",
-        subtitle: "Point your camera at the QR code on the screen",
+        title: String(localized: "Scan QR Code"),
+        subtitle: String(
+          localized: "Point your camera at the QR code on the screen"
+        ),
         instructionHorizontalPadding: 32,
         instructionBottomPadding: CameraDrawerMetrics.instructionBottomPadding
       )

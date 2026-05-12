@@ -1,3 +1,8 @@
+/**
+ * English source of truth for shared error-messages. New languages add a
+ * matching dictionary under `../<locale>/error-messages.ts` and register it
+ * in `../error-messages.ts`.
+ */
 export const ERROR_MESSAGES = {
   UNKNOWN: {
     title: "Something went wrong",

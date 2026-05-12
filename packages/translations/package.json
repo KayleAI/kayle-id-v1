@@ -1,0 +1,19 @@
+{
+  "name": "@kayle-id/translations",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test ./src",
+    "gen:ios": "bun run scripts/generate-ios-catalog.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  }
+}

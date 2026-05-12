@@ -18,7 +18,9 @@ struct CompletionView: View {
           name: isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill",
           size: 80
         ),
-        title: isSuccess ? "Verification Complete" : "Verification Failed",
+        title: isSuccess
+          ? String(localized: "Verification Complete")
+          : String(localized: "Verification Failed"),
         subtitle: message,
         visualColor: isSuccess ? .green : .red
       )

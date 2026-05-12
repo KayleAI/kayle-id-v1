@@ -230,6 +230,10 @@ jobs:
         working-directory: infra/face-matcher
         run: bun run test
 
+      - name: Test translations
+        working-directory: packages/translations
+        run: bun run test
+
       - name: Test platform
         working-directory: apps/platform
         run: bun run test

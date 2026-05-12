@@ -5,11 +5,16 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { negotiateInitialLocale } from "@/i18n/negotiate";
+import { I18nProvider } from "@/i18n/provider";
 import appCss from "@/routes/styles.css?url";
 
 const colorSchemeScript = `(function(){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})();`;
 
 export const Route = createRootRoute({
+	beforeLoad: () => ({
+		initialLocale: negotiateInitialLocale(),
+	}),
 	head: () => ({
 		meta: [
 			{
@@ -55,6 +60,8 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
+	const { initialLocale } = Route.useRouteContext();
+
 	useEffect(() => {
 		const media = window.matchMedia("(prefers-color-scheme: dark)");
 		const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
@@ -66,7 +73,7 @@ function RootLayout() {
 	}, []);
 
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang={initialLocale} suppressHydrationWarning>
 			<head>
 				<script
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: inline script must run before paint to avoid a light-mode flash for dark-mode users
@@ -75,7 +82,9 @@ function RootLayout() {
 				<HeadContent />
 			</head>
 			<body className="isolate font-sans antialiased">
-				<Outlet />
+				<I18nProvider initialLocale={initialLocale}>
+					<Outlet />
+				</I18nProvider>
 				<Scripts />
 			</body>
 		</html>

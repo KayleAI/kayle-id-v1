@@ -6,6 +6,17 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Kayle ID</string>
+	<!--
+		Localizations the app ships with. The matching strings live in
+		`packages/translations/src/ios-copy.ts` and Xcode bundles a
+		generated `Localizable.xcstrings`. iOS picks the best match against
+		the user's preferred languages at launch.
+	-->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>fr</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

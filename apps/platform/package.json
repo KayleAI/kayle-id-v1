@@ -15,6 +15,7 @@
 		"@cloudflare/vite-plugin": "1.32.3",
 		"@kayle-id/auth": "*",
 		"@kayle-id/config": "*",
+		"@kayle-id/translations": "*",
 		"@kayle-id/ui": "*",
 		"@kayleai/ui": "0.1.1",
 		"@mantine/hooks": "8.3.10",

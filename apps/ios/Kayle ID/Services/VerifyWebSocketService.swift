@@ -154,7 +154,10 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
       throw VerifyWebSocketError.unexpectedServerResponse(
         describeUnexpectedServerMessage(
           response,
-          fallback: "Unexpected verification phase response from the server."
+          fallback: String(
+            localized:
+              "Unexpected verification phase response from the server."
+          )
         )
       )
     }

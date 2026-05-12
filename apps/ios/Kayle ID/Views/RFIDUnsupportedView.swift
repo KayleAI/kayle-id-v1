@@ -20,8 +20,11 @@ struct RFIDUnsupportedView: View {
       StepHero(
         variant: .step,
         visual: .systemImage(name: "wave.3.right.slash", size: 72),
-        title: "This \(documentName) doesn't appear to support NFC",
-        subtitle: "Kayle ID needs \(documentNameWithArticle) with the RFID symbol on \(rfidSymbolLocationDescription) to continue on iPhone."
+        title: String(localized: "This \(documentName) doesn't appear to support NFC"),
+        subtitle: String(
+          localized:
+            "Kayle ID needs \(documentNameWithArticle) with the RFID symbol on \(rfidSymbolLocationDescription) to continue on iPhone."
+        )
       )
     } content: {
       VStack(spacing: 10) {
@@ -40,11 +43,15 @@ struct RFIDUnsupportedView: View {
     } footer: {
       ActionButton(
         style: .primary,
-        title: "Try Another Document",
+        title: String(localized: "Try Another Document"),
         action: onTryAnotherDocument
       )
 
-      ActionButton(style: .secondary, title: "Cancel", action: onReturnHome)
+      ActionButton(
+        style: .secondary,
+        title: String(localized: "Cancel"),
+        action: onReturnHome
+      )
     }
   }
 }

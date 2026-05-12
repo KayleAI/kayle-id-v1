@@ -1,4 +1,3 @@
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -14,6 +13,7 @@ import { Logo } from "@kayleai/ui/logo";
 import { useLoaderData } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { requestCancelVerifySession } from "@/config/handoff";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { readCancelTokenFromLocation } from "@/utils/cancel";
 import { useVerificationStore } from "../../stores/session";
 import { useSession } from "../session-provider";
@@ -181,6 +181,7 @@ function AgeOnlyExplain({
 }
 
 function CancelExplainAction() {
+	const copy = useVerifyHandoffCopy();
 	const { sessionId } = useLoaderData({ from: "/$" });
 	const { markSessionCancelled } = useSession();
 	const goToHandoff = useVerificationStore((state) => state.goToHandoff);
@@ -192,7 +193,7 @@ function CancelExplainAction() {
 		const cancelToken = readCancelTokenFromLocation();
 		if (!cancelToken) {
 			setIsDialogOpen(false);
-			setCancelError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setCancelError(copy.handoff.cancelError);
 			return;
 		}
 
@@ -205,11 +206,11 @@ function CancelExplainAction() {
 			goToHandoff();
 		} catch {
 			setIsDialogOpen(false);
-			setCancelError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setCancelError(copy.handoff.cancelError);
 		} finally {
 			setIsCancelInFlight(false);
 		}
-	}, [goToHandoff, markSessionCancelled, sessionId]);
+	}, [copy.handoff.cancelError, goToHandoff, markSessionCancelled, sessionId]);
 
 	return (
 		<>
@@ -218,7 +219,7 @@ function CancelExplainAction() {
 				type="button"
 				variant="outline"
 			>
-				{VERIFY_HANDOFF_COPY.actions.cancel}
+				{copy.actions.cancel}
 			</Button>
 			{cancelError ? (
 				<p className="text-center text-destructive text-sm" role="alert">
@@ -236,16 +237,14 @@ function CancelExplainAction() {
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>
-							{VERIFY_HANDOFF_COPY.cancelDialog.title}
-						</AlertDialogTitle>
+						<AlertDialogTitle>{copy.cancelDialog.title}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{VERIFY_HANDOFF_COPY.cancelDialog.description}
+							{copy.cancelDialog.description}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isCancelInFlight}>
-							{VERIFY_HANDOFF_COPY.cancelDialog.dismiss}
+							{copy.cancelDialog.dismiss}
 						</AlertDialogCancel>
 						<AlertDialogAction
 							disabled={isCancelInFlight}
@@ -256,7 +255,7 @@ function CancelExplainAction() {
 							}}
 							variant="destructive"
 						>
-							{VERIFY_HANDOFF_COPY.cancelDialog.confirm}
+							{copy.cancelDialog.confirm}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

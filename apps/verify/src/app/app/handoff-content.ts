@@ -1,4 +1,4 @@
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
+import type { VerifyHandoffCopy } from "@kayle-id/config/verify-handoff-copy";
 import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,
@@ -43,18 +43,19 @@ export function isHandoffPayloadExpired(
 
 export function buildTerminalContent(
 	sessionStatus: VerifySessionStatusPayload,
+	copy: VerifyHandoffCopy,
 ): TerminalContent {
 	if (sessionStatus.status === "cancelled") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.cancelled,
+			...copy.screens.terminal.cancelled,
 		};
 	}
 
 	if (sessionStatus.status === "expired") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.expired,
+			...copy.screens.terminal.expired,
 		};
 	}
 
@@ -63,89 +64,98 @@ export function buildTerminalContent(
 	if (failureCode === "document_authenticity_failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.documentAuthenticityFailed,
+			...copy.screens.terminal.documentAuthenticityFailed,
 		};
 	}
 
 	if (failureCode === "document_active_authentication_failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal
-				.documentActiveAuthenticationFailed,
+			...copy.screens.terminal.documentActiveAuthenticationFailed,
 		};
 	}
 
 	if (failureCode === "document_chip_authentication_failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.documentChipAuthenticationFailed,
+			...copy.screens.terminal.documentChipAuthenticationFailed,
 		};
 	}
 
 	if (failureCode === "selfie_face_mismatch") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.selfieFaceMismatch,
+			...copy.screens.terminal.selfieFaceMismatch,
 		};
 	}
 
 	if (sessionStatus.latest_attempt?.status === "failed") {
 		return {
 			colour: "red",
-			...VERIFY_HANDOFF_COPY.screens.terminal.failed,
+			...copy.screens.terminal.failed,
 		};
 	}
 
 	return {
 		colour: "emerald",
-		...VERIFY_HANDOFF_COPY.screens.terminal.success,
+		...copy.screens.terminal.success,
 	};
 }
 
 export function buildInitialScreenContent({
 	os,
+	copy,
 }: {
 	os: string | null;
+	copy: VerifyHandoffCopy;
 }): ScreenContent {
 	return {
 		colour: "blue",
-		headerDescription: VERIFY_HANDOFF_COPY.screens.initial.headerDescription,
-		headerTitle: VERIFY_HANDOFF_COPY.screens.initial.headerTitle,
+		headerDescription: copy.screens.initial.headerDescription,
+		headerTitle: copy.screens.initial.headerTitle,
 		messageDescription:
 			os === "ios"
-				? VERIFY_HANDOFF_COPY.screens.initial.iosMessageDescription
-				: VERIFY_HANDOFF_COPY.screens.initial.defaultMessageDescription,
-		messageTitle: VERIFY_HANDOFF_COPY.screens.initial.messageTitle,
+				? copy.screens.initial.iosMessageDescription
+				: copy.screens.initial.defaultMessageDescription,
+		messageTitle: copy.screens.initial.messageTitle,
 	};
 }
 
-export function buildConnectedScreenContent(): ScreenContent {
+export function buildConnectedScreenContent(
+	copy: VerifyHandoffCopy,
+): ScreenContent {
 	return {
 		colour: "blue",
-		...VERIFY_HANDOFF_COPY.screens.connected,
+		...copy.screens.connected,
 	};
 }
 
-export function buildRetryableFailureScreenContent(): ScreenContent {
+export function buildRetryableFailureScreenContent(
+	copy: VerifyHandoffCopy,
+): ScreenContent {
 	return {
 		colour: "red",
-		...VERIFY_HANDOFF_COPY.screens.retryableFailure,
+		...copy.screens.retryableFailure,
 	};
 }
 
-export function buildSameDeviceScreenContent(): ScreenContent {
+export function buildSameDeviceScreenContent(
+	copy: VerifyHandoffCopy,
+): ScreenContent {
 	return {
 		colour: "blue",
-		...VERIFY_HANDOFF_COPY.screens.sameDeviceOnly,
+		...copy.screens.sameDeviceOnly,
 	};
 }
 
 export function buildTerminalScreenContent({
+	copy,
 	redirectCountdownFallbackSeconds,
 	redirectCountdown,
 	redirectTargetUrl,
 	terminalContent,
 }: {
+	copy: VerifyHandoffCopy;
 	redirectCountdownFallbackSeconds: number;
 	redirectCountdown: number | null;
 	redirectTargetUrl: string | null;
@@ -154,20 +164,20 @@ export function buildTerminalScreenContent({
 	return {
 		colour: terminalContent.colour,
 		headerDescription: redirectTargetUrl
-			? VERIFY_HANDOFF_COPY.screens.terminal.redirectHeaderDescription
-			: VERIFY_HANDOFF_COPY.screens.terminal.finishedHeaderDescription,
+			? copy.screens.terminal.redirectHeaderDescription
+			: copy.screens.terminal.finishedHeaderDescription,
 		headerTitle: terminalContent.title,
 		messageDescription: redirectTargetUrl
 			? `${terminalContent.description} Redirecting in ${
 					redirectCountdown ?? redirectCountdownFallbackSeconds
 				} seconds.`
 			: `${terminalContent.description} ${
-					VERIFY_HANDOFF_COPY.screens.terminal.youCanCloseDescription
+					copy.screens.terminal.youCanCloseDescription
 				}`,
 		messageTitle:
 			terminalContent.colour === "emerald"
-				? VERIFY_HANDOFF_COPY.screens.terminal.successMessageTitle
-				: VERIFY_HANDOFF_COPY.screens.terminal.outcomeMessageTitle,
+				? copy.screens.terminal.successMessageTitle
+				: copy.screens.terminal.outcomeMessageTitle,
 	};
 }
 

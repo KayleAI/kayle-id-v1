@@ -6,6 +6,16 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Kayle ID</string>
+	<!--
+		Localizations the app ships with. New translations are added by
+		populating `Localizable.xcstrings` and appending the BCP-47 tag here
+		so iOS exposes the language picker. iOS picks the best match against
+		the user's preferred languages at launch.
+	-->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

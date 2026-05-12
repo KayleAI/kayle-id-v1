@@ -10,16 +10,26 @@ struct MRZIntroView: View {
       StepHero(
         variant: .step,
         visual: .logo,
-        title: "Let's read your ID",
-        subtitle: "Use your camera to scan the printed code on your document, then read the chip if it has one."
+        title: String(localized: "Let's read your ID"),
+        subtitle: String(
+          localized: "Use your camera to scan the printed code on your document, then read the chip if it has one."
+        )
       )
     } content: {
       EmptyView()
     } footer: {
-      ActionButton(style: .primary, title: "Continue", action: onContinue)
+      ActionButton(
+        style: .primary,
+        title: String(localized: "Continue"),
+        action: onContinue
+      )
 
       if let onCancel {
-        ActionButton(style: .secondary, title: "Cancel", action: onCancel)
+        ActionButton(
+          style: .secondary,
+          title: String(localized: "Cancel"),
+          action: onCancel
+        )
       }
     }
   }

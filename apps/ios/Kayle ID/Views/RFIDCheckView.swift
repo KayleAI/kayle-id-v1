@@ -13,7 +13,7 @@ struct RFIDCheckView: View {
       StepHero(
         variant: .step,
         visual: nil,
-        title: "Do you see this symbol?"
+        title: String(localized: "Do you see this symbol?")
       )
     } content: {
       VStack(spacing: 10) {
@@ -29,8 +29,16 @@ struct RFIDCheckView: View {
           .padding(.horizontal, 32)
       }
     } footer: {
-      ActionButton(style: .primary, title: "Yes, I see it", action: onHasRFID)
-      ActionButton(style: .secondary, title: "I don't see it", action: onNoRFID)
+      ActionButton(
+        style: .primary,
+        title: String(localized: "Yes, I see it"),
+        action: onHasRFID
+      )
+      ActionButton(
+        style: .secondary,
+        title: String(localized: "I don't see it"),
+        action: onNoRFID
+      )
     }
   }
 }

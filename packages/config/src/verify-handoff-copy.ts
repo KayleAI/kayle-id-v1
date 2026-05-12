@@ -1,3 +1,9 @@
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
+
+/**
+ * English source of truth. New languages are added by registering a
+ * dictionary with the same shape in `VERIFY_HANDOFF_COPY_BY_LOCALE` below.
+ */
 export const VERIFY_HANDOFF_COPY = {
   actions: {
     cancel: "Cancel",
@@ -105,3 +111,22 @@ export const VERIFY_HANDOFF_COPY = {
     },
   },
 } as const;
+
+export type VerifyHandoffCopy = typeof VERIFY_HANDOFF_COPY;
+
+const VERIFY_HANDOFF_COPY_BY_LOCALE: Record<Locale, VerifyHandoffCopy> = {
+  en: VERIFY_HANDOFF_COPY,
+};
+
+/**
+ * Return the verify-handoff copy dictionary for `locale`, falling back to
+ * the default (English) when a locale has not yet been translated. Callers
+ * pass the negotiated locale from `negotiateLocale` / the React i18n
+ * provider — this function does not negotiate on its own.
+ */
+export function getVerifyHandoffCopy(locale: Locale): VerifyHandoffCopy {
+  return (
+    VERIFY_HANDOFF_COPY_BY_LOCALE[locale] ??
+    VERIFY_HANDOFF_COPY_BY_LOCALE[DEFAULT_LOCALE]
+  );
+}

@@ -44,14 +44,18 @@ struct AboutSheetView: View {
       } content: {
         VStack(alignment: .leading, spacing: 12) {
           AboutLinkRow(
-            title: "Terms of Service",
-            subtitle: "Terms for using Kayle ID and its identity verification features.",
+            title: String(localized: "Terms of Service"),
+            subtitle: String(
+              localized: "Terms for using Kayle ID and its identity verification features."
+            ),
             destination: AppAbout.termsOfServiceURL
           )
 
           AboutLinkRow(
-            title: "Privacy Policy",
-            subtitle: "How Kayle ID collects, uses, and protects your information.",
+            title: String(localized: "Privacy Policy"),
+            subtitle: String(
+              localized: "How Kayle ID collects, uses, and protects your information."
+            ),
             destination: AppAbout.privacyPolicyURL
           )
         }

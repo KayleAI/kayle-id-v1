@@ -1,8 +1,8 @@
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import ArrowRotateCw from "@kayle-id/ui/icons/arrow-rotate-cw";
 import Spinner from "@kayle-id/ui/icons/spinner";
 import { Button } from "@kayleai/ui/button";
 import { QRCodeSVG } from "qrcode.react";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 
 type HandoffStateProps = {
 	handoffError: string | null;
@@ -17,25 +17,22 @@ export function HandoffState({
 	onRetry,
 	os,
 }: HandoffStateProps) {
+	const copy = useVerifyHandoffCopy();
 	return (
 		<div className="space-y-4 pt-2">
 			{os === "ios" && handoffUrl ? (
 				<Button
 					className="w-full"
 					nativeButton={false}
-					render={
-						<a href={handoffUrl}>
-							{VERIFY_HANDOFF_COPY.actions.openKayleIdApp}
-						</a>
-					}
+					render={<a href={handoffUrl}>{copy.actions.openKayleIdApp}</a>}
 				>
-					{VERIFY_HANDOFF_COPY.actions.openKayleIdApp}
+					{copy.actions.openKayleIdApp}
 				</Button>
 			) : null}
 			<div className="flex justify-center">
 				{handoffError ? (
 					<button
-						aria-label={VERIFY_HANDOFF_COPY.actions.tryAgain}
+						aria-label={copy.actions.tryAgain}
 						className="rounded-[1.5rem] bg-white p-4 ring-1 ring-black/5 transition-colors hover:bg-slate-50 active:bg-slate-100 dark:ring-white/10"
 						onClick={onRetry}
 						type="button"

@@ -1,3 +1,9 @@
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
+
+/**
+ * English source of truth. New languages are added by registering a
+ * dictionary with the same shape in `ERROR_MESSAGES_BY_LOCALE` below.
+ */
 export const ERROR_MESSAGES = {
   UNKNOWN: {
     title: "Something went wrong",
@@ -168,3 +174,23 @@ export const ERROR_MESSAGES = {
     description: "Your selfie doesn’t match your document photo. Try again.",
   },
 } as const;
+
+export type ErrorMessages = typeof ERROR_MESSAGES;
+export type ErrorMessageKey = keyof ErrorMessages;
+
+const ERROR_MESSAGES_BY_LOCALE: Record<Locale, ErrorMessages> = {
+  en: ERROR_MESSAGES,
+};
+
+/**
+ * Return the error-messages dictionary for `locale`, falling back to the
+ * default (English) when a locale has not yet been translated. End-user
+ * surfaces (apps/verify) should look up the negotiated locale via the React
+ * i18n provider; non-localized surfaces (apps/api, apps/platform) keep
+ * using the `ERROR_MESSAGES` constant directly.
+ */
+export function getErrorMessages(locale: Locale): ErrorMessages {
+  return (
+    ERROR_MESSAGES_BY_LOCALE[locale] ?? ERROR_MESSAGES_BY_LOCALE[DEFAULT_LOCALE]
+  );
+}

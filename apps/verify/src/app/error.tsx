@@ -1,5 +1,5 @@
-import { ERROR_MESSAGES } from "@kayle-id/config/error-messages";
 import InfoCard from "@kayle-id/ui/info-card";
+import { useErrorMessages } from "@/i18n/provider";
 import { useSession } from "./session-provider";
 
 export function SessionError() {
@@ -20,9 +20,10 @@ export function ErrorCard({
 		message: string;
 	};
 }) {
+	const errorMessages = useErrorMessages();
 	const errorMessage =
-		ERROR_MESSAGES[error.code as keyof typeof ERROR_MESSAGES] ??
-		ERROR_MESSAGES.UNKNOWN;
+		errorMessages[error.code as keyof typeof errorMessages] ??
+		errorMessages.UNKNOWN;
 
 	return (
 		<InfoCard

@@ -1,4 +1,3 @@
-import { VERIFY_HANDOFF_COPY } from "@kayle-id/config/verify-handoff-copy";
 import InfoCard from "@kayle-id/ui/info-card";
 import {
 	AlertDialog,
@@ -38,6 +37,7 @@ import {
 	requestVerifyRedirectPermitted,
 	requestVerifySessionStatus,
 } from "@/config/handoff";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 import {
 	buildCancelledSessionStatus,
 	readCancelTokenFromLocation,
@@ -81,6 +81,7 @@ function closeBrowserPage(): void {
 }
 
 export function Handoff() {
+	const copy = useVerifyHandoffCopy();
 	const { os } = useDevice();
 	const { sessionStatus: prefetchedSessionStatus } = useSession();
 	const { sessionId } = useLoaderData({
@@ -130,8 +131,10 @@ export function Handoff() {
 
 	const terminalContent = useMemo(
 		() =>
-			sessionStatus?.is_terminal ? buildTerminalContent(sessionStatus) : null,
-		[sessionStatus],
+			sessionStatus?.is_terminal
+				? buildTerminalContent(sessionStatus, copy)
+				: null,
+		[sessionStatus, copy],
 	);
 
 	const pollSessionStatus = useCallback(async () => {
@@ -169,10 +172,10 @@ export function Handoff() {
 				return;
 			}
 
-			setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
+			setHandoffError(copy.handoff.refreshError);
 			return null;
 		}
-	}, [pollSessionStatus, sessionId]);
+	}, [copy.handoff.refreshError, pollSessionStatus, sessionId]);
 
 	const loadHandoffState = useCallback(async () => {
 		setStatusLoading(true);
@@ -182,7 +185,7 @@ export function Handoff() {
 
 		if (!nextStatus) {
 			setHandoffPayload(null);
-			setHandoffError(VERIFY_HANDOFF_COPY.handoff.loadStatusError);
+			setHandoffError(copy.handoff.loadStatusError);
 			return;
 		}
 
@@ -192,7 +195,7 @@ export function Handoff() {
 		}
 
 		await fetchHandoffPayload();
-	}, [fetchHandoffPayload, pollSessionStatus]);
+	}, [copy.handoff.loadStatusError, fetchHandoffPayload, pollSessionStatus]);
 
 	const refreshHandoffPayload = useCallback(async () => {
 		try {
@@ -217,15 +220,15 @@ export function Handoff() {
 			}
 
 			setHandoffPayload(null);
-			setHandoffError(VERIFY_HANDOFF_COPY.handoff.refreshError);
+			setHandoffError(copy.handoff.refreshError);
 		}
-	}, [handoffPayload, pollSessionStatus, sessionId]);
+	}, [copy.handoff.refreshError, handoffPayload, pollSessionStatus, sessionId]);
 
 	const handleCancelVerification = useCallback(async () => {
 		const cancelToken = readCancelTokenFromLocation();
 		if (!cancelToken) {
 			setIsCancelDialogOpen(false);
-			setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setHandoffError(copy.handoff.cancelError);
 			return;
 		}
 
@@ -244,11 +247,11 @@ export function Handoff() {
 			);
 		} catch {
 			setIsCancelDialogOpen(false);
-			setHandoffError(VERIFY_HANDOFF_COPY.handoff.cancelError);
+			setHandoffError(copy.handoff.cancelError);
 		} finally {
 			setIsCancelInFlight(false);
 		}
-	}, [sessionId, sessionStatus]);
+	}, [copy.handoff.cancelError, sessionId, sessionStatus]);
 
 	const isTerminal = sessionStatus?.is_terminal ?? false;
 	const isAwaitingCompletion = sessionStatus?.status === "in_progress";
@@ -258,6 +261,7 @@ export function Handoff() {
 	const screenContent = useMemo(() => {
 		if (isTerminal && terminalContent) {
 			return buildTerminalScreenContent({
+				copy,
 				redirectCountdownFallbackSeconds: REDIRECT_COUNTDOWN_SECONDS,
 				redirectCountdown,
 				redirectTargetUrl,
@@ -266,19 +270,20 @@ export function Handoff() {
 		}
 
 		if (isAwaitingCompletion) {
-			return buildConnectedScreenContent();
+			return buildConnectedScreenContent(copy);
 		}
 
 		if (isRetryableFailure) {
-			return buildRetryableFailureScreenContent();
+			return buildRetryableFailureScreenContent(copy);
 		}
 
 		if (isSameDeviceOnly) {
-			return buildSameDeviceScreenContent();
+			return buildSameDeviceScreenContent(copy);
 		}
 
-		return buildInitialScreenContent({ os });
+		return buildInitialScreenContent({ os, copy });
 	}, [
+		copy,
 		isAwaitingCompletion,
 		isRetryableFailure,
 		isSameDeviceOnly,
@@ -429,7 +434,7 @@ export function Handoff() {
 	if (redirectTargetUrl) {
 		buttons = {
 			primary: {
-				label: VERIFY_HANDOFF_COPY.actions.continueNow,
+				label: copy.actions.continueNow,
 				onClick: () => {
 					redirectToUrl(redirectTargetUrl);
 				},
@@ -438,7 +443,7 @@ export function Handoff() {
 	} else if (isTerminal) {
 		buttons = {
 			primary: {
-				label: VERIFY_HANDOFF_COPY.actions.closeThisPage,
+				label: copy.actions.closeThisPage,
 				onClick: () => {
 					closeBrowserPage();
 				},
@@ -447,7 +452,7 @@ export function Handoff() {
 	} else if (shouldDismissLocally) {
 		buttons = {
 			secondary: {
-				label: VERIFY_HANDOFF_COPY.actions.closeThisPage,
+				label: copy.actions.closeThisPage,
 				onClick: () => {
 					closeBrowserPage();
 				},
@@ -456,11 +461,11 @@ export function Handoff() {
 	} else if (handoffError) {
 		buttons = {
 			primary: {
-				label: VERIFY_HANDOFF_COPY.actions.tryAgain,
+				label: copy.actions.tryAgain,
 				onClick: handleRetry,
 			},
 			secondary: {
-				label: VERIFY_HANDOFF_COPY.actions.cancel,
+				label: copy.actions.cancel,
 				onClick: () => {
 					setIsCancelDialogOpen(true);
 				},
@@ -469,7 +474,7 @@ export function Handoff() {
 	} else {
 		buttons = {
 			secondary: {
-				label: VERIFY_HANDOFF_COPY.actions.cancel,
+				label: copy.actions.cancel,
 				onClick: () => {
 					setIsCancelDialogOpen(true);
 				},
@@ -491,9 +496,8 @@ export function Handoff() {
 				message={
 					handoffError
 						? {
-								title: VERIFY_HANDOFF_COPY.handoff.errorMessageTitle,
-								description:
-									VERIFY_HANDOFF_COPY.handoff.errorMessageDescription,
+								title: copy.handoff.errorMessageTitle,
+								description: copy.handoff.errorMessageDescription,
 							}
 						: {
 								title: screenContent.messageTitle,
@@ -514,16 +518,14 @@ export function Handoff() {
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>
-							{VERIFY_HANDOFF_COPY.cancelDialog.title}
-						</AlertDialogTitle>
+						<AlertDialogTitle>{copy.cancelDialog.title}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{VERIFY_HANDOFF_COPY.cancelDialog.description}
+							{copy.cancelDialog.description}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isCancelInFlight}>
-							{VERIFY_HANDOFF_COPY.cancelDialog.dismiss}
+							{copy.cancelDialog.dismiss}
 						</AlertDialogCancel>
 						<AlertDialogAction
 							disabled={isCancelInFlight}
@@ -534,7 +536,7 @@ export function Handoff() {
 							}}
 							variant="destructive"
 						>
-							{VERIFY_HANDOFF_COPY.cancelDialog.confirm}
+							{copy.cancelDialog.confirm}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

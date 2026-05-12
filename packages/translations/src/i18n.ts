@@ -120,24 +120,3 @@ export function negotiateLocale(
   }
   return DEFAULT_LOCALE;
 }
-
-/**
- * Detect the best locale from the running JS environment. Pulls from
- * `navigator.languages` (preferred) and `navigator.language` (fallback);
- * returns `DEFAULT_LOCALE` if neither is available (e.g. during SSR).
- */
-export function detectBrowserLocale(): Locale {
-  if (typeof navigator === "undefined") {
-    return DEFAULT_LOCALE;
-  }
-
-  const languages: (string | undefined)[] = [];
-  if (Array.isArray(navigator.languages)) {
-    languages.push(...navigator.languages);
-  }
-  if (typeof navigator.language === "string") {
-    languages.push(navigator.language);
-  }
-
-  return negotiateLocale(languages);
-}

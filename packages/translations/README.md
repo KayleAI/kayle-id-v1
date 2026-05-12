@@ -35,32 +35,44 @@ not a runtime surprise.
 ## Adding a new iOS string
 
 Whenever you add a `String(localized: "…")`, a `Text("…")`, or a
-`Button("…", role:)` literal in Swift:
-
-1. Add the key (English source = key, English value) to `IOS_COPY_EN` in
-   `src/ios-copy.ts`.
-2. Run `bun --cwd packages/translations run gen:ios`.
-3. Commit both the updated `ios-copy.ts` and the regenerated
-   `Localizable.xcstrings`.
-
-CI runs `bun --cwd packages/translations run verify:ios` to catch drift —
-that command regenerates the catalog and fails the build if the file on
-disk differs from the freshly generated one.
+`Button("…", role:)` literal in Swift, add the key (English source = key,
+English value) to `IOS_COPY_EN` in `src/ios-copy.ts`. That's it — the
+catalog regenerates automatically on the next build.
 
 ## How the iOS generator works
 
+`apps/ios/Kayle ID/Localizable.xcstrings` is **generated, not committed**.
+A "Generate Localizable.xcstrings" Run Script build phase fires before
+the Sources phase on every Xcode build (local and CI) and invokes
+`apps/ios/scripts/generate-localizable-catalog.sh`, which calls
+`bun --cwd packages/translations run gen:ios`.
+
 `scripts/generate-ios-catalog.ts` reads `IOS_COPY_BY_LOCALE` and writes
-`apps/ios/Kayle ID/Localizable.xcstrings` in Apple's String Catalog v1.0
-format. Each key becomes an entry with `extractionState: "manual"` and one
-`stringUnit` per locale that has a translation. Keys are sorted alphabetically
-so the generated output is deterministic across runs.
+the catalog in Apple's String Catalog v1.0 format. Each key becomes an
+entry with `extractionState: "manual"` and one `stringUnit` per locale
+that has a translation. Keys are sorted alphabetically so the generated
+output is deterministic.
 
-Xcode reads the generated catalog at build time. `String(localized: "…")`
-and `Text("…")` look up the key in the bundled catalog at runtime, falling
-back to the literal value if the key isn't present.
+Xcode bundles the regenerated catalog at build time. `String(localized:
+"…")` and `Text("…")` look up the key in the bundled catalog at runtime,
+falling back to the literal value if the key isn't present.
 
-Do **not** edit `Localizable.xcstrings` directly — the next regeneration
-will overwrite your changes. Edit `ios-copy.ts` instead.
+### Requirements
+
+`bun` must be on `PATH` during `xcodebuild`. The build-phase script probes
+`~/.bun/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` — if your bun
+install lives elsewhere, set it up so one of those paths picks it up. CI
+installs bun via the `setup-bun` action before invoking `xcodebuild`.
+
+### After cloning
+
+The catalog is regenerated automatically the first time you build the iOS
+app in Xcode. If you'd rather not wait for the next build (e.g. to seed
+IDE indexing), run `bun --cwd packages/translations run gen:ios` from the
+repo root.
+
+Do **not** edit `Localizable.xcstrings` directly — the next build phase
+will overwrite it. Edit `ios-copy.ts` instead.
 
 ## What is NOT translated
 

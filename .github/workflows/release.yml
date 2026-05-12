@@ -493,6 +493,14 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
+      # The "Generate Localizable.xcstrings" Xcode build phase calls
+      # `bun --cwd packages/translations run gen:ios` to regenerate the
+      # iOS string catalog from the TS source-of-truth on every build.
+      # The catalog itself is gitignored, so bun must be on PATH before
+      # xcodebuild runs.
+      - name: Set up Bun workspace
+        uses: ./.github/actions/setup-bun
+
       - name: Prepare capnproto-swift dependency
         env:
           CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift

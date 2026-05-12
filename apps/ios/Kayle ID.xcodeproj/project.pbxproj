@@ -55,6 +55,30 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		B9A0C0A0A0A0A0A0A0A0F002 /* Generate Localizable.xcstrings */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../packages/translations/src/ios-copy.ts",
+				"$(SRCROOT)/../../packages/translations/src/i18n.ts",
+				"$(SRCROOT)/../../packages/translations/scripts/generate-ios-catalog.ts",
+				"$(SRCROOT)/scripts/generate-localizable-catalog.sh",
+			);
+			name = "Generate Localizable.xcstrings";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Kayle ID/Localizable.xcstrings",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/generate-localizable-catalog.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		B9A0C0A0A0A0A0A0A0A0F001 /* Sync Version From package.json */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -114,6 +138,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = B8ED7D002F081CC800CD508D /* Build configuration list for PBXNativeTarget "Kayle ID" */;
 			buildPhases = (
+				B9A0C0A0A0A0A0A0A0A0F002 /* Generate Localizable.xcstrings */,
 				B8ED7CF12F081CC600CD508D /* Sources */,
 				B8ED7CF22F081CC600CD508D /* Frameworks */,
 				B8ED7CF32F081CC600CD508D /* Resources */,

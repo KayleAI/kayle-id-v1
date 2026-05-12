@@ -27,9 +27,6 @@ jobs:
       - name: Run repository validation
         run: bun run lint
 
-      - name: Verify iOS string catalog is up to date with TS source
-        run: bun run --cwd packages/translations verify:ios
-
   test-api:
     name: Test API Integration
     runs-on: ubuntu-latest

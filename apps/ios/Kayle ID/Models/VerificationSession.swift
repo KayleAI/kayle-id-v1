@@ -609,6 +609,19 @@ final class VerificationSession: ObservableObject {
     let previousService = webSocketService
     webSocketService = service
     previousService?.disconnect()
+
+    // The server's per-socket VerifyTransferState resets on reconnect, so any
+    // chunks in flight over the previous socket are gone; clear upload
+    // bookkeeping so the next retap streams cleanly. Captured data
+    // (mrzResult, nfcResult, selfieImages, activeAuthChallenge) survives:
+    // the AA challenge is deterministic per attemptId, so the chip-signed
+    // bytes in nfcResult remain valid against the re-derived expectedChallenge.
+    resetNFCUploadState()
+    selfieUploadInFlight = false
+    selfieUploadCancelled = false
+    selfieUploadsExpected = 0
+    selfieSentIndices.removeAll()
+    selfiePayloadsByIndex.removeAll()
   }
 
   private func handleVerdict(_ verdict: VerifyServerVerdict) {

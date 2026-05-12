@@ -45,6 +45,11 @@ final class VerificationSession: ObservableObject {
   @Published var errorMessage: String?
   @Published var isRetryingVerification = false
   @Published var isReconnecting = false
+  /// Bumped whenever the selfie session must restart from scratch (e.g. after
+  /// a reconnect). Applied as `.id()` to the SelfieCaptureView so SwiftUI
+  /// remounts it and resets its internal isProcessing/capturedImages state,
+  /// instead of leaving the "Uploading selfies…" overlay stuck on screen.
+  @Published var selfieCaptureGeneration = UUID()
   @Published var verdict: VerifyServerVerdict?
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
@@ -626,6 +631,7 @@ final class VerificationSession: ObservableObject {
     selfieUploadsExpected = 0
     selfieSentIndices.removeAll()
     selfiePayloadsByIndex.removeAll()
+    selfieCaptureGeneration = UUID()
 
     // Re-stream NFC artifacts so the server can face-match selfies against
     // dg2. Without this, the next phase=selfie_complete would silently advance

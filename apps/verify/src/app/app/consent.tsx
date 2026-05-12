@@ -56,8 +56,8 @@ export function SessionConsent({
 
 	const bullets: ReactNode[] = isAgeOnly
 		? [
-				<>{consentCopy.bulletReadDocAgeOnly}</>,
-				<>{consentCopy.bulletSelfie}</>,
+				consentCopy.bulletReadDocAgeOnly,
+				consentCopy.bulletSelfie,
 				<>
 					{consentCopy.bulletShareAgeOnlyPrefix}
 					<span className="font-medium">
@@ -69,8 +69,8 @@ export function SessionConsent({
 				</>,
 			]
 		: [
-				<>{consentCopy.bulletReadDocFull}</>,
-				<>{consentCopy.bulletSelfie}</>,
+				consentCopy.bulletReadDocFull,
+				consentCopy.bulletSelfie,
 				<>
 					{consentCopy.bulletShareFullPrefix}
 					<OrganizationName organization={organization} />

@@ -1,3 +1,4 @@
+import { interpolate } from "@kayle-id/translations/i18n";
 import OctagonCheck from "@kayle-id/ui/icons/octagon-check";
 import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
 import {
@@ -10,6 +11,7 @@ import {
 	DialogTrigger,
 } from "@kayleai/ui/dialog";
 import type { SVGProps } from "react";
+import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { getPlatformNameLabel } from "./platform-name";
 
 export type Organization = {
@@ -114,6 +116,8 @@ export function OrganizationName({
 	const triggerClassName = dim
 		? ORG_NAME_TRIGGER_DIM_CLASSES
 		: ORG_NAME_TRIGGER_CLASSES;
+	const copy = useVerifyHandoffCopy();
+	const orgCopy = copy.org;
 
 	return (
 		<Dialog>
@@ -125,10 +129,11 @@ export function OrganizationName({
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle className="text-lg">About {platformName}</DialogTitle>
+					<DialogTitle className="text-lg">
+						{interpolate(orgCopy.aboutDialogTitle, { name: platformName })}
+					</DialogTitle>
 					<DialogDescription>
-						To help protect you, we're showing you some information about the
-						organization requesting this check.
+						{orgCopy.aboutDialogDescription}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -202,6 +207,8 @@ function OrganizationIdentityCard({
 
 function VerifiedDomainBadge({ apexDomains }: { apexDomains: string[] }) {
 	const isPlural = apexDomains.length > 1;
+	const copy = useVerifyHandoffCopy();
+	const orgCopy = copy.org;
 	return (
 		<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
 			<OctagonCheck
@@ -210,15 +217,17 @@ function VerifiedDomainBadge({ apexDomains }: { apexDomains: string[] }) {
 			/>
 			<div className="min-w-0 flex-1">
 				<p className="font-medium text-emerald-800 text-sm dark:text-emerald-200">
-					{isPlural ? "Verified domains" : "Verified domain"}
+					{isPlural
+						? orgCopy.verifiedDomainTitlePlural
+						: orgCopy.verifiedDomainTitleSingular}
 				</p>
 				<p className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
 					{apexDomains.join(", ")}
 				</p>
 				<p className="mt-1 text-emerald-700 text-xs dark:text-emerald-300">
 					{isPlural
-						? "Kayle ID confirmed control of these domains. The website and policy links shown here all point to them."
-						: "Kayle ID confirmed control of this domain. The website and policy links shown here all point to it."}
+						? orgCopy.verifiedDomainDescriptionPlural
+						: orgCopy.verifiedDomainDescriptionSingular}
 				</p>
 			</div>
 		</div>
@@ -230,6 +239,9 @@ function OrganizationDetailsList({
 }: {
 	organization: Organization;
 }) {
+	const copy = useVerifyHandoffCopy();
+	const orgCopy = copy.org;
+
 	if (organization.verifiedApexDomains.length === 0) {
 		return null;
 	}
@@ -242,14 +254,14 @@ function OrganizationDetailsList({
 	const isSoleTrader = organization.businessType === "sole";
 	const labels = isSoleTrader
 		? {
-				name: "Full name",
-				jurisdiction: "Country",
-				registrationNumber: "Tax / trader ID",
+				name: orgCopy.soleTraderNameLabel,
+				jurisdiction: orgCopy.soleTraderJurisdictionLabel,
+				registrationNumber: orgCopy.soleTraderRegistrationLabel,
 			}
 		: {
-				name: "Legal name",
-				jurisdiction: "Registered in",
-				registrationNumber: "Registration number",
+				name: orgCopy.businessNameLabel,
+				jurisdiction: orgCopy.businessJurisdictionLabel,
+				registrationNumber: orgCopy.businessRegistrationLabel,
 			};
 
 	const items: { label: string; value: string }[] = [];
@@ -296,20 +308,22 @@ function OrganizationPolicyLinks({
 }: {
 	organization: Organization;
 }) {
+	const copy = useVerifyHandoffCopy();
+	const orgCopy = copy.org;
 	const links: { label: string; href: string }[] = [];
 
 	if (organization.website) {
-		links.push({ label: "Website", href: organization.website });
+		links.push({ label: orgCopy.websiteLinkLabel, href: organization.website });
 	}
 	if (organization.privacyPolicyUrl) {
 		links.push({
-			label: "Privacy policy",
+			label: orgCopy.privacyPolicyLinkLabel,
 			href: organization.privacyPolicyUrl,
 		});
 	}
 	if (organization.termsOfServiceUrl) {
 		links.push({
-			label: "Terms of service",
+			label: orgCopy.termsOfServiceLinkLabel,
 			href: organization.termsOfServiceUrl,
 		});
 	}
@@ -343,6 +357,7 @@ function OrganizationPolicyLinks({
 }
 
 function ArrowUpRightIcon(props: SVGProps<SVGSVGElement>) {
+	const copy = useVerifyHandoffCopy();
 	return (
 		<svg
 			fill="none"
@@ -354,7 +369,7 @@ function ArrowUpRightIcon(props: SVGProps<SVGSVGElement>) {
 			xmlns="http://www.w3.org/2000/svg"
 			{...props}
 		>
-			<title>Opens in a new tab</title>
+			<title>{copy.org.opensInNewTabLabel}</title>
 			<path d="M7 17 17 7" />
 			<path d="M7 7h10v10" />
 		</svg>
@@ -368,6 +383,9 @@ function VerificationStatusCallout({
 	verified: boolean;
 	isAgeOnly: boolean;
 }) {
+	const copy = useVerifyHandoffCopy();
+	const orgCopy = copy.org;
+
 	if (verified) {
 		return (
 			<div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
@@ -377,11 +395,10 @@ function VerificationStatusCallout({
 				/>
 				<div className="min-w-0 flex-1">
 					<p className="font-medium text-emerald-800 text-sm dark:text-emerald-200">
-						Owner ID check completed
+						{orgCopy.ownerVerifiedTitle}
 					</p>
 					<p className="mt-1 text-emerald-700 text-sm dark:text-emerald-300">
-						The people running this organization have completed Kayle ID's owner
-						identity check.
+						{orgCopy.ownerVerifiedDescription}
 					</p>
 				</div>
 			</div>
@@ -400,11 +417,10 @@ function VerificationStatusCallout({
 				/>
 				<div className="min-w-0 flex-1">
 					<p className="font-medium text-amber-800 text-sm dark:text-amber-200">
-						Owner ID check not completed
+						{orgCopy.ownerNotVerifiedTitle}
 					</p>
 					<p className="mt-1 text-amber-700 text-sm text-pretty dark:text-amber-300">
-						Kayle ID has not independently verified the people running this
-						organization. Only continue if you trust this request.
+						{orgCopy.ownerNotVerifiedDescription}
 					</p>
 				</div>
 			</div>
@@ -419,11 +435,10 @@ function VerificationStatusCallout({
 			/>
 			<div className="min-w-0 flex-1">
 				<p className="font-medium text-red-800 text-sm dark:text-red-200">
-					Owner ID check not completed
+					{orgCopy.ownerNotVerifiedTitle}
 				</p>
 				<p className="mt-1 text-red-700 text-sm text-pretty dark:text-red-300">
-					Kayle ID has not independently verified the people running this
-					organization. Only continue if you trust this request.
+					{orgCopy.ownerNotVerifiedDescription}
 				</p>
 			</div>
 		</div>

@@ -1,5 +1,5 @@
 import InfoCard from "@kayle-id/ui/info-card";
-import { useErrorMessages } from "@/i18n/provider";
+import { useErrorMessages, useVerifyHandoffCopy } from "@/i18n/provider";
 import { useSession } from "./session-provider";
 
 export function SessionError() {
@@ -21,6 +21,8 @@ export function ErrorCard({
 	};
 }) {
 	const errorMessages = useErrorMessages();
+	const copy = useVerifyHandoffCopy();
+	const sessionErrorCopy = copy.screens.sessionError;
 	const errorMessage =
 		errorMessages[error.code as keyof typeof errorMessages] ??
 		errorMessages.UNKNOWN;
@@ -29,8 +31,8 @@ export function ErrorCard({
 		<InfoCard
 			colour="red"
 			header={{
-				title: "Session Error",
-				description: "An error occurred while loading the session.",
+				title: sessionErrorCopy.headerTitle,
+				description: sessionErrorCopy.headerDescription,
 			}}
 			message={{
 				title: errorMessage.title,

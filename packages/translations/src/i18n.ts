@@ -41,6 +41,29 @@ export type LocalizedDictionary<T> = T extends string
       ? { -readonly [K in keyof T]: LocalizedDictionary<T[K]> }
       : T;
 
+/**
+ * Substitute `{key}` placeholders in `template` with values from `vars`. Used
+ * by copy modules whose strings include dynamic bits (an age threshold, a
+ * count) that translators want to be able to reorder within a sentence.
+ * Missing keys leave the placeholder as-is so the gap is visible in the
+ * rendered text rather than throwing at runtime.
+ *
+ * For sentences that need to embed *React components* (e.g. an inline
+ * `<OrganizationName />` dialog trigger), keep the surrounding text as
+ * `prefix`/`suffix` keys in the dictionary and render
+ * `{prefix}<Component />{suffix}` at the call site — there's no JSX
+ * interpolation here on purpose.
+ */
+export function interpolate(
+  template: string,
+  vars: Record<string, string | number>
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, key) => {
+    const value = vars[key];
+    return value === undefined ? match : String(value);
+  });
+}
+
 const LANGUAGE_SUBTAG_DELIMITER = /[-_]/;
 
 export function isSupportedLocale(value: string): value is Locale {

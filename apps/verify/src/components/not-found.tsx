@@ -1,7 +1,7 @@
 import InfoCard from "@kayle-id/ui/info-card";
 import { Layout } from "@kayleai/ui/layout";
 import type { NotFoundRouteProps } from "@tanstack/react-router";
-import { useErrorMessages } from "@/i18n/provider";
+import { useErrorMessages, useVerifyHandoffCopy } from "@/i18n/provider";
 
 /**
  * The not found component.
@@ -26,6 +26,8 @@ function isInvalidSessionData(data: unknown): data is InvalidSessionData {
 
 export function NotFound({ data }: NotFoundRouteProps) {
 	const errorMessages = useErrorMessages();
+	const copy = useVerifyHandoffCopy();
+	const notFoundCopy = copy.screens.notFound;
 	const invalidData = isInvalidSessionData(data) ? data : undefined;
 
 	if (invalidData?.data?.type === "invalid_session_id") {
@@ -34,7 +36,7 @@ export function NotFound({ data }: NotFoundRouteProps) {
 			<InfoCard
 				buttons={{
 					primary: {
-						label: "Go back to the previous page",
+						label: notFoundCopy.goBackButton,
 						onClick: () => window.history.back(),
 					},
 				}}
@@ -57,12 +59,12 @@ export function NotFound({ data }: NotFoundRouteProps) {
 			<InfoCard
 				colour="red"
 				header={{
-					title: "Page Not Found",
-					description: "The page you are looking for does not exist.",
+					title: notFoundCopy.headerTitle,
+					description: notFoundCopy.headerDescription,
 				}}
 				message={{
-					title: "We couldn't find the page you were looking for",
-					description: "Please check the URL you followed and try again.",
+					title: notFoundCopy.messageTitle,
+					description: notFoundCopy.messageDescription,
 				}}
 			/>
 		</Layout>

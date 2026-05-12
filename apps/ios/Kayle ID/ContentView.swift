@@ -173,7 +173,7 @@ struct ContentView: View {
         }
 
         if session.isReconnecting {
-          BlockingLoadingOverlay(message: "Reconnecting to verification…")
+          BlockingLoadingOverlay(message: "Reconnecting…")
             .transition(.opacity)
         }
       }

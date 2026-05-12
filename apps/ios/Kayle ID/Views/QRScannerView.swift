@@ -30,8 +30,10 @@ struct QRScannerView: View {
 
       ScannerOverlayView(
         cutout: .centeredSquare(size: 250, cornerRadius: 24),
-        title: "Scan QR Code",
-        subtitle: "Point your camera at the QR code on the screen",
+        title: String(localized: "Scan QR Code"),
+        subtitle: String(
+          localized: "Point your camera at the QR code on the screen"
+        ),
         instructionHorizontalPadding: 32,
         instructionBottomPadding: CameraDrawerMetrics.instructionBottomPadding
       )

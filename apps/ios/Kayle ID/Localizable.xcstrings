@@ -1,303 +1,435 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "About" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About"
+  "sourceLanguage": "en",
+  "strings": {
+    "About": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
           }
         }
       }
     },
-    "Cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "Align the printed code within the box.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Align the printed code within the box."
           }
         }
       }
     },
-    "Continue" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
+    "An unexpected error occurred.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An unexpected error occurred."
           }
         }
       }
     },
-    "Do you see this symbol?" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Do you see this symbol?"
+    "Back": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
           }
         }
       }
     },
-    "Done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
+    "Cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         }
       }
     },
-    "Get Started" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Get Started"
+    "Checking verification…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking verification…"
           }
         }
       }
     },
-    "How Kayle ID collects, uses, and protects your information." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How Kayle ID collects, uses, and protects your information."
+    "Choose what to share": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose what to share"
           }
         }
       }
     },
-    "I don't see it" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I don't see it"
+    "Continue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
           }
         }
       }
     },
-    "If you have another supported %@, you can scan that instead." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If you have another supported %@, you can scan that instead."
+    "Do you see this symbol?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you see this symbol?"
           }
         }
       }
     },
-    "Kayle ID" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kayle ID"
+    "Done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         }
       }
     },
-    "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone."
+    "Get Started": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Started"
           }
         }
       }
     },
-    "Let's read your ID" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Let's read your ID"
+    "How Kayle ID collects, uses, and protects your information.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How Kayle ID collects, uses, and protects your information."
           }
         }
       }
     },
-    "Let’s verify your identity in a few quick steps." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Let’s verify your identity in a few quick steps."
+    "I don't see it": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I don't see it"
           }
         }
       }
     },
-    "Look for this symbol on %@." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Look for this symbol on %@."
+    "If you have another supported %@, you can scan that instead.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you have another supported %@, you can scan that instead."
           }
         }
       }
     },
-    "Next, take a quick selfie" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next, take a quick selfie"
+    "Kayle ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayle ID"
           }
         }
       }
     },
-    "Privacy Policy" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Privacy Policy"
+    "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayle ID needs %@ with the RFID symbol on %@ to continue on iPhone."
           }
         }
       }
     },
-    "Scan the QR code" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scan the QR code"
+    "Let's read your ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let's read your ID"
           }
         }
       }
     },
-    "Terms for using Kayle ID and its identity verification features." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terms for using Kayle ID and its identity verification features."
+    "Let’s verify your identity in a few quick steps.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let’s verify your identity in a few quick steps."
           }
         }
       }
     },
-    "Terms of Service" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terms of Service"
+    "Look for this symbol on %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Look for this symbol on %@."
           }
         }
       }
     },
-    "This %@ doesn't appear to support NFC" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This %@ doesn't appear to support NFC"
+    "Next, take a quick selfie": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next, take a quick selfie"
           }
         }
       }
     },
-    "Try Another Document" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Another Document"
+    "Privacy Policy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
           }
         }
       }
     },
-    "Use your camera to scan the printed code on your document, then read the chip if it has one." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use your camera to scan the printed code on your document, then read the chip if it has one."
+    "Reconnecting…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting…"
           }
         }
       }
     },
-    "Use your camera to scan the QR code from your browser and begin verification." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use your camera to scan the QR code from your browser and begin verification."
+    "Retry Verification": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry Verification"
           }
         }
       }
     },
-    "Verification Complete" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verification Complete"
+    "Scan the QR code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan the QR code"
           }
         }
       }
     },
-    "Verification Failed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verification Failed"
+    "Scan your document": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan your document"
           }
         }
       }
     },
-    "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible."
+    "Start Again": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Again"
           }
         }
       }
     },
-    "Yes, I see it" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yes, I see it"
+    "Stay here": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stay here"
+          }
+        }
+      }
+    },
+    "Terms for using Kayle ID and its identity verification features.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms for using Kayle ID and its identity verification features."
+          }
+        }
+      }
+    },
+    "Terms of Service": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms of Service"
+          }
+        }
+      }
+    },
+    "This %@ doesn't appear to support NFC": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This %@ doesn't appear to support NFC"
+          }
+        }
+      }
+    },
+    "This will stop the current verification on this device.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will stop the current verification on this device."
+          }
+        }
+      }
+    },
+    "Try Another Document": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Another Document"
+          }
+        }
+      }
+    },
+    "Use your camera to scan the QR code from your browser and begin verification.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use your camera to scan the QR code from your browser and begin verification."
+          }
+        }
+      }
+    },
+    "Use your camera to scan the printed code on your document, then read the chip if it has one.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use your camera to scan the printed code on your document, then read the chip if it has one."
+          }
+        }
+      }
+    },
+    "Verification Complete": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verification Complete"
+          }
+        }
+      }
+    },
+    "Verification Failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verification Failed"
+          }
+        }
+      }
+    },
+    "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible."
+          }
+        }
+      }
+    },
+    "Yes, I see it": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes, I see it"
+          }
+        }
+      }
+    },
+    "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your identity verification data has been securely transmitted. You can now close this app and return to your browser."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

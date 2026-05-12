@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test ./src"
+    "test": "bun test ./src",
+    "gen:ios": "bun run scripts/generate-ios-catalog.ts",
+    "verify:ios": "bun run scripts/generate-ios-catalog.ts && git diff --exit-code -- '../../apps/ios/Kayle ID/Localizable.xcstrings'"
   },
   "devDependencies": {
     "@types/bun": "latest"

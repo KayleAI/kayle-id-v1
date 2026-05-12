@@ -21,6 +21,7 @@ let package = Package(
         "Models/AttemptScope.swift",
         "Models/MRZResult.swift",
         "Models/QRCodePayload.swift",
+        "Models/VerificationStep.swift",
         "Models/VerifyWebSocketAuthPolicy.swift",
         "Utilities/MRZParser.swift",
       ]
@@ -33,6 +34,7 @@ let package = Package(
         "AttemptScopeTests.swift",
         "MRZParserTests.swift",
         "QRCodePayloadTests.swift",
+        "VerificationStepReconnectTests.swift",
         "VerifyWebSocketAuthPolicyTests.swift",
       ]
     ),

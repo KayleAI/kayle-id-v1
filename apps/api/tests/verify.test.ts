@@ -1508,6 +1508,150 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
+		"Reconnect after nfc_complete accepts NFC restream and reaches verdict",
+		async () => {
+			const sessionId = await createSession();
+			const handoff = await createHandoff(sessionId);
+			const artifacts = await createValidNfcArtifacts();
+			const matchingSelfies = await createMatchingValidationSelfies();
+			const hello = encodeHelloMessage({
+				attemptId: handoff.attempt_id,
+				mobileWriteToken: handoff.mobile_write_token,
+				deviceId: "ios-device-a",
+				appVersion: "1.0.0",
+			});
+
+			const socketOne = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketOne);
+				socketOne.send(hello);
+				expect((await awaitServerMessage(socketOne)).ack).toBe("hello_ok");
+
+				socketOne.send(encodePhaseMessage("mrz_scanning"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				socketOne.send(encodePhaseMessage("mrz_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				socketOne.send(encodePhaseMessage("nfc_reading"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				await sendNfcArtifacts({
+					socket: socketOne,
+					artifacts,
+				});
+
+				socketOne.send(encodePhaseMessage("nfc_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+			} finally {
+				socketOne.close();
+			}
+
+			const socketTwo = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketTwo);
+				socketTwo.send(hello);
+				expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
+
+				// The reconnect path: the per-socket VerifyTransferState is empty,
+				// so the client must restream NFC artifacts even though the DB phase
+				// is already nfc_complete. This is the gate that the strict
+				// currentPhase === "nfc_reading" check used to block.
+				await sendNfcArtifacts({
+					socket: socketTwo,
+					artifacts,
+				});
+
+				socketTwo.send(encodePhaseMessage("selfie_capturing"));
+				expect((await awaitServerMessage(socketTwo)).ack).toBe("phase_ok");
+
+				await sendSelfies({
+					socket: socketTwo,
+					selfies: matchingSelfies,
+				});
+
+				socketTwo.send(encodePhaseMessage("selfie_complete"));
+				const verdict = (await awaitServerMessage(socketTwo)).verdict;
+				expect(verdict?.outcome).toBe("accepted");
+			} finally {
+				socketTwo.close();
+			}
+		},
+	);
+
+	test.serial(
+		"Reconnect that skips NFC restream surfaces NFC_REQUIRED_DATA_MISSING on selfie_complete",
+		async () => {
+			const sessionId = await createSession();
+			const handoff = await createHandoff(sessionId);
+			const artifacts = await createValidNfcArtifacts();
+			const matchingSelfies = await createMatchingValidationSelfies();
+			const hello = encodeHelloMessage({
+				attemptId: handoff.attempt_id,
+				mobileWriteToken: handoff.mobile_write_token,
+				deviceId: "ios-device-a",
+				appVersion: "1.0.0",
+			});
+
+			const socketOne = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketOne);
+				socketOne.send(hello);
+				expect((await awaitServerMessage(socketOne)).ack).toBe("hello_ok");
+
+				socketOne.send(encodePhaseMessage("mrz_scanning"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				socketOne.send(encodePhaseMessage("mrz_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				socketOne.send(encodePhaseMessage("nfc_reading"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				await sendNfcArtifacts({
+					socket: socketOne,
+					artifacts,
+				});
+
+				socketOne.send(encodePhaseMessage("nfc_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+			} finally {
+				socketOne.close();
+			}
+
+			const socketTwo = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketTwo);
+				socketTwo.send(hello);
+				expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
+
+				socketTwo.send(encodePhaseMessage("selfie_capturing"));
+				expect((await awaitServerMessage(socketTwo)).ack).toBe("phase_ok");
+
+				await sendSelfies({
+					socket: socketTwo,
+					selfies: matchingSelfies,
+				});
+
+				socketTwo.send(encodePhaseMessage("selfie_complete"));
+				const response = await awaitServerMessage(socketTwo);
+
+				expect(response.error?.code).toBe("NFC_REQUIRED_DATA_MISSING");
+				const parsed = JSON.parse(response.error?.message ?? "{}") as {
+					missing_artifacts?: string[];
+				};
+				expect(parsed.missing_artifacts).toEqual(["dg1", "dg2", "sod"]);
+			} finally {
+				socketTwo.close();
+			}
+		},
+	);
+
+	test.serial(
 		"Rejects selfie data before selfie_capturing with SELFIE_DATA_PHASE_REQUIRED",
 		async () => {
 			const sessionId = await createSession();
@@ -1991,6 +2135,15 @@ describe("Verification Flows", () => {
 			await awaitSocketOpen(socketTwo);
 			socketTwo.send(hello);
 			expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
+
+			// Restream NFC first — buildMissingDataMessage on selfie_complete now
+			// checks NFC presence before selfies, so without this the server would
+			// report NFC_REQUIRED_DATA_MISSING instead of the SELFIE one this test
+			// is trying to exercise.
+			await sendNfcArtifacts({
+				socket: socketTwo,
+				artifacts,
+			});
 
 			socketTwo.send(encodePhaseMessage("selfie_complete"));
 			const response = await awaitServerMessage(socketTwo);

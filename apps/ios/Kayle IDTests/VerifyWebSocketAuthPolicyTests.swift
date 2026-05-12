@@ -47,6 +47,17 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertFalse(canRetry)
   }
 
+  func testReconnectStopsOnAttemptNotFound() {
+    let canRetry = shouldRetryReconnect(
+      isAuthenticated: true,
+      lastErrorCode: "ATTEMPT_NOT_FOUND",
+      attempt: 1,
+      maxAttempts: 3
+    )
+
+    XCTAssertFalse(canRetry)
+  }
+
   func testDetectsVerificationSessionConnectionLossErrors() {
     XCTAssertTrue(isVerificationSessionConnectionLoss(.connectionClosed))
     XCTAssertTrue(isVerificationSessionConnectionLoss(.serverResponseTimedOut))

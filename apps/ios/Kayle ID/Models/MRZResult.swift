@@ -48,16 +48,63 @@ struct MRZResult: Equatable {
     expiryDateYYMMDD + String(expiryDateCheckDigit)
   }
 
+  /// Derived from ICAO 9303 document type codes (the first two characters of
+  /// MRZ line 1). Used to tailor user-facing copy after the MRZ scan.
+  enum DocumentCategory {
+    case passport
+    case idCard
+    case residencePermit
+    case other
+  }
+
+  var documentCategory: DocumentCategory {
+    let normalized = documentType.replacingOccurrences(of: "<", with: "")
+    guard let first = normalized.first else {
+      return .other
+    }
+
+    let second = normalized.dropFirst().first
+
+    switch first {
+    case "P":
+      return .passport
+    case "I":
+      if second == "R" {
+        return .residencePermit
+      }
+      return .idCard
+    case "A", "C":
+      return .idCard
+    default:
+      return .other
+    }
+  }
+
   var userFacingDocumentName: String {
-    "document"
+    switch documentCategory {
+    case .passport: return "passport"
+    case .idCard: return "ID card"
+    case .residencePermit: return "residence permit"
+    case .other: return "document"
+    }
   }
 
   var userFacingDocumentNameWithArticle: String {
-    "a document"
+    switch documentCategory {
+    case .passport: return "a passport"
+    case .idCard: return "an ID card"
+    case .residencePermit: return "a residence permit"
+    case .other: return "a document"
+    }
   }
 
   var userFacingRFIDSymbolLocationDescription: String {
-    "your document"
+    switch documentCategory {
+    case .passport: return "your passport"
+    case .idCard: return "your ID card"
+    case .residencePermit: return "your residence permit"
+    case .other: return "your document"
+    }
   }
 
   var userFacingDocumentChipName: String {

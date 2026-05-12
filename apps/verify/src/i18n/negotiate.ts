@@ -4,6 +4,7 @@ import {
 	negotiateLocale,
 	parseAcceptLanguage,
 } from "@kayle-id/translations/i18n";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 /**
@@ -24,16 +25,16 @@ export function negotiateLocaleFromAcceptLanguage(
  * the hydration flash that would otherwise happen if the client had to
  * re-detect from `navigator.languages` after the first paint.
  *
- * `getRequestHeader` is only meaningful while a request is being served, so
- * we gate on `typeof window` to avoid touching it from any non-SSR context
- * (tests under jsdom, client-side beforeLoad re-runs after navigation,
- * etc.). In those cases the function falls back to `DEFAULT_LOCALE`, which
- * is the same answer the SSR hydration would have produced anyway when no
- * Accept-Language header was sent.
+ * Implemented via `createIsomorphicFn` so the TanStack Start bundler can
+ * tree-shake the server-only `getRequestHeader` call (and its import) out
+ * of the client bundle. The client branch falls back to `DEFAULT_LOCALE`,
+ * which matches the SSR result when no Accept-Language header was sent
+ * and is only consulted on client-side `beforeLoad` re-runs after the
+ * initial render has already set the real locale into the provider.
  */
-export function negotiateInitialLocale(): Locale {
-	if (typeof window !== "undefined") {
-		return DEFAULT_LOCALE;
-	}
-	return negotiateLocaleFromAcceptLanguage(getRequestHeader("accept-language"));
-}
+export const negotiateInitialLocale = createIsomorphicFn()
+	.client((): Locale => DEFAULT_LOCALE)
+	.server(
+		(): Locale =>
+			negotiateLocaleFromAcceptLanguage(getRequestHeader("accept-language")),
+	);

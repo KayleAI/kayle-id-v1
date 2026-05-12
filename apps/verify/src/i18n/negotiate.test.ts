@@ -13,8 +13,12 @@ describe("negotiateLocaleFromAcceptLanguage", () => {
 		expect(negotiateLocaleFromAcceptLanguage("en-US,fr;q=0.5")).toBe("en");
 	});
 
+	test("returns fr when the browser prefers French", () => {
+		expect(negotiateLocaleFromAcceptLanguage("fr-FR,en;q=0.5")).toBe("fr");
+	});
+
 	test("falls back to the default when nothing matches", () => {
-		expect(negotiateLocaleFromAcceptLanguage("fr,de;q=0.8")).toBe(
+		expect(negotiateLocaleFromAcceptLanguage("de,es;q=0.8")).toBe(
 			DEFAULT_LOCALE,
 		);
 	});

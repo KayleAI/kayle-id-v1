@@ -13,12 +13,33 @@ export const DEFAULT_LOCALE = "en" as const;
  * subtags are tolerated in input ("en-GB", "fr-CA") but matched here against
  * the base language tag — `negotiateLocale` handles the canonicalization.
  *
- * Only English is shipping today; the list is the seam that lets new
- * languages be added without touching call sites.
+ * Adding a tag here forces every `Record<Locale, …>` dictionary to provide
+ * a translation, which is the compile-time fence against half-translated
+ * locales reaching users.
  */
-export const SUPPORTED_LOCALES = ["en"] as const;
+export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+/**
+ * Recursively widen the literal-typed leaves of a dictionary back to `string`.
+ *
+ * Copy modules declare the English source with `as const`, which is great for
+ * locking in the shape (key set, nesting) but makes `typeof DICT` describe
+ * literal strings like `"Cancel"` rather than the general `string`. A per-
+ * locale `Record<Locale, typeof DICT>` would then refuse a translation
+ * because `"Annuler"` isn't assignable to `"Cancel"`. Wrapping the type in
+ * `LocalizedDictionary<typeof DICT>` keeps the shape but widens every leaf,
+ * so additional locales can supply whatever strings they need while still
+ * being required to provide every key.
+ */
+export type LocalizedDictionary<T> = T extends string
+  ? string
+  : T extends readonly (infer U)[]
+    ? LocalizedDictionary<U>[]
+    : T extends object
+      ? { -readonly [K in keyof T]: LocalizedDictionary<T[K]> }
+      : T;
 
 const LANGUAGE_SUBTAG_DELIMITER = /[-_]/;
 

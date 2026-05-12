@@ -48,17 +48,19 @@ describe("parseAcceptLanguage", () => {
 
 describe("negotiateLocale", () => {
   test("returns the first preference present in SUPPORTED_LOCALES", () => {
-    expect(negotiateLocale(["fr", "es", "en"])).toBe("en");
+    expect(negotiateLocale(["de", "es", "en"])).toBe("en");
+    expect(negotiateLocale(["fr", "es", "en"])).toBe("fr");
   });
 
   test("falls back to DEFAULT_LOCALE when nothing matches", () => {
-    expect(negotiateLocale(["fr", "es"])).toBe(DEFAULT_LOCALE);
+    expect(negotiateLocale(["de", "es"])).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale([])).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale([null, undefined])).toBe(DEFAULT_LOCALE);
   });
 
   test("matches case-insensitively and ignores region subtags", () => {
     expect(negotiateLocale(["EN-GB"])).toBe("en");
+    expect(negotiateLocale(["FR-CA"])).toBe("fr");
   });
 });
 

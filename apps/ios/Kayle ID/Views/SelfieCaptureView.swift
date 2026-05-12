@@ -38,10 +38,7 @@ struct SelfieCaptureView: View {
   var body: some View {
     ZStack {
       if PreviewSupport.isRunningInXcodePreview {
-        PreviewCameraSurfaceView(
-          title: "Selfie camera preview",
-          subtitle: "Canvas shows a placeholder instead of the front camera."
-        )
+        Color.black.ignoresSafeArea()
       } else {
         SelfieCameraView(
           faceInBox: $faceInBox,

@@ -4,6 +4,11 @@
  * it in `../verify-handoff-copy.ts`.
  */
 export const VERIFY_HANDOFF_COPY = {
+  head: {
+    pageTitle: "Kayle ID Verification",
+    pageDescription: "Verify your identity with Kayle ID",
+  },
+
   actions: {
     cancel: "Cancel",
     closeThisPage: "Close this page",

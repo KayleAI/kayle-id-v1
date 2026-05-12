@@ -1,4 +1,5 @@
 import { sessionIdSchema } from "@api/shared/validation";
+import { getVerifyHandoffCopy } from "@kayle-id/translations/verify-handoff-copy";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { VerificationApp } from "@/app/verification";
 
@@ -22,12 +23,19 @@ export const Route = createFileRoute("/$")({
 
 		return { sessionId };
 	},
-	head: () => ({
-		meta: [
-			{
-				title: "Kayle ID Verification",
-				description: "Verify your identity with Kayle ID",
-			},
-		],
-	}),
+	head: ({
+		match: {
+			context: { initialLocale = "en" },
+		},
+	}) => {
+		const head = getVerifyHandoffCopy(initialLocale).head;
+		return {
+			meta: [
+				{
+					title: head.pageTitle,
+					description: head.pageDescription,
+				},
+			],
+		};
+	},
 });

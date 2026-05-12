@@ -7,21 +7,11 @@ struct MRZScannerView: UIViewControllerRepresentable {
 
   func makeUIViewController(context: Context) -> UIViewController {
     if PreviewSupport.isRunningInXcodePreview {
+      // Canvas previews can't spin up a real AVCaptureSession; hand back a
+      // plain black-backed controller so the surrounding layout still
+      // renders without crashing on the missing camera hardware.
       let controller = UIViewController()
-      let hostingController = UIHostingController(
-        rootView: PreviewCameraSurfaceView(
-          title: "Photo page scan preview",
-          subtitle: "Canvas shows a placeholder instead of live camera input."
-        )
-      )
-
       controller.view.backgroundColor = .black
-      controller.addChild(hostingController)
-      hostingController.view.frame = controller.view.bounds
-      hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-      hostingController.view.translatesAutoresizingMaskIntoConstraints = true
-      controller.view.addSubview(hostingController.view)
-      hostingController.didMove(toParent: controller)
       return controller
     }
 

@@ -12,10 +12,7 @@ struct QRScannerView: View {
   var body: some View {
     ZStack {
       if PreviewSupport.isRunningInXcodePreview {
-        PreviewCameraSurfaceView(
-          title: "QR camera preview",
-          subtitle: "Camera input is not available in Xcode Canvas."
-        )
+        Color.black.ignoresSafeArea()
       } else {
         QRScannerViewController(
           onScan: { code in

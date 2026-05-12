@@ -5,6 +5,11 @@ type VerifyHandoffCopy = LocalizedDictionary<typeof VERIFY_HANDOFF_COPY>;
 
 /** French translation of the verify-handoff copy. */
 export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
+  head: {
+    pageTitle: "Vérification Kayle ID",
+    pageDescription: "Vérifiez votre identité avec Kayle ID",
+  },
+
   actions: {
     cancel: "Annuler",
     closeThisPage: "Fermer cette page",

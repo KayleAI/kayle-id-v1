@@ -2,23 +2,12 @@ import {
 	type ErrorMessages,
 	getErrorMessages,
 } from "@kayle-id/config/error-messages";
-import {
-	DEFAULT_LOCALE,
-	detectBrowserLocale,
-	type Locale,
-} from "@kayle-id/config/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@kayle-id/config/i18n";
 import {
 	getVerifyHandoffCopy,
 	type VerifyHandoffCopy,
 } from "@kayle-id/config/verify-handoff-copy";
-import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 
 type I18nContextValue = {
 	locale: Locale;
@@ -30,34 +19,26 @@ const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 
 /**
  * Provide the negotiated locale and the corresponding copy dictionaries to
- * the verify app. First render uses `DEFAULT_LOCALE` so that SSR output
- * matches the initial client render; after hydration we detect the device's
- * language via `navigator.languages` and swap dictionaries in. The detected
- * locale is also mirrored onto `<html lang>` so screen readers and browser
- * UI pick up the language change.
+ * the verify app. The locale is negotiated server-side (see
+ * `negotiateInitialLocale` in `__root.tsx`'s `beforeLoad`) and passed in via
+ * `initialLocale`, so the SSR-rendered HTML, the `<html lang>` attribute,
+ * and the initial client render all agree — no post-hydration dictionary
+ * swap, no flash of English content for non-English users.
  */
-export function I18nProvider({ children }: { children: ReactNode }) {
-	const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
-
-	useEffect(() => {
-		const detected = detectBrowserLocale();
-		setLocale(detected);
-	}, []);
-
-	useEffect(() => {
-		if (typeof document === "undefined") {
-			return;
-		}
-		document.documentElement.setAttribute("lang", locale);
-	}, [locale]);
-
+export function I18nProvider({
+	children,
+	initialLocale,
+}: {
+	children: ReactNode;
+	initialLocale: Locale;
+}) {
 	const value = useMemo<I18nContextValue>(
 		() => ({
-			locale,
-			verifyHandoffCopy: getVerifyHandoffCopy(locale),
-			errorMessages: getErrorMessages(locale),
+			locale: initialLocale,
+			verifyHandoffCopy: getVerifyHandoffCopy(initialLocale),
+			errorMessages: getErrorMessages(initialLocale),
 		}),
-		[locale],
+		[initialLocale],
 	);
 
 	return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

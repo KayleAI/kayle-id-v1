@@ -86,6 +86,13 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
+  Debugger:
+    command: bun run dev
+    working_dir: ./apps/debugger
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
   iOS (Local):
     command: infisical run --env=dev -- bash ./apps/ios/scripts/run-on-connected-device.sh
     working_dir: ./

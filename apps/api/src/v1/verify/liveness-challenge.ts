@@ -2,8 +2,8 @@ import { bufferBytes } from "./sod-asn1-utils";
 
 const LIVENESS_CHALLENGE_LABEL = "liveness:";
 const CHALLENGE_NONCE_BYTES = 4;
-// 8s headroom for capture + UX prompts. Container-side timing checks use the
-// recorded video duration, so this is a soft client deadline, not a hard cap.
+// Soft client deadline; container-side timing checks use the recorded
+// video duration.
 const DEFAULT_MAX_DURATION_MS = 8_000;
 
 export type LivenessChallenge = {
@@ -12,17 +12,10 @@ export type LivenessChallenge = {
 };
 
 /**
- * Derive a per-attempt liveness challenge nonce from the server-only secret.
- * Deterministic so a reconnect during liveness capture re-issues the same
- * value, but unpredictable without the secret — clients echo it back via
- * the recorded video timing so the server can detect replay where an
- * attacker reuses a previously-captured clip across attempts.
- *
- * The first 4 bytes of HMAC-SHA256("liveness:" + attemptId) are returned
- * as the wire-visible challengeNonce. A previous version of this flow
- * also issued a server-decided pose sequence in the same challenge; that
- * sequence was dropped because the v2 liveness flow derives pose from
- * video frames server-side without needing a pre-issued order.
+ * HMAC-derived liveness challenge nonce. Deterministic per attemptId so
+ * reconnects re-issue the same value; unpredictable without
+ * authSecret. Clients echo it back via the recorded video so the
+ * server can detect cross-attempt clip replay.
  */
 export async function deriveLivenessChallenge({
 	attemptId,

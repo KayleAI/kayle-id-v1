@@ -32,7 +32,7 @@
     "lint": "bun run lint:format && bun run lint:runtime-logs && bun run lint:actions",
     "typecheck": "turbo run typecheck",
     "lint:format": "ultracite check",
-    "lint:runtime-logs": "bun ./scripts/check-runtime-console.ts",
+    "lint:runtime-logs": "bun ./scripts/check-runtime-console.ts && bun ./scripts/check-runtime-python-logs.ts",
     "lint:actions": "bun ./scripts/check-github-actions-pinned.ts",
     "capnp:generate:ts": "bash ./scripts/generate-capnp-ts.sh",
     "format": "ultracite fix",

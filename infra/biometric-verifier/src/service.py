@@ -147,7 +147,7 @@ _MESH_ALIGNMENT_REQUIRED_MAX_INDEX = max(
 
 
 def emit_log(event: str, **details: object) -> None:
-    print(
+    print(  # allow-print: structured-log writer; PII audit lives here
         json.dumps({"event": f"biometric_verifier.{event}", **details}),
         flush=True,
     )

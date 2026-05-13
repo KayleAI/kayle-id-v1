@@ -387,15 +387,11 @@ final class LivenessEngine: ObservableObject {
     willSet { objectWillChange.send() }
   }
 
-  // Tunables for the on-device pose progress. Geometric yaw is computed
-  // landmark-by-landmark; the server now uses cv2.solvePnP against a
-  // canonical 3D head model (see service.py `estimate_head_pose`) so the
-  // two pipelines disagree slightly on the absolute yaw magnitude for a
-  // given pose. The sign convention still matches (positive yaw =
-  // subject's left turn under un-mirrored capture), so the direction
-  // assignment can never flip — but the server's tilt threshold lives
-  // on the PnP scale, not this geometric one.
-  private let yawTargetDegrees: Double = 22 // iOS progress completes at 22°. Server tilt threshold is 17° (PnP scale); the iOS target sits comfortably above so by the time iOS shows 100%, server-side yaw is well past trigger.
+  // On-device geometric yaw and server-side solvePnP yaw disagree on
+  // absolute magnitudes but share sign convention (positive = subject's
+  // left). iOS targets 22° so 100% progress lands comfortably past the
+  // server's 17° PnP-scale tilt threshold.
+  private let yawTargetDegrees: Double = 22
   private let centeringYawDegrees: Double = 12 // |yaw| under this counts as "centred"
   private let framesPerSecond: Int32 = 24
   private let bitRate: Int = 1_600_000
@@ -567,13 +563,9 @@ final class LivenessEngine: ObservableObject {
     }
   }
 
-  /// Geometric yaw from the eye midline → nose offset. The server moved
-  /// to cv2.solvePnP head-pose recently, so this no longer numerically
-  /// matches the server-side yaw — it's the on-device approximation
-  /// driving the progress arcs. Sign convention still matches the
-  /// server (positive yaw = subject turned to their own LEFT). Returns
-  /// nil when any of the required landmarks (left/right eye, nose
-  /// crest) are missing from the Vision result.
+  /// On-device geometric yaw approximation driving the progress arcs.
+  /// Positive yaw = subject turned to their own LEFT. Returns nil
+  /// when any required landmark is missing.
   private func geometricYawDegrees(for face: VNFaceObservation) -> Double? {
     guard
       let landmarks = face.landmarks,

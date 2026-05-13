@@ -16,10 +16,8 @@ enum VerifyDataKind: Int {
   case livenessVideo = 8
 }
 
-/// Server-issued liveness challenge — replay-defeating nonce + soft
-/// capture deadline. The v1 contract also issued a server-decided pose
-/// order here; v2 derives pose from frames server-side, so the pose
-/// payload was dropped.
+/// Server-issued liveness challenge: replay-defeating nonce + soft
+/// capture deadline.
 struct VerifyServerLivenessChallenge {
   let maxDurationMs: UInt32
   let challengeNonce: Data

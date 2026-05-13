@@ -388,10 +388,14 @@ final class LivenessEngine: ObservableObject {
   }
 
   // Tunables for the on-device pose progress. Geometric yaw is computed
-  // landmark-by-landmark using the SAME formula as the server's
-  // `estimate_yaw_deg` so the two views of the same head can never
-  // disagree on which direction is "right" vs "left".
-  private let yawTargetDegrees: Double = 22 // server's tilt threshold is 20°; small margin so iOS hits 100% just past it
+  // landmark-by-landmark; the server now uses cv2.solvePnP against a
+  // canonical 3D head model (see service.py `estimate_head_pose`) so the
+  // two pipelines disagree slightly on the absolute yaw magnitude for a
+  // given pose. The sign convention still matches (positive yaw =
+  // subject's left turn under un-mirrored capture), so the direction
+  // assignment can never flip — but the server's tilt threshold lives
+  // on the PnP scale, not this geometric one.
+  private let yawTargetDegrees: Double = 22 // iOS progress completes at 22°. Server tilt threshold is 17° (PnP scale); the iOS target sits comfortably above so by the time iOS shows 100%, server-side yaw is well past trigger.
   private let centeringYawDegrees: Double = 12 // |yaw| under this counts as "centred"
   private let framesPerSecond: Int32 = 24
   private let bitRate: Int = 1_600_000
@@ -563,9 +567,13 @@ final class LivenessEngine: ObservableObject {
     }
   }
 
-  /// Geometric yaw matching the server's `estimate_yaw_deg`. Returns nil
-  /// when any of the required landmarks (left/right eye, nose crest) are
-  /// missing from the Vision result.
+  /// Geometric yaw from the eye midline → nose offset. The server moved
+  /// to cv2.solvePnP head-pose recently, so this no longer numerically
+  /// matches the server-side yaw — it's the on-device approximation
+  /// driving the progress arcs. Sign convention still matches the
+  /// server (positive yaw = subject turned to their own LEFT). Returns
+  /// nil when any of the required landmarks (left/right eye, nose
+  /// crest) are missing from the Vision result.
   private func geometricYawDegrees(for face: VNFaceObservation) -> Double? {
     guard
       let landmarks = face.landmarks,

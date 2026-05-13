@@ -2262,7 +2262,6 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
             threshold = float(
                 payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD
             )
-            pose_sequence = payload.get("poseSequence")
             emit_log(
                 "container_liveness_completed",
                 dg2_byte_count=len(
@@ -2270,9 +2269,6 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                         payload.get("dg2Image", {}).get("bytesBase64", "")
                     )
                 ),
-                pose_sequence_length=len(pose_sequence)
-                if isinstance(pose_sequence, list)
-                else 0,
                 threshold=threshold,
                 face_match_passed=result.get("faceMatchPassed"),
                 face_match_score=result.get("faceMatchScore"),

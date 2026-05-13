@@ -4,7 +4,6 @@ import {
   BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD,
   BIOMETRIC_VERIFIER_MAX_DG2_BYTES,
   BIOMETRIC_VERIFIER_MAX_VIDEO_BYTES,
-  BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
   BIOMETRIC_VERIFIER_VIDEO_FIELD,
   biometricVerifierResponseSchema,
   createBiometricVerifierRequestFormData,
@@ -30,11 +29,10 @@ const MESH_ALIGNED_FACE_MATCH_DEFAULTS = {
 };
 
 describe("biometric verifier multipart contract", () => {
-  test("accepts a bounded dg2 + video + pose sequence", async () => {
+  test("accepts a bounded dg2 + video", async () => {
     const formData = createBiometricVerifierRequestFormData({
       dg2Image: byteArray(16),
       video: byteArray(2048),
-      poseSequence: ["center", "left", "right"],
       faceMatchThreshold: 0.75,
     });
 
@@ -42,7 +40,6 @@ describe("biometric verifier multipart contract", () => {
 
     expect(parsed.dg2Image.byteLength).toBe(16);
     expect(parsed.video.byteLength).toBe(2048);
-    expect(parsed.poseSequence).toEqual(["center", "left", "right"]);
     expect(parsed.faceMatchThreshold).toBe(0.75);
   });
 
@@ -54,10 +51,6 @@ describe("biometric verifier multipart contract", () => {
       byteArray(BIOMETRIC_VERIFIER_MAX_DG2_BYTES + 1)
     );
     appendBinaryField(formData, BIOMETRIC_VERIFIER_VIDEO_FIELD, byteArray(64));
-    formData.append(
-      BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
-      JSON.stringify(["center", "left", "right"])
-    );
 
     await expect(
       parseBiometricVerifierRequestFormData(formData)
@@ -72,38 +65,16 @@ describe("biometric verifier multipart contract", () => {
       BIOMETRIC_VERIFIER_VIDEO_FIELD,
       byteArray(BIOMETRIC_VERIFIER_MAX_VIDEO_BYTES + 1)
     );
-    formData.append(
-      BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
-      JSON.stringify(["center", "left", "right"])
-    );
 
     await expect(
       parseBiometricVerifierRequestFormData(formData)
     ).rejects.toThrow("biometric_verifier_video_too_large");
   });
 
-  test("rejects an invalid pose sequence", async () => {
-    const formData = new FormData();
-    appendBinaryField(formData, BIOMETRIC_VERIFIER_DG2_FIELD, byteArray(16));
-    appendBinaryField(formData, BIOMETRIC_VERIFIER_VIDEO_FIELD, byteArray(64));
-    formData.append(
-      BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
-      JSON.stringify(["center", "up"])
-    );
-
-    await expect(
-      parseBiometricVerifierRequestFormData(formData)
-    ).rejects.toThrow("biometric_verifier_pose_sequence_invalid");
-  });
-
   test("rejects thresholds outside the score range", async () => {
     const formData = new FormData();
     appendBinaryField(formData, BIOMETRIC_VERIFIER_DG2_FIELD, byteArray(16));
     appendBinaryField(formData, BIOMETRIC_VERIFIER_VIDEO_FIELD, byteArray(64));
-    formData.append(
-      BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
-      JSON.stringify(["center"])
-    );
     formData.append(BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD, "1.5");
 
     await expect(

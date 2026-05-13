@@ -16,17 +16,13 @@ enum VerifyDataKind: Int {
   case livenessVideo = 8
 }
 
-/// Server-issued head-movement challenge for the liveness step.
+/// Server-issued liveness challenge — replay-defeating nonce + soft
+/// capture deadline. The v1 contract also issued a server-decided pose
+/// order here; v2 derives pose from frames server-side, so the pose
+/// payload was dropped.
 struct VerifyServerLivenessChallenge {
-  let poses: [VerifyLivenessPose]
   let maxDurationMs: UInt32
   let challengeNonce: Data
-}
-
-enum VerifyLivenessPose: Int {
-  case center = 0
-  case left = 1
-  case right = 2
 }
 
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
@@ -688,7 +684,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
             if let livenessChallenge = serverMessage.livenessChallenge {
 #if DEBUG
               print(
-                "WS <- livenessChallenge poses=\(livenessChallenge.poses.count) duration=\(livenessChallenge.maxDurationMs)ms"
+                "WS <- livenessChallenge duration=\(livenessChallenge.maxDurationMs)ms nonce=\(livenessChallenge.challengeNonce.count)B"
               )
 #endif
               self.handleLivenessChallenge(livenessChallenge)

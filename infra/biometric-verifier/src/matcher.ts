@@ -1,7 +1,6 @@
 import {
   type BiometricVerifierResponsePayload,
   biometricVerifierResponseSchema,
-  type LivenessPoseValue,
 } from "@kayle-id/config/biometric-verifier";
 import { extractDg2FaceImage } from "../../../apps/api/src/v1/verify/validation";
 import type { Dg2FaceImage } from "../../../apps/api/src/v1/verify/validation-types";
@@ -14,7 +13,6 @@ interface ContainerLivenessRequestPayload {
   };
   faceMatchThreshold?: number;
   includeDebug?: boolean;
-  poseSequence?: LivenessPoseValue[];
   skipFaceMatch?: boolean;
   videoBase64: string;
 }
@@ -96,7 +94,6 @@ export function verifyLivenessWithContainer({
   container,
   dg2Image,
   video,
-  poseSequence,
   challengeNonce,
   faceMatchThreshold,
   includeDebug,
@@ -105,7 +102,6 @@ export function verifyLivenessWithContainer({
   container: ContainerFetcher;
   dg2Image: Uint8Array;
   video: Uint8Array;
-  poseSequence?: LivenessPoseValue[];
   challengeNonce?: Uint8Array;
   faceMatchThreshold?: number;
   includeDebug?: boolean;
@@ -137,8 +133,6 @@ export function verifyLivenessWithContainer({
         format: dg2FaceImage.imageFormat,
       },
       videoBase64: Buffer.from(video).toString("base64"),
-      poseSequence:
-        poseSequence && poseSequence.length > 0 ? poseSequence : undefined,
       challengeNonceBase64:
         challengeNonce && challengeNonce.byteLength > 0
           ? Buffer.from(challengeNonce).toString("base64")

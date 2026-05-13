@@ -3,7 +3,6 @@ import {
   BIOMETRIC_VERIFIER_AUTH_HEADER,
   BIOMETRIC_VERIFIER_DG2_FIELD,
   BIOMETRIC_VERIFIER_MAX_REQUEST_BYTES,
-  BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
   BIOMETRIC_VERIFIER_VIDEO_FIELD,
   createBiometricVerifierRequestFormData,
 } from "@kayle-id/config/biometric-verifier";
@@ -57,9 +56,6 @@ function buildValidPayloadParams(
       wrapWithEfTag: true,
     }),
     video: videoBytes,
-    poseSequence: ["center", "left", "right"] as Array<
-      "center" | "left" | "right"
-    >,
   };
 }
 
@@ -130,7 +126,6 @@ test("biometric verifier worker forwards liveness payload to the container", asy
         format: expect.any(String),
       }),
       videoBase64: expect.any(String),
-      poseSequence: ["center", "left", "right"],
       faceMatchThreshold: 0.7853,
     })
   );
@@ -327,5 +322,4 @@ test("biometric verifier worker rejects unauthorized requests", async () => {
 test("ignored marker reference", () => {
   expect(BIOMETRIC_VERIFIER_DG2_FIELD).toBe("dg2");
   expect(BIOMETRIC_VERIFIER_VIDEO_FIELD).toBe("video");
-  expect(BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD).toBe("poseSequence");
 });

@@ -175,7 +175,6 @@ test("verifyLiveness does not log upstream response bodies on HTTP errors", asyn
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02]),
 		video: new Uint8Array([0x03, 0x04]),
-		poseSequence: ["center", "left", "right"],
 		env: {
 			BIOMETRIC_VERIFIER: {
 				fetch: async () =>
@@ -208,7 +207,6 @@ test("verifyLiveness logs safe invalid JSON errors without raw parser messages",
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02]),
 		video: new Uint8Array([0x03, 0x04]),
-		poseSequence: ["center", "left", "right"],
 		env: {
 			BIOMETRIC_VERIFIER: {
 				fetch: async () =>

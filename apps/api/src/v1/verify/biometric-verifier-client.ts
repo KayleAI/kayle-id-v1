@@ -2,7 +2,6 @@ import {
 	BIOMETRIC_VERIFIER_AUTH_HEADER,
 	biometricVerifierResponseSchema,
 	createBiometricVerifierRequestFormData,
-	type LivenessPoseValue,
 } from "@kayle-id/config/biometric-verifier";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import type { ApiRequestLogger } from "@/logging";
@@ -73,7 +72,6 @@ function resolveBiometricVerifierSecret(env: unknown): string | null {
 async function requestBiometricVerifier({
 	dg2Image,
 	video,
-	poseSequence,
 	challengeNonce,
 	faceMatchThreshold,
 	verifierBinding,
@@ -83,7 +81,6 @@ async function requestBiometricVerifier({
 }: {
 	dg2Image: Uint8Array;
 	video: Uint8Array;
-	poseSequence?: LivenessPoseValue[];
 	challengeNonce?: Uint8Array;
 	faceMatchThreshold?: number;
 	verifierBinding: BiometricVerifierServiceBinding;
@@ -95,7 +92,6 @@ async function requestBiometricVerifier({
 	const formData = createBiometricVerifierRequestFormData({
 		dg2Image,
 		video,
-		poseSequence,
 		challengeNonce,
 		faceMatchThreshold,
 	});
@@ -213,7 +209,6 @@ async function requestBiometricVerifier({
 export function verifyLiveness({
 	dg2Image,
 	video,
-	poseSequence,
 	challengeNonce,
 	faceMatchThreshold,
 	env,
@@ -222,7 +217,6 @@ export function verifyLiveness({
 }: {
 	dg2Image: Uint8Array;
 	video: Uint8Array;
-	poseSequence?: LivenessPoseValue[];
 	challengeNonce?: Uint8Array;
 	faceMatchThreshold?: number;
 	env: unknown;
@@ -239,7 +233,6 @@ export function verifyLiveness({
 				error_code: "biometric_verifier_config_missing",
 				dg2_bytes: dg2Image.length,
 				video_bytes: video.length,
-				pose_sequence_length: poseSequence?.length ?? 0,
 			},
 			event: "verify.biometric_verifier.config_missing",
 			level: "warn",
@@ -274,7 +267,6 @@ export function verifyLiveness({
 		verifierSecret,
 		dg2Image,
 		video,
-		poseSequence,
 		challengeNonce,
 		faceMatchThreshold,
 		attemptId,

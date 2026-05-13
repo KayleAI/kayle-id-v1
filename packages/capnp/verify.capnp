@@ -42,12 +42,6 @@ enum DataKind {
   livenessVideo @8;
 }
 
-enum LivenessPose {
-  center @0;
-  left @1;
-  right @2;
-}
-
 struct DataPayload {
   kind @0 :DataKind;
   raw @1 :Data;
@@ -114,14 +108,19 @@ struct ServerActiveAuthChallenge {
   challenge @0 :Data;
 }
 
-# Server-issued head-movement challenge sent on the nfc_complete →
-# liveness_capturing transition. The poseSequence is a per-attempt random
-# permutation of [center, left, right] derived deterministically from the
-# AUTH_SECRET so reconnects yield the same value. challengeNonce is the
-# 4-byte HMAC prefix used to seed the permutation; clients echo it back via
-# the recorded video timing so the server can detect replay.
+# Server-issued liveness challenge sent on the nfc_complete →
+# liveness_capturing transition. challengeNonce is a 4-byte HMAC prefix
+# derived deterministically from the AUTH_SECRET so reconnects yield the
+# same value; clients echo it back via the recorded video timing so the
+# server can detect replay. maxDurationMs is a soft client deadline for
+# the capture UX.
+#
+# Field @0 was a per-attempt pose sequence ([center, left, right]
+# permutation). The v2 liveness flow derives pose from video frames
+# server-side, so the pre-recorded sequence was redundant — reserved
+# here so Cap'n Proto wire-compat stays intact.
 struct ServerLivenessChallenge {
-  poseSequence @0 :List(LivenessPose);
+  reservedPoseSequence @0 :List(UInt8);
   maxDurationMs @1 :UInt32;
   challengeNonce @2 :Data;
 }

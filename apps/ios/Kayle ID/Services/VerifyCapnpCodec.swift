@@ -121,9 +121,6 @@ nonisolated private func verify_server_message_get_active_auth_challenge(
 @_silgen_name("verify_server_message_get_liveness_challenge")
 nonisolated private func verify_server_message_get_liveness_challenge(
   _ reader: UnsafeMutableRawPointer?,
-  _ outPoseBuffer: UnsafeMutablePointer<Int32>?,
-  _ outPoseBufferSize: Int,
-  _ outPoseCount: UnsafeMutablePointer<UInt32>?,
   _ outMaxDurationMs: UnsafeMutablePointer<UInt32>?,
   _ outChallengeNonce: UnsafeMutablePointer<UInt8>?,
   _ outChallengeNonceSize: Int,
@@ -600,9 +597,6 @@ final class VerifyCapnpCodec {
         activeAuthChallenge: Data(buffer.prefix(length))
       )
     case .livenessChallenge:
-      let poseCapacity = 8
-      var poseBuffer = [Int32](repeating: 0, count: poseCapacity)
-      var poseCount: UInt32 = 0
       var maxDurationMs: UInt32 = 0
       let nonceCapacity = 32
       var nonceBuffer = [UInt8](repeating: 0, count: nonceCapacity)
@@ -610,21 +604,14 @@ final class VerifyCapnpCodec {
 
       let ok = verify_server_message_get_liveness_challenge(
         reader.opaque,
-        &poseBuffer,
-        poseCapacity,
-        &poseCount,
         &maxDurationMs,
         &nonceBuffer,
         nonceCapacity,
         &nonceLength
       )
 
-      guard ok == 1, poseCount > 0, Int(poseCount) <= poseCapacity else {
+      guard ok == 1 else {
         return VerifyServerMessage()
-      }
-
-      let poses: [VerifyLivenessPose] = (0..<Int(poseCount)).compactMap { index in
-        VerifyLivenessPose(rawValue: Int(poseBuffer[index]))
       }
 
       let nonce: Data = nonceLength > 0 && nonceLength <= nonceCapacity
@@ -633,7 +620,6 @@ final class VerifyCapnpCodec {
 
       return VerifyServerMessage(
         livenessChallenge: VerifyServerLivenessChallenge(
-          poses: poses,
           maxDurationMs: maxDurationMs,
           challengeNonce: nonce
         )

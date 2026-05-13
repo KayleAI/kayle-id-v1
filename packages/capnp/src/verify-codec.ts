@@ -2,44 +2,9 @@ import { Message } from "capnp-es";
 import {
   ClientMessage as CapnpClientMessage,
   DataKind as CapnpDataKind,
-  LivenessPose as CapnpLivenessPose,
   ServerMessage as CapnpServerMessage,
   VerdictOutcome as CapnpVerdictOutcome,
 } from "../generated/ts/verify.js";
-
-export const LIVENESS_POSE = {
-  CENTER: "center",
-  LEFT: "left",
-  RIGHT: "right",
-} as const;
-export type LivenessPoseValue =
-  (typeof LIVENESS_POSE)[keyof typeof LIVENESS_POSE];
-
-function toCapnpLivenessPose(
-  pose: LivenessPoseValue
-): (typeof CapnpLivenessPose)[keyof typeof CapnpLivenessPose] {
-  switch (pose) {
-    case LIVENESS_POSE.LEFT:
-      return CapnpLivenessPose.LEFT;
-    case LIVENESS_POSE.RIGHT:
-      return CapnpLivenessPose.RIGHT;
-    default:
-      return CapnpLivenessPose.CENTER;
-  }
-}
-
-function fromCapnpLivenessPose(
-  pose: (typeof CapnpLivenessPose)[keyof typeof CapnpLivenessPose]
-): LivenessPoseValue {
-  switch (pose) {
-    case CapnpLivenessPose.LEFT:
-      return LIVENESS_POSE.LEFT;
-    case CapnpLivenessPose.RIGHT:
-      return LIVENESS_POSE.RIGHT;
-    default:
-      return LIVENESS_POSE.CENTER;
-  }
-}
 
 export interface VerifyClientHello {
   appVersion?: string;
@@ -90,7 +55,6 @@ export interface VerifyServerMessage {
     message: string;
   };
   livenessChallenge?: {
-    poseSequence: LivenessPoseValue[];
     maxDurationMs: number;
     challengeNonce: Uint8Array;
   };
@@ -232,12 +196,8 @@ export function encodeServerLivenessChallenge(
   const packet = new Message();
   const root = packet.initRoot(CapnpServerMessage);
   const next = root._initLivenessChallenge();
-  const poseSequence = next._initPoseSequence(challenge.poseSequence.length);
-
-  for (const [index, pose] of challenge.poseSequence.entries()) {
-    poseSequence.set(index, toCapnpLivenessPose(pose));
-  }
-
+  // reservedPoseSequence (@0) is left at length 0 — pose is no longer
+  // pre-issued; the verifier derives pose from frames server-side.
   next.maxDurationMs = challenge.maxDurationMs;
   const nonceBytes = challenge.challengeNonce ?? new Uint8Array();
   next._initChallengeNonce(nonceBytes.length).copyBuffer(nonceBytes);
@@ -322,24 +282,15 @@ export function decodeServerMessage(
             ),
           },
         };
-      case CapnpServerMessage.LIVENESS_CHALLENGE: {
-        const poseSequence = root.livenessChallenge.poseSequence;
-        const decodedPoses: LivenessPoseValue[] = [];
-
-        for (let index = 0; index < poseSequence.length; index += 1) {
-          decodedPoses.push(fromCapnpLivenessPose(poseSequence.get(index)));
-        }
-
+      case CapnpServerMessage.LIVENESS_CHALLENGE:
         return {
           livenessChallenge: {
-            poseSequence: decodedPoses,
             maxDurationMs: root.livenessChallenge.maxDurationMs,
             challengeNonce: new Uint8Array(
               root.livenessChallenge.challengeNonce.toUint8Array()
             ),
           },
         };
-      }
       case CapnpServerMessage.SHARE_READY: {
         const selectedFieldKeys = root.shareReady.selectedFieldKeys;
         const decodedKeys: string[] = [];

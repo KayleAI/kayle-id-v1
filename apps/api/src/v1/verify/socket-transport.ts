@@ -78,7 +78,6 @@ export function createVerifySocketTransport({
 
 	const sendLivenessChallenge = (challenge: VerifyServerLivenessChallenge) => {
 		logDebug("send_liveness_challenge", {
-			pose_count: challenge.poseSequence.length,
 			max_duration_ms: challenge.maxDurationMs,
 			nonce_bytes: challenge.challengeNonce.length,
 		});

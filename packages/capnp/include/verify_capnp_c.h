@@ -31,12 +31,6 @@ typedef enum verify_server_message_kind {
   VERIFY_SERVER_MESSAGE_LIVENESS_CHALLENGE = 7
 } verify_server_message_kind_t;
 
-typedef enum verify_liveness_pose {
-  VERIFY_LIVENESS_POSE_CENTER = 0,
-  VERIFY_LIVENESS_POSE_LEFT = 1,
-  VERIFY_LIVENESS_POSE_RIGHT = 2
-} verify_liveness_pose_t;
-
 typedef enum verify_server_verdict_outcome {
   VERIFY_SERVER_VERDICT_ACCEPTED = 0,
   VERIFY_SERVER_VERDICT_REJECTED = 1
@@ -150,13 +144,11 @@ int verify_server_message_get_active_auth_challenge(
   size_t* out_challenge_length
 );
 
-// Liveness challenge: poseSequence (out_pose_buffer, out_pose_count),
-// maxDurationMs, challengeNonce (out_challenge_nonce, out_challenge_nonce_length).
+// Liveness challenge: maxDurationMs, challengeNonce. Earlier versions
+// also returned a server-issued pose sequence; that was dropped because
+// the v2 liveness flow derives pose from frames server-side.
 int verify_server_message_get_liveness_challenge(
   void* message_reader,
-  int* out_pose_buffer,
-  size_t out_pose_buffer_size,
-  uint32_t* out_pose_count,
   uint32_t* out_max_duration_ms,
   uint8_t* out_challenge_nonce,
   size_t out_challenge_nonce_size,

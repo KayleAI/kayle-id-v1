@@ -3,7 +3,6 @@ import { z } from "zod";
 export const BIOMETRIC_VERIFIER_AUTH_HEADER = "x-kayle-biometric-verifier-auth";
 export const BIOMETRIC_VERIFIER_DG2_FIELD = "dg2";
 export const BIOMETRIC_VERIFIER_VIDEO_FIELD = "video";
-export const BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD = "poseSequence";
 export const BIOMETRIC_VERIFIER_CHALLENGE_NONCE_FIELD = "challengeNonce";
 export const BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD =
   "faceMatchThreshold";
@@ -24,10 +23,6 @@ export const BIOMETRIC_VERIFIER_MAX_REQUEST_BYTES =
 export const BIOMETRIC_VERIFIER_MAX_THRESHOLD = 1;
 export const BIOMETRIC_VERIFIER_MIN_THRESHOLD = 0;
 
-export const LIVENESS_POSE_VALUES = ["center", "left", "right"] as const;
-export type LivenessPoseValue = (typeof LIVENESS_POSE_VALUES)[number];
-
-const livenessPoseSchema = z.enum(LIVENESS_POSE_VALUES);
 // The container classifier emits "unknown" for frames where yaw can't be
 // estimated (no face) or falls in the dead zone between center and an
 // extreme. Production response shape only carries verdicts, but the debug
@@ -173,14 +168,6 @@ export interface BiometricVerifierMultipartPayload {
    */
   includeDebug?: boolean;
   /**
-   * Optional movement hint. v2 of the liveness flow accepts a left+right
-   * head turn in either order, so the API no longer issues a strict pose
-   * sequence — but a future tighter contract can re-introduce one. When
-   * omitted, the container falls back to the default left+right coverage
-   * check.
-   */
-  poseSequence?: LivenessPoseValue[];
-  /**
    * Debug-only escape hatch. When true AND the container is running in
    * development mode (`NODE_ENV=development`), the verifier skips DG2
    * decode + cosine match and returns `faceMatchPassed=false,
@@ -228,28 +215,6 @@ function parseThresholdValue(value: MultipartEntry | null): number | undefined {
   }
 
   return parsed;
-}
-
-function parsePoseSequence(
-  value: MultipartEntry | null
-): LivenessPoseValue[] | undefined {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    throw new Error("biometric_verifier_pose_sequence_invalid");
-  }
-
-  const validated = z.array(livenessPoseSchema).safeParse(parsed);
-  if (!validated.success) {
-    throw new Error("biometric_verifier_pose_sequence_invalid");
-  }
-
-  return validated.data.length > 0 ? validated.data : undefined;
 }
 
 function validateDg2Bytes(bytes: Uint8Array): Uint8Array {
@@ -301,7 +266,6 @@ async function bytesFromEntry(
 export function createBiometricVerifierRequestFormData({
   dg2Image,
   video,
-  poseSequence,
   challengeNonce,
   faceMatchThreshold,
   includeDebug,
@@ -335,13 +299,6 @@ export function createBiometricVerifierRequestFormData({
     blobFromBytes(video),
     "liveness.mp4"
   );
-
-  if (poseSequence && poseSequence.length > 0) {
-    formData.append(
-      BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
-      JSON.stringify(poseSequence)
-    );
-  }
 
   if (challengeNonce && challengeNonce.byteLength > 0) {
     formData.append(
@@ -382,9 +339,6 @@ export async function parseBiometricVerifierRequestFormData(
     "video",
     BIOMETRIC_VERIFIER_MAX_VIDEO_BYTES
   );
-  const poseSequence = parsePoseSequence(
-    formData.get(BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD)
-  );
   const faceMatchThreshold = parseThresholdValue(
     formData.get(BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD)
   );
@@ -413,7 +367,6 @@ export async function parseBiometricVerifierRequestFormData(
   return {
     dg2Image,
     video,
-    poseSequence,
     challengeNonce,
     faceMatchThreshold,
     includeDebug,

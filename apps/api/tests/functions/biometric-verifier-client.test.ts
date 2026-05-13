@@ -2,7 +2,6 @@ import { afterEach, expect, mock, test } from "bun:test";
 import {
 	BIOMETRIC_VERIFIER_AUTH_HEADER,
 	BIOMETRIC_VERIFIER_DG2_FIELD,
-	BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
 	BIOMETRIC_VERIFIER_VIDEO_FIELD,
 } from "@kayle-id/config/biometric-verifier";
 import { verifyLiveness } from "@/v1/verify/biometric-verifier-client";
@@ -29,7 +28,6 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	let capturedAuthHeader: string | null = null;
 	let capturedDg2Size = 0;
 	let capturedVideoSize = 0;
-	let capturedPoseSequence: string[] = [];
 
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
@@ -47,9 +45,6 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 					formData.get(BIOMETRIC_VERIFIER_VIDEO_FIELD) as Blob
 				).arrayBuffer()
 			).byteLength;
-			capturedPoseSequence = JSON.parse(
-				formData.get(BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD) as string,
-			) as string[];
 
 			return new Response(
 				JSON.stringify({
@@ -76,7 +71,6 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02, 0x03]),
 		video: new Uint8Array([0x10, 0x11, 0x12, 0x13]),
-		poseSequence: ["center", "left", "right"],
 		env: {
 			BIOMETRIC_VERIFIER: verifierBinding,
 			BIOMETRIC_VERIFIER_SECRET: "test-secret",
@@ -101,14 +95,12 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	).toBe("test-secret");
 	expect(capturedDg2Size).toBe(3);
 	expect(capturedVideoSize).toBe(4);
-	expect(capturedPoseSequence).toEqual(["center", "left", "right"]);
 });
 
 test("verifyLiveness fails closed when verifier config is unavailable", async () => {
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02, 0x03]),
 		video: new Uint8Array([0x04, 0x05]),
-		poseSequence: ["center"],
 		env: {},
 	});
 
@@ -156,7 +148,6 @@ test("verifyLiveness fails closed when the verifier binding is set but the secre
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02, 0x03]),
 		video: new Uint8Array([0x04, 0x05]),
-		poseSequence: ["center"],
 		env: {
 			BIOMETRIC_VERIFIER: verifierBinding,
 		},
@@ -180,7 +171,6 @@ test("verifyLiveness fails closed when the verifier returns invalid JSON", async
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01]),
 		video: new Uint8Array([0x02]),
-		poseSequence: ["center"],
 		env: {
 			BIOMETRIC_VERIFIER: {
 				fetch: globalThis.fetch,

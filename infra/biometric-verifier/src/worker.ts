@@ -323,11 +323,7 @@ async function handleLivenessRequest({
       liveness_score: response.livenessScore,
       pad_passed: response.padPassed,
       pad_score: response.padScore,
-      // Mesh-aligned AuraFace runs in parallel to the YuNet-aligned
-      // verdict for the same AuraFace model. Telemetry only — the
-      // production verdict still gates on `face_match_passed`.
-      face_match_score_mesh_aligned: response.faceMatchScoreMeshAligned,
-      face_match_passed_mesh_aligned: response.faceMatchPassedMeshAligned,
+      face_match_alignment: response.faceMatchAlignment,
       used_fallback: response.usedFallback,
       reason: response.reason ?? null,
     },
@@ -472,19 +468,19 @@ async function handleFaceMatchRequest({
   }
 
   const responseSelfies = result.response.selfies;
-  const meshAlignedScores = responseSelfies
-    .map((selfie) => selfie.faceMatchScoreMeshAligned)
-    .filter((value): value is number => typeof value === "number");
-  const meshAlignedMean =
-    meshAlignedScores.length > 0
-      ? meshAlignedScores.reduce((acc, value) => acc + value, 0) /
-        meshAlignedScores.length
-      : null;
-  const meshAlignedMin =
-    meshAlignedScores.length > 0 ? Math.min(...meshAlignedScores) : null;
-  const meshAlignedPassCount = responseSelfies.filter(
-    (selfie) => selfie.faceMatchPassedMeshAligned === true
-  ).length;
+  const alignmentCounts = responseSelfies.reduce(
+    (acc, selfie) => {
+      if (selfie.faceMatchAlignment === "mesh") {
+        acc.mesh += 1;
+      } else if (selfie.faceMatchAlignment === "yunet") {
+        acc.yunet += 1;
+      } else {
+        acc.none += 1;
+      }
+      return acc;
+    },
+    { mesh: 0, yunet: 0, none: 0 }
+  );
 
   logEvent(logger, {
     details: {
@@ -494,11 +490,9 @@ async function handleFaceMatchRequest({
       face_match_threshold: result.response.threshold,
       pass_count: responseSelfies.filter((selfie) => selfie.faceMatchPassed)
         .length,
-      // Mesh-aligned AuraFace aggregates across selfies.
-      face_match_mesh_aligned_scored_count: meshAlignedScores.length,
-      face_match_mesh_aligned_mean: meshAlignedMean,
-      face_match_mesh_aligned_min: meshAlignedMin,
-      face_match_mesh_aligned_pass_count: meshAlignedPassCount,
+      face_match_alignment_mesh_count: alignmentCounts.mesh,
+      face_match_alignment_yunet_count: alignmentCounts.yunet,
+      face_match_alignment_none_count: alignmentCounts.none,
     },
     event: "biometric_verifier.face_match.completed",
   });

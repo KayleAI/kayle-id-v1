@@ -79,10 +79,9 @@ test("biometric verifier worker forwards liveness payload to the container", asy
             livenessScore: 0.92,
             faceMatchPassed: true,
             faceMatchScore: 0.91,
+            faceMatchAlignment: "mesh",
             padPassed: true,
             padScore: 0.85,
-            faceMatchScoreMeshAligned: 0.93,
-            faceMatchPassedMeshAligned: true,
             usedFallback: false,
           }),
           {
@@ -135,10 +134,9 @@ test("biometric verifier worker forwards liveness payload to the container", asy
     livenessScore: 0.92,
     faceMatchPassed: true,
     faceMatchScore: 0.91,
+    faceMatchAlignment: "mesh",
     padPassed: true,
     padScore: 0.85,
-    faceMatchScoreMeshAligned: 0.93,
-    faceMatchPassedMeshAligned: true,
     usedFallback: false,
   });
 });

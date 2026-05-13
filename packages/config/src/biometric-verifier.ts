@@ -130,25 +130,15 @@ export const biometricVerifierResponseSchema = z.object({
   padPassed: z.boolean(),
   padScore: z.number().min(0).max(1).nullable(),
   usedFallback: z.boolean(),
-  // The container emits `null` on the happy path (face match passed, no
-  // reason to report). `.nullish()` accepts both `null` and `undefined`
-  // so we don't reject otherwise-valid container responses.
+  // `.nullish()` accepts both `null` and `undefined` — the container
+  // emits `null` on the happy path; older test mocks omit the field.
   reason: z.string().nullish(),
-  // Mesh-aligned AuraFace: same AuraFace weights as `faceMatchScore`
-  // above, but the input crop is produced by warping the mesh's
-  // anatomical landmarks onto the ArcFace canonical template instead
-  // of using YuNet's 5-pt `align_crop`. Uses the same
-  // `faceMatchThreshold` the caller supplied. Telemetry-only — the
-  // API consumer's `LivenessVerificationResult` continues to gate on
-  // `faceMatchPassed` above. Mesh-similarity-based scoring was tried
-  // in an earlier revision and de-scoped because the Procrustes-RMSD
-  // approach wasn't discriminative enough; it may be revisited under
-  // a different metric.
-  faceMatchScoreMeshAligned: z.number().min(0).max(1).nullable(),
-  faceMatchPassedMeshAligned: z.boolean().nullable(),
-  // Only populated when the request set `includeDebug=1` AND the
-  // container is in development mode. Production responses never carry
-  // this block regardless of the request flag.
+  // Which alignment produced `faceMatchScore`: "mesh" (preferred,
+  // both sides had a 478-pt mesh embedding), "yunet" (fallback), or
+  // null when no face match was produced.
+  faceMatchAlignment: z.enum(["mesh", "yunet"]).nullable(),
+  // Only populated when `includeDebug=1` is set AND the container is
+  // running in development mode.
   debug: livenessDebugSchema.nullish(),
 });
 
@@ -160,20 +150,12 @@ export interface BiometricVerifierMultipartPayload {
   challengeNonce?: Uint8Array;
   dg2Image: Uint8Array;
   faceMatchThreshold?: number;
-  /**
-   * Opt-in flag. When true, the container attaches a `debug` block to the
-   * response with the per-frame pose/yaw/PAD timeline used to compute the
-   * verdict. Production API callers never set this; the contributor debug
-   * UI is the only caller that does.
-   */
+  /** Attach the per-frame pose/yaw/PAD timeline to the response. Dev-only. */
   includeDebug?: boolean;
   /**
-   * Debug-only escape hatch. When true AND the container is running in
-   * development mode (`NODE_ENV=development`), the verifier skips DG2
-   * decode + cosine match and returns `faceMatchPassed=false,
-   * faceMatchScore=null, reason=face_match_skipped`. Production
-   * wrangler sets `NODE_ENV=production`, so this field is a no-op
-   * there.
+   * Skip the DG2 face-match step. Honoured only when the container is
+   * running in development mode (`NODE_ENV=development`); production
+   * wrangler sets `NODE_ENV=production`, so this is a no-op there.
    */
   skipFaceMatch?: boolean;
   video: Uint8Array;
@@ -412,12 +394,7 @@ export const faceMatchSelfieResponseSchema = z.object({
   rollDeg: z.number().nullable(),
   faceMatchScore: z.number().min(0).max(1).nullable(),
   faceMatchPassed: z.boolean(),
-  // Mesh-aligned AuraFace cosine for THIS selfie (mesh-warped crop
-  // into the same AuraFace model). See biometricVerifierResponseSchema
-  // for the full explanation.
-  faceMatchScoreMeshAligned: z.number().min(0).max(1).nullable(),
-  faceMatchPassedMeshAligned: z.boolean().nullable(),
-  // Mesh subset for THIS selfie. Same gating as the DG2 one.
+  faceMatchAlignment: z.enum(["mesh", "yunet"]).nullable(),
   mesh: livenessMeshSubsetSchema.nullish(),
   usedFallback: z.boolean(),
   reason: z.string().nullish(),
@@ -545,10 +522,9 @@ export function createBiometricVerifierResponse(
     livenessScore: payload.livenessScore,
     faceMatchPassed: payload.faceMatchPassed,
     faceMatchScore: payload.faceMatchScore,
+    faceMatchAlignment: payload.faceMatchAlignment,
     padPassed: payload.padPassed,
     padScore: payload.padScore,
-    faceMatchScoreMeshAligned: payload.faceMatchScoreMeshAligned,
-    faceMatchPassedMeshAligned: payload.faceMatchPassedMeshAligned,
     usedFallback: payload.usedFallback,
     reason: payload.reason,
     debug: payload.debug,

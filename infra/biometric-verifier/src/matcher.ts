@@ -33,10 +33,9 @@ function createUnavailableResult(reason: string): LivenessContainerResult {
     livenessScore: null,
     faceMatchPassed: false,
     faceMatchScore: null,
+    faceMatchAlignment: null,
     padPassed: false,
     padScore: null,
-    faceMatchScoreMeshAligned: null,
-    faceMatchPassedMeshAligned: null,
     usedFallback: true,
     reason,
   };

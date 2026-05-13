@@ -90,14 +90,13 @@ PAD_V1SE_MODEL_PATH = os.environ.get(
 PAD_INPUT_SIZE = (80, 80)
 PAD_V2_CROP_SCALE = 2.7
 PAD_V1SE_CROP_SCALE = 4.0
-# Summed softmax over two models is in [0, 2]; we halve before applying
-# this threshold to keep it in [0, 1].
-PAD_FRAME_THRESHOLD = float(
-    os.environ.get("BIOMETRIC_VERIFIER_PAD_FRAME_THRESHOLD", "0.55")
-)
-PAD_PASS_FRACTION = float(
-    os.environ.get("BIOMETRIC_VERIFIER_PAD_PASS_FRACTION", "0.7")
-)
+# Calibration policy lives in source so a deploy-time env override
+# can't silently shift spoof detection. BIOMETRIC_VERIFIER_PAD_DISABLED
+# remains as the emergency kill switch (asserted unset in
+# wrangler-config.test.ts). Summed softmax over two models is in
+# [0, 2]; halved before this threshold to keep it in [0, 1].
+PAD_FRAME_THRESHOLD = 0.55
+PAD_PASS_FRACTION = 0.7
 
 MESH_DISABLED = os.environ.get("BIOMETRIC_VERIFIER_MESH_DISABLED") == "1"
 MESH_MODEL_PATH = os.environ.get(

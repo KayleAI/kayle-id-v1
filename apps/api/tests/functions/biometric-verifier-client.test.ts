@@ -59,6 +59,8 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 					faceMatchScore: 0.91,
 					padPassed: true,
 					padScore: 0.82,
+					faceMatchScoreMeshAligned: 0.92,
+					faceMatchPassedMeshAligned: true,
 					usedFallback: false,
 				}),
 				{
@@ -137,6 +139,8 @@ test("verifyLiveness fails closed when the verifier binding is set but the secre
 					faceMatchScore: 0.9,
 					padPassed: true,
 					padScore: 0.85,
+					faceMatchScoreMeshAligned: 0.92,
+					faceMatchPassedMeshAligned: true,
 					usedFallback: false,
 				}),
 				{

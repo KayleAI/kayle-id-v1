@@ -6,6 +6,7 @@ import {
   BIOMETRIC_VERIFIER_MAX_VIDEO_BYTES,
   BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD,
   BIOMETRIC_VERIFIER_VIDEO_FIELD,
+  biometricVerifierResponseSchema,
   createBiometricVerifierRequestFormData,
   parseBiometricVerifierRequestFormData,
 } from "./biometric-verifier";
@@ -19,6 +20,13 @@ const appendBinaryField = (
   bytes: Uint8Array
 ) => {
   formData.append(fieldName, new Blob([bytes]), `${fieldName}.bin`);
+};
+
+// Mesh-aligned AuraFace nulls — tests use this to stay declarative about
+// which slot they're varying.
+const MESH_ALIGNED_FACE_MATCH_DEFAULTS = {
+  faceMatchScoreMeshAligned: null,
+  faceMatchPassedMeshAligned: null,
 };
 
 describe("biometric verifier multipart contract", () => {
@@ -101,5 +109,58 @@ describe("biometric verifier multipart contract", () => {
     await expect(
       parseBiometricVerifierRequestFormData(formData)
     ).rejects.toThrow("biometric_verifier_threshold_out_of_range");
+  });
+});
+
+describe("biometric verifier response schema", () => {
+  test("accepts the happy path with mesh-aligned SFace populated", () => {
+    const parsed = biometricVerifierResponseSchema.safeParse({
+      livenessPassed: true,
+      livenessScore: 0.95,
+      faceMatchPassed: true,
+      faceMatchScore: 0.88,
+      padPassed: true,
+      padScore: 0.91,
+      faceMatchScoreMeshAligned: 0.9,
+      faceMatchPassedMeshAligned: true,
+      usedFallback: false,
+      reason: null,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.faceMatchScoreMeshAligned).toBe(0.9);
+    }
+  });
+
+  test("accepts mesh-aligned SFace as null when mesh is unavailable", () => {
+    const parsed = biometricVerifierResponseSchema.safeParse({
+      livenessPassed: false,
+      livenessScore: 0.5,
+      faceMatchPassed: false,
+      faceMatchScore: null,
+      padPassed: false,
+      padScore: null,
+      ...MESH_ALIGNED_FACE_MATCH_DEFAULTS,
+      usedFallback: false,
+      reason: "liveness_no_face",
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  test("rejects responses missing faceMatchScoreMeshAligned", () => {
+    // Once the schema requires the field, dropping it from the
+    // container's response shape would be a silent contract break — we
+    // want a hard parse failure instead.
+    const parsed = biometricVerifierResponseSchema.safeParse({
+      livenessPassed: true,
+      livenessScore: 0.95,
+      faceMatchPassed: true,
+      faceMatchScore: 0.88,
+      padPassed: true,
+      padScore: 0.91,
+      usedFallback: false,
+      reason: null,
+    });
+    expect(parsed.success).toBe(false);
   });
 });

@@ -7,6 +7,12 @@ export const BIOMETRIC_VERIFIER_POSE_SEQUENCE_FIELD = "poseSequence";
 export const BIOMETRIC_VERIFIER_CHALLENGE_NONCE_FIELD = "challengeNonce";
 export const BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD =
   "faceMatchThreshold";
+export const BIOMETRIC_VERIFIER_INCLUDE_DEBUG_FIELD = "includeDebug";
+export const BIOMETRIC_VERIFIER_SKIP_FACE_MATCH_FIELD = "skipFaceMatch";
+export const BIOMETRIC_VERIFIER_SELFIE_FIELD = "selfie";
+
+export const BIOMETRIC_VERIFIER_MAX_SELFIE_BYTES = 4 * 1024 * 1024;
+export const BIOMETRIC_VERIFIER_MAX_SELFIES = 16;
 
 export const BIOMETRIC_VERIFIER_MAX_DG2_BYTES = 4 * 1024 * 1024;
 export const BIOMETRIC_VERIFIER_MAX_VIDEO_BYTES = 16 * 1024 * 1024;
@@ -22,6 +28,100 @@ export const LIVENESS_POSE_VALUES = ["center", "left", "right"] as const;
 export type LivenessPoseValue = (typeof LIVENESS_POSE_VALUES)[number];
 
 const livenessPoseSchema = z.enum(LIVENESS_POSE_VALUES);
+// The container classifier emits "unknown" for frames where yaw can't be
+// estimated (no face) or falls in the dead zone between center and an
+// extreme. Production response shape only carries verdicts, but the debug
+// timeline records the raw per-frame classification.
+const livenessDebugPoseSchema = z.enum(["center", "left", "right", "unknown"]);
+
+const livenessLandmarkPointSchema = z.tuple([z.number(), z.number()]);
+
+const livenessDebugBboxSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  confidence: z.number(),
+});
+
+// YuNet emits 5 landmarks per detected face. Naming follows the IMAGE's
+// perspective, matching the columns YuNet returns. `rightEye` is therefore
+// the eye on the image's right side — which, in an un-mirrored front-camera
+// capture, is the subject's LEFT eye. The overlay renders them as-is on the
+// played-back video, so naming-by-image-side is what the viewer sees.
+const livenessDebugLandmarksSchema = z.object({
+  rightEye: livenessLandmarkPointSchema,
+  leftEye: livenessLandmarkPointSchema,
+  nose: livenessLandmarkPointSchema,
+  rightMouth: livenessLandmarkPointSchema,
+  leftMouth: livenessLandmarkPointSchema,
+});
+
+// Mesh debug shape: emitted only when the container is running in
+// development mode (NODE_ENV=development) AND the request asks for
+// debug. We send only an identity-stable subset (~12 anchored points)
+// rather than the full 478×3 — the full mesh would balloon the debug
+// payload past 500 KB on a typical clip while adding nothing the
+// overlay can't render from the subset.
+const livenessLandmarkPoint3dSchema = z.tuple([
+  z.number(),
+  z.number(),
+  z.number(),
+]);
+
+const livenessMeshSubsetSchema = z.object({
+  subsetPoints: z.array(livenessLandmarkPoint3dSchema),
+  subsetIndices: z.array(z.number().int().nonnegative()),
+});
+
+const livenessDebugTimelineEntrySchema = z.object({
+  frameIndex: z.number().int().nonnegative(),
+  faceDetected: z.boolean(),
+  pitchDeg: z.number().nullish(),
+  yawDeg: z.number().nullable(),
+  rollDeg: z.number().nullish(),
+  pose: livenessDebugPoseSchema,
+  padScore: z.number().min(0).max(1).nullable(),
+  bbox: livenessDebugBboxSchema.nullable(),
+  landmarks: livenessDebugLandmarksSchema.nullable(),
+  mesh: livenessMeshSubsetSchema.nullish(),
+});
+
+export const livenessDebugSchema = z.object({
+  frameCount: z.number().int().nonnegative(),
+  durationSeconds: z.number().nullable(),
+  frameWidth: z.number().int().nonnegative(),
+  frameHeight: z.number().int().nonnegative(),
+  centerFrameIndex: z.number().int().nonnegative().nullable(),
+  timeline: z.array(livenessDebugTimelineEntrySchema),
+  padFrameThreshold: z.number().nullable(),
+  padPassFraction: z.number().nullable(),
+  padScoredFrames: z.number().int().nonnegative(),
+  padPassingFrames: z.number().int().nonnegative(),
+  // PAD is on by default now; `padDisabled` is the emergency
+  // kill-switch flag (`BIOMETRIC_VERIFIER_PAD_DISABLED=1`).
+  // `padLoaded` reflects whether onnxruntime actually got both
+  // sessions up (the dual-model ensemble requires V2 + V1SE).
+  padDisabled: z.boolean(),
+  padLoaded: z.boolean(),
+  // Mesh model is always-on by default; `meshDisabled` is the
+  // emergency kill-switch flag (`BIOMETRIC_VERIFIER_MESH_DISABLED=1`).
+  // `meshLoaded` reflects whether onnxruntime actually got a session
+  // — false means file missing, kill-switch on, or load error.
+  meshDisabled: z.boolean().optional(),
+  meshLoaded: z.boolean().optional(),
+  dg2Mesh: livenessMeshSubsetSchema.nullish(),
+});
+
+export type LivenessDebugBbox = z.infer<typeof livenessDebugBboxSchema>;
+export type LivenessDebugLandmarks = z.infer<
+  typeof livenessDebugLandmarksSchema
+>;
+
+export type LivenessDebugPayload = z.infer<typeof livenessDebugSchema>;
+export type LivenessDebugTimelineEntry = z.infer<
+  typeof livenessDebugTimelineEntrySchema
+>;
 
 export const biometricVerifierResponseSchema = z.object({
   livenessPassed: z.boolean(),
@@ -39,6 +139,22 @@ export const biometricVerifierResponseSchema = z.object({
   // reason to report). `.nullish()` accepts both `null` and `undefined`
   // so we don't reject otherwise-valid container responses.
   reason: z.string().nullish(),
+  // Mesh-aligned AuraFace: same AuraFace weights as `faceMatchScore`
+  // above, but the input crop is produced by warping the mesh's
+  // anatomical landmarks onto the ArcFace canonical template instead
+  // of using YuNet's 5-pt `align_crop`. Uses the same
+  // `faceMatchThreshold` the caller supplied. Telemetry-only — the
+  // API consumer's `LivenessVerificationResult` continues to gate on
+  // `faceMatchPassed` above. Mesh-similarity-based scoring was tried
+  // in an earlier revision and de-scoped because the Procrustes-RMSD
+  // approach wasn't discriminative enough; it may be revisited under
+  // a different metric.
+  faceMatchScoreMeshAligned: z.number().min(0).max(1).nullable(),
+  faceMatchPassedMeshAligned: z.boolean().nullable(),
+  // Only populated when the request set `includeDebug=1` AND the
+  // container is in development mode. Production responses never carry
+  // this block regardless of the request flag.
+  debug: livenessDebugSchema.nullish(),
 });
 
 export type BiometricVerifierResponsePayload = z.infer<
@@ -50,6 +166,13 @@ export interface BiometricVerifierMultipartPayload {
   dg2Image: Uint8Array;
   faceMatchThreshold?: number;
   /**
+   * Opt-in flag. When true, the container attaches a `debug` block to the
+   * response with the per-frame pose/yaw/PAD timeline used to compute the
+   * verdict. Production API callers never set this; the contributor debug
+   * UI is the only caller that does.
+   */
+  includeDebug?: boolean;
+  /**
    * Optional movement hint. v2 of the liveness flow accepts a left+right
    * head turn in either order, so the API no longer issues a strict pose
    * sequence — but a future tighter contract can re-introduce one. When
@@ -57,6 +180,15 @@ export interface BiometricVerifierMultipartPayload {
    * check.
    */
   poseSequence?: LivenessPoseValue[];
+  /**
+   * Debug-only escape hatch. When true AND the container is running in
+   * development mode (`NODE_ENV=development`), the verifier skips DG2
+   * decode + cosine match and returns `faceMatchPassed=false,
+   * faceMatchScore=null, reason=face_match_skipped`. Production
+   * wrangler sets `NODE_ENV=production`, so this field is a no-op
+   * there.
+   */
+  skipFaceMatch?: boolean;
   video: Uint8Array;
 }
 
@@ -172,6 +304,8 @@ export function createBiometricVerifierRequestFormData({
   poseSequence,
   challengeNonce,
   faceMatchThreshold,
+  includeDebug,
+  skipFaceMatch,
 }: BiometricVerifierMultipartPayload): FormData {
   validateDg2Bytes(dg2Image);
   validateVideoBytes(video);
@@ -224,6 +358,14 @@ export function createBiometricVerifierRequestFormData({
     );
   }
 
+  if (includeDebug) {
+    formData.append(BIOMETRIC_VERIFIER_INCLUDE_DEBUG_FIELD, "1");
+  }
+
+  if (skipFaceMatch) {
+    formData.append(BIOMETRIC_VERIFIER_SKIP_FACE_MATCH_FIELD, "1");
+  }
+
   return formData;
 }
 
@@ -256,13 +398,190 @@ export async function parseBiometricVerifierRequestFormData(
     challengeNonce = new Uint8Array(await challengeNonceEntry.arrayBuffer());
   }
 
+  const includeDebugEntry = formData.get(
+    BIOMETRIC_VERIFIER_INCLUDE_DEBUG_FIELD
+  );
+  const includeDebug =
+    typeof includeDebugEntry === "string" && includeDebugEntry === "1";
+
+  const skipFaceMatchEntry = formData.get(
+    BIOMETRIC_VERIFIER_SKIP_FACE_MATCH_FIELD
+  );
+  const skipFaceMatch =
+    typeof skipFaceMatchEntry === "string" && skipFaceMatchEntry === "1";
+
   return {
     dg2Image,
     video,
     poseSequence,
     challengeNonce,
     faceMatchThreshold,
+    includeDebug,
+    skipFaceMatch,
   };
+}
+
+// Face-match-only contract. Independent of the liveness endpoint —
+// shares the auth header / shared secret but not the multipart shape.
+
+export interface BiometricVerifierFaceMatchPayload {
+  dg2Image: Uint8Array;
+  faceMatchThreshold?: number;
+  includeDebug?: boolean;
+  selfies: Uint8Array[];
+}
+
+export const faceMatchDg2ResponseSchema = z.object({
+  imageWidth: z.number().int().nonnegative(),
+  imageHeight: z.number().int().nonnegative(),
+  faceDetected: z.boolean(),
+  bbox: livenessDebugBboxSchema.nullable(),
+  landmarks: livenessDebugLandmarksSchema.nullable(),
+  pitchDeg: z.number().nullable(),
+  yawDeg: z.number().nullable(),
+  rollDeg: z.number().nullable(),
+  imageBytesBase64: z.string(),
+  imageFormat: z.enum(["jpeg", "jpeg2000"]),
+  // Mesh subset for the DG2 reference image — only populated when the
+  // mesh model is loaded server-side AND the face was detected.
+  mesh: livenessMeshSubsetSchema.nullish(),
+});
+
+export const faceMatchSelfieResponseSchema = z.object({
+  index: z.number().int().nonnegative(),
+  imageWidth: z.number().int().nonnegative(),
+  imageHeight: z.number().int().nonnegative(),
+  faceDetected: z.boolean(),
+  bbox: livenessDebugBboxSchema.nullable(),
+  landmarks: livenessDebugLandmarksSchema.nullable(),
+  pitchDeg: z.number().nullable(),
+  yawDeg: z.number().nullable(),
+  rollDeg: z.number().nullable(),
+  faceMatchScore: z.number().min(0).max(1).nullable(),
+  faceMatchPassed: z.boolean(),
+  // Mesh-aligned AuraFace cosine for THIS selfie (mesh-warped crop
+  // into the same AuraFace model). See biometricVerifierResponseSchema
+  // for the full explanation.
+  faceMatchScoreMeshAligned: z.number().min(0).max(1).nullable(),
+  faceMatchPassedMeshAligned: z.boolean().nullable(),
+  // Mesh subset for THIS selfie. Same gating as the DG2 one.
+  mesh: livenessMeshSubsetSchema.nullish(),
+  usedFallback: z.boolean(),
+  reason: z.string().nullish(),
+});
+
+export const biometricVerifierFaceMatchResponseSchema = z.object({
+  threshold: z.number(),
+  dg2: faceMatchDg2ResponseSchema,
+  selfies: z.array(faceMatchSelfieResponseSchema),
+});
+
+export type FaceMatchDg2Response = z.infer<typeof faceMatchDg2ResponseSchema>;
+export type FaceMatchSelfieResponse = z.infer<
+  typeof faceMatchSelfieResponseSchema
+>;
+export type BiometricVerifierFaceMatchResponse = z.infer<
+  typeof biometricVerifierFaceMatchResponseSchema
+>;
+
+export function createBiometricVerifierFaceMatchFormData({
+  dg2Image,
+  selfies,
+  faceMatchThreshold,
+  includeDebug,
+}: BiometricVerifierFaceMatchPayload): FormData {
+  validateDg2Bytes(dg2Image);
+  if (selfies.length === 0) {
+    throw new Error("biometric_verifier_face_match_selfies_empty");
+  }
+  if (selfies.length > BIOMETRIC_VERIFIER_MAX_SELFIES) {
+    throw new Error("biometric_verifier_face_match_too_many_selfies");
+  }
+  for (const selfie of selfies) {
+    if (selfie.byteLength === 0) {
+      throw new Error("biometric_verifier_face_match_selfie_empty");
+    }
+    if (selfie.byteLength > BIOMETRIC_VERIFIER_MAX_SELFIE_BYTES) {
+      throw new Error("biometric_verifier_face_match_selfie_too_large");
+    }
+  }
+  if (typeof faceMatchThreshold === "number") {
+    if (!Number.isFinite(faceMatchThreshold)) {
+      throw new Error("biometric_verifier_threshold_invalid");
+    }
+    if (
+      faceMatchThreshold < BIOMETRIC_VERIFIER_MIN_THRESHOLD ||
+      faceMatchThreshold > BIOMETRIC_VERIFIER_MAX_THRESHOLD
+    ) {
+      throw new Error("biometric_verifier_threshold_out_of_range");
+    }
+  }
+
+  const formData = new FormData();
+  formData.append(
+    BIOMETRIC_VERIFIER_DG2_FIELD,
+    blobFromBytes(dg2Image),
+    "dg2.bin"
+  );
+  for (const [index, selfie] of selfies.entries()) {
+    formData.append(
+      BIOMETRIC_VERIFIER_SELFIE_FIELD,
+      blobFromBytes(selfie),
+      `selfie-${index}.bin`
+    );
+  }
+  if (typeof faceMatchThreshold === "number") {
+    formData.append(
+      BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD,
+      String(faceMatchThreshold)
+    );
+  }
+  if (includeDebug) {
+    formData.append(BIOMETRIC_VERIFIER_INCLUDE_DEBUG_FIELD, "1");
+  }
+  return formData;
+}
+
+export async function parseBiometricVerifierFaceMatchFormData(
+  formData: FormData
+): Promise<BiometricVerifierFaceMatchPayload> {
+  const dg2Image = await bytesFromEntry(
+    formData.get(BIOMETRIC_VERIFIER_DG2_FIELD),
+    "dg2",
+    BIOMETRIC_VERIFIER_MAX_DG2_BYTES
+  );
+  const rawSelfies = formData.getAll(BIOMETRIC_VERIFIER_SELFIE_FIELD);
+  if (rawSelfies.length === 0) {
+    throw new Error("biometric_verifier_face_match_selfies_empty");
+  }
+  if (rawSelfies.length > BIOMETRIC_VERIFIER_MAX_SELFIES) {
+    throw new Error("biometric_verifier_face_match_too_many_selfies");
+  }
+  const selfies: Uint8Array[] = [];
+  for (const [index, entry] of rawSelfies.entries()) {
+    if (!(entry instanceof Blob)) {
+      throw new Error(`biometric_verifier_face_match_selfie_missing:${index}`);
+    }
+    const bytes = new Uint8Array(await entry.arrayBuffer());
+    if (bytes.byteLength === 0) {
+      throw new Error(`biometric_verifier_face_match_selfie_empty:${index}`);
+    }
+    if (bytes.byteLength > BIOMETRIC_VERIFIER_MAX_SELFIE_BYTES) {
+      throw new Error(
+        `biometric_verifier_face_match_selfie_too_large:${index}`
+      );
+    }
+    selfies.push(bytes);
+  }
+  const faceMatchThreshold = parseThresholdValue(
+    formData.get(BIOMETRIC_VERIFIER_FACE_MATCH_THRESHOLD_FIELD)
+  );
+  const includeDebugEntry = formData.get(
+    BIOMETRIC_VERIFIER_INCLUDE_DEBUG_FIELD
+  );
+  const includeDebug =
+    typeof includeDebugEntry === "string" && includeDebugEntry === "1";
+  return { dg2Image, selfies, faceMatchThreshold, includeDebug };
 }
 
 export function createBiometricVerifierResponse(
@@ -275,7 +594,10 @@ export function createBiometricVerifierResponse(
     faceMatchScore: payload.faceMatchScore,
     padPassed: payload.padPassed,
     padScore: payload.padScore,
+    faceMatchScoreMeshAligned: payload.faceMatchScoreMeshAligned,
+    faceMatchPassedMeshAligned: payload.faceMatchPassedMeshAligned,
     usedFallback: payload.usedFallback,
     reason: payload.reason,
+    debug: payload.debug,
   };
 }

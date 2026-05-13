@@ -58,7 +58,12 @@ describe("DG1 face match thresholds", () => {
 			now: new Date("2025-04-19T00:00:00.000Z"),
 		});
 
-		expect(threshold).toBeCloseTo(0.785, 4);
+		// Formula yields 0.685, which now clamps up to MIN=0.6875
+		// under the AuraFace-calibrated window. The dynamic path is
+		// still exercised (the formula runs); the result happens to
+		// hit the floor because raw cosine 0.375 is the IDV-safe
+		// minimum.
+		expect(threshold).toBe(MIN_FACE_MATCH_THRESHOLD);
 	});
 
 	test("resolves a dynamic child threshold from age at issue and document age", () => {
@@ -70,7 +75,10 @@ describe("DG1 face match thresholds", () => {
 			now: new Date("2026-04-19T00:00:00.000Z"),
 		});
 
-		expect(threshold).toBeCloseTo(0.752, 4);
+		// Formula yields 0.652 → clamped to MIN. Same shape as the
+		// adult dynamic case above; the explicit "fully aged"
+		// clamping test below covers the all-the-way-to-expiry edge.
+		expect(threshold).toBe(MIN_FACE_MATCH_THRESHOLD);
 	});
 
 	test("clamps to the maximum threshold for a fresh adult document", () => {

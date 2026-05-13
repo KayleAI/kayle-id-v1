@@ -8,13 +8,60 @@ MODELS_DIR="${SCRIPT_DIR}/../models"
 OPENCV_ZOO_COMMIT="a74cdfad334b102cbd8daed769fbe1d4cb1c327a"
 OPENCV_ZOO_RAW_BASE="https://github.com/opencv/opencv_zoo/raw/${OPENCV_ZOO_COMMIT}"
 
-RECOGNIZER_MODEL="face_recognition_sface_2021dec.onnx"
-RECOGNIZER_MODEL_SHA256="0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"
-RECOGNIZER_MODEL_URL="${OPENCV_ZOO_RAW_BASE}/models/face_recognition_sface/${RECOGNIZER_MODEL}"
-
 DETECTOR_MODEL="face_detection_yunet_2023mar.onnx"
 DETECTOR_MODEL_SHA256="8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
 DETECTOR_MODEL_URL="${OPENCV_ZOO_RAW_BASE}/models/face_detection_yunet/${DETECTOR_MODEL}"
+
+# Face recognition: AuraFace (fal/AuraFace-v1 on HuggingFace). A
+# ResNet100 ArcFace embedding model trained on commercially-usable
+# data and published under Apache 2.0. We mirror the upstream
+# `glintr100.onnx` file verbatim on Kayle's R2 bucket (sha256 below
+# matches the LFS oid on HuggingFace), so supply-chain provenance
+# lives at the Kayle hop alongside the mesh model. See
+# THIRD_PARTY_NOTICES.md for attribution and
+# https://github.com/KayleAI/models/tree/main/auraface for the
+# fetch + verification scripts.
+RECOGNIZER_MODEL="auraface_glintr100.onnx"
+RECOGNIZER_MODEL_SHA256="a7933ea5330113b01c9b60351d8f4c33003f145d8470ac5f0e52ee2effe25c60"
+RECOGNIZER_MODEL_URL="https://models.kayle.ai/${RECOGNIZER_MODEL}"
+
+# MediaPipe Face Landmarker (478-pt mesh + iris), converted from
+# Google's official .task distribution by the conversion script at
+# https://github.com/KayleAI/models/blob/main/face-landmarks-detector/scripts/convert.py
+# and rehosted on Kayle's R2 bucket. Apache 2.0 licensed; see
+# THIRD_PARTY_NOTICES.md for attribution. Pin is tied to a specific
+# conversion output — any upstream change to Google's TFLite that
+# alters the converted ONNX will fail this checksum and trip a build.
+#
+# AuraFace and the Face Landmarker live behind models.kayle.ai;
+# the supply-chain.test.ts test asserts no direct upstream fetches
+# (Google CDN, HuggingFace LFS) appear in the production fetch path.
+MESH_MODEL="face_landmarks_detector.onnx"
+MESH_MODEL_SHA256="3235ba53fbbce83e3451c7d2fe95f6e884e0fa3d6c25f081fa2282f92c556231"
+MESH_MODEL_URL="https://models.kayle.ai/${MESH_MODEL}"
+
+# Presentation-Attack Detection (PAD): a pair of MiniFASNet face
+# anti-spoofing models from Minivision-AI's Silent-Face-Anti-Spoofing
+# release, converted from PyTorch by the script at
+# https://github.com/KayleAI/models/blob/main/pad/scripts/convert.py
+# and mirrored on Kayle's R2 bucket alongside AuraFace and the mesh
+# model. The ONNX files themselves also live in the models repo
+# under `pad/` for transparent provenance — they're small (~1.7 MB
+# each) so it's worth carrying them in-tree. Apache 2.0 licensed;
+# see THIRD_PARTY_NOTICES.md for attribution.
+#
+# Inference uses BOTH models as an ensemble (summed softmaxes) —
+# this matches Minivision's reference predictor and the accuracy
+# numbers their model card cites. Each model expects a different
+# crop scale around the YuNet bbox; `service.py` encodes those
+# scales (2.7 and 4.0) when preparing the per-model input.
+PAD_V2_MODEL="pad_minifasnet_v2_scale27.onnx"
+PAD_V2_MODEL_SHA256="46336256a5812b993e59241aa10e345e1fde185ca8792671f3b33b40852b794f"
+PAD_V2_MODEL_URL="https://models.kayle.ai/${PAD_V2_MODEL}"
+
+PAD_V1SE_MODEL="pad_minifasnet_v1se_scale40.onnx"
+PAD_V1SE_MODEL_SHA256="4476da21e6865fd4dc4f0dab5eb2002cc07bdd33e1e902ecb5aea9bac885db45"
+PAD_V1SE_MODEL_URL="https://models.kayle.ai/${PAD_V1SE_MODEL}"
 
 verify_checksum() {
   local file="$1"
@@ -79,23 +126,19 @@ download_model \
   "${MODELS_DIR}/${DETECTOR_MODEL}" \
   "${DETECTOR_MODEL_SHA256}"
 
-# Presentation-Attack Detection model (optional). The container's runtime
-# only engages PAD when BIOMETRIC_VERIFIER_PAD_ENABLED=1 AND the ONNX file
-# exists on disk; if either side is missing the gate is a no-op. To bake a
-# vetted ONNX into the image, set BIOMETRIC_VERIFIER_PAD_MODEL_URL and
-# BIOMETRIC_VERIFIER_PAD_MODEL_SHA256 at build time (e.g., as Docker build
-# args wired to ENV). The integration code expects a MiniFASNet-style
-# classifier (80x80 RGB input, softmax index 1 = "real").
-PAD_MODEL_FILENAME="${BIOMETRIC_VERIFIER_PAD_MODEL_FILENAME:-face_anti_spoofing_minifasnet.onnx}"
-if [ -n "${BIOMETRIC_VERIFIER_PAD_MODEL_URL:-}" ] \
-  && [ -n "${BIOMETRIC_VERIFIER_PAD_MODEL_SHA256:-}" ]; then
-  download_model \
-    "${BIOMETRIC_VERIFIER_PAD_MODEL_URL}" \
-    "${MODELS_DIR}/${PAD_MODEL_FILENAME}" \
-    "${BIOMETRIC_VERIFIER_PAD_MODEL_SHA256}"
-  echo "PAD model downloaded: ${MODELS_DIR}/${PAD_MODEL_FILENAME}"
-else
-  echo "PAD model download skipped (BIOMETRIC_VERIFIER_PAD_MODEL_URL / _SHA256 unset)"
-fi
+download_model \
+  "${MESH_MODEL_URL}" \
+  "${MODELS_DIR}/${MESH_MODEL}" \
+  "${MESH_MODEL_SHA256}"
+
+download_model \
+  "${PAD_V2_MODEL_URL}" \
+  "${MODELS_DIR}/${PAD_V2_MODEL}" \
+  "${PAD_V2_MODEL_SHA256}"
+
+download_model \
+  "${PAD_V1SE_MODEL_URL}" \
+  "${MODELS_DIR}/${PAD_V1SE_MODEL}" \
+  "${PAD_V1SE_MODEL_SHA256}"
 
 echo "Biometric verifier models are ready in ${MODELS_DIR}"

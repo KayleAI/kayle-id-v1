@@ -14,7 +14,7 @@
   },
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK": "1"
+    "NODE_ENV": "development"
   },
   "containers": [
     {
@@ -50,6 +50,9 @@
   "env": {
     "production": {
       "name": "kayle-id-biometric-verifier",
+      "vars": {
+        "NODE_ENV": "production"
+      },
       "containers": [
         {
           "name": "kayle-id-biometric-verifier-biometricverifiercontainer",

@@ -13,7 +13,9 @@ interface ContainerLivenessRequestPayload {
     format: Dg2FaceImage["imageFormat"];
   };
   faceMatchThreshold?: number;
+  includeDebug?: boolean;
   poseSequence?: LivenessPoseValue[];
+  skipFaceMatch?: boolean;
   videoBase64: string;
 }
 
@@ -35,6 +37,8 @@ function createUnavailableResult(reason: string): LivenessContainerResult {
     faceMatchScore: null,
     padPassed: false,
     padScore: null,
+    faceMatchScoreMeshAligned: null,
+    faceMatchPassedMeshAligned: null,
     usedFallback: true,
     reason,
   };
@@ -95,6 +99,8 @@ export function verifyLivenessWithContainer({
   poseSequence,
   challengeNonce,
   faceMatchThreshold,
+  includeDebug,
+  skipFaceMatch,
 }: {
   container: ContainerFetcher;
   dg2Image: Uint8Array;
@@ -102,6 +108,8 @@ export function verifyLivenessWithContainer({
   poseSequence?: LivenessPoseValue[];
   challengeNonce?: Uint8Array;
   faceMatchThreshold?: number;
+  includeDebug?: boolean;
+  skipFaceMatch?: boolean;
 }): Promise<LivenessContainerResult> {
   if (video.byteLength === 0) {
     return Promise.resolve(createUnavailableResult("liveness_video_missing"));
@@ -136,6 +144,8 @@ export function verifyLivenessWithContainer({
           ? Buffer.from(challengeNonce).toString("base64")
           : undefined,
       faceMatchThreshold,
+      includeDebug: includeDebug ? true : undefined,
+      skipFaceMatch: skipFaceMatch ? true : undefined,
     },
   });
 }

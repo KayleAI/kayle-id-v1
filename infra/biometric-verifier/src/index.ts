@@ -2,6 +2,7 @@ import { Container } from "@cloudflare/containers";
 import type { ContainerFetcher } from "./worker";
 import {
   BIOMETRIC_VERIFIER_DETECTOR_PATH,
+  BIOMETRIC_VERIFIER_MESH_MODEL_PATH,
   BIOMETRIC_VERIFIER_MODEL_PATH,
   createBiometricVerifierWorker,
 } from "./worker";
@@ -117,15 +118,19 @@ async function getContainerInstance(
   return containers[0] ?? null;
 }
 
-function resolvePixelFallbackEnv(env: unknown): Record<string, string> {
-  // Forward the test-only fallback flag to the container only when the worker
-  // env explicitly sets it to "1". Production wrangler config does not set
-  // this binding, so the container always runs without the fallback.
-  const value = isObjectRecord(env)
-    ? Reflect.get(env, "BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK")
-    : undefined;
+function resolveNodeEnv(env: unknown): Record<string, string> {
+  // Forward NODE_ENV from the worker env (set by wrangler `vars`) to the
+  // container. This is the single switch the Python runtime reads to
+  // decide whether the dev-only escape hatches (pixel fallback, face
+  // match skip, rich debug responses) are enabled. Production wrangler
+  // sets NODE_ENV=production; dev sets NODE_ENV=development; missing on
+  // the worker side defaults to production in the container (fail
+  // secure).
+  const value = isObjectRecord(env) ? Reflect.get(env, "NODE_ENV") : undefined;
 
-  return value === "1" ? { BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK: "1" } : {};
+  return typeof value === "string" && value.length > 0
+    ? { NODE_ENV: value }
+    : { NODE_ENV: "production" };
 }
 
 export class BiometricVerifierContainer extends Container<BiometricVerifierBindings> {
@@ -134,8 +139,9 @@ export class BiometricVerifierContainer extends Container<BiometricVerifierBindi
   envVars = {
     BIOMETRIC_VERIFIER_DETECTOR_PATH,
     BIOMETRIC_VERIFIER_MODEL_PATH,
+    BIOMETRIC_VERIFIER_MESH_MODEL_PATH,
     PORT: "8080",
-    ...resolvePixelFallbackEnv(this.env),
+    ...resolveNodeEnv(this.env),
   };
 }
 

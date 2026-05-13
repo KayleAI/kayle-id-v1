@@ -105,7 +105,17 @@ export type Dg2FaceImage = {
 	imageHeight: number;
 };
 
-export const DEFAULT_FACE_MATCH_THRESHOLD = 0.8;
+// Container-side face-match scores come back on the normalized
+// [0, 1] scale via `normalize_cosine_score = (cos + 1) / 2`. With
+// the AuraFace recognizer (replacing SFace at the verifier), 0.7
+// maps to raw cosine 0.4 — the InsightFace canonical "same person"
+// threshold for glint360k-trained ArcFace R100. Same-identity pairs
+// with real ageing / lighting variation land in normalized 0.65-0.85
+// (raw 0.3-0.7); cross-identity pairs cluster well below normalized
+// 0.6. The prior 0.8 default was calibrated for SFace's tighter
+// score distribution and false-rejected most legitimate same-person
+// pairs with non-trivial age gap.
+export const DEFAULT_FACE_MATCH_THRESHOLD = 0.7;
 
 export type SodDeclares = {
 	dg14: boolean;

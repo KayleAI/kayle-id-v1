@@ -18,7 +18,7 @@
   },
   "containers": [
     {
-      "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
+      "name": "kayle-id-biometric-verifier-container",
       "class_name": "BiometricVerifierContainer",
       "image": "./Dockerfile",
       "instance_type": "standard-3",
@@ -48,6 +48,9 @@
       ]
     }
   ],
+  "analytics_engine_datasets": [
+    { "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+  ],
   "env": {
     "production": {
       "name": "kayle-id-biometric-verifier",
@@ -56,7 +59,7 @@
       },
       "containers": [
         {
-          "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
+          "name": "kayle-id-biometric-verifier-container",
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
           "instance_type": "standard-3",
@@ -85,6 +88,9 @@
             }
           ]
         }
+      ],
+      "analytics_engine_datasets": [
+        { "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
       ],
       "secrets": {
         "required": ["BIOMETRIC_VERIFIER_SECRET"]
@@ -153,6 +159,9 @@
             }
           ]
         }
+      ],
+      "analytics_engine_datasets": [
+        { "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
       ],
       "secrets": {
         "required": ["BIOMETRIC_VERIFIER_SECRET"]

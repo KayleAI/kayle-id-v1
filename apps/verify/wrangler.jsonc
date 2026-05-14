@@ -16,6 +16,9 @@
 			"service": "kayle-id-api"
 		}
 	],
+	"analytics_engine_datasets": [
+		{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+	],
 	"routes": [
 		{
 			"pattern": "verify.kayle.id",
@@ -41,6 +44,9 @@
 					"binding": "API",
 					"service": "kayle-id-api"
 				}
+			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
 			],
 			"vars": {
 				"NODE_ENV": "production",

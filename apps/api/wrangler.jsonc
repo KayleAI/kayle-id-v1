@@ -57,6 +57,9 @@
 			"class_name": "WebhookDeliveryWorkflow"
 		}
 	],
+	"analytics_engine_datasets": [
+		{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+	],
 	"vars": {
 		"NODE_ENV": "development",
 		"PUBLIC_AUTH_URL": "http://localhost:3000",
@@ -113,6 +116,9 @@
 					"binding": "WEBHOOK_DELIVERY_WORKFLOW",
 					"class_name": "WebhookDeliveryWorkflow"
 				}
+			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
 			],
 			"routes": [
 				{

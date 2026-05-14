@@ -65,6 +65,9 @@
 					"id": "3cacbcba5de84a1395b328d04f2e9376"
 				}
 			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+			],
 			"routes": [
 				{
 					"pattern": "kayle.id",

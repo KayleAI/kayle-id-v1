@@ -24,6 +24,7 @@
     "dev:seed": "bash ./scripts/seed-local-dev.sh",
     "env:setup": "bun ./scripts/setup-env.ts",
     "env:pull": "bash ./scripts/pull-env.sh",
+    "keypair:webhook": "bun ./scripts/generate-webhook-keypair.ts",
     "test": "turbo run test",
     "prod:seed:pkd": "bash ./scripts/seed-production-pkd.sh",
     "dev:ios": "turbo run dev --filter=kayle-id-ios",

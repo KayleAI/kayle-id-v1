@@ -151,9 +151,29 @@ function forwardStringEnv(env: unknown, key: string): Record<string, string> {
   return typeof value === "string" && value.length > 0 ? { [key]: value } : {};
 }
 
+// Container keep-alive after the last request. Memory + disk are
+// billed continuously while the container is "running", regardless of
+// CPU activity — so this window is a pure cost lever for sporadic
+// traffic. Default 1 minute: catches request clusters that arrive
+// seconds apart (avoids the ~5s cold start of image pull + model load)
+// without committing to the 10× memory/disk bill of the previous
+// 10-minute keep-alive. Override per-env via the
+// BIOMETRIC_VERIFIER_SLEEP_AFTER wrangler var if traffic patterns
+// warrant something different (`30s` for sparse, `5m` for steady).
+const DEFAULT_SLEEP_AFTER = "1m";
+
+function resolveSleepAfter(env: unknown): string {
+  const value = isObjectRecord(env)
+    ? Reflect.get(env, "BIOMETRIC_VERIFIER_SLEEP_AFTER")
+    : undefined;
+  return typeof value === "string" && value.length > 0
+    ? value
+    : DEFAULT_SLEEP_AFTER;
+}
+
 export class BiometricVerifierContainer extends Container<BiometricVerifierBindings> {
   defaultPort = 8080;
-  sleepAfter = "10m";
+  sleepAfter = resolveSleepAfter(this.env);
   envVars = {
     BIOMETRIC_VERIFIER_DETECTOR_PATH,
     BIOMETRIC_VERIFIER_MODEL_PATH,

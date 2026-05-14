@@ -154,13 +154,15 @@ function forwardStringEnv(env: unknown, key: string): Record<string, string> {
 // Container keep-alive after the last request. Memory + disk are
 // billed continuously while the container is "running", regardless of
 // CPU activity — so this window is a pure cost lever for sporadic
-// traffic. Default 1 minute: catches request clusters that arrive
-// seconds apart (avoids the ~5s cold start of image pull + model load)
-// without committing to the 10× memory/disk bill of the previous
-// 10-minute keep-alive. Override per-env via the
-// BIOMETRIC_VERIFIER_SLEEP_AFTER wrangler var if traffic patterns
-// warrant something different (`30s` for sparse, `5m` for steady).
-const DEFAULT_SLEEP_AFTER = "1m";
+// traffic. With the prewarm trigger in place (fires when a session
+// enters liveness_capturing), back-to-back users get parallel
+// cold-boot during their recording window, so sleepAfter no longer
+// shields against user-visible cold starts. 30s captures truly
+// clustered traffic (sub-half-minute gaps) without paying the idle
+// memory+disk bill on every wake. Override per-env via the
+// BIOMETRIC_VERIFIER_SLEEP_AFTER wrangler var if a workload needs
+// shorter (`10s` for one-shot tests) or longer (`5m` for steady).
+const DEFAULT_SLEEP_AFTER = "30s";
 
 function resolveSleepAfter(env: unknown): string {
   const value = isObjectRecord(env)

@@ -90,10 +90,7 @@
           "tag": "v1",
           "new_sqlite_classes": ["FaceMatcherContainer"]
         }
-      ],
-      "secrets": {
-        "required": ["FACE_MATCHER_SECRET"]
-      }
+      ]
     }
   }
 }

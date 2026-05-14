@@ -195,19 +195,7 @@
 					"zone_name": "kayle.id",
 					"custom_domain": false
 				}
-			],
-			"secrets": {
-				"required": [
-					"KAYLE_INTERNAL_TOKEN",
-					"AUTH_SECRET",
-					"GOOGLE_CLIENT_ID",
-					"GOOGLE_CLIENT_SECRET",
-					"FACE_MATCHER_SECRET",
-					"ORG_VERIFICATION_PEPPER",
-					"REDIS_URL",
-					"REDIS_TOKEN"
-				]
-			}
+			]
 		},
 		"test": {
 			"vars": {

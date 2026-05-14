@@ -129,16 +129,7 @@
 					"zone_name": "kayle.id",
 					"custom_domain": false
 				}
-			],
-			"secrets": {
-				"required": [
-					"KAYLE_INTERNAL_TOKEN",
-					"KAYLE_INTERNAL_API_KEY",
-					"KAYLE_PLATFORM_WEBHOOK_SECRET",
-					"KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY",
-					"KAYLE_DEMO_API_KEY"
-				]
-			}
+			]
 		}
 	}
 }

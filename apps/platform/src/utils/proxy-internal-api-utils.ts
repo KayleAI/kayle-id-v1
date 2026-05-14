@@ -6,7 +6,7 @@ import {
 } from "@kayle-id/config/client-ip";
 
 type ProxyRequest = Request & { cf?: unknown };
-export type InternalApiProxyRoot = "analytics" | "auth" | "webhooks";
+export type InternalApiProxyRoot = "admin" | "analytics" | "auth" | "webhooks";
 
 export class InternalApiProxyPathError extends Error {
 	constructor() {

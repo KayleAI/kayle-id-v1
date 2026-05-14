@@ -203,6 +203,71 @@ async function requestBiometricVerifier({
 	}
 }
 
+/**
+ * Fire-and-forget wake of the biometric verifier container. Used when
+ * the session phase transitions to `liveness_capturing` — the user is
+ * about to record video, so we have ~10-15s of capture/upload time for
+ * the container to cold-boot and load models in parallel. Resolves
+ * once the verifier acknowledges (typically <100ms); the actual model
+ * load continues asynchronously inside the container.
+ *
+ * Safe to call repeatedly: idempotent on the verifier side.
+ * Misconfiguration (missing binding/secret) is logged and swallowed —
+ * the user's later /verify will surface any real issue.
+ */
+export async function prewarmBiometricVerifier({
+	env,
+	attemptId,
+	logger,
+}: {
+	env: unknown;
+	attemptId?: string;
+	logger?: ApiRequestLogger;
+}): Promise<void> {
+	const verifierBinding = resolveBiometricVerifierServiceBinding(env);
+	const verifierSecret = resolveBiometricVerifierSecret(env);
+
+	if (!verifierBinding || !verifierSecret) {
+		return;
+	}
+
+	const startedAt = Date.now();
+	try {
+		const request = new Request("https://biometric-verifier.internal/prewarm", {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${verifierSecret}`,
+				[BIOMETRIC_VERIFIER_AUTH_HEADER]: verifierSecret,
+			},
+		});
+		const response = (await Reflect.apply(
+			verifierBinding.fetch,
+			verifierBinding,
+			[request],
+		)) as Response;
+
+		logEvent(logger, {
+			details: {
+				attempt_id: attemptId ?? null,
+				duration_ms: Date.now() - startedAt,
+				status: response.status,
+			},
+			event: "verify.biometric_verifier.prewarm_triggered",
+		});
+	} catch (error) {
+		logSafeError(logger, {
+			code: "biometric_verifier_prewarm_failed",
+			details: {
+				attempt_id: attemptId ?? null,
+				duration_ms: Date.now() - startedAt,
+			},
+			error,
+			event: "verify.biometric_verifier.prewarm_failed",
+			message: "Biometric verifier prewarm request failed.",
+		});
+	}
+}
+
 export function verifyLiveness({
 	dg2Image,
 	video,

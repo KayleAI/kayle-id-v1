@@ -330,6 +330,68 @@ async function handleLivenessRequest({
   return jsonResponse(response);
 }
 
+async function handlePrewarmRequest({
+  env,
+  getContainer,
+  request,
+  logger,
+}: {
+  env: BiometricVerifierBindings;
+  getContainer: GetContainer;
+  request: Request;
+  logger: BiometricVerifierRequestLogger;
+}): Promise<Response> {
+  const verifierSecret =
+    resolveStringEnvValue(env, "BIOMETRIC_VERIFIER_SECRET") ?? undefined;
+  const authOutcome = authorizeInternalRequest(request, verifierSecret);
+
+  if (!authOutcome.ok) {
+    if (authOutcome.reason === "secret_missing") {
+      return jsonResponse(
+        {
+          error: {
+            code: "BIOMETRIC_VERIFIER_MISCONFIGURED",
+            message: "Biometric verifier is missing its shared secret.",
+          },
+        },
+        503
+      );
+    }
+    return jsonResponse(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Unauthorized biometric verifier request.",
+        },
+      },
+      401
+    );
+  }
+
+  // Acquiring the container instance is what wakes a sleeping DO. We
+  // intentionally don't wait for /health to flip ready — the caller's
+  // pattern is "user just hit selfie capture, /verify lands in ~10-15s"
+  // and the container has that whole window to finish booting and load
+  // models. Returning quickly here keeps the API hop non-blocking.
+  const startedAt = Date.now();
+  const container = await getContainer(env);
+  const triggeredMs = Date.now() - startedAt;
+
+  logEvent(logger, {
+    details: {
+      duration_ms: triggeredMs,
+      container_acquired: container !== null,
+    },
+    event: "biometric_verifier.prewarm",
+  });
+
+  return jsonResponse({
+    data: {
+      triggered: container !== null,
+    },
+  });
+}
+
 async function handleDebugMetricsRequest({
   env,
   getContainer,
@@ -427,6 +489,17 @@ export function createBiometricVerifierWorker({
 
         if (request.method === "POST" && url.pathname === "/verify") {
           const response = await handleLivenessRequest({
+            env,
+            getContainer,
+            logger,
+            request,
+          });
+          emitRequestLog(response.status);
+          return response;
+        }
+
+        if (request.method === "POST" && url.pathname === "/prewarm") {
+          const response = await handlePrewarmRequest({
             env,
             getContainer,
             logger,

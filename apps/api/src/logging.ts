@@ -80,6 +80,7 @@ function emitRequestCostEvents(c: Context, startedAtMs: number): void {
 	}
 	const organizationId = c.get("organizationId" as never) as string | undefined;
 	const durationMs = Math.max(0, Date.now() - startedAtMs);
+	const environment = config.environment ?? "unknown";
 	emitCostEvent({
 		dataset,
 		organizationId,
@@ -88,6 +89,8 @@ function emitRequestCostEvents(c: Context, startedAtMs: number): void {
 		quantity: 1,
 		unit: "request",
 		workerName: WORKER_NAME,
+		environment,
+		version: config.version,
 	});
 	// Wall-clock duration is a rough proxy for billable CPU-ms — it
 	// includes I/O wait. Treat the resulting cost as an upper bound;
@@ -100,6 +103,8 @@ function emitRequestCostEvents(c: Context, startedAtMs: number): void {
 		quantity: durationMs,
 		unit: "ms",
 		workerName: WORKER_NAME,
+		environment,
+		version: config.version,
 	});
 }
 

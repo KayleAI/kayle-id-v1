@@ -9,6 +9,7 @@ import {
 } from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
+import { APP_ENVIRONMENT, APP_VERSION } from "@/config/version";
 import { decryptCompactJwe, verifyWebhookSignature } from "@/demo/crypto";
 
 const SIGNATURE_HEADER = "x-kayle-signature";
@@ -185,6 +186,8 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					quantity: 1,
 					unit: "operation",
 					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
 				});
 				if (!mappingText) {
 					return ack();
@@ -200,6 +203,8 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 						quantity: 1,
 						unit: "operation",
 						workerName: PLATFORM_WORKER_NAME,
+						environment: APP_ENVIRONMENT,
+						version: APP_VERSION,
 					});
 					return ack();
 				}
@@ -247,6 +252,8 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 						quantity: 1,
 						unit: "operation",
 						workerName: PLATFORM_WORKER_NAME,
+						environment: APP_ENVIRONMENT,
+						version: APP_VERSION,
 					});
 					return ack();
 				}
@@ -266,6 +273,8 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					quantity: 1,
 					unit: "operation",
 					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
 				});
 				return ack();
 			},

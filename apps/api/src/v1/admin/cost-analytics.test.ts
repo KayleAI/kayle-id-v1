@@ -50,35 +50,105 @@ describe("buildSql", () => {
 	const to = new Date("2025-05-08T00:00:00Z");
 
 	it("groups by feature using blob1", () => {
-		const sql = buildSql({ groupBy: "feature", from, to });
+		const sql = buildSql({
+			groupBy: "feature",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("SELECT blob1 AS group_key");
 		expect(sql).toContain("GROUP BY blob1");
 		expect(sql).toContain("FROM KAYLE_ID_ANALYTICS");
 	});
 
 	it("groups by resource using blob2", () => {
-		const sql = buildSql({ groupBy: "resource", from, to });
+		const sql = buildSql({
+			groupBy: "resource",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("SELECT blob2 AS group_key");
 	});
 
 	it("groups by day using toDate(timestamp)", () => {
-		const sql = buildSql({ groupBy: "day", from, to });
+		const sql = buildSql({
+			groupBy: "day",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("SELECT toDate(timestamp) AS group_key");
 	});
 
 	it("groups by org using index1", () => {
-		const sql = buildSql({ groupBy: "org", from, to });
+		const sql = buildSql({
+			groupBy: "org",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("SELECT index1 AS group_key");
 	});
 
 	it("formats timestamps as ClickHouse-compatible UTC", () => {
-		const sql = buildSql({ groupBy: "feature", from, to });
+		const sql = buildSql({
+			groupBy: "feature",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("'2025-05-01 00:00:00'");
 		expect(sql).toContain("'2025-05-08 00:00:00'");
 	});
 
+	it("filters to blob6 = the requested environment by default", () => {
+		const sql = buildSql({
+			groupBy: "feature",
+			from,
+			to,
+			environment: "production",
+		});
+		expect(sql).toContain("AND blob6 = 'production'");
+	});
+
+	it("skips the environment filter when environment = 'all'", () => {
+		const sql = buildSql({
+			groupBy: "feature",
+			from,
+			to,
+			environment: "all",
+		});
+		expect(sql).not.toContain("blob6");
+	});
+
+	it("groups by environment using blob6", () => {
+		const sql = buildSql({
+			groupBy: "environment",
+			from,
+			to,
+			environment: "all",
+		});
+		expect(sql).toContain("SELECT blob6 AS group_key");
+	});
+
+	it("groups by version using blob7", () => {
+		const sql = buildSql({
+			groupBy: "version",
+			from,
+			to,
+			environment: "production",
+		});
+		expect(sql).toContain("SELECT blob7 AS group_key");
+	});
+
 	it("orders by cost_usd descending and limits to 1000 rows", () => {
-		const sql = buildSql({ groupBy: "feature", from, to });
+		const sql = buildSql({
+			groupBy: "feature",
+			from,
+			to,
+			environment: "production",
+		});
 		expect(sql).toContain("ORDER BY cost_usd DESC");
 		expect(sql).toContain("LIMIT 1000");
 	});

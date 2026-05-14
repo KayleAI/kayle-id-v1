@@ -13,6 +13,7 @@ import {
 	resolveAnalyticsDataset,
 } from "@kayle-id/config/analytics-cost-events";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
+import { config } from "@/config";
 import type { ApiRequestLogger } from "@/logging";
 
 const WORKER_NAME = "kayle-id-api";
@@ -183,6 +184,8 @@ async function emitStorageBytes({
 		quantity: bytes * SECONDS_PER_DAY,
 		unit: "byte_second",
 		workerName: WORKER_NAME,
+		environment: config.environment ?? "unknown",
+		version: config.version,
 	});
 	logEvent(logger, {
 		details: { bytes, key: logKey },

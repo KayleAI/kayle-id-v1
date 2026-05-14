@@ -53,6 +53,13 @@ export interface EmitCostEventInput {
   readonly attemptId?: string | null;
   /** The `KAYLE_ID_ANALYTICS` binding from `env`. Missing → no-op. */
   readonly dataset: AnalyticsEngineDatasetLike | undefined | null;
+  /**
+   * Deploy environment — `production`, `staging`, `bench`, `development`,
+   * `test`. The dashboard filters to `production` by default; non-prod
+   * envs land in the same dataset so we can investigate test-traffic
+   * cost when we want to, without polluting the prod number.
+   */
+  readonly environment: string;
   /** Logical feature/flow this cost is part of (see COST_FEATURES). */
   readonly feature: CostFeature;
   /** Per-tenant attribution. Falls back to `_unattributed`. */
@@ -63,6 +70,11 @@ export interface EmitCostEventInput {
   readonly resource: ResourceKind;
   /** Sanity label for the raw unit; not used in cost math. */
   readonly unit: string;
+  /**
+   * Emitting Worker's version (typically from its `package.json`).
+   * Lets the dashboard correlate cost regressions with deploys.
+   */
+  readonly version: string;
   /** Worker that emitted the event (`kayle-id-api`, etc.). */
   readonly workerName: string;
 }
@@ -96,12 +108,31 @@ export function emitCostEvent(input: EmitCostEventInput): void {
         input.workerName,
         input.unit,
         input.attemptId ?? "",
+        input.environment,
+        input.version,
       ],
       doubles: [input.quantity, rate.usdPerUnit, estimatedCostUsd],
     });
   } catch {
     // Best-effort; analytics writes must never fail the request path.
   }
+}
+
+/**
+ * Resolve the deploy environment from a Workers env object. Reads
+ * `NODE_ENV` (which every wrangler env block sets) and normalises
+ * common values. Falls back to `"unknown"` when missing — analytics
+ * rows with that value indicate a misconfigured Worker.
+ */
+export function resolveEnvironment(env: unknown): string {
+  if (!(env && typeof env === "object")) {
+    return "unknown";
+  }
+  const candidate = Reflect.get(env, "NODE_ENV");
+  if (typeof candidate !== "string" || candidate.length === 0) {
+    return "unknown";
+  }
+  return candidate;
 }
 
 /**

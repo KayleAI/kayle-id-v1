@@ -9,6 +9,7 @@ import {
 } from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
+import { APP_ENVIRONMENT, APP_VERSION } from "@/config/version";
 import { getPublicHost } from "@/utils/proxy-internal-api-utils";
 
 const PLATFORM_WORKER_NAME = "kayle-id-platform";
@@ -222,6 +223,8 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 					quantity: 1,
 					unit: "operation",
 					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
 				});
 
 				return new Response(

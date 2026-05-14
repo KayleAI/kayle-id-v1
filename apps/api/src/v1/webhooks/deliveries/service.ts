@@ -19,6 +19,7 @@ import {
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
 import { and, eq, inArray, ne } from "drizzle-orm";
+import { config } from "@/config";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
@@ -734,6 +735,8 @@ export async function triggerWebhookDeliveryWorkflows({
 		quantity: deliveryIds.length,
 		unit: "request",
 		workerName: "kayle-id-api",
+		environment: config.environment ?? "unknown",
+		version: config.version,
 	});
 }
 

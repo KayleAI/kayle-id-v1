@@ -3,6 +3,7 @@ import {
   COST_FEATURES,
   emitCostEvent,
   resolveAnalyticsDataset,
+  resolveEnvironment,
 } from "./analytics-cost-events";
 import {
   CF_CONTAINER_ACTIVE_PER_MS_USD,
@@ -77,6 +78,8 @@ describe("emitCostEvent", () => {
       unit: "ms",
       workerName: "kayle-id-biometric-verifier",
       attemptId: "attempt-abc",
+      environment: "production",
+      version: "1.3.6",
     });
 
     expect(calls).toHaveLength(1);
@@ -88,6 +91,8 @@ describe("emitCostEvent", () => {
       "kayle-id-biometric-verifier",
       "ms",
       "attempt-abc",
+      "production",
+      "1.3.6",
     ]);
     expect(call.doubles?.[0]).toBe(3400);
     expect(call.doubles?.[1]).toBe(CF_CONTAINER_ACTIVE_PER_MS_USD);
@@ -106,6 +111,8 @@ describe("emitCostEvent", () => {
       quantity: 1_000_000,
       unit: "byte_second",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
     expect(calls).toHaveLength(1);
     const call = calls[0] as CapturedDataPoint;
@@ -121,6 +128,8 @@ describe("emitCostEvent", () => {
       quantity: 5,
       unit: "row",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
     emitCostEvent({
       dataset: undefined,
@@ -129,6 +138,8 @@ describe("emitCostEvent", () => {
       quantity: 5,
       unit: "row",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
   });
 
@@ -141,6 +152,8 @@ describe("emitCostEvent", () => {
       quantity: -5,
       unit: "row",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
     emitCostEvent({
       dataset,
@@ -149,6 +162,8 @@ describe("emitCostEvent", () => {
       quantity: Number.NaN,
       unit: "row",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
     expect(calls).toHaveLength(0);
   });
@@ -169,8 +184,25 @@ describe("emitCostEvent", () => {
       quantity: 1,
       unit: "row",
       workerName: "kayle-id-api",
+      environment: "test",
+      version: "1.0.0-test",
     });
     expect(writeCount).toBe(1);
+  });
+});
+
+describe("resolveEnvironment", () => {
+  it("returns NODE_ENV when bound on env", () => {
+    expect(resolveEnvironment({ NODE_ENV: "production" })).toBe("production");
+    expect(resolveEnvironment({ NODE_ENV: "bench" })).toBe("bench");
+  });
+
+  it("falls back to 'unknown' when missing or empty", () => {
+    expect(resolveEnvironment({})).toBe("unknown");
+    expect(resolveEnvironment({ NODE_ENV: "" })).toBe("unknown");
+    expect(resolveEnvironment(null)).toBe("unknown");
+    expect(resolveEnvironment(undefined)).toBe("unknown");
+    expect(resolveEnvironment({ NODE_ENV: 7 })).toBe("unknown");
   });
 });
 

@@ -5,6 +5,7 @@ import {
 	resolveAnalyticsDataset,
 } from "@kayle-id/config/analytics-cost-events";
 import type { Certificate, CertificateRevocationList } from "pkijs";
+import { config } from "@/config";
 import {
 	hydratePkdTrustBundle,
 	hydratePkdTrustBundleDscSegment,
@@ -165,6 +166,8 @@ function emitD1Read(rowCount: number): void {
 		quantity: rowCount,
 		unit: "row",
 		workerName: TRUST_LOADER_WORKER_NAME,
+		environment: config.environment ?? "unknown",
+		version: config.version,
 	});
 }
 
@@ -179,6 +182,8 @@ function emitR2ClassB(): void {
 		quantity: 1,
 		unit: "operation",
 		workerName: TRUST_LOADER_WORKER_NAME,
+		environment: config.environment ?? "unknown",
+		version: config.version,
 	});
 }
 

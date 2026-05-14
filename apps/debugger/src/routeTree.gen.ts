@@ -47,20 +47,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/biometric/full-pipeline'
-    | '/biometric/liveness'
+  fullPaths: '/' | '/biometric/full-pipeline' | '/biometric/liveness'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/biometric/full-pipeline'
-    | '/biometric/liveness'
-  id:
-    | '__root__'
-    | '/'
-    | '/biometric/full-pipeline'
-    | '/biometric/liveness'
+  to: '/' | '/biometric/full-pipeline' | '/biometric/liveness'
+  id: '__root__' | '/' | '/biometric/full-pipeline' | '/biometric/liveness'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

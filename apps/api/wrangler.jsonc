@@ -64,7 +64,8 @@
 		"NODE_ENV": "development",
 		"PUBLIC_AUTH_URL": "http://localhost:3000",
 		"PUBLIC_VERIFY_URL": "http://localhost:2999",
-		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
+		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>",
+		"MIN_APP_VERSION": ""
 	},
 	"env": {
 		"production": {
@@ -74,7 +75,8 @@
 				"PUBLIC_AUTH_URL": "https://kayle.id",
 				"PUBLIC_VERIFY_URL": "https://verify.kayle.id",
 				"PUBLIC_CDN_ORIGIN": "https://cdn.kayle.id",
-				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
+				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>",
+				"MIN_APP_VERSION": "1.4.0"
 			},
 			"send_email": [
 				{

@@ -635,84 +635,88 @@ def match_centered_frame(
 def extract_frames_with_ffmpeg(
     video_bytes: bytes, frame_count: int
 ) -> tuple[list[np.ndarray], Optional[float]]:
-    """Decode `frame_count` evenly-spaced frames from the supplied
-    video. Returns (BGR images in display order, duration in seconds).
-    Returns ([], None) on any decode failure — caller treats an empty
+    """Decode `frame_count` evenly-spaced BGR frames from the video.
+
+    Name is historical — the implementation is now in-process via
+    opencv's libavcodec backend, not an ffmpeg subprocess. The bench
+    trace (2026-05-14) showed the old subprocess path was 47-56% of
+    total /verify latency on small vCPU profiles: fork+exec, PNG
+    re-encode, temp-file I/O, then PNG re-decode in Python. None of
+    that was buying us anything; cv2.VideoCapture decodes straight to
+    a BGR ndarray with no codec switch.
+
+    Returns ([], None) on any decode failure; caller treats an empty
     list as `liveness_video_unreadable`.
     """
     if frame_count <= 0:
         return [], None
 
-    with tempfile.TemporaryDirectory(prefix="liveness-") as tmpdir:
-        tmp_path = Path(tmpdir)
-        input_path = tmp_path / "input.mp4"
-        input_path.write_bytes(video_bytes)
+    # cv2.VideoCapture wants a file path. Container /tmp is tmpfs so
+    # this round-trip stays in memory.
+    with tempfile.NamedTemporaryFile(
+        prefix="liveness-", suffix=".bin", delete=False
+    ) as tmp:
+        tmp.write(video_bytes)
+        tmp_path = tmp.name
 
-        # Step 1: probe duration via ffprobe-equivalent fast metadata extraction.
-        # Failing that, fall back to a heuristic that splits a 5s clip into
-        # frame_count windows. We use ffmpeg with -ss 0 -t 0 to read metadata
-        # cheaply (no decode) and parse stderr.
-        duration_seconds = probe_duration_seconds(input_path)
-        if duration_seconds is None or duration_seconds <= 0:
+    try:
+        capture = cv2.VideoCapture(tmp_path, cv2.CAP_FFMPEG)
+        if not capture.isOpened():
+            return [], None
+
+        total = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        duration_seconds = (total / fps) if fps and fps > 0 else None
+
+        if total <= 0 or duration_seconds is None or duration_seconds <= 0:
+            capture.release()
             return [], duration_seconds
 
-        # `-vf fps=N` splits the duration into frame_count equal
-        # intervals and emits one frame per interval — robust to any
-        # input timebase, unlike an `eq(pts*TB,…)` predicate which
-        # requires bit-exact timestamp matches.
-        timestamps = [
-            duration_seconds * (i + 0.5) / frame_count
-            for i in range(frame_count)
-        ]
-        select_expr = "+".join(
-            f"eq(pts*TB\\,{ts:.6f})" for ts in timestamps
+        # Evenly-spaced sample indices. De-dup in case frame_count >= total
+        # (a degenerate clip would otherwise sample the same frame twice).
+        targets = sorted(
+            {
+                min(max(0, int(total * (i + 0.5) / frame_count)), total - 1)
+                for i in range(frame_count)
+            }
         )
-        output_pattern = tmp_path / "frame_%03d.png"
-        frame_rate = frame_count / duration_seconds
-        command = [
-            LIVENESS_FFMPEG_BIN,
-            "-nostdin",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(input_path),
-            "-vf",
-            f"fps={frame_rate:.6f}",
-            "-vsync",
-            "vfr",
-            "-frames:v",
-            str(frame_count),
-            str(output_pattern),
-        ]
 
-        try:
-            subprocess.run(
-                command,
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                timeout=15,
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-            emit_log(
-                "ffmpeg_extract_failed",
-                error=str(error),
-                duration_seconds=duration_seconds,
-                frame_count=frame_count,
-                stderr=getattr(error, "stderr", b"").decode("utf-8", errors="replace")[:512]
-                if hasattr(error, "stderr") and error.stderr
-                else None,
-            )
-            return [], duration_seconds
-
-        _ = select_expr  # silence unused
+        # Sequential read with on-the-fly sampling. Seek-based extraction
+        # (CAP_PROP_POS_FRAMES per target) was tried and produced
+        # codec-dependent inaccuracies on webm/vp9 — the encoder may
+        # forward-decode from the nearest keyframe anyway, so sequential
+        # winds up no slower and is always frame-accurate.
         frames: list[np.ndarray] = []
-        for path in sorted(tmp_path.glob("frame_*.png")):
-            frame = cv2.imread(str(path), cv2.IMREAD_COLOR)
-            if frame is not None:
-                frames.append(frame)
+        target_idx = 0
+        current = 0
+        while target_idx < len(targets):
+            ok, frame = capture.read()
+            if not ok or frame is None:
+                break
+            if current == targets[target_idx]:
+                frames.append(frame.copy())
+                target_idx += 1
+                while (
+                    target_idx < len(targets)
+                    and targets[target_idx] == current
+                ):
+                    target_idx += 1
+            current += 1
+
+        capture.release()
         return frames, duration_seconds
+    except Exception as error:
+        emit_log(
+            "video_decode_failed",
+            error=str(error),
+            frame_count=frame_count,
+        )
+        return [], None
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def probe_duration_seconds(input_path: Path) -> Optional[float]:
@@ -1773,9 +1777,6 @@ class BiometricVerifierRuntime:
                 5000,
             )
             self._load_recognizer_model()
-            ffmpeg_available = shutil.which(LIVENESS_FFMPEG_BIN) is not None
-            if not ffmpeg_available:
-                self.error = "ffmpeg_binary_missing"
             self._load_pad_model()
             self._load_mesh_model()
             if PREWARM_ENABLED:
@@ -1795,7 +1796,6 @@ class BiometricVerifierRuntime:
                 mesh_disabled=MESH_DISABLED,
                 mesh_loaded=self.mesh_session is not None,
                 mesh_load_error=self.mesh_load_error,
-                ffmpeg_available=ffmpeg_available,
                 is_dev=IS_DEV,
             )
         except Exception as error:

@@ -376,8 +376,7 @@
       "workers_dev": true,
       "vars": {
         "NODE_ENV": "production",
-        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1",
-        "BIOMETRIC_VERIFIER_PREWARM": "1"
+        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1"
       },
       "containers": [
         {
@@ -420,8 +419,7 @@
       "workers_dev": true,
       "vars": {
         "NODE_ENV": "production",
-        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1",
-        "BIOMETRIC_VERIFIER_PREWARM": "1"
+        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1"
       },
       "containers": [
         {

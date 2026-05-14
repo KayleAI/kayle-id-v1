@@ -40,10 +40,6 @@
           {
             "group": "Authentication",
             "pages": ["auth/api-keys", "auth/scopes", "auth/verified-domains"]
-          },
-          {
-            "group": "Self-hosting",
-            "pages": ["self-hosting/overview"]
           }
         ]
       },

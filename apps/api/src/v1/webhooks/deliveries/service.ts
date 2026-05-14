@@ -1,3 +1,8 @@
+import {
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
 import { indexBy } from "@kayle-id/config/collections";
 import {
 	createSafeRequestLogger,
@@ -717,6 +722,19 @@ export async function triggerWebhookDeliveryWorkflows({
 			params: { deliveryId },
 		})),
 	);
+
+	// Cost attribution: one workflow_run event per delivery. Triggers
+	// retries automatically via the Workflow runtime, but each retry
+	// re-bills as a separate workflow run on CF's side — those would
+	// emit from inside the Workflow body, not here.
+	emitCostEvent({
+		dataset: resolveAnalyticsDataset(env),
+		feature: COST_FEATURES.WebhookDelivery,
+		resource: "workflow_run",
+		quantity: deliveryIds.length,
+		unit: "request",
+		workerName: "kayle-id-api",
+	});
 }
 
 export async function getWebhookDeliveryForOrganization({

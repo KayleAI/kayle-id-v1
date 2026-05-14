@@ -1,3 +1,9 @@
+import {
+	type AnalyticsEngineDatasetLike,
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
 import type { Certificate, CertificateRevocationList } from "pkijs";
 import {
 	hydratePkdTrustBundle,
@@ -48,11 +54,14 @@ let trustBundleLoader: PkdTrustBundleLoader | null = null;
 let configuredTrustStoreDatabase: PkdTrustD1Database | null = null;
 let configuredR2Bucket: PkdTrustR2Bucket | null = null;
 let configuredInlineTrustBundleJson: string | null = null;
+let configuredAnalyticsDataset: AnalyticsEngineDatasetLike | null = null;
 let trustBundleCache: PkdTrustBundleCache = {
 	bundle: null,
 	etag: null,
 	expiresAt: 0,
 };
+
+const TRUST_LOADER_WORKER_NAME = "kayle-id-api";
 
 function getR2Bucket(env: unknown): PkdTrustR2Bucket | null {
 	if (!env || typeof env !== "object") {
@@ -98,6 +107,7 @@ async function loadTrustBundleFromR2Bucket(
 	}
 
 	const object = await bucket.get(PKD_TRUST_R2_KEY);
+	emitR2ClassB();
 
 	if (!object) {
 		clearPkdTrustBundleCache();
@@ -134,6 +144,7 @@ async function loadTrustBundleDscSegmentFromR2Bucket(
 	segmentKey: string,
 ) {
 	const object = await bucket.get(pkdTrustBundleDscSegmentKey(segmentKey));
+	emitR2ClassB();
 
 	if (!object) {
 		return null;
@@ -143,15 +154,45 @@ async function loadTrustBundleDscSegmentFromR2Bucket(
 	return hydratePkdTrustBundleDscSegment(parseTextJson(bytes));
 }
 
+function emitD1Read(rowCount: number): void {
+	if (!configuredAnalyticsDataset || rowCount <= 0) {
+		return;
+	}
+	emitCostEvent({
+		dataset: configuredAnalyticsDataset,
+		feature: COST_FEATURES.Verify,
+		resource: "d1_read",
+		quantity: rowCount,
+		unit: "row",
+		workerName: TRUST_LOADER_WORKER_NAME,
+	});
+}
+
+function emitR2ClassB(): void {
+	if (!configuredAnalyticsDataset) {
+		return;
+	}
+	emitCostEvent({
+		dataset: configuredAnalyticsDataset,
+		feature: COST_FEATURES.Verify,
+		resource: "r2_class_b",
+		quantity: 1,
+		unit: "operation",
+		workerName: TRUST_LOADER_WORKER_NAME,
+	});
+}
+
 async function queryFirstRow<T>(
 	database: PkdTrustD1Database,
 	query: string,
 	...values: unknown[]
 ): Promise<T | null> {
-	return database
+	const row = await database
 		.prepare(query)
 		.bind(...values)
 		.first<T>();
+	emitD1Read(row === null ? 0 : 1);
+	return row;
 }
 
 async function queryRows<T>(
@@ -163,7 +204,9 @@ async function queryRows<T>(
 		.prepare(query)
 		.bind(...values)
 		.all<T>();
-	return result.results ?? [];
+	const rows = result.results ?? [];
+	emitD1Read(rows.length);
+	return rows;
 }
 
 function parseMasterListSourcesJson(value: string): PkdTrustBundleSource[] {
@@ -332,11 +375,17 @@ export function configurePkdTrustBundleLoader(
 	configuredTrustStoreDatabase = null;
 	configuredR2Bucket = null;
 	configuredInlineTrustBundleJson = null;
+	configuredAnalyticsDataset = null;
 	trustBundleLoader = loader;
 	clearPkdTrustBundleCache();
 }
 
 export function configurePkdTrustBundleLoaderFromEnv(env: unknown): void {
+	// Analytics binding (optional): bundle hits issue 1× metadata
+	// SELECT + 3× bulk SELECTs on cache miss. Emit per-row d1_read
+	// cost events so the dashboard sees trust-store work even though
+	// org_id isn't known at this layer (rows get `_unattributed`).
+	configuredAnalyticsDataset = resolveAnalyticsDataset(env);
 	const inlineTrustBundleJson = resolveStringEnvValue(
 		env,
 		INLINE_PKD_TRUST_BUNDLE_ENV_KEY,

@@ -27,6 +27,19 @@ except Exception:  # pragma: no cover - import guard
     ort = None  # type: ignore[assignment]
 
 
+def _make_ort_session_options():
+    """Build SessionOptions honoring the thread-cap env vars. None when
+    the module didn't import (test-only path)."""
+    if ort is None:
+        return None
+    options = ort.SessionOptions()
+    if ONNX_INTRA_OP_THREADS is not None:
+        options.intra_op_num_threads = ONNX_INTRA_OP_THREADS
+    if ONNX_INTER_OP_THREADS is not None:
+        options.inter_op_num_threads = ONNX_INTER_OP_THREADS
+    return options
+
+
 MODEL_INPUT_SIZE = (112, 112)
 DETAIL_STDDEV_MIN = 12.0
 STRICT_IMAGE_SIMILARITY_THRESHOLD = 0.995
@@ -57,6 +70,29 @@ DEBUG_RESPONSES_ALLOWED = IS_DEV
 # container-sizing benchmark. Off by default; flip to "1" in the bench
 # wrangler envs only.
 DEBUG_METRICS_ENABLED = os.environ.get("BIOMETRIC_VERIFIER_DEBUG_METRICS") == "1"
+
+
+def _read_positive_int_env(key: str) -> Optional[int]:
+    raw = os.environ.get(key)
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
+# ORT defaults to a thread pool sized off `nproc`, which on CF Containers
+# reflects host cores rather than the cgroup's vCPU share. On small
+# instance types this over-subscribes and trashes p50. Setting these
+# pins ORT's intra/inter-op pools to a sane number for the profile.
+ONNX_INTRA_OP_THREADS = _read_positive_int_env(
+    "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS"
+)
+ONNX_INTER_OP_THREADS = _read_positive_int_env(
+    "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"
+)
 
 LIVENESS_FRAME_COUNT = int(
     os.environ.get("BIOMETRIC_VERIFIER_FRAME_COUNT", "24")
@@ -1706,6 +1742,7 @@ class BiometricVerifierRuntime:
         try:
             session = ort.InferenceSession(
                 self.model_path,
+                sess_options=_make_ort_session_options(),
                 providers=["CPUExecutionProvider"],
             )
         except Exception as error:
@@ -1734,7 +1771,9 @@ class BiometricVerifierRuntime:
                 return
             try:
                 session = ort.InferenceSession(
-                    path, providers=["CPUExecutionProvider"]
+                    path,
+                    sess_options=_make_ort_session_options(),
+                    providers=["CPUExecutionProvider"],
                 )
             except Exception as error:
                 self.pad_load_error = f"pad_{label}_model_load_failed:{error}"
@@ -1768,6 +1807,7 @@ class BiometricVerifierRuntime:
         try:
             self.mesh_session = ort.InferenceSession(
                 self.mesh_model_path,
+                sess_options=_make_ort_session_options(),
                 providers=["CPUExecutionProvider"],
             )
         except Exception as error:

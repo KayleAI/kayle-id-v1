@@ -370,6 +370,102 @@
       "secrets": {
         "required": ["BIOMETRIC_VERIFIER_SECRET"]
       }
+    },
+    "bench-standard-1-tuned": {
+      "name": "kayle-id-biometric-verifier-bench-standard-1-tuned",
+      "workers_dev": true,
+      "vars": {
+        "NODE_ENV": "production",
+        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1",
+        "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS": "1",
+        "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1"
+      },
+      "containers": [
+        {
+          "name": "kayle-id-biometric-verifier-bench-standard-1-tuned-container",
+          "class_name": "BiometricVerifierContainer",
+          "image": "./Dockerfile",
+          "instance_type": "standard-1",
+          "max_instances": 1
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "BiometricVerifierContainer",
+            "name": "BIOMETRIC_VERIFIER_CONTAINER"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["FaceMatcherContainer"]
+        },
+        {
+          "tag": "v2",
+          "renamed_classes": [
+            {
+              "from": "FaceMatcherContainer",
+              "to": "BiometricVerifierContainer"
+            }
+          ]
+        }
+      ],
+      "secrets": {
+        "required": ["BIOMETRIC_VERIFIER_SECRET"]
+      }
+    },
+    "bench-standard-3-tuned": {
+      "name": "kayle-id-biometric-verifier-bench-standard-3-tuned",
+      "workers_dev": true,
+      "vars": {
+        "NODE_ENV": "production",
+        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1",
+        "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS": "2",
+        "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS": "1",
+        "OMP_NUM_THREADS": "2",
+        "MKL_NUM_THREADS": "2",
+        "OPENBLAS_NUM_THREADS": "2"
+      },
+      "containers": [
+        {
+          "name": "kayle-id-biometric-verifier-bench-standard-3-tuned-container",
+          "class_name": "BiometricVerifierContainer",
+          "image": "./Dockerfile",
+          "instance_type": "standard-3",
+          "max_instances": 1
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "BiometricVerifierContainer",
+            "name": "BIOMETRIC_VERIFIER_CONTAINER"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["FaceMatcherContainer"]
+        },
+        {
+          "tag": "v2",
+          "renamed_classes": [
+            {
+              "from": "FaceMatcherContainer",
+              "to": "BiometricVerifierContainer"
+            }
+          ]
+        }
+      ],
+      "secrets": {
+        "required": ["BIOMETRIC_VERIFIER_SECRET"]
+      }
     }
   }
 }

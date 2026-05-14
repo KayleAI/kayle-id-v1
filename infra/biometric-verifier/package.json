@@ -10,6 +10,8 @@
     "deploy:bench:standard-2": "bunx wrangler deploy --minify --env bench-standard-2",
     "deploy:bench:standard-3": "bunx wrangler deploy --minify --env bench-standard-3",
     "deploy:bench:standard-4": "bunx wrangler deploy --minify --env bench-standard-4",
+    "deploy:bench:standard-1-tuned": "bunx wrangler deploy --minify --env bench-standard-1-tuned",
+    "deploy:bench:standard-3-tuned": "bunx wrangler deploy --minify --env bench-standard-3-tuned",
     "cf:types": "bunx wrangler types --env-file .env.example --env-interface BiometricVerifierBindings cloudflare-env.d.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

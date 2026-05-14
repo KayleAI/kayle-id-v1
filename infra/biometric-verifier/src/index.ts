@@ -146,6 +146,11 @@ function resolveDebugMetrics(env: unknown): Record<string, string> {
     : {};
 }
 
+function forwardStringEnv(env: unknown, key: string): Record<string, string> {
+  const value = isObjectRecord(env) ? Reflect.get(env, key) : undefined;
+  return typeof value === "string" && value.length > 0 ? { [key]: value } : {};
+}
+
 export class BiometricVerifierContainer extends Container<BiometricVerifierBindings> {
   defaultPort = 8080;
   sleepAfter = "10m";
@@ -156,6 +161,11 @@ export class BiometricVerifierContainer extends Container<BiometricVerifierBindi
     PORT: "8080",
     ...resolveNodeEnv(this.env),
     ...resolveDebugMetrics(this.env),
+    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS"),
+    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"),
+    ...forwardStringEnv(this.env, "OMP_NUM_THREADS"),
+    ...forwardStringEnv(this.env, "MKL_NUM_THREADS"),
+    ...forwardStringEnv(this.env, "OPENBLAS_NUM_THREADS"),
   };
 }
 

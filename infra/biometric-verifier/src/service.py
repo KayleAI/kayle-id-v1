@@ -8,6 +8,7 @@ import sys
 import tempfile
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -93,6 +94,18 @@ ONNX_INTRA_OP_THREADS = _read_positive_int_env(
 ONNX_INTER_OP_THREADS = _read_positive_int_env(
     "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"
 )
+
+# When >1, the per-frame pose + PAD loops dispatch to a thread pool.
+# detect_face stays serialized through _DETECTOR_LOCK, but mesh and
+# PAD ONNX sessions are thread-safe — so overlap there is real.
+FRAME_PARALLEL_WORKERS = (
+    _read_positive_int_env("BIOMETRIC_VERIFIER_FRAME_PARALLEL_WORKERS") or 1
+)
+
+# When set, eagerly run each ONNX session with a dummy input during
+# BiometricVerifierRuntime init. Shifts JIT / arena allocation / graph
+# optimization out of the first user request and onto container boot.
+PREWARM_ENABLED = os.environ.get("BIOMETRIC_VERIFIER_PREWARM") == "1"
 
 LIVENESS_FRAME_COUNT = int(
     os.environ.get("BIOMETRIC_VERIFIER_FRAME_COUNT", "24")
@@ -1014,6 +1027,46 @@ def classify_pose(yaw_deg: Optional[float]) -> str:
     return "unknown"
 
 
+def _build_pose_entry(
+    index: int,
+    frame: np.ndarray,
+    detector: cv2.FaceDetectorYN,
+    mesh_session,
+) -> dict:
+    face = detect_face(detector, frame)
+    if face is None:
+        return {
+            "frame_index": index,
+            "face_detected": False,
+            "pitch_deg": None,
+            "yaw_deg": None,
+            "roll_deg": None,
+            "pose": "unknown",
+            "face": None,
+            "mesh": None,
+        }
+    mesh = extract_mesh(mesh_session, frame, face) if mesh_session else None
+    head_pose: Optional[tuple[float, float, float]] = None
+    if mesh is not None:
+        head_pose = head_pose_from_mesh(mesh, frame.shape[:2])
+    if head_pose is None:
+        head_pose = head_pose_from_yunet(face, frame.shape[:2])
+    if head_pose is None:
+        pitch_deg, yaw_deg, roll_deg = None, None, None
+    else:
+        pitch_deg, yaw_deg, roll_deg = head_pose
+    return {
+        "frame_index": index,
+        "face_detected": True,
+        "pitch_deg": pitch_deg,
+        "yaw_deg": yaw_deg,
+        "roll_deg": roll_deg,
+        "pose": classify_pose(yaw_deg),
+        "face": face,
+        "mesh": mesh,
+    }
+
+
 def build_pose_timeline(
     detector: cv2.FaceDetectorYN,
     mesh_session,
@@ -1021,47 +1074,25 @@ def build_pose_timeline(
 ) -> list[dict]:
     """Per-frame YuNet + (optional) mesh + head pose, in display order.
     Falls back to head_pose_from_yunet when the mesh model is absent
-    or inference fails — yaw stays on the same scale."""
-    timeline: list[dict] = []
-    for index, frame in enumerate(frames):
-        face = detect_face(detector, frame)
-        if face is None:
-            timeline.append(
-                {
-                    "frame_index": index,
-                    "face_detected": False,
-                    "pitch_deg": None,
-                    "yaw_deg": None,
-                    "roll_deg": None,
-                    "pose": "unknown",
-                    "face": None,
-                    "mesh": None,
-                }
+    or inference fails — yaw stays on the same scale.
+
+    When FRAME_PARALLEL_WORKERS > 1, dispatches across a thread pool —
+    detect_face serializes on _DETECTOR_LOCK but mesh inference (the
+    expensive op) overlaps."""
+    if FRAME_PARALLEL_WORKERS <= 1:
+        return [
+            _build_pose_entry(index, frame, detector, mesh_session)
+            for index, frame in enumerate(frames)
+        ]
+    with ThreadPoolExecutor(max_workers=FRAME_PARALLEL_WORKERS) as executor:
+        return list(
+            executor.map(
+                lambda item: _build_pose_entry(
+                    item[0], item[1], detector, mesh_session
+                ),
+                enumerate(frames),
             )
-            continue
-        mesh = extract_mesh(mesh_session, frame, face) if mesh_session else None
-        head_pose: Optional[tuple[float, float, float]] = None
-        if mesh is not None:
-            head_pose = head_pose_from_mesh(mesh, frame.shape[:2])
-        if head_pose is None:
-            head_pose = head_pose_from_yunet(face, frame.shape[:2])
-        if head_pose is None:
-            pitch_deg, yaw_deg, roll_deg = None, None, None
-        else:
-            pitch_deg, yaw_deg, roll_deg = head_pose
-        timeline.append(
-            {
-                "frame_index": index,
-                "face_detected": True,
-                "pitch_deg": pitch_deg,
-                "yaw_deg": yaw_deg,
-                "roll_deg": roll_deg,
-                "pose": classify_pose(yaw_deg),
-                "face": face,
-                "mesh": mesh,
-            }
         )
-    return timeline
 
 
 def validate_movement_coverage(
@@ -1249,6 +1280,17 @@ def predict_pad_score(
     return clamp_score(float(summed[1] / 2.0))
 
 
+def _score_pad_entry(
+    v2_session,
+    v1se_session,
+    frame: np.ndarray,
+    face,
+) -> Optional[float]:
+    if face is None:
+        return None
+    return predict_pad_score(v2_session, v1se_session, frame, face)
+
+
 def run_pad_over_timeline(
     v2_session,
     v1se_session,
@@ -1257,23 +1299,28 @@ def run_pad_over_timeline(
     timeline: list[dict],
 ) -> dict:
     """Aggregate per-frame PAD real-class probabilities into a
-    clip-level verdict."""
-    per_frame_scores: list[Optional[float]] = []
+    clip-level verdict. Reuses the face object stashed by
+    `build_pose_timeline` rather than redetecting per frame.
+    Optionally parallelizes via FRAME_PARALLEL_WORKERS."""
+
+    def _score_entry(entry: dict) -> Optional[float]:
+        if not entry["face_detected"]:
+            return None
+        frame = frames[int(entry["frame_index"])]
+        return _score_pad_entry(v2_session, v1se_session, frame, entry["face"])
+
+    if FRAME_PARALLEL_WORKERS <= 1:
+        per_frame_scores: list[Optional[float]] = [
+            _score_entry(entry) for entry in timeline
+        ]
+    else:
+        with ThreadPoolExecutor(max_workers=FRAME_PARALLEL_WORKERS) as executor:
+            per_frame_scores = list(executor.map(_score_entry, timeline))
+
     pass_count = 0
     score_sum = 0.0
     scored_count = 0
-
-    for entry in timeline:
-        if not entry["face_detected"]:
-            per_frame_scores.append(None)
-            continue
-        frame = frames[int(entry["frame_index"])]
-        face = detect_face(detector, frame)
-        if face is None:
-            per_frame_scores.append(None)
-            continue
-        score = predict_pad_score(v2_session, v1se_session, frame, face)
-        per_frame_scores.append(score)
+    for score in per_frame_scores:
         if score is None:
             continue
         scored_count += 1
@@ -1702,6 +1749,8 @@ class BiometricVerifierRuntime:
                 self.error = "ffmpeg_binary_missing"
             self._load_pad_model()
             self._load_mesh_model()
+            if PREWARM_ENABLED:
+                self._prewarm_sessions()
             emit_log(
                 "container_ready",
                 detector_model_path=self.detector_model_path,
@@ -1813,6 +1862,43 @@ class BiometricVerifierRuntime:
         except Exception as error:
             self.mesh_load_error = f"mesh_model_load_failed:{error}"
             self.mesh_session = None
+
+    def _prewarm_sessions(self) -> None:
+        """Run each loaded ONNX session once with a zero tensor so JIT,
+        graph optimization, and arena allocation happen here instead of
+        on the first real request. Failures are non-fatal — they'd just
+        surface again on the first real call."""
+        try:
+            if self.recognizer is not None:
+                dummy_face = np.zeros((112, 112, 3), dtype=np.uint8)
+                self.recognizer.feature(dummy_face)
+        except Exception as error:
+            emit_log("prewarm_recognizer_failed", error=str(error))
+        try:
+            if self.mesh_session is not None:
+                inputs = self.mesh_session.get_inputs()
+                if inputs:
+                    shape = [d if isinstance(d, int) and d > 0 else 1 for d in inputs[0].shape]
+                    dummy = np.zeros(shape, dtype=np.float32)
+                    self.mesh_session.run(None, {inputs[0].name: dummy})
+        except Exception as error:
+            emit_log("prewarm_mesh_failed", error=str(error))
+        for label, session in (
+            ("v2", self.pad_v2_session),
+            ("v1se", self.pad_v1se_session),
+        ):
+            try:
+                if session is None:
+                    continue
+                inputs = session.get_inputs()
+                if not inputs:
+                    continue
+                shape = [d if isinstance(d, int) and d > 0 else 1 for d in inputs[0].shape]
+                dummy = np.zeros(shape, dtype=np.float32)
+                session.run(None, {inputs[0].name: dummy})
+            except Exception as error:
+                emit_log(f"prewarm_pad_{label}_failed", error=str(error))
+        emit_log("prewarm_complete")
 
     @property
     def ready(self) -> bool:

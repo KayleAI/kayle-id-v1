@@ -163,6 +163,8 @@ export class BiometricVerifierContainer extends Container<BiometricVerifierBindi
     ...resolveDebugMetrics(this.env),
     ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS"),
     ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"),
+    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_FRAME_PARALLEL_WORKERS"),
+    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_PREWARM"),
     ...forwardStringEnv(this.env, "OMP_NUM_THREADS"),
     ...forwardStringEnv(this.env, "MKL_NUM_THREADS"),
     ...forwardStringEnv(this.env, "OPENBLAS_NUM_THREADS"),

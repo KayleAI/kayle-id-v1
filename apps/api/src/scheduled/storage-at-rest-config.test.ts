@@ -37,7 +37,11 @@ interface ApiWranglerConfig {
 }
 
 interface PlatformWranglerConfig {
-	kv_namespaces?: KvBinding[];
+	env?: {
+		production?: {
+			kv_namespaces?: KvBinding[];
+		};
+	};
 }
 
 async function readJson<T>(relativePath: string): Promise<T> {
@@ -76,11 +80,11 @@ describe("storage-at-rest resource IDs match wrangler.jsonc", () => {
 		expect(binding?.bucket_name).toBe(R2_BUCKET_NAME);
 	});
 
-	test("ORG_VERIFICATIONS_KV_NAMESPACE_ID matches the platform worker's KV binding", async () => {
+	test("ORG_VERIFICATIONS_KV_NAMESPACE_ID matches the platform worker's KV binding (production)", async () => {
 		const config = await readJson<PlatformWranglerConfig>(
 			"../../../platform/wrangler.jsonc",
 		);
-		const binding = config.kv_namespaces?.find(
+		const binding = config.env?.production?.kv_namespaces?.find(
 			(b) => b.binding === "ORG_VERIFICATIONS_KV",
 		);
 		expect(binding?.id).toBe(ORG_VERIFICATIONS_KV_NAMESPACE_ID);

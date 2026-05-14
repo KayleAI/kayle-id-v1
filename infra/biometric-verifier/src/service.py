@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
@@ -1446,6 +1447,12 @@ def verify_liveness_payload(
         if include_debug
         else None
     )
+    perf: dict[str, float] = {} if DEBUG_METRICS_ENABLED else None  # type: ignore[assignment]
+    request_started = time.monotonic()
+
+    def _mark(step: str, started: float) -> None:
+        if perf is not None:
+            perf[step] = (time.monotonic() - started) * 1000.0
 
     video_b64 = payload.get("videoBase64")
     if not isinstance(video_b64, str) or len(video_b64) == 0:
@@ -1455,6 +1462,7 @@ def verify_liveness_payload(
             debug=debug,
         )
 
+    decode_start = time.monotonic()
     try:
         video_bytes = base64.b64decode(video_b64)
     except Exception:
@@ -1470,10 +1478,13 @@ def verify_liveness_payload(
             threshold=threshold,
             debug=debug,
         )
+    _mark("videoDecodeMs", decode_start)
 
+    ffmpeg_start = time.monotonic()
     frames, duration_seconds = extract_frames_with_ffmpeg(
         video_bytes, LIVENESS_FRAME_COUNT
     )
+    _mark("ffmpegExtractMs", ffmpeg_start)
     if debug is not None:
         debug["frameCount"] = len(frames)
         debug["durationSeconds"] = duration_seconds
@@ -1496,7 +1507,9 @@ def verify_liveness_payload(
             debug=debug,
         )
 
+    pose_start = time.monotonic()
     timeline = build_pose_timeline(detector, mesh_session, frames)
+    _mark("poseTimelineMs", pose_start)
     if debug is not None:
         debug["timeline"] = _timeline_to_debug_entries(timeline)
     detected_count = sum(1 for entry in timeline if entry["face_detected"])
@@ -1537,6 +1550,10 @@ def verify_liveness_payload(
         }
         if debug is not None:
             response["debug"] = debug
+        if perf is not None:
+            perf["totalMs"] = (time.monotonic() - request_started) * 1000.0
+            perf["frameCount"] = float(len(frames))
+            response["_perfTrace"] = perf
         return response
 
     # PAD runs after movement coverage to avoid wasted inference on
@@ -1544,9 +1561,11 @@ def verify_liveness_payload(
     # padPassed defaults to True (the gate never runs single-model;
     # published accuracy assumes both signals).
     if pad_loaded:
+        pad_start = time.monotonic()
         pad_result = run_pad_over_timeline(
             pad_v2_session, pad_v1se_session, detector, frames, timeline
         )
+        _mark("padMs", pad_start)
         emit_log(
             "liveness_pad_evaluated",
             pad_passed=pad_result["padPassed"],
@@ -1579,6 +1598,10 @@ def verify_liveness_payload(
             }
             if debug is not None:
                 response["debug"] = debug
+            if perf is not None:
+                perf["totalMs"] = (time.monotonic() - request_started) * 1000.0
+                perf["frameCount"] = float(len(frames))
+                response["_perfTrace"] = perf
             return response
         pad_passed_for_response = True
         pad_score_for_response = pad_result["padScore"]
@@ -1634,6 +1657,7 @@ def verify_liveness_payload(
         if dg2_face is not None:
             dg2_mesh = extract_mesh(mesh_session, dg2_image, dg2_face)
 
+    face_match_start = time.monotonic()
     face_match = match_centered_frame(
         detector,
         recognizer,
@@ -1643,6 +1667,7 @@ def verify_liveness_payload(
         center_mesh,
         threshold,
     )
+    _mark("faceMatchMs", face_match_start)
 
     if debug is not None:
         debug["dg2Mesh"] = (
@@ -1667,6 +1692,10 @@ def verify_liveness_payload(
     }
     if debug is not None:
         response["debug"] = debug
+    if perf is not None:
+        perf["totalMs"] = (time.monotonic() - request_started) * 1000.0
+        perf["frameCount"] = float(len(frames))
+        response["_perfTrace"] = perf
     return response
 
 

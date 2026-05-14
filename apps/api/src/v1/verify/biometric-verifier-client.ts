@@ -1,10 +1,17 @@
 import {
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
+import {
 	BIOMETRIC_VERIFIER_AUTH_HEADER,
 	biometricVerifierResponseSchema,
 	createBiometricVerifierRequestFormData,
 } from "@kayle-id/config/biometric-verifier";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import type { ApiRequestLogger } from "@/logging";
+
+const WORKER_NAME = "kayle-id-api";
 
 type BiometricVerifierServiceBinding = {
 	fetch: typeof fetch;
@@ -76,6 +83,8 @@ async function requestBiometricVerifier({
 	faceMatchThreshold,
 	verifierBinding,
 	verifierSecret,
+	env,
+	organizationId,
 	attemptId,
 	logger,
 }: {
@@ -85,6 +94,8 @@ async function requestBiometricVerifier({
 	faceMatchThreshold?: number;
 	verifierBinding: BiometricVerifierServiceBinding;
 	verifierSecret: string;
+	env: unknown;
+	organizationId?: string;
 	attemptId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<LivenessVerificationResult> {
@@ -159,10 +170,11 @@ async function requestBiometricVerifier({
 			return createUnavailableResult("biometric_verifier_unavailable");
 		}
 
+		const durationMs = Date.now() - startedAt;
 		logEvent(logger, {
 			details: {
 				attempt_id: attemptId ?? null,
-				duration_ms: Date.now() - startedAt,
+				duration_ms: durationMs,
 				face_match_passed: payload.data.faceMatchPassed,
 				face_match_score: payload.data.faceMatchScore,
 				liveness_passed: payload.data.livenessPassed,
@@ -173,6 +185,21 @@ async function requestBiometricVerifier({
 				reason: payload.data.reason ?? null,
 			},
 			event: "verify.biometric_verifier.request_succeeded",
+		});
+
+		// Wall-clock duration overestimates the container's active time
+		// by the service-binding hop (single-digit ms) — close enough
+		// for cost attribution. The container's _perfTrace.totalMs would
+		// be exact but only emits in bench mode for production privacy.
+		emitCostEvent({
+			dataset: resolveAnalyticsDataset(env),
+			organizationId,
+			feature: COST_FEATURES.Verify,
+			resource: "container_active",
+			quantity: durationMs,
+			unit: "ms",
+			workerName: WORKER_NAME,
+			attemptId,
 		});
 
 		return {
@@ -274,6 +301,7 @@ export function verifyLiveness({
 	challengeNonce,
 	faceMatchThreshold,
 	env,
+	organizationId,
 	attemptId,
 	logger,
 }: {
@@ -282,6 +310,7 @@ export function verifyLiveness({
 	challengeNonce?: Uint8Array;
 	faceMatchThreshold?: number;
 	env: unknown;
+	organizationId?: string;
 	attemptId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<LivenessVerificationResult> {
@@ -327,10 +356,12 @@ export function verifyLiveness({
 	return requestBiometricVerifier({
 		verifierBinding,
 		verifierSecret,
+		env,
 		dg2Image,
 		video,
 		challengeNonce,
 		faceMatchThreshold,
+		organizationId,
 		attemptId,
 		logger,
 	});

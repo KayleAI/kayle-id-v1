@@ -724,6 +724,7 @@ export async function runPhaseValidation(
 		video: livenessVideo,
 		faceMatchThreshold: threshold,
 		env: context.env,
+		organizationId: context.session.organizationId,
 		attemptId,
 		logger: context.log,
 	});

@@ -49,7 +49,7 @@ async function requestContainerLiveness({
   payload: ContainerLivenessRequestPayload;
 }): Promise<LivenessContainerResult> {
   try {
-    const response = await container.fetch("http://container/verify_liveness", {
+    const response = await container.fetch("http://container/verify", {
       body: JSON.stringify(payload),
       headers: {
         "content-type": "application/json",

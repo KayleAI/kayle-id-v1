@@ -96,7 +96,7 @@ test("biometric verifier worker forwards liveness payload to the container", asy
   });
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: createBiometricVerifierRequestFormData({
         ...buildValidPayloadParams(portrait, videoBytes),
         faceMatchThreshold: 0.7853,
@@ -113,9 +113,9 @@ test("biometric verifier worker forwards liveness payload to the container", asy
   );
 
   expect(response.status).toBe(200);
-  if (capturedPathname !== "/verify_liveness") {
+  if (capturedPathname !== "/verify") {
     throw new Error(
-      `Expected container path to be /verify_liveness, got ${capturedPathname}`
+      `Expected container path to be /verify, got ${capturedPathname}`
     );
   }
   expect(capturedPayload).toEqual(
@@ -147,7 +147,7 @@ test("biometric verifier worker rejects malformed requests", async () => {
   formData.append("faceMatchThreshold", "bad");
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: formData,
       headers: {
         [BIOMETRIC_VERIFIER_AUTH_HEADER]: "test-secret",
@@ -183,7 +183,7 @@ test("biometric verifier worker rejects oversized multipart bodies before parsin
   });
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: formData,
       headers: {
         [BIOMETRIC_VERIFIER_AUTH_HEADER]: "test-secret",
@@ -207,7 +207,7 @@ test("biometric verifier worker fails closed (503) when the shared secret is mis
   const worker = createBiometricVerifierWorker({ emitRequestLogs: false });
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: createBiometricVerifierRequestFormData(
         buildValidPayloadParams(portrait, videoBytes)
       ),
@@ -253,7 +253,7 @@ test("biometric verifier worker accepts the bearer auth header", async () => {
   });
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: createBiometricVerifierRequestFormData(
         buildValidPayloadParams(portrait, videoBytes)
       ),
@@ -299,7 +299,7 @@ test("biometric verifier worker rejects unauthorized requests", async () => {
   });
 
   const response = await worker.fetch(
-    createWorkerRequest("http://biometric-verifier/verify_liveness", {
+    createWorkerRequest("http://biometric-verifier/verify", {
       body: createBiometricVerifierRequestFormData(
         buildValidPayloadParams(portrait, videoBytes)
       ),

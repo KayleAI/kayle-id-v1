@@ -13,7 +13,6 @@ const SECTIONS: ReadonlyArray<{
 		items: [
 			{ path: "/biometric/full-pipeline", label: "Full pipeline" },
 			{ path: "/biometric/liveness", label: "Liveness only" },
-			{ path: "/biometric/face-match", label: "Face match only" },
 		],
 	},
 ];

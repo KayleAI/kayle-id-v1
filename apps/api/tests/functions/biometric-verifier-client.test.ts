@@ -83,7 +83,7 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	expect(result.padScore).toBe(0.82);
 	expect(
 		requireCapturedValue(capturedUrl, "biometric verifier request URL"),
-	).toBe("https://biometric-verifier.internal/verify_liveness");
+	).toBe("https://biometric-verifier.internal/verify");
 	if (capturedThisValue !== verifierBinding) {
 		throw new Error(
 			"Expected biometric verifier binding fetch to retain its receiver",

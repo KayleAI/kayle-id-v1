@@ -97,17 +97,14 @@ async function requestBiometricVerifier({
 	});
 
 	try {
-		const request = new Request(
-			"https://biometric-verifier.internal/verify_liveness",
-			{
-				body: formData,
-				headers: {
-					authorization: `Bearer ${verifierSecret}`,
-					[BIOMETRIC_VERIFIER_AUTH_HEADER]: verifierSecret,
-				},
-				method: "POST",
+		const request = new Request("https://biometric-verifier.internal/verify", {
+			body: formData,
+			headers: {
+				authorization: `Bearer ${verifierSecret}`,
+				[BIOMETRIC_VERIFIER_AUTH_HEADER]: verifierSecret,
 			},
-		);
+			method: "POST",
+		});
 		const response = (await Reflect.apply(
 			verifierBinding.fetch,
 			verifierBinding,

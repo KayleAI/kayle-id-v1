@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BiometricLivenessRouteImport } from './routes/biometric/liveness'
 import { Route as BiometricFullPipelineRouteImport } from './routes/biometric/full-pipeline'
-import { Route as BiometricFaceMatchRouteImport } from './routes/biometric/face-match'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,28 +28,20 @@ const BiometricFullPipelineRoute = BiometricFullPipelineRouteImport.update({
   path: '/biometric/full-pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BiometricFaceMatchRoute = BiometricFaceMatchRouteImport.update({
-  id: '/biometric/face-match',
-  path: '/biometric/face-match',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/biometric/face-match': typeof BiometricFaceMatchRoute
   '/biometric/full-pipeline': typeof BiometricFullPipelineRoute
   '/biometric/liveness': typeof BiometricLivenessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/biometric/face-match': typeof BiometricFaceMatchRoute
   '/biometric/full-pipeline': typeof BiometricFullPipelineRoute
   '/biometric/liveness': typeof BiometricLivenessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/biometric/face-match': typeof BiometricFaceMatchRoute
   '/biometric/full-pipeline': typeof BiometricFullPipelineRoute
   '/biometric/liveness': typeof BiometricLivenessRoute
 }
@@ -58,26 +49,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/biometric/face-match'
     | '/biometric/full-pipeline'
     | '/biometric/liveness'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/biometric/face-match'
     | '/biometric/full-pipeline'
     | '/biometric/liveness'
   id:
     | '__root__'
     | '/'
-    | '/biometric/face-match'
     | '/biometric/full-pipeline'
     | '/biometric/liveness'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BiometricFaceMatchRoute: typeof BiometricFaceMatchRoute
   BiometricFullPipelineRoute: typeof BiometricFullPipelineRoute
   BiometricLivenessRoute: typeof BiometricLivenessRoute
 }
@@ -105,19 +92,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BiometricFullPipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/biometric/face-match': {
-      id: '/biometric/face-match'
-      path: '/biometric/face-match'
-      fullPath: '/biometric/face-match'
-      preLoaderRoute: typeof BiometricFaceMatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BiometricFaceMatchRoute: BiometricFaceMatchRoute,
   BiometricFullPipelineRoute: BiometricFullPipelineRoute,
   BiometricLivenessRoute: BiometricLivenessRoute,
 }

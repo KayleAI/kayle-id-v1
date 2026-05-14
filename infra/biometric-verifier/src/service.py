@@ -8,7 +8,6 @@ import sys
 import tempfile
 import threading
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -1604,237 +1603,6 @@ def decode_image_payload(image_payload: dict, label: str) -> np.ndarray:
     return decoded
 
 
-def _image_to_debug_face(
-    detector: cv2.FaceDetectorYN,
-    mesh_session,
-    image: np.ndarray,
-) -> tuple[dict, Optional[np.ndarray]]:
-    """Returns (debug-friendly bbox+landmarks+head-pose dict, full mesh
-    or None). The caller can pair the full mesh against another image's
-    without re-running inference."""
-    height, width = image.shape[:2]
-    face = detect_face(detector, image)
-    entry: dict = {
-        "imageWidth": int(width),
-        "imageHeight": int(height),
-        "faceDetected": face is not None,
-        "bbox": None,
-        "landmarks": None,
-        "pitchDeg": None,
-        "yawDeg": None,
-        "rollDeg": None,
-    }
-    if face is None:
-        return entry, None
-
-    bbox, landmarks = _face_to_debug_geometry(face)
-    entry["bbox"] = bbox
-    entry["landmarks"] = landmarks
-
-    mesh = extract_mesh(mesh_session, image, face) if mesh_session else None
-
-    head_pose: Optional[tuple[float, float, float]] = None
-    if mesh is not None:
-        head_pose = head_pose_from_mesh(mesh, image.shape[:2])
-    if head_pose is None:
-        head_pose = head_pose_from_yunet(face, image.shape[:2])
-    if head_pose is not None:
-        pitch_deg, yaw_deg, roll_deg = head_pose
-        entry["pitchDeg"] = pitch_deg
-        entry["yawDeg"] = yaw_deg
-        entry["rollDeg"] = roll_deg
-
-    return entry, mesh
-
-
-# Per-request selfie parallelism on top of ThreadingHTTPServer's
-# cross-request fan-out. Default 2: onnxruntime already uses
-# ~cpu_count threads internally, so more Python workers just add
-# context-switching overhead. Tune up only if ORT threads are also
-# constrained.
-_FACE_MATCH_PARALLEL_WORKERS = max(
-    1,
-    int(os.environ.get("BIOMETRIC_VERIFIER_FACE_MATCH_PARALLEL_WORKERS", "2")),
-)
-
-
-def _process_face_match_selfie(
-    index: int,
-    selfie_payload: object,
-    detector: cv2.FaceDetectorYN,
-    recognizer: "AuraFaceRecognizer",
-    mesh_session,
-    dg2_image: np.ndarray,
-    dg2_embeddings: dict,
-    threshold: float,
-) -> dict:
-    """One selfie's pipeline, suitable for ThreadPoolExecutor dispatch.
-    Failures return a decode-failed entry so one bad selfie can't
-    cancel its siblings. Thread safety: detector is serialized by
-    `_DETECTOR_LOCK`, onnxruntime sessions are documented thread-safe,
-    cv2 ops are pure.
-    """
-    try:
-        selfie_image = decode_image_payload(selfie_payload, "selfie")
-    except ValueError as error:
-        emit_log(
-            "face_match_selfie_decode_failed",
-            index=index,
-            error=str(error),
-        )
-        return {
-            "index": index,
-            "imageWidth": 0,
-            "imageHeight": 0,
-            "faceDetected": False,
-            "bbox": None,
-            "landmarks": None,
-            "pitchDeg": None,
-            "yawDeg": None,
-            "rollDeg": None,
-            "faceMatchScore": None,
-            "faceMatchPassed": False,
-            "faceMatchAlignment": None,
-            "usedFallback": False,
-            "reason": "selfie_decode_failed",
-        }
-
-    selfie_debug, selfie_mesh = _image_to_debug_face(
-        detector, mesh_session, selfie_image
-    )
-    selfie_embeddings = compute_face_match_embeddings(
-        detector,
-        recognizer,
-        selfie_image,
-        selfie_mesh,
-        prefer_alignment="mesh",
-    )
-    match = match_face_embeddings(
-        dg2_embeddings,
-        dg2_image,
-        selfie_embeddings,
-        selfie_image,
-        threshold,
-    )
-
-    selfie_entry: dict = {
-        "index": index,
-        **selfie_debug,
-        "faceMatchScore": match["faceMatchScore"],
-        "faceMatchPassed": bool(match["faceMatchPassed"]),
-        # `faceMatchAlignment` reports which alignment produced the
-        # score — "mesh" when both sides had a 478-pt mesh-aligned
-        # AuraFace embedding (preferred), "yunet" when either side fell
-        # back to the YuNet-5pt alignment, None when no face match was
-        # produced.
-        "faceMatchAlignment": match.get("faceMatchAlignment"),
-        "usedFallback": bool(match["usedFallback"]),
-        "reason": match["reason"],
-    }
-    if selfie_mesh is not None:
-        subset = stable_subset(selfie_mesh)
-        if subset is not None:
-            selfie_entry["mesh"] = {
-                "subsetPoints": subset.tolist(),
-                "subsetIndices": list(IDENTITY_STABLE_INDICES),
-            }
-    return selfie_entry
-
-
-def verify_face_match_payload(
-    detector: cv2.FaceDetectorYN,
-    recognizer: "AuraFaceRecognizer",
-    mesh_session,
-    payload: dict,
-) -> dict:
-    """Face-match-only endpoint: DG2 + N selfies → per-selfie scores
-    + bbox / landmarks. Bypasses ffmpeg, PAD, and movement coverage.
-    Selfies are processed in parallel; DG2 embeddings are computed
-    once and reused."""
-    threshold = float(payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD)
-
-    dg2_payload = payload.get("dg2Image")
-    if not isinstance(dg2_payload, dict):
-        return {
-            "error": {
-                "code": "INVALID_REQUEST",
-                "message": "Face match payload missing dg2Image object.",
-            }
-        }
-
-    try:
-        dg2_image = decode_dg2_image(dg2_payload)
-    except (KeyError, ValueError) as error:
-        emit_log("face_match_dg2_decode_failed", error=str(error))
-        return {
-            "error": {
-                "code": "DG2_DECODE_FAILED",
-                "message": str(error),
-            }
-        }
-
-    dg2_debug, dg2_mesh = _image_to_debug_face(detector, mesh_session, dg2_image)
-    dg2_response = {
-        **dg2_debug,
-        "imageBytesBase64": dg2_payload.get("bytesBase64"),
-        "imageFormat": dg2_payload.get("format"),
-    }
-    if dg2_mesh is not None:
-        subset = stable_subset(dg2_mesh)
-        if subset is not None:
-            dg2_response["mesh"] = {
-                "subsetPoints": subset.tolist(),
-                "subsetIndices": list(IDENTITY_STABLE_INDICES),
-            }
-
-    selfies_input = payload.get("selfies") or []
-    if not isinstance(selfies_input, list):
-        return {
-            "error": {
-                "code": "INVALID_REQUEST",
-                "message": "Face match payload `selfies` must be a list.",
-            }
-        }
-
-    # DG2 embeddings computed once and reused across selfies — without
-    # this, redundant DG2 inference would dominate per-selfie cost.
-    dg2_embeddings = compute_face_match_embeddings(
-        detector,
-        recognizer,
-        dg2_image,
-        dg2_mesh,
-        allow_full_image_fallback=True,
-    )
-
-    selfie_count = len(selfies_input)
-    if selfie_count == 0:
-        selfies_response: list[dict] = []
-    else:
-        worker_count = max(1, min(selfie_count, _FACE_MATCH_PARALLEL_WORKERS))
-        with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            selfies_response = list(
-                executor.map(
-                    lambda item: _process_face_match_selfie(
-                        item[0],
-                        item[1],
-                        detector,
-                        recognizer,
-                        mesh_session,
-                        dg2_image,
-                        dg2_embeddings,
-                        threshold,
-                    ),
-                    enumerate(selfies_input),
-                )
-            )
-
-    return {
-        "threshold": threshold,
-        "dg2": dg2_response,
-        "selfies": selfies_response,
-    }
-
-
 def liveness_failure_response(
     reason: str,
     *,
@@ -2056,19 +1824,6 @@ class BiometricVerifierRuntime:
             payload,
         )
 
-    def verify_face_match(self, payload: dict) -> dict:
-        if not self.ready or self.detector is None or self.recognizer is None:
-            reason_suffix = self.error or "unknown"
-            return {
-                "error": {
-                    "code": "BIOMETRIC_VERIFIER_UNAVAILABLE",
-                    "message": f"runtime_not_ready:{reason_suffix}",
-                }
-            }
-        return verify_face_match_payload(
-            self.detector, self.recognizer, self.mesh_session, payload
-        )
-
 
 RUNTIME = BiometricVerifierRuntime(DETECTOR_MODEL_PATH, MODEL_PATH)
 
@@ -2104,11 +1859,8 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
         self.respond(status, payload)
 
     def do_POST(self) -> None:
-        if self.path == "/verify_liveness":
-            self._handle_verify_liveness()
-            return
-        if self.path == "/verify_face_match":
-            self._handle_verify_face_match()
+        if self.path == "/verify":
+            self._handle_verify()
             return
         self.respond(
             HTTPStatus.NOT_FOUND,
@@ -2132,7 +1884,7 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
             )
             return None
 
-    def _handle_verify_liveness(self) -> None:
+    def _handle_verify(self) -> None:
         payload = self._read_json_body()
         if payload is None:
             return
@@ -2182,54 +1934,6 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                     "padScore": None,
                     "usedFallback": True,
                     "reason": "biometric_verifier_unavailable:container_runtime_failed",
-                },
-            )
-
-    def _handle_verify_face_match(self) -> None:
-        payload = self._read_json_body()
-        if payload is None:
-            return
-        try:
-            result = RUNTIME.verify_face_match(payload)
-            selfies = result.get("selfies") if isinstance(result, dict) else None
-            emit_log(
-                "container_face_match_completed",
-                dg2_byte_count=len(
-                    base64.b64decode(
-                        payload.get("dg2Image", {}).get("bytesBase64", "")
-                    )
-                ),
-                selfie_count=len(selfies) if isinstance(selfies, list) else 0,
-                threshold=result.get("threshold")
-                if isinstance(result, dict)
-                else None,
-                error_code=(
-                    result["error"]["code"]
-                    if isinstance(result, dict)
-                    and isinstance(result.get("error"), dict)
-                    else None
-                ),
-            )
-            if isinstance(result, dict) and isinstance(result.get("error"), dict):
-                self.respond(HTTPStatus.BAD_REQUEST, result)
-                return
-            self.respond(HTTPStatus.OK, result)
-        except Exception as error:
-            payload_keys = list(payload.keys()) if isinstance(payload, dict) else None
-            emit_log(
-                "container_face_match_failed",
-                error=str(error),
-                error_type=type(error).__name__,
-                traceback=traceback.format_exc(),
-                payload_keys=payload_keys,
-            )
-            self.respond(
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-                {
-                    "error": {
-                        "code": "BIOMETRIC_VERIFIER_UNAVAILABLE",
-                        "message": "container_runtime_failed",
-                    }
                 },
             )
 

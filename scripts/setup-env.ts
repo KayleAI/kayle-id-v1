@@ -37,6 +37,10 @@ ORG_VERIFICATION_PEPPER=${generateSecret()}
 # Public auth URL — the platform app proxies auth through localhost:3000.
 PUBLIC_AUTH_URL=https://localhost:3000
 
+# Public verify URL — used by the API when building verification_url in
+# session responses. Points at the local verify worker dev server.
+PUBLIC_VERIFY_URL=http://localhost:2999
+
 # Email — the dev API logs the magic OTP and email body instead of calling
 # Resend, so the from-address is only used to populate Better Auth payloads.
 EMAIL_FROM_ADDRESS="Kayle ID <auth@kayle.id>"

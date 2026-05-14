@@ -60,6 +60,7 @@
 	"vars": {
 		"NODE_ENV": "development",
 		"PUBLIC_AUTH_URL": "http://localhost:3000",
+		"PUBLIC_VERIFY_URL": "http://localhost:2999",
 		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 	},
 	"env": {
@@ -68,6 +69,7 @@
 			"vars": {
 				"NODE_ENV": "production",
 				"PUBLIC_AUTH_URL": "https://kayle.id",
+				"PUBLIC_VERIFY_URL": "https://verify.kayle.id",
 				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"send_email": [
@@ -141,6 +143,7 @@
 			"vars": {
 				"NODE_ENV": "production",
 				"PUBLIC_AUTH_URL": "https://staging.kayle.id",
+				"PUBLIC_VERIFY_URL": "https://verify.staging.kayle.id",
 				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"send_email": [
@@ -201,6 +204,7 @@
 			"vars": {
 				"NODE_ENV": "test",
 				"PUBLIC_AUTH_URL": "http://localhost:3000",
+				"PUBLIC_VERIFY_URL": "http://localhost:2999",
 				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"hyperdrive": [

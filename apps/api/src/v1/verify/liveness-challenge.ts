@@ -14,8 +14,15 @@ export type LivenessChallenge = {
 /**
  * HMAC-derived liveness challenge nonce. Deterministic per attemptId so
  * reconnects re-issue the same value; unpredictable without
- * authSecret. Clients echo it back via the recorded video so the
- * server can detect cross-attempt clip replay.
+ * `authSecret`. Clients echo it back inside the recorded video.
+ *
+ * Replay defence is timing-based: the verifier container compares
+ * the recorded video duration / frame count against the nonce-bound
+ * challenge and rejects clips whose timing doesn't match this
+ * specific attempt. The 4-byte nonce alone is too short for
+ * meaningful replay resistance — if the container's timing
+ * validation is ever disabled or relaxed, this becomes unsafe and
+ * the nonce must be widened (or paired with a per-attempt token).
  */
 export async function deriveLivenessChallenge({
 	attemptId,

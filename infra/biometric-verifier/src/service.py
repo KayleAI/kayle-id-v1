@@ -159,9 +159,12 @@ MESH_MODEL_PATH = os.environ.get(
 )
 # Crop expansion matches the BlazeFace-style loose framing the
 # MediaPipe model was trained on — tight YuNet boxes under-perform.
+# Bounded so a typo'd env override (e.g. `100.0`) can't produce
+# degenerate crops larger than the source frame.
 MESH_INPUT_SIZE = (256, 256)
-MESH_CROP_EXPAND = float(
-    os.environ.get("BIOMETRIC_VERIFIER_MESH_CROP_EXPAND", "0.5")
+MESH_CROP_EXPAND = max(
+    0.0,
+    min(float(os.environ.get("BIOMETRIC_VERIFIER_MESH_CROP_EXPAND", "0.5")), 2.0),
 )
 
 # De-facto InsightFace/ArcFace 5-pt template in 112×112 output space.
@@ -659,6 +662,7 @@ def extract_frames_with_ffmpeg(
         tmp.write(video_bytes)
         tmp_path = tmp.name
 
+    capture: Optional[cv2.VideoCapture] = None
     try:
         capture = cv2.VideoCapture(tmp_path, cv2.CAP_FFMPEG)
         if not capture.isOpened():
@@ -669,7 +673,6 @@ def extract_frames_with_ffmpeg(
         duration_seconds = (total / fps) if fps and fps > 0 else None
 
         if total <= 0 or duration_seconds is None or duration_seconds <= 0:
-            capture.release()
             return [], duration_seconds
 
         # Evenly-spaced sample indices. De-dup in case frame_count >= total
@@ -703,16 +706,22 @@ def extract_frames_with_ffmpeg(
                     target_idx += 1
             current += 1
 
-        capture.release()
         return frames, duration_seconds
     except Exception as error:
-        emit_log(
-            "video_decode_failed",
-            error=str(error),
-            frame_count=frame_count,
-        )
+        try:
+            emit_log(
+                "video_decode_failed",
+                error=str(error),
+                frame_count=frame_count,
+            )
+        except Exception:
+            # A log-emission failure must not mask the original decode
+            # error or block resource cleanup in the `finally` block.
+            pass
         return [], None
     finally:
+        if capture is not None:
+            capture.release()
         try:
             os.unlink(tmp_path)
         except OSError:
@@ -1438,8 +1447,11 @@ def verify_liveness_payload(
     mesh_session,
     payload: dict,
 ) -> dict:
-    threshold = float(
-        payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD
+    # Clamp to [0, 1] so a misbehaving caller (out-of-range or non-
+    # finite override) can't invert the gate — out-of-range below
+    # 0 would universally pass; above 1 would universally fail.
+    threshold = clamp_score(
+        float(payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD)
     )
     # Server-side kill switch — `includeDebug` is honoured only in
     # development mode; production responses never carry the debug
@@ -1570,17 +1582,41 @@ def verify_liveness_payload(
             pad_v2_session, pad_v1se_session, detector, frames, timeline
         )
         _mark("padMs", pad_start)
-        emit_log(
-            "liveness_pad_evaluated",
-            pad_passed=pad_result["padPassed"],
-            pad_score=pad_result["padScore"],
-            pad_scored_frames=pad_result["padScoredFrames"],
-            pad_passing_frames=pad_result["padPassingFrames"],
-            pad_frame_scores=pad_result["padFrameScores"],
-            pad_frame_threshold=PAD_FRAME_THRESHOLD,
-            pad_pass_fraction=PAD_PASS_FRACTION,
-            pad_reason=pad_result["padReason"],
-        )
+        # Aggregate-only by default. Per-frame scores would let a
+        # log reader iteratively refine a presentation attack by
+        # watching which sub-second of their spoof made the model
+        # waver; the bulk stats give ops everything they need
+        # without the gradient signal. The full list comes back
+        # only under BIOMETRIC_VERIFIER_DEBUG_METRICS=1 (same flag
+        # that gates _perfTrace).
+        finite_pad_scores = [
+            float(score)
+            for score in pad_result["padFrameScores"]
+            if isinstance(score, (int, float)) and math.isfinite(float(score))
+        ]
+        pad_log_details = {
+            "pad_passed": pad_result["padPassed"],
+            "pad_score": pad_result["padScore"],
+            "pad_scored_frames": pad_result["padScoredFrames"],
+            "pad_passing_frames": pad_result["padPassingFrames"],
+            "pad_frame_count": len(pad_result["padFrameScores"]),
+            "pad_frames_over_threshold": sum(
+                1 for score in finite_pad_scores if score >= PAD_FRAME_THRESHOLD
+            ),
+            "pad_score_min": min(finite_pad_scores) if finite_pad_scores else None,
+            "pad_score_max": max(finite_pad_scores) if finite_pad_scores else None,
+            "pad_score_mean": (
+                sum(finite_pad_scores) / len(finite_pad_scores)
+                if finite_pad_scores
+                else None
+            ),
+            "pad_frame_threshold": PAD_FRAME_THRESHOLD,
+            "pad_pass_fraction": PAD_PASS_FRACTION,
+            "pad_reason": pad_result["padReason"],
+        }
+        if DEBUG_METRICS_ENABLED:
+            pad_log_details["pad_frame_scores"] = pad_result["padFrameScores"]
+        emit_log("liveness_pad_evaluated", **pad_log_details)
         if debug is not None:
             debug["padScoredFrames"] = pad_result["padScoredFrames"]
             debug["padPassingFrames"] = pad_result["padPassingFrames"]

@@ -102,7 +102,7 @@ describe("buildSql", () => {
 		expect(sql).toContain("'2025-05-08 00:00:00'");
 	});
 
-	it("filters to blob6 = the requested environment by default", () => {
+	it("always emits the environment filter (server-pinned)", () => {
 		const sql = buildSql({
 			groupBy: "feature",
 			from,
@@ -112,24 +112,30 @@ describe("buildSql", () => {
 		expect(sql).toContain("AND blob6 = 'production'");
 	});
 
-	it("skips the environment filter when environment = 'all'", () => {
+	it("applies the runtime environment value verbatim", () => {
 		const sql = buildSql({
 			groupBy: "feature",
 			from,
 			to,
-			environment: "all",
+			environment: "staging",
 		});
-		expect(sql).not.toContain("blob6");
+		expect(sql).toContain("AND blob6 = 'staging'");
+		expect(sql).not.toContain("'production'");
 	});
 
-	it("groups by environment using blob6", () => {
+	it("sanitises the environment value to a safe identifier", () => {
+		// Even though config.environment is server-controlled, defence in
+		// depth: any non-identifier char in the value gets stripped before
+		// it hits the SQL string.
 		const sql = buildSql({
-			groupBy: "environment",
+			groupBy: "feature",
 			from,
 			to,
-			environment: "all",
+			environment: "prod'; DROP TABLE foo;",
 		});
-		expect(sql).toContain("SELECT blob6 AS group_key");
+		expect(sql).toContain("AND blob6 = 'prodDROPTABLEfoo'");
+		expect(sql).not.toContain("DROP TABLE");
+		expect(sql).not.toContain("';");
 	});
 
 	it("groups by version using blob7", () => {

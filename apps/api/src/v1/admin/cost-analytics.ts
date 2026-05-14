@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import { z } from "zod";
+import { config } from "@/config";
 import { getRequestLogger } from "@/logging";
 
 const cost = new OpenAPIHono<{
@@ -12,23 +13,13 @@ const cost = new OpenAPIHono<{
 }>();
 
 const groupBySchema = z
-	.enum(["feature", "resource", "day", "org", "environment", "version"])
+	.enum(["feature", "resource", "day", "org", "version"])
 	.default("feature");
-
-const ENVIRONMENT_PARAM_VALUES = [
-	"production",
-	"staging",
-	"bench",
-	"development",
-	"test",
-	"all",
-] as const;
 
 const querySchema = z.object({
 	from: z.string().datetime().optional(),
 	to: z.string().datetime().optional(),
 	groupBy: groupBySchema.optional(),
-	environment: z.enum(ENVIRONMENT_PARAM_VALUES).optional(),
 });
 
 const MAX_RANGE_DAYS = 90;
@@ -42,7 +33,6 @@ interface AnalyticsRow {
 
 interface CostAnalyticsResponse {
 	readonly groupBy: z.infer<typeof groupBySchema>;
-	readonly environment: (typeof ENVIRONMENT_PARAM_VALUES)[number];
 	readonly from: string;
 	readonly to: string;
 	readonly totalCostUsd: number;
@@ -80,10 +70,16 @@ const GROUP_BY_COLUMN: Record<z.infer<typeof groupBySchema>, string> = {
 	resource: "blob2",
 	day: "toDate(timestamp)",
 	org: "index1",
-	environment: "blob6",
 	version: "blob7",
 };
 
+/**
+ * Build the Analytics Engine SQL. The environment filter is always
+ * pinned to the API's own runtime environment (`config.environment`)
+ * — admins can't observe or modify it. This keeps a staging dashboard
+ * showing only staging spend, prod showing only prod, with zero
+ * client-controllable mixing.
+ */
 function buildSql({
 	groupBy,
 	from,
@@ -93,25 +89,20 @@ function buildSql({
 	groupBy: z.infer<typeof groupBySchema>;
 	from: Date;
 	to: Date;
-	environment: (typeof ENVIRONMENT_PARAM_VALUES)[number];
+	environment: string;
 }): string {
 	const column = GROUP_BY_COLUMN[groupBy];
-	// Default-filter to production: dev/test/bench rows otherwise pollute
-	// the dashboard's spend total. `environment=all` opts out.
-	const envFilter =
-		environment === "all" ? "" : `  AND blob6 = '${environment}'\n`;
+	const safeEnv = environment.replace(/[^a-zA-Z0-9_-]/g, "");
 	return [
 		`SELECT ${column} AS group_key, SUM(double3) AS cost_usd, COUNT() AS event_count`,
 		"FROM KAYLE_ID_ANALYTICS",
 		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
 		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
-		envFilter ? envFilter.trimEnd() : null,
+		`  AND blob6 = '${safeEnv}'`,
 		`GROUP BY ${column}`,
 		"ORDER BY cost_usd DESC",
 		"LIMIT 1000",
-	]
-		.filter((line): line is string => line !== null)
-		.join("\n");
+	].join("\n");
 }
 
 function toClickhouseTime(d: Date): string {
@@ -162,7 +153,6 @@ cost.get("/cost-analytics", async (c) => {
 		from: c.req.query("from"),
 		to: c.req.query("to"),
 		groupBy: c.req.query("groupBy"),
-		environment: c.req.query("environment"),
 	});
 	if (!parsed.success) {
 		return c.json(
@@ -189,7 +179,10 @@ cost.get("/cost-analytics", async (c) => {
 	}
 
 	const groupBy = parsed.data.groupBy ?? "feature";
-	const environment = parsed.data.environment ?? "production";
+	// Environment is server-pinned to whatever this API instance is
+	// running in — never reads from the client. A staging dashboard sees
+	// only staging spend; a production dashboard sees only production.
+	const environment = config.environment ?? "unknown";
 	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
 	const apiToken = c.env.CLOUDFLARE_API_TOKEN;
 	const logger = getRequestLogger(c);
@@ -260,13 +253,15 @@ cost.get("/cost-analytics", async (c) => {
 
 	const payload: CostAnalyticsResponse = {
 		groupBy,
-		environment,
 		from: range.from.toISOString(),
 		to: range.to.toISOString(),
 		totalCostUsd,
 		rows,
 	};
 
+	// Environment goes to internal telemetry only — never to the
+	// response body — so a compromised admin session can't enumerate
+	// which envs exist by toggling the dashboard.
 	logEvent(logger, {
 		details: {
 			environment,

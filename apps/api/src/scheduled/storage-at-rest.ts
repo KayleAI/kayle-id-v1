@@ -151,12 +151,68 @@ interface RunStorageAtRestParams {
 	logger?: ApiRequestLogger;
 }
 
-// Wrangler-config IDs — keep these in sync with apps/api/wrangler.jsonc
-// and apps/platform/wrangler.jsonc. Hardcoded so the cron doesn't need
-// extra env vars or D1/KV inventory APIs to discover them.
-const TRUST_STORE_D1_DATABASE_ID = "268b1f9b-d31b-452e-8b2a-567e45fd3f05";
-const ORG_VERIFICATIONS_KV_NAMESPACE_ID = "3cacbcba5de84a1395b328d04f2e9376";
-const R2_BUCKET_NAME = "kayle-id-r2";
+// Wrangler-config IDs — keep these in sync with apps/api/wrangler.jsonc.
+// `storage-at-rest-config.test.ts` asserts these match the binding ids
+// declared in wrangler.jsonc so a future rename can't drift silently.
+export const TRUST_STORE_D1_DATABASE_ID =
+	"268b1f9b-d31b-452e-8b2a-567e45fd3f05";
+export const ORG_VERIFICATIONS_KV_NAMESPACE_ID =
+	"3cacbcba5de84a1395b328d04f2e9376";
+export const R2_BUCKET_NAME = "kayle-id-r2";
+
+function formatRunDay(now: Date): string {
+	const year = now.getUTCFullYear().toString().padStart(4, "0");
+	const month = (now.getUTCMonth() + 1).toString().padStart(2, "0");
+	const day = now.getUTCDate().toString().padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+/**
+ * Insert today's `run_day` into `storage_at_rest_runs`. Returns `true`
+ * iff this invocation owns the day's emission slot — i.e., the row did
+ * not already exist. Subsequent calls in the same UTC day return
+ * `false` and the caller must skip emission. Survives the 90-second
+ * cron tolerance window, manual `wrangler cron trigger` re-runs, and
+ * any future change to the shared `* * * * *` schedule.
+ */
+async function claimDailyEmissionSlot({
+	env,
+	now,
+	logger,
+}: {
+	env: CloudflareBindings;
+	now: Date;
+	logger?: ApiRequestLogger;
+}): Promise<boolean> {
+	const runDay = formatRunDay(now);
+	try {
+		const result = await env.TRUST_STORE.prepare(
+			"INSERT INTO storage_at_rest_runs (run_day, completed_at_ms) VALUES (?, ?) ON CONFLICT(run_day) DO NOTHING",
+		)
+			.bind(runDay, now.getTime())
+			.run();
+		const inserted = (result.meta?.changes ?? 0) > 0;
+		if (!inserted) {
+			logEvent(logger, {
+				details: { run_day: runDay },
+				event: "storage_at_rest.skipped_already_ran",
+			});
+		}
+		return inserted;
+	} catch (error) {
+		// Treat dedupe-table failures as "fail open" — better to risk a
+		// duplicate emission than to silently skip every day if the
+		// table is missing or D1 hiccups.
+		logSafeError(logger, {
+			code: "storage_at_rest_dedupe_failed",
+			details: { run_day: runDay },
+			error,
+			event: "storage_at_rest.dedupe_failed",
+			message: "storage-at-rest dedupe insert failed; proceeding anyway.",
+		});
+		return true;
+	}
+}
 
 async function emitStorageBytes({
 	dataset,
@@ -208,7 +264,7 @@ async function emitStorageBytes({
  */
 export async function runStorageAtRestCron({
 	env,
-	now: _now,
+	now,
 	logger,
 }: RunStorageAtRestParams): Promise<void> {
 	const dataset = resolveAnalyticsDataset(env);
@@ -226,6 +282,11 @@ export async function runStorageAtRestCron({
 			event: "storage_at_rest.misconfigured",
 			level: "warn",
 		});
+		return;
+	}
+
+	const ownsToday = await claimDailyEmissionSlot({ env, now, logger });
+	if (!ownsToday) {
 		return;
 	}
 

@@ -114,6 +114,21 @@ export type LivenessDebugTimelineEntry = z.infer<
   typeof livenessDebugTimelineEntrySchema
 >;
 
+// Bench-only timing trace. The container emits this when
+// BIOMETRIC_VERIFIER_DEBUG_METRICS=1 (bench envs); production deploys
+// keep the env unset and the field stays undefined.
+const verifierPerfTraceSchema = z
+  .object({
+    videoDecodeMs: z.number().optional(),
+    ffmpegExtractMs: z.number().optional(),
+    poseTimelineMs: z.number().optional(),
+    padMs: z.number().optional(),
+    faceMatchMs: z.number().optional(),
+    totalMs: z.number().optional(),
+    frameCount: z.number().optional(),
+  })
+  .passthrough();
+
 export const biometricVerifierResponseSchema = z.object({
   livenessPassed: z.boolean(),
   livenessScore: z.number().min(0).max(1).nullable(),
@@ -136,6 +151,7 @@ export const biometricVerifierResponseSchema = z.object({
   // Only populated when `includeDebug=1` is set AND the container is
   // running in development mode.
   debug: livenessDebugSchema.nullish(),
+  _perfTrace: verifierPerfTraceSchema.nullish(),
 });
 
 export type BiometricVerifierResponsePayload = z.infer<
@@ -366,5 +382,6 @@ export function createBiometricVerifierResponse(
     usedFallback: payload.usedFallback,
     reason: payload.reason,
     debug: payload.debug,
+    _perfTrace: payload._perfTrace,
   };
 }

@@ -14,6 +14,10 @@ import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
+import {
+	runStorageAtRestCron,
+	shouldRunStorageAtRest,
+} from "@/scheduled/storage-at-rest";
 import v1 from "@/v1";
 import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
@@ -161,6 +165,13 @@ const worker = Object.assign(app, {
 		if (shouldRunDomainReverification(controller.scheduledTime)) {
 			await runDomainReverificationCron({
 				env: env as Parameters<typeof runDomainReverificationCron>[0]["env"],
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
+		if (shouldRunStorageAtRest(controller.scheduledTime)) {
+			await runStorageAtRestCron({
+				env,
 				now: new Date(controller.scheduledTime),
 			});
 		}

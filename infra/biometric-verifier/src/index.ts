@@ -133,6 +133,19 @@ function resolveNodeEnv(env: unknown): Record<string, string> {
     : { NODE_ENV: "production" };
 }
 
+function resolveDebugMetrics(env: unknown): Record<string, string> {
+  // Bench envs set BIOMETRIC_VERIFIER_DEBUG_METRICS=1 in the worker
+  // `vars`; that needs to land inside the container too so service.py
+  // unlocks /_debug/metrics. Production keeps it unset → 404.
+  const value = isObjectRecord(env)
+    ? Reflect.get(env, "BIOMETRIC_VERIFIER_DEBUG_METRICS")
+    : undefined;
+
+  return typeof value === "string" && value === "1"
+    ? { BIOMETRIC_VERIFIER_DEBUG_METRICS: "1" }
+    : {};
+}
+
 export class BiometricVerifierContainer extends Container<BiometricVerifierBindings> {
   defaultPort = 8080;
   sleepAfter = "10m";
@@ -142,6 +155,7 @@ export class BiometricVerifierContainer extends Container<BiometricVerifierBindi
     BIOMETRIC_VERIFIER_MESH_MODEL_PATH,
     PORT: "8080",
     ...resolveNodeEnv(this.env),
+    ...resolveDebugMetrics(this.env),
   };
 }
 

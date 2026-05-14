@@ -49,6 +49,21 @@ function createDg1({
 }
 
 describe("DG1 face match thresholds", () => {
+	test("threshold bounds match the AuraFace recalibration (raw cosine 0.375..0.60)", () => {
+		// Normalized score = (raw + 1) / 2. The new floor of 0.6875
+		// corresponds to raw cosine 0.375 — still comfortably above
+		// InsightFace's published same-person threshold of ~0.28–0.30
+		// (normalized ~0.64–0.65). The new ceiling of 0.80 (raw 0.60)
+		// is the strict gate for fresh adult passports. Anything that
+		// silently shifts these values away from the AuraFace
+		// calibration must be re-reviewed by the biometric team.
+		expect(MIN_FACE_MATCH_THRESHOLD).toBe(0.6875);
+		expect(MAX_FACE_MATCH_THRESHOLD).toBe(0.8);
+		expect(MIN_FACE_MATCH_THRESHOLD).toBeGreaterThan(0.65);
+		expect(MAX_FACE_MATCH_THRESHOLD).toBeLessThanOrEqual(1);
+		expect(MIN_FACE_MATCH_THRESHOLD).toBeLessThan(MAX_FACE_MATCH_THRESHOLD);
+	});
+
 	test("resolves a dynamic adult threshold from age at issue and document age", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({

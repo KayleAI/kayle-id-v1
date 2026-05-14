@@ -21,6 +21,7 @@
       "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
       "class_name": "BiometricVerifierContainer",
       "image": "./Dockerfile",
+      "instance_type": "standard-3",
       "max_instances": 2
     }
   ],
@@ -58,6 +59,7 @@
           "name": "kayle-id-biometric-verifier-biometricverifiercontainer",
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
+          "instance_type": "standard-3",
           "max_instances": 2
         }
       ],

@@ -5,7 +5,7 @@ const LOGO_KEY_UUID_PATTERN =
 const LOCAL_R2_PATH_PREFIX_PATTERN = /^\/r2\//u;
 
 // Production worker config sets PUBLIC_CDN_ORIGIN per env so staging serves
-// from cdn-staging.kayle.id, production from cdn.kayle.id. Falls back to the
+// from cdn.staging.kayle.id, production from cdn.kayle.id. Falls back to the
 // historic production value when unset (local dev, tests).
 function productionLogoOrigin(): string {
   return process.env.PUBLIC_CDN_ORIGIN ?? DEFAULT_PRODUCTION_LOGO_ORIGIN;

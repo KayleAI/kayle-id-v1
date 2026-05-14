@@ -145,7 +145,7 @@
 				"NODE_ENV": "production",
 				"PUBLIC_AUTH_URL": "https://staging.kayle.id",
 				"PUBLIC_VERIFY_URL": "https://verify.staging.kayle.id",
-				"PUBLIC_CDN_ORIGIN": "https://cdn-staging.kayle.id",
+				"PUBLIC_CDN_ORIGIN": "https://cdn.staging.kayle.id",
 				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
 			},
 			"send_email": [

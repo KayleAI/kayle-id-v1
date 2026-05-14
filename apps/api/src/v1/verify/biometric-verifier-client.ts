@@ -188,23 +188,6 @@ async function requestBiometricVerifier({
 			event: "verify.biometric_verifier.request_succeeded",
 		});
 
-		// Wall-clock duration overestimates the container's active time
-		// by the service-binding hop (single-digit ms) — close enough
-		// for cost attribution. The container's _perfTrace.totalMs would
-		// be exact but only emits in bench mode for production privacy.
-		emitCostEvent({
-			dataset: resolveAnalyticsDataset(env),
-			organizationId,
-			feature: COST_FEATURES.Verify,
-			resource: "container_active",
-			quantity: durationMs,
-			unit: "ms",
-			workerName: WORKER_NAME,
-			environment: config.environment ?? "unknown",
-			version: config.version,
-			attemptId,
-		});
-
 		return {
 			livenessPassed: payload.data.livenessPassed,
 			livenessScore: payload.data.livenessScore,
@@ -230,6 +213,27 @@ async function requestBiometricVerifier({
 			message: "Biometric verifier request failed.",
 		});
 		return createUnavailableResult("biometric_verifier_unavailable");
+	} finally {
+		// Emit container_active on every path the container saw work for —
+		// success, HTTP error, malformed/invalid response body, or thrown
+		// exception. Wall-clock overestimates the container's active time
+		// by the service-binding hop (single-digit ms); _perfTrace.totalMs
+		// would be exact but only emits in bench mode. The dashboard
+		// breaks down by feature, so failed verifies still count toward
+		// the verify-flow cost line rather than vanishing into uncosted
+		// time.
+		emitCostEvent({
+			dataset: resolveAnalyticsDataset(env),
+			organizationId,
+			feature: COST_FEATURES.Verify,
+			resource: "container_active",
+			quantity: Date.now() - startedAt,
+			unit: "ms",
+			workerName: WORKER_NAME,
+			environment: config.environment ?? "unknown",
+			version: config.version,
+			attemptId,
+		});
 	}
 }
 

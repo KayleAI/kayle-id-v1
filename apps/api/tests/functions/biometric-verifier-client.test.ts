@@ -179,3 +179,162 @@ test("verifyLiveness fails closed when the verifier returns invalid JSON", async
 
 	expect(result.reason).toBe("biometric_verifier_unavailable");
 });
+
+type CapturedCostPoint = {
+	blobs?: readonly string[];
+	doubles?: readonly number[];
+	indexes?: readonly string[];
+};
+
+function createCapturingAnalytics(): {
+	dataset: { writeDataPoint(p: CapturedCostPoint): void };
+	points: CapturedCostPoint[];
+} {
+	const points: CapturedCostPoint[] = [];
+	return {
+		dataset: {
+			writeDataPoint(point: CapturedCostPoint) {
+				points.push(point);
+			},
+		},
+		points,
+	};
+}
+
+function envForVerifierCall(opts: {
+	verifierBinding: unknown;
+	analytics?: { writeDataPoint(p: CapturedCostPoint): void };
+}): Record<string, unknown> {
+	return {
+		BIOMETRIC_VERIFIER: opts.verifierBinding,
+		BIOMETRIC_VERIFIER_SECRET: "test-secret",
+		...(opts.analytics ? { KAYLE_ID_ANALYTICS: opts.analytics } : {}),
+	};
+}
+
+test("verifyLiveness emits a container_active cost event on success", async () => {
+	const { dataset, points } = createCapturingAnalytics();
+	const verifierBinding = {
+		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+			return new Response(
+				JSON.stringify({
+					livenessPassed: true,
+					livenessScore: 0.9,
+					faceMatchPassed: true,
+					faceMatchScore: 0.9,
+					faceMatchAlignment: "mesh",
+					padPassed: true,
+					padScore: 0.85,
+					usedFallback: false,
+				}),
+				{
+					headers: { "content-type": "application/json" },
+					status: 200,
+				},
+			);
+		},
+	};
+
+	await verifyLiveness({
+		dg2Image: new Uint8Array([0x01]),
+		video: new Uint8Array([0x02]),
+		env: envForVerifierCall({ verifierBinding, analytics: dataset }),
+		organizationId: "org-abc",
+		attemptId: "attempt-1",
+	});
+
+	expect(points).toHaveLength(1);
+	const [point] = points;
+	expect(point.indexes).toEqual(["org-abc"]);
+	expect(point.blobs?.[0]).toBe("verify");
+	expect(point.blobs?.[1]).toBe("container_active");
+	expect(point.blobs?.[3]).toBe("ms");
+	expect(point.blobs?.[4]).toBe("attempt-1");
+	expect(point.doubles?.[0]).toBeGreaterThanOrEqual(0);
+});
+
+test("verifyLiveness still emits a container_active cost event on HTTP error", async () => {
+	const { dataset, points } = createCapturingAnalytics();
+	const verifierBinding = {
+		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+			return new Response("upstream went sideways", { status: 502 });
+		},
+	};
+
+	const result = await verifyLiveness({
+		dg2Image: new Uint8Array([0x01]),
+		video: new Uint8Array([0x02]),
+		env: envForVerifierCall({ verifierBinding, analytics: dataset }),
+		organizationId: "org-abc",
+	});
+
+	expect(result.reason).toBe("biometric_verifier_unavailable");
+	expect(points).toHaveLength(1);
+	expect(points[0]?.blobs?.[1]).toBe("container_active");
+});
+
+test("verifyLiveness still emits a container_active cost event on invalid JSON", async () => {
+	const { dataset, points } = createCapturingAnalytics();
+	const verifierBinding = {
+		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+			return new Response("not-json", {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
+		},
+	};
+
+	const result = await verifyLiveness({
+		dg2Image: new Uint8Array([0x01]),
+		video: new Uint8Array([0x02]),
+		env: envForVerifierCall({ verifierBinding, analytics: dataset }),
+	});
+
+	expect(result.reason).toBe("biometric_verifier_unavailable");
+	expect(points).toHaveLength(1);
+	expect(points[0]?.blobs?.[1]).toBe("container_active");
+});
+
+test("verifyLiveness still emits a container_active cost event on schema mismatch", async () => {
+	const { dataset, points } = createCapturingAnalytics();
+	const verifierBinding = {
+		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+			return new Response(JSON.stringify({ unrelated: "shape" }), {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
+		},
+	};
+
+	const result = await verifyLiveness({
+		dg2Image: new Uint8Array([0x01]),
+		video: new Uint8Array([0x02]),
+		env: envForVerifierCall({ verifierBinding, analytics: dataset }),
+	});
+
+	expect(result.reason).toBe("biometric_verifier_unavailable");
+	expect(points).toHaveLength(1);
+	expect(points[0]?.blobs?.[1]).toBe("container_active");
+});
+
+test("verifyLiveness still emits a container_active cost event when the binding throws", async () => {
+	const { dataset, points } = createCapturingAnalytics();
+	const verifierBinding = {
+		fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+			throw new Error("network goblin");
+		},
+	};
+
+	const result = await verifyLiveness({
+		dg2Image: new Uint8Array([0x01]),
+		video: new Uint8Array([0x02]),
+		env: envForVerifierCall({
+			verifierBinding,
+			analytics: dataset,
+		}),
+	});
+
+	expect(result.reason).toBe("biometric_verifier_unavailable");
+	expect(points).toHaveLength(1);
+	expect(points[0]?.blobs?.[1]).toBe("container_active");
+});

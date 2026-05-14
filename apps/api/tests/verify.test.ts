@@ -16,10 +16,11 @@ import app from "@/index";
 import type { Session } from "@/openapi/models/sessions";
 import v1 from "@/v1";
 import {
+	createFaceScoreUnavailableLivenessVideo,
 	createInvalidAuthenticityArtifacts,
 	createMalformedDg2Artifact,
-	createMatchingValidationSelfies,
-	createMismatchValidationSelfies,
+	createMatchingLivenessVideo,
+	createMismatchLivenessVideo,
 	createValidationPortraitJpeg,
 	createValidNfcArtifacts,
 } from "./helpers/verify-artifacts";
@@ -574,27 +575,25 @@ async function sendNfcArtifacts({
 	});
 }
 
-async function sendSelfies({
-	selfies,
+async function sendLivenessVideo({
 	socket,
+	video,
 }: {
 	socket: WebSocket;
-	selfies: Uint8Array[];
+	video: Uint8Array;
 }): Promise<void> {
-	for (const [index, selfie] of selfies.entries()) {
-		socket.send(
-			encodeDataMessage({
-				kind: DataKind.SELFIE,
-				raw: selfie,
-				index,
-				total: 3,
-			}),
-		);
-		await assertAckMessage({
-			socket,
-			expected: `data_ok_3_${index}`,
-		});
-	}
+	socket.send(
+		encodeDataMessage({
+			kind: DataKind.LIVENESS_VIDEO,
+			raw: video,
+			index: 0,
+			total: 1,
+		}),
+	);
+	await assertAckMessage({
+		socket,
+		expected: "data_ok_8_0",
+	});
 }
 
 async function advanceToShareRequest({
@@ -615,7 +614,7 @@ async function advanceToShareRequest({
 		));
 	const handoff = await createHandoff(resolvedSessionId);
 	const artifacts = await createValidNfcArtifacts();
-	const matchingSelfies = await createMatchingValidationSelfies();
+	const matchingVideo = createMatchingLivenessVideo();
 	const socket = openVerifySocket(resolvedSessionId);
 
 	await awaitSocketOpen(socket);
@@ -656,17 +655,17 @@ async function advanceToShareRequest({
 		throw new Error("Expected phase_ok for nfc_complete during setup.");
 	}
 
-	socket.send(encodePhaseMessage("selfie_capturing"));
+	socket.send(encodePhaseMessage("liveness_capturing"));
 	if ((await awaitServerMessage(socket)).ack !== "phase_ok") {
-		throw new Error("Expected phase_ok for selfie_capturing during setup.");
+		throw new Error("Expected phase_ok for liveness_capturing during setup.");
 	}
 
-	await sendSelfies({
+	await sendLivenessVideo({
 		socket,
-		selfies: matchingSelfies,
+		video: matchingVideo,
 	});
 
-	socket.send(encodePhaseMessage("selfie_complete"));
+	socket.send(encodePhaseMessage("liveness_complete"));
 	const verdict = (await awaitServerMessage(socket)).verdict;
 	if (
 		!(
@@ -737,7 +736,7 @@ async function advanceToNfcReading(socket: WebSocket): Promise<void> {
 	});
 }
 
-async function advanceToSelfieCapturing({
+async function advanceToLivenessCapturing({
 	socket,
 	artifacts,
 }: {
@@ -760,7 +759,7 @@ async function advanceToSelfieCapturing({
 		expected: "phase_ok",
 	});
 
-	socket.send(encodePhaseMessage("selfie_capturing"));
+	socket.send(encodePhaseMessage("liveness_capturing"));
 	await assertAckMessage({
 		socket,
 		expected: "phase_ok",
@@ -1513,7 +1512,7 @@ describe("Verification Flows", () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
 			const artifacts = await createValidNfcArtifacts();
-			const matchingSelfies = await createMatchingValidationSelfies();
+			const matchingVideo = createMatchingLivenessVideo();
 			const hello = encodeHelloMessage({
 				attemptId: handoff.attempt_id,
 				mobileWriteToken: handoff.mobile_write_token,
@@ -1564,15 +1563,15 @@ describe("Verification Flows", () => {
 					artifacts,
 				});
 
-				socketTwo.send(encodePhaseMessage("selfie_capturing"));
+				socketTwo.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socketTwo)).ack).toBe("phase_ok");
 
-				await sendSelfies({
+				await sendLivenessVideo({
 					socket: socketTwo,
-					selfies: matchingSelfies,
+					video: matchingVideo,
 				});
 
-				socketTwo.send(encodePhaseMessage("selfie_complete"));
+				socketTwo.send(encodePhaseMessage("liveness_complete"));
 				const verdict = (await awaitServerMessage(socketTwo)).verdict;
 				expect(verdict?.outcome).toBe("accepted");
 			} finally {
@@ -1582,12 +1581,12 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Reconnect that skips NFC restream surfaces NFC_REQUIRED_DATA_MISSING on selfie_complete",
+		"Reconnect that skips NFC restream surfaces NFC_REQUIRED_DATA_MISSING on liveness_complete",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
 			const artifacts = await createValidNfcArtifacts();
-			const matchingSelfies = await createMatchingValidationSelfies();
+			const matchingVideo = createMatchingLivenessVideo();
 			const hello = encodeHelloMessage({
 				attemptId: handoff.attempt_id,
 				mobileWriteToken: handoff.mobile_write_token,
@@ -1629,15 +1628,15 @@ describe("Verification Flows", () => {
 				socketTwo.send(hello);
 				expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
 
-				socketTwo.send(encodePhaseMessage("selfie_capturing"));
+				socketTwo.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socketTwo)).ack).toBe("phase_ok");
 
-				await sendSelfies({
+				await sendLivenessVideo({
 					socket: socketTwo,
-					selfies: matchingSelfies,
+					video: matchingVideo,
 				});
 
-				socketTwo.send(encodePhaseMessage("selfie_complete"));
+				socketTwo.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socketTwo);
 
 				expect(response.error?.code).toBe("NFC_REQUIRED_DATA_MISSING");
@@ -1652,7 +1651,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Rejects selfie data before selfie_capturing with SELFIE_DATA_PHASE_REQUIRED",
+		"Rejects liveness data before liveness_capturing with LIVENESS_DATA_PHASE_REQUIRED",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1673,15 +1672,15 @@ describe("Verification Flows", () => {
 
 				socket.send(
 					encodeDataMessage({
-						kind: DataKind.SELFIE,
+						kind: DataKind.LIVENESS_VIDEO,
 						raw: new Uint8Array([1, 2, 3]),
 						index: 0,
-						total: 3,
+						total: 1,
 					}),
 				);
 
 				const response = await awaitServerMessage(socket);
-				expect(response.error?.code).toBe("SELFIE_DATA_PHASE_REQUIRED");
+				expect(response.error?.code).toBe("LIVENESS_DATA_PHASE_REQUIRED");
 			} finally {
 				socket.close();
 			}
@@ -1689,7 +1688,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Accepts ordered transition from nfc_complete to selfie_capturing",
+		"Accepts ordered transition from nfc_complete to liveness_capturing",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1726,7 +1725,7 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				socket.send(encodePhaseMessage("selfie_capturing"));
+				socket.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 			} finally {
 				socket.close();
@@ -1735,7 +1734,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Rejects selfie_complete until indices 0,1,2 are uploaded",
+		"Rejects liveness_complete when the video has not been uploaded",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1772,28 +1771,17 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				socket.send(encodePhaseMessage("selfie_capturing"));
+				socket.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				socket.send(
-					encodeDataMessage({
-						kind: DataKind.SELFIE,
-						raw: new Uint8Array([4]),
-						index: 0,
-						total: 3,
-					}),
-				);
-				expect((await awaitServerMessage(socket)).ack).toBe("data_ok_3_0");
-
-				socket.send(encodePhaseMessage("selfie_complete"));
+				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
-				expect(response.error?.code).toBe("SELFIE_REQUIRED_DATA_MISSING");
+				expect(response.error?.code).toBe("LIVENESS_REQUIRED_DATA_MISSING");
 				const parsed = JSON.parse(response.error?.message ?? "{}") as {
-					required_total?: number;
-					missing_selfie_indexes?: number[];
+					received_bytes?: number;
+					missing_chunks?: unknown[];
 				};
-				expect(parsed.required_total).toBe(3);
-				expect(parsed.missing_selfie_indexes).toEqual([1, 2]);
+				expect(parsed.received_bytes).toBe(0);
 			} finally {
 				socket.close();
 			}
@@ -1801,7 +1789,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Allows out-of-order selfie chunk upload and emits data_ok on completion",
+		"Allows out-of-order liveness chunk upload and emits data_ok on completion",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1838,34 +1826,34 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				socket.send(encodePhaseMessage("selfie_capturing"));
+				socket.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
 				socket.send(
 					encodeDataMessage({
-						kind: DataKind.SELFIE,
+						kind: DataKind.LIVENESS_VIDEO,
 						raw: new Uint8Array([7]),
 						index: 0,
-						total: 3,
+						total: 1,
 						chunkIndex: 1,
 						chunkTotal: 2,
 					}),
 				);
 				expect((await awaitServerMessage(socket)).ack).toBe(
-					"data_chunk_ok_3_0_1",
+					"data_chunk_ok_8_0_1",
 				);
 
 				socket.send(
 					encodeDataMessage({
-						kind: DataKind.SELFIE,
+						kind: DataKind.LIVENESS_VIDEO,
 						raw: new Uint8Array([6]),
 						index: 0,
-						total: 3,
+						total: 1,
 						chunkIndex: 0,
 						chunkTotal: 2,
 					}),
 				);
-				expect((await awaitServerMessage(socket)).ack).toBe("data_ok_3_0");
+				expect((await awaitServerMessage(socket)).ack).toBe("data_ok_8_0");
 			} finally {
 				socket.close();
 			}
@@ -1873,7 +1861,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Accepts selfie_complete, then delivers shareRequest and keeps the socket open",
+		"Accepts liveness_complete, then delivers shareRequest and keeps the socket open",
 		async () => {
 			const sessionId = await createSession({
 				share_fields: {
@@ -1889,7 +1877,7 @@ describe("Verification Flows", () => {
 			});
 			const handoff = await createHandoff(sessionId);
 			const artifacts = await createValidNfcArtifacts();
-			const matchingSelfies = await createMatchingValidationSelfies();
+			const matchingVideo = createMatchingLivenessVideo();
 
 			const socket = openVerifySocket(sessionId);
 
@@ -1922,15 +1910,15 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				socket.send(encodePhaseMessage("selfie_capturing"));
+				socket.send(encodePhaseMessage("liveness_capturing"));
 				expect((await awaitServerMessage(socket)).ack).toBe("phase_ok");
 
-				await sendSelfies({
+				await sendLivenessVideo({
 					socket,
-					selfies: matchingSelfies,
+					video: matchingVideo,
 				});
 
-				socket.send(encodePhaseMessage("selfie_complete"));
+				socket.send(encodePhaseMessage("liveness_complete"));
 				expect((await awaitServerMessage(socket)).verdict).toEqual({
 					outcome: "accepted",
 					reasonCode: "",
@@ -1978,7 +1966,7 @@ describe("Verification Flows", () => {
 				.where(eq(verification_sessions.id, sessionId))
 				.limit(1);
 
-			expect(attempt?.currentPhase).toBe("selfie_complete");
+			expect(attempt?.currentPhase).toBe("liveness_complete");
 			expect(attempt?.status).toBe("in_progress");
 			expect(attempt?.phaseUpdatedAt).not.toBeNull();
 			expect(session?.status).toBe("in_progress");
@@ -2078,85 +2066,96 @@ describe("Verification Flows", () => {
 		LONG_VERIFY_FLOW_TIMEOUT_MS,
 	);
 
-	test.serial("Reconnect requires selfie resend after disconnect", async () => {
-		const sessionId = await createSession();
-		const handoff = await createHandoff(sessionId);
-		const artifacts = await createValidNfcArtifacts();
-		const hello = encodeHelloMessage({
-			attemptId: handoff.attempt_id,
-			mobileWriteToken: handoff.mobile_write_token,
-			deviceId: "ios-device-a",
-			appVersion: "1.0.0",
-		});
-
-		const socketOne = openVerifySocket(sessionId);
-
-		try {
-			await awaitSocketOpen(socketOne);
-			socketOne.send(hello);
-			expect((await awaitServerMessage(socketOne)).ack).toBe("hello_ok");
-
-			socketOne.send(encodePhaseMessage("mrz_scanning"));
-			expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
-
-			socketOne.send(encodePhaseMessage("mrz_complete"));
-			expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
-
-			socketOne.send(encodePhaseMessage("nfc_reading"));
-			expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
-
-			await sendNfcArtifacts({
-				socket: socketOne,
-				artifacts,
+	test.serial(
+		"Reconnect requires liveness video resend after disconnect",
+		async () => {
+			const sessionId = await createSession();
+			const handoff = await createHandoff(sessionId);
+			const artifacts = await createValidNfcArtifacts();
+			const hello = encodeHelloMessage({
+				attemptId: handoff.attempt_id,
+				mobileWriteToken: handoff.mobile_write_token,
+				deviceId: "ios-device-a",
+				appVersion: "1.0.0",
 			});
 
-			socketOne.send(encodePhaseMessage("nfc_complete"));
-			expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+			const socketOne = openVerifySocket(sessionId);
 
-			socketOne.send(encodePhaseMessage("selfie_capturing"));
-			expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+			try {
+				await awaitSocketOpen(socketOne);
+				socketOne.send(hello);
+				expect((await awaitServerMessage(socketOne)).ack).toBe("hello_ok");
 
-			socketOne.send(
-				encodeDataMessage({
-					kind: DataKind.SELFIE,
-					raw: new Uint8Array([9]),
-					index: 0,
-					total: 3,
-				}),
-			);
-			expect((await awaitServerMessage(socketOne)).ack).toBe("data_ok_3_0");
-		} finally {
-			socketOne.close();
-		}
+				socketOne.send(encodePhaseMessage("mrz_scanning"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
 
-		const socketTwo = openVerifySocket(sessionId);
+				socketOne.send(encodePhaseMessage("mrz_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
 
-		try {
-			await awaitSocketOpen(socketTwo);
-			socketTwo.send(hello);
-			expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
+				socketOne.send(encodePhaseMessage("nfc_reading"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
 
-			// Restream NFC first — buildMissingDataMessage on selfie_complete now
-			// checks NFC presence before selfies, so without this the server would
-			// report NFC_REQUIRED_DATA_MISSING instead of the SELFIE one this test
-			// is trying to exercise.
-			await sendNfcArtifacts({
-				socket: socketTwo,
-				artifacts,
-			});
+				await sendNfcArtifacts({
+					socket: socketOne,
+					artifacts,
+				});
 
-			socketTwo.send(encodePhaseMessage("selfie_complete"));
-			const response = await awaitServerMessage(socketTwo);
+				socketOne.send(encodePhaseMessage("nfc_complete"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
 
-			expect(response.error?.code).toBe("SELFIE_REQUIRED_DATA_MISSING");
-			const parsed = JSON.parse(response.error?.message ?? "{}") as {
-				missing_selfie_indexes?: number[];
-			};
-			expect(parsed.missing_selfie_indexes).toEqual([0, 1, 2]);
-		} finally {
-			socketTwo.close();
-		}
-	});
+				socketOne.send(encodePhaseMessage("liveness_capturing"));
+				expect((await awaitServerMessage(socketOne)).ack).toBe("phase_ok");
+
+				// Send a partial chunk (chunkIndex 0 of 2) so the upload state shows
+				// `received_bytes > 0` on the first socket but the transfer is
+				// incomplete — used to confirm the per-socket VerifyTransferState
+				// resets on reconnect.
+				socketOne.send(
+					encodeDataMessage({
+						kind: DataKind.LIVENESS_VIDEO,
+						raw: new Uint8Array([9]),
+						index: 0,
+						total: 1,
+						chunkIndex: 0,
+						chunkTotal: 2,
+					}),
+				);
+				expect((await awaitServerMessage(socketOne)).ack).toBe(
+					"data_chunk_ok_8_0_0",
+				);
+			} finally {
+				socketOne.close();
+			}
+
+			const socketTwo = openVerifySocket(sessionId);
+
+			try {
+				await awaitSocketOpen(socketTwo);
+				socketTwo.send(hello);
+				expect((await awaitServerMessage(socketTwo)).ack).toBe("hello_ok");
+
+				// Restream NFC first — buildMissingDataMessage on liveness_complete
+				// checks NFC presence before liveness, so without this the server
+				// would report NFC_REQUIRED_DATA_MISSING instead of the LIVENESS one
+				// this test is trying to exercise.
+				await sendNfcArtifacts({
+					socket: socketTwo,
+					artifacts,
+				});
+
+				socketTwo.send(encodePhaseMessage("liveness_complete"));
+				const response = await awaitServerMessage(socketTwo);
+
+				expect(response.error?.code).toBe("LIVENESS_REQUIRED_DATA_MISSING");
+				const parsed = JSON.parse(response.error?.message ?? "{}") as {
+					received_bytes?: number;
+				};
+				expect(parsed.received_bytes).toBe(0);
+			} finally {
+				socketTwo.close();
+			}
+		},
+	);
 
 	test.serial(
 		"Rejects nfc_complete on authenticity failure and enables retry with new attempt",
@@ -2232,14 +2231,14 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Rejects selfie_complete on face mismatch and keeps session retryable before limit",
+		"Rejects liveness_complete on face mismatch and keeps session retryable before limit",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
 			const artifacts = await createValidNfcArtifacts({
 				dg2ImageData: await createValidationPortraitJpeg(),
 			});
-			const mismatchingSelfies = await createMismatchValidationSelfies();
+			const mismatchVideo = createMismatchLivenessVideo();
 
 			const socket = openVerifySocket(sessionId);
 
@@ -2249,16 +2248,16 @@ describe("Verification Flows", () => {
 					socket,
 					handoff,
 				});
-				await advanceToSelfieCapturing({
+				await advanceToLivenessCapturing({
 					socket,
 					artifacts,
 				});
-				await sendSelfies({
+				await sendLivenessVideo({
 					socket,
-					selfies: mismatchingSelfies,
+					video: mismatchVideo,
 				});
 
-				socket.send(encodePhaseMessage("selfie_complete"));
+				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.error).toBeUndefined();
 				expect(response.verdict).toEqual({
@@ -2309,7 +2308,7 @@ describe("Verification Flows", () => {
 			const artifacts = await createValidNfcArtifacts({
 				dg2ImageData: await createValidationPortraitJpeg(),
 			});
-			const mismatchingSelfies = await createMismatchValidationSelfies();
+			const mismatchVideo = createMismatchLivenessVideo();
 
 			for (let index = 0; index < 3; index += 1) {
 				const handoff = await createHandoff(sessionId);
@@ -2322,16 +2321,16 @@ describe("Verification Flows", () => {
 						handoff,
 						deviceId: `ios-device-${index}`,
 					});
-					await advanceToSelfieCapturing({
+					await advanceToLivenessCapturing({
 						socket,
 						artifacts,
 					});
-					await sendSelfies({
+					await sendLivenessVideo({
 						socket,
-						selfies: mismatchingSelfies,
+						video: mismatchVideo,
 					});
 
-					socket.send(encodePhaseMessage("selfie_complete"));
+					socket.send(encodePhaseMessage("liveness_complete"));
 					const response = await awaitServerMessage(socket);
 					expect(response.error).toBeUndefined();
 					expect(response.verdict?.reasonCode).toBe("selfie_face_mismatch");
@@ -2461,7 +2460,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Rejects selfie_complete when similarity cannot be computed",
+		"Rejects liveness_complete when similarity cannot be computed",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -2477,20 +2476,16 @@ describe("Verification Flows", () => {
 					socket,
 					handoff,
 				});
-				await advanceToSelfieCapturing({
+				await advanceToLivenessCapturing({
 					socket,
 					artifacts,
 				});
-				await sendSelfies({
+				await sendLivenessVideo({
 					socket,
-					selfies: [
-						new Uint8Array([0x00, 0x01, 0x02]),
-						new Uint8Array([0x03, 0x04, 0x05]),
-						new Uint8Array([0x06, 0x07, 0x08]),
-					],
+					video: createFaceScoreUnavailableLivenessVideo(),
 				});
 
-				socket.send(encodePhaseMessage("selfie_complete"));
+				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.ack).toBeUndefined();
 				expect(response.verdict).toEqual({

@@ -4,7 +4,9 @@ import {
   type BiometricVerifierMultipartPayload,
   biometricVerifierResponseSchema,
   createBiometricVerifierResponse,
+  createBiometricVerifierTestStubResponse,
   parseBiometricVerifierRequestFormData,
+  parseBiometricVerifierTestStubVerdict,
 } from "@kayle-id/config/biometric-verifier";
 import { constantTimeStringEqual } from "@kayle-id/config/constant-time";
 import {
@@ -286,6 +288,28 @@ async function handleLivenessRequest({
 
   if (payload instanceof Response) {
     return payload;
+  }
+
+  // Integration tests can opt into a canned verdict by prefixing the
+  // uploaded video bytes with `KAYLE_TEST_STUB::<verdict>::`. Gated on
+  // `NODE_ENV !== "production"` so this is dead code in prod deploys.
+  if (process.env.NODE_ENV !== "production") {
+    const stubVerdict = parseBiometricVerifierTestStubVerdict(payload.video);
+    if (stubVerdict) {
+      const stubResponse = biometricVerifierResponseSchema.parse(
+        createBiometricVerifierResponse(
+          createBiometricVerifierTestStubResponse(stubVerdict)
+        )
+      );
+      logEvent(logger, {
+        details: {
+          stub_verdict: stubVerdict,
+        },
+        event: "biometric_verifier.test_stub_returned",
+        level: "warn",
+      });
+      return jsonResponse(stubResponse);
+    }
   }
 
   const container = await getContainer(env);

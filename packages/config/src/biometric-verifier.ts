@@ -385,3 +385,133 @@ export function createBiometricVerifierResponse(
     _perfTrace: payload._perfTrace,
   };
 }
+
+// Test-only seam: the verifier worker short-circuits to a canned verdict
+// when (a) it is not running in production and (b) the uploaded video
+// starts with this prefix followed by a known verdict name and a "::"
+// terminator. Lets integration tests exercise verdict-dependent flows
+// without producing a real face video the container can decode. Inert in
+// production — `NODE_ENV === "production"` gates the branch off.
+export const BIOMETRIC_VERIFIER_TEST_STUB_PREFIX = "KAYLE_TEST_STUB::";
+
+export const BIOMETRIC_VERIFIER_TEST_STUB_VERDICTS = [
+  "accept",
+  "reject_face_mismatch",
+  "reject_face_score_unavailable",
+  "reject_liveness",
+  "reject_pad",
+] as const;
+
+export type BiometricVerifierTestStubVerdict =
+  (typeof BIOMETRIC_VERIFIER_TEST_STUB_VERDICTS)[number];
+
+export function createBiometricVerifierTestStubVideo(
+  verdict: BiometricVerifierTestStubVerdict
+): Uint8Array {
+  return new TextEncoder().encode(
+    `${BIOMETRIC_VERIFIER_TEST_STUB_PREFIX}${verdict}::`
+  );
+}
+
+export function parseBiometricVerifierTestStubVerdict(
+  video: Uint8Array
+): BiometricVerifierTestStubVerdict | null {
+  const prefixBytes = new TextEncoder().encode(
+    BIOMETRIC_VERIFIER_TEST_STUB_PREFIX
+  );
+
+  if (video.byteLength < prefixBytes.byteLength) {
+    return null;
+  }
+
+  for (let index = 0; index < prefixBytes.byteLength; index += 1) {
+    if (video[index] !== prefixBytes[index]) {
+      return null;
+    }
+  }
+
+  const tail = new TextDecoder().decode(video.subarray(prefixBytes.byteLength));
+  const terminator = tail.indexOf("::");
+
+  if (terminator <= 0) {
+    return null;
+  }
+
+  const candidate = tail.slice(0, terminator);
+
+  return (BIOMETRIC_VERIFIER_TEST_STUB_VERDICTS as readonly string[]).includes(
+    candidate
+  )
+    ? (candidate as BiometricVerifierTestStubVerdict)
+    : null;
+}
+
+export function createBiometricVerifierTestStubResponse(
+  verdict: BiometricVerifierTestStubVerdict
+): BiometricVerifierResponsePayload {
+  switch (verdict) {
+    case "accept":
+      return {
+        livenessPassed: true,
+        livenessScore: 1,
+        faceMatchPassed: true,
+        faceMatchScore: 0.95,
+        faceMatchAlignment: "mesh",
+        padPassed: true,
+        padScore: 0.95,
+        usedFallback: false,
+        reason: null,
+      };
+    case "reject_face_mismatch":
+      return {
+        livenessPassed: true,
+        livenessScore: 1,
+        faceMatchPassed: false,
+        faceMatchScore: 0.3,
+        faceMatchAlignment: "mesh",
+        padPassed: true,
+        padScore: 0.95,
+        usedFallback: false,
+        reason: "face_match_below_threshold",
+      };
+    case "reject_face_score_unavailable":
+      // Mirrors the verifier's "couldn't compute a similarity" outcome —
+      // `usedFallback: true` + null score. The api side maps this to a
+      // `selfie_face_mismatch` rejection in resolveLivenessVerdict.
+      return {
+        livenessPassed: true,
+        livenessScore: 1,
+        faceMatchPassed: false,
+        faceMatchScore: null,
+        faceMatchAlignment: null,
+        padPassed: true,
+        padScore: 0.95,
+        usedFallback: true,
+        reason: "face_score_unavailable",
+      };
+    case "reject_liveness":
+      return {
+        livenessPassed: false,
+        livenessScore: 0,
+        faceMatchPassed: false,
+        faceMatchScore: null,
+        faceMatchAlignment: null,
+        padPassed: true,
+        padScore: 0.95,
+        usedFallback: false,
+        reason: "liveness_pose_coverage_failed",
+      };
+    default:
+      return {
+        livenessPassed: true,
+        livenessScore: 1,
+        faceMatchPassed: false,
+        faceMatchScore: null,
+        faceMatchAlignment: null,
+        padPassed: false,
+        padScore: 0.2,
+        usedFallback: false,
+        reason: "pad_failed",
+      };
+  }
+}

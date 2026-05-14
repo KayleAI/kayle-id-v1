@@ -66,6 +66,34 @@
       "secrets": {
         "required": ["FACE_MATCHER_SECRET"]
       }
+    },
+    "staging": {
+      "name": "kayle-id-face-matcher-staging",
+      "containers": [
+        {
+          "name": "kayle-id-face-matcher-staging-facematchercontainer",
+          "class_name": "FaceMatcherContainer",
+          "image": "./Dockerfile",
+          "max_instances": 2
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "FaceMatcherContainer",
+            "name": "FACE_MATCHER_CONTAINER"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["FaceMatcherContainer"]
+        }
+      ],
+      "secrets": {
+        "required": ["FACE_MATCHER_SECRET"]
+      }
     }
   }
 }

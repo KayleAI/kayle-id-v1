@@ -47,6 +47,32 @@
 				"PUBLIC_API_HOST": "api.kayle.id",
 				"PUBLIC_API_PROTOCOL": "wss"
 			}
+		},
+		"staging": {
+			"name": "kayle-id-verify-staging",
+			"services": [
+				{
+					"binding": "API",
+					"service": "kayle-id-api-staging"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "verify.staging.kayle.id",
+					"zone_name": "kayle.id",
+					"custom_domain": true
+				},
+				{
+					"pattern": "verify.staging.kayle.id/*",
+					"zone_name": "kayle.id",
+					"custom_domain": false
+				}
+			],
+			"vars": {
+				"NODE_ENV": "production",
+				"PUBLIC_API_HOST": "api.staging.kayle.id",
+				"PUBLIC_API_PROTOCOL": "wss"
+			}
 		}
 	}
 }

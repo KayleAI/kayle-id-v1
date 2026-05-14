@@ -136,6 +136,79 @@
 				]
 			}
 		},
+		"staging": {
+			"name": "kayle-id-api-staging",
+			"vars": {
+				"NODE_ENV": "production",
+				"PUBLIC_AUTH_URL": "https://staging.kayle.id",
+				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
+			},
+			"send_email": [
+				{
+					"name": "SEND_EMAIL",
+					"remote": true
+				}
+			],
+			"hyperdrive": [
+				{
+					"binding": "HYPERDRIVE",
+					"id": "5566a199ebe94391a24f27059903bc3d",
+					"localConnectionString": "postgres://postgres:postgres@localhost:6432/kayle-id"
+				}
+			],
+			"services": [
+				{
+					"binding": "FACE_MATCHER",
+					"service": "kayle-id-face-matcher-staging"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "STORAGE",
+					"bucket_name": "kayle-id-r2-staging",
+					"remote": false
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "TRUST_STORE",
+					"database_name": "kayle-id-trust-store-staging",
+					"database_id": "233f087f-91f7-4079-b216-4ebd82a5dfc8",
+					"migrations_dir": "../../database/trust-store"
+				}
+			],
+			"workflows": [
+				{
+					"name": "kayle-id-webhook-delivery-staging",
+					"binding": "WEBHOOK_DELIVERY_WORKFLOW",
+					"class_name": "WebhookDeliveryWorkflow"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "api.staging.kayle.id",
+					"zone_name": "kayle.id",
+					"custom_domain": true
+				},
+				{
+					"pattern": "api.staging.kayle.id/*",
+					"zone_name": "kayle.id",
+					"custom_domain": false
+				}
+			],
+			"secrets": {
+				"required": [
+					"KAYLE_INTERNAL_TOKEN",
+					"AUTH_SECRET",
+					"GOOGLE_CLIENT_ID",
+					"GOOGLE_CLIENT_SECRET",
+					"FACE_MATCHER_SECRET",
+					"ORG_VERIFICATION_PEPPER",
+					"REDIS_URL",
+					"REDIS_TOKEN"
+				]
+			}
+		},
 		"test": {
 			"vars": {
 				"NODE_ENV": "test",

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - staging
   pull_request:
   workflow_dispatch:
 
@@ -247,6 +248,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_ENV: production
+      CLOUDFLARE_ENV: production
 
     strategy:
       fail-fast: false
@@ -266,7 +268,7 @@ jobs:
             working-directory: apps/platform
             generate-capnp: "false"
             pre-build: bun run build
-            wrangler-args: --minify
+            wrangler-args: --minify --env production
           - worker: verify
             working-directory: apps/verify
             generate-capnp: "true"

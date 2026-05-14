@@ -53,6 +53,11 @@ ALLOW_PIXEL_FALLBACK = IS_DEV
 ALLOW_FACE_MATCH_SKIP = IS_DEV
 DEBUG_RESPONSES_ALLOWED = IS_DEV
 
+# /_debug/metrics emits process RSS, CPU time, and disk usage for the
+# container-sizing benchmark. Off by default; flip to "1" in the bench
+# wrangler envs only.
+DEBUG_METRICS_ENABLED = os.environ.get("BIOMETRIC_VERIFIER_DEBUG_METRICS") == "1"
+
 LIVENESS_FRAME_COUNT = int(
     os.environ.get("BIOMETRIC_VERIFIER_FRAME_COUNT", "24")
 )
@@ -1828,6 +1833,121 @@ class BiometricVerifierRuntime:
 RUNTIME = BiometricVerifierRuntime(DETECTOR_MODEL_PATH, MODEL_PATH)
 
 
+def _read_proc_status_kb(field: str) -> Optional[int]:
+    try:
+        with open("/proc/self/status", "r", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith(f"{field}:"):
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[-1].lower() == "kb":
+                        return int(parts[1]) * 1024
+                    if len(parts) >= 2:
+                        return int(parts[1])
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def _read_cgroup_memory_limit() -> Optional[int]:
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                raw = handle.read().strip()
+                if raw == "max" or not raw:
+                    return None
+                return int(raw)
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _read_proc_stat_times() -> Optional[tuple[float, float, float]]:
+    # Returns (utime_sec, stime_sec, age_sec). Age is system_uptime minus
+    # the process's starttime, both in seconds.
+    try:
+        with open("/proc/self/stat", "r", encoding="utf-8") as handle:
+            line = handle.read()
+        # comm field is wrapped in (...) and may contain spaces — split by
+        # the closing paren to skip it cleanly.
+        rparen = line.rfind(")")
+        fields = line[rparen + 2 :].split()
+        # After comm: state, ppid, pgrp, session, tty_nr, tpgid, flags,
+        # minflt, cminflt, majflt, cmajflt, utime, stime, cutime, cstime,
+        # priority, nice, num_threads, itrealvalue, starttime.
+        # So utime=index 11, stime=index 12, starttime=index 19 (0-based
+        # after comm).
+        ticks_per_sec = float(os.sysconf("SC_CLK_TCK"))
+        utime = float(fields[11]) / ticks_per_sec
+        stime = float(fields[12]) / ticks_per_sec
+        starttime_ticks = float(fields[19])
+    except (OSError, ValueError, IndexError):
+        return None
+
+    try:
+        with open("/proc/uptime", "r", encoding="utf-8") as handle:
+            system_uptime = float(handle.read().split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+
+    age_sec = max(0.0, system_uptime - (starttime_ticks / ticks_per_sec))
+    return (utime, stime, age_sec)
+
+
+def _read_dir_bytes(path: str) -> Optional[int]:
+    try:
+        total = 0
+        for dirpath, _dirnames, filenames in os.walk(path):
+            for filename in filenames:
+                full = os.path.join(dirpath, filename)
+                try:
+                    total += os.stat(full, follow_symlinks=False).st_size
+                except OSError:
+                    continue
+        return total
+    except OSError:
+        return None
+
+
+def read_debug_metrics() -> dict:
+    """Snapshot peak RSS, CPU time, disk usage. Cheap to compute
+    (Python-only, no subprocess). Safe to call frequently; reads are
+    /proc-backed and bounded.
+    """
+    vm_rss = _read_proc_status_kb("VmRSS")
+    vm_hwm = _read_proc_status_kb("VmHWM")
+    cgroup_limit = _read_cgroup_memory_limit()
+
+    times = _read_proc_stat_times()
+    cpu_utime, cpu_stime, uptime_sec = times if times is not None else (None, None, None)
+
+    app_bytes = _read_dir_bytes("/app")
+    tmp_bytes = _read_dir_bytes("/tmp")
+    try:
+        disk = shutil.disk_usage("/")
+        root_free = disk.free
+    except OSError:
+        root_free = None
+
+    return {
+        "memory": {
+            "vmRssBytes": vm_rss,
+            "vmHwmBytes": vm_hwm,
+            "cgroupLimitBytes": cgroup_limit,
+        },
+        "cpu": {
+            "utimeSec": cpu_utime,
+            "stimeSec": cpu_stime,
+            "uptimeSec": uptime_sec,
+        },
+        "disk": {
+            "appBytes": app_bytes,
+            "tmpBytes": tmp_bytes,
+            "rootFreeBytes": root_free,
+        },
+        "process": {"pid": os.getpid()},
+    }
+
+
 class BiometricVerifierHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -1843,20 +1963,30 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
         self.wfile.write(encoded)
 
     def do_GET(self) -> None:
-        if self.path != "/health":
-            self.respond(
-                HTTPStatus.NOT_FOUND,
-                {"error": {"code": "NOT_FOUND", "message": "Route not found."}},
+        if self.path == "/health":
+            payload = RUNTIME.health_payload()
+            status = (
+                HTTPStatus.OK
+                if payload["data"]["ready"]
+                else HTTPStatus.SERVICE_UNAVAILABLE
             )
+            self.respond(status, payload)
             return
 
-        payload = RUNTIME.health_payload()
-        status = (
-            HTTPStatus.OK
-            if payload["data"]["ready"]
-            else HTTPStatus.SERVICE_UNAVAILABLE
+        if self.path == "/_debug/metrics":
+            if not DEBUG_METRICS_ENABLED:
+                self.respond(
+                    HTTPStatus.NOT_FOUND,
+                    {"error": {"code": "NOT_FOUND", "message": "Route not found."}},
+                )
+                return
+            self.respond(HTTPStatus.OK, read_debug_metrics())
+            return
+
+        self.respond(
+            HTTPStatus.NOT_FOUND,
+            {"error": {"code": "NOT_FOUND", "message": "Route not found."}},
         )
-        self.respond(status, payload)
 
     def do_POST(self) -> None:
         if self.path == "/verify":

@@ -330,6 +330,79 @@ async function handleLivenessRequest({
   return jsonResponse(response);
 }
 
+async function handleDebugMetricsRequest({
+  env,
+  getContainer,
+  request,
+  logger,
+}: {
+  env: BiometricVerifierBindings;
+  getContainer: GetContainer;
+  request: Request;
+  logger: BiometricVerifierRequestLogger;
+}): Promise<Response> {
+  const verifierSecret =
+    resolveStringEnvValue(env, "BIOMETRIC_VERIFIER_SECRET") ?? undefined;
+  const authOutcome = authorizeInternalRequest(request, verifierSecret);
+
+  if (!authOutcome.ok) {
+    if (authOutcome.reason === "secret_missing") {
+      return jsonResponse(
+        {
+          error: {
+            code: "BIOMETRIC_VERIFIER_MISCONFIGURED",
+            message: "Biometric verifier is missing its shared secret.",
+          },
+        },
+        503
+      );
+    }
+    return jsonResponse(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Unauthorized biometric verifier request.",
+        },
+      },
+      401
+    );
+  }
+
+  const container = await getContainer(env);
+  if (!container) {
+    return jsonResponse(
+      {
+        error: {
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier container binding is unavailable.",
+        },
+      },
+      503
+    );
+  }
+
+  try {
+    return await container.fetch("http://container/_debug/metrics");
+  } catch (error) {
+    logSafeError(logger, {
+      code: "biometric_verifier_debug_metrics_unavailable",
+      error,
+      event: "biometric_verifier.debug_metrics_unavailable",
+      message: "Biometric verifier debug metrics fetch failed.",
+      status: 502,
+    });
+    return jsonResponse(
+      {
+        error: {
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier debug metrics fetch failed.",
+        },
+      },
+      502
+    );
+  }
+}
+
 export function createBiometricVerifierWorker({
   emitRequestLogs = true,
   getContainer = async () => null,
@@ -354,6 +427,17 @@ export function createBiometricVerifierWorker({
 
         if (request.method === "POST" && url.pathname === "/verify") {
           const response = await handleLivenessRequest({
+            env,
+            getContainer,
+            logger,
+            request,
+          });
+          emitRequestLog(response.status);
+          return response;
+        }
+
+        if (request.method === "GET" && url.pathname === "/_debug/metrics") {
+          const response = await handleDebugMetricsRequest({
             env,
             getContainer,
             logger,

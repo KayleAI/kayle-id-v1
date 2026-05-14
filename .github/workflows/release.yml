@@ -392,11 +392,13 @@ jobs:
 
       - name: Build platform worker bundle
         working-directory: apps/platform
+        env:
+          CLOUDFLARE_ENV: production
         run: bun run build
 
       - name: Build preview platform worker bundle
         working-directory: apps/platform
-        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify
+        run: bunx wrangler deploy --dry-run --outdir .wrangler-out --minify --env production
 
       - name: Package platform deploy artifact
         id: package
@@ -1226,7 +1228,8 @@ jobs:
         run: |
           bunx wrangler deploy \
             --config "${RUNNER_TEMP}/deploy-platform/workspace/apps/platform/wrangler.deploy.jsonc" \
-            --no-bundle
+            --no-bundle \
+            --env production
 
   deploy_verify:
     name: Deploy Verify

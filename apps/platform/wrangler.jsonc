@@ -31,33 +31,114 @@
 		}
 	],
 	"vars": {
-		"NODE_ENV": "production"
+		"NODE_ENV": "development"
 	},
-	"kv_namespaces": [
-		{
-			"binding": "ORG_VERIFICATIONS_KV",
-			"id": "3cacbcba5de84a1395b328d04f2e9376"
-		}
-	],
-	"routes": [
-		{
-			"pattern": "kayle.id",
-			"zone_name": "kayle.id",
-			"custom_domain": true
+	"env": {
+		"production": {
+			"name": "kayle-id-platform",
+			"vars": {
+				"NODE_ENV": "production"
+			},
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "DEMO_RUNS",
+						"class_name": "DemoRunMailbox"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_sqlite_classes": ["DemoRunMailbox"]
+				}
+			],
+			"services": [
+				{
+					"binding": "API",
+					"service": "kayle-id-api"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "ORG_VERIFICATIONS_KV",
+					"id": "3cacbcba5de84a1395b328d04f2e9376"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "kayle.id",
+					"zone_name": "kayle.id",
+					"custom_domain": true
+				},
+				{
+					"pattern": "kayle.id/*",
+					"zone_name": "kayle.id",
+					"custom_domain": false
+				}
+			],
+			"secrets": {
+				"required": [
+					"KAYLE_INTERNAL_TOKEN",
+					"KAYLE_INTERNAL_API_KEY",
+					"KAYLE_PLATFORM_WEBHOOK_SECRET",
+					"KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY",
+					"KAYLE_DEMO_API_KEY"
+				]
+			}
 		},
-		{
-			"pattern": "kayle.id/*",
-			"zone_name": "kayle.id",
-			"custom_domain": false
+		"staging": {
+			"name": "kayle-id-platform-staging",
+			"vars": {
+				"NODE_ENV": "production"
+			},
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "DEMO_RUNS",
+						"class_name": "DemoRunMailbox"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_sqlite_classes": ["DemoRunMailbox"]
+				}
+			],
+			"services": [
+				{
+					"binding": "API",
+					"service": "kayle-id-api-staging"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "ORG_VERIFICATIONS_KV",
+					"id": "3509af7d462d46ca9aca4ac04bb6615e"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "staging.kayle.id",
+					"zone_name": "kayle.id",
+					"custom_domain": true
+				},
+				{
+					"pattern": "staging.kayle.id/*",
+					"zone_name": "kayle.id",
+					"custom_domain": false
+				}
+			],
+			"secrets": {
+				"required": [
+					"KAYLE_INTERNAL_TOKEN",
+					"KAYLE_INTERNAL_API_KEY",
+					"KAYLE_PLATFORM_WEBHOOK_SECRET",
+					"KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY",
+					"KAYLE_DEMO_API_KEY"
+				]
+			}
 		}
-	],
-	"secrets": {
-		"required": [
-			"KAYLE_INTERNAL_TOKEN",
-			"KAYLE_INTERNAL_API_KEY",
-			"KAYLE_PLATFORM_WEBHOOK_SECRET",
-			"KAYLE_PLATFORM_WEBHOOK_DECRYPTION_KEY",
-			"KAYLE_DEMO_API_KEY"
-		]
 	}
 }

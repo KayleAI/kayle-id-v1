@@ -21,7 +21,11 @@
       "name": "kayle-id-biometric-verifier-container",
       "class_name": "BiometricVerifierContainer",
       "image": "./Dockerfile",
-      "instance_type": "standard-3",
+      "instance_type": {
+        "disk_mb": 2000,
+        "memory_mib": 6144,
+        "vcpu": 2
+      },
       "max_instances": 2
     }
   ],
@@ -62,7 +66,11 @@
           "name": "kayle-id-biometric-verifier-container",
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
-          "instance_type": "standard-3",
+          "instance_type": {
+            "disk_mb": 2000,
+            "memory_mib": 6144,
+            "vcpu": 2
+          },
           "max_instances": 2
         }
       ],
@@ -106,7 +114,11 @@
           "name": "kayle-id-biometric-verifier-staging-container",
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
-          "instance_type": "standard-3",
+          "instance_type": {
+            "disk_mb": 2000,
+            "memory_mib": 3072,
+            "vcpu": 1
+          },
           "max_instances": 2
         }
       ],
@@ -133,52 +145,6 @@
           ]
         }
       ]
-    },
-    "bench": {
-      "name": "kayle-id-biometric-verifier-bench",
-      "workers_dev": true,
-      "vars": {
-        "NODE_ENV": "production",
-        "BIOMETRIC_VERIFIER_DEBUG_METRICS": "1"
-      },
-      "containers": [
-        {
-          "name": "kayle-id-biometric-verifier-bench-container",
-          "class_name": "BiometricVerifierContainer",
-          "image": "./Dockerfile",
-          "instance_type": "standard-3",
-          "max_instances": 1
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          {
-            "class_name": "BiometricVerifierContainer",
-            "name": "BIOMETRIC_VERIFIER_CONTAINER"
-          }
-        ]
-      },
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_sqlite_classes": ["FaceMatcherContainer"]
-        },
-        {
-          "tag": "v2",
-          "renamed_classes": [
-            {
-              "from": "FaceMatcherContainer",
-              "to": "BiometricVerifierContainer"
-            }
-          ]
-        }
-      ],
-      "analytics_engine_datasets": [
-        { "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
-      ],
-      "secrets": {
-        "required": ["BIOMETRIC_VERIFIER_SECRET"]
-      }
     }
   }
 }

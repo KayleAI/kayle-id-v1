@@ -154,4 +154,55 @@ export const IOS_COPY_FR: IosCopy = {
     "Vous pouvez choisir de partager ces informations.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
     "Vos données de vérification d’identité ont été transmises en toute sécurité. Vous pouvez maintenant fermer cette application et retourner à votre navigateur.",
+
+  "a document": "un document",
+  "a passport": "un passeport",
+  "a residence permit": "un permis de résidence",
+  "an ID card": "une carte d’identité",
+  document: "document",
+  "document chip": "puce du document",
+  "ID card": "carte d’identité",
+  "ID card chip": "puce de la carte d’identité",
+  passport: "passeport",
+  "passport chip": "puce du passeport",
+  "residence permit": "permis de résidence",
+  "residence permit chip": "puce du permis de résidence",
+  "your document": "votre document",
+  "your ID card": "votre carte d’identité",
+  "your passport": "votre passeport",
+  "your residence permit": "votre permis de résidence",
+
+  "Connection to the verification session was lost. Start again from the beginning.":
+    "La connexion à la session de vérification a été perdue. Veuillez recommencer depuis le début.",
+  "Could not read the recorded video. Please try again.":
+    "Impossible de lire la vidéo enregistrée. Veuillez réessayer.",
+  "Failed to encrypt data.": "Échec du chiffrement des données.",
+  "Failed to upload data. Please try again.":
+    "Échec de l’envoi des données. Veuillez réessayer.",
+  "Failed to upload the liveness recording. Please try again.":
+    "Échec de l’envoi de l’enregistrement de détection de présence. Veuillez réessayer.",
+  "Liveness recording failed. Please try again.":
+    "L’enregistrement de détection de présence a échoué. Veuillez réessayer.",
+  "Missing %@ from NFC read. Please scan your %@ again.":
+    "Donnée %@ absente de la lecture NFC. Veuillez scanner à nouveau votre %@.",
+  "Retry could not start. %@": "Impossible de relancer. %@",
+  "Session not initialized. Please scan a QR code.":
+    "Session non initialisée. Veuillez scanner un QR code.",
+  "The recorded liveness video was empty. Please try again.":
+    "La vidéo de détection de présence enregistrée était vide. Veuillez réessayer.",
+
+  "BAC failed.": "Échec de BAC.",
+  "BAC succeeded.": "BAC réussie.",
+  "Document detected.": "Document détecté.",
+  Idle: "Inactif",
+  "PACE failed, falling back to BAC…": "Échec de PACE, repli sur BAC…",
+  "PACE succeeded.": "PACE réussie.",
+  "Performing BAC authentication…": "Authentification BAC en cours…",
+  "Performing PACE authentication…": "Authentification PACE en cours…",
+  "Preparing secure upload…": "Préparation de l’envoi sécurisé…",
+  "Reading Card Access…": "Lecture du Card Access…",
+  "Reconnecting to continue secure upload…":
+    "Reconnexion pour poursuivre l’envoi sécurisé…",
+  "Waiting for secure verification…":
+    "En attente de la vérification sécurisée…",
 };

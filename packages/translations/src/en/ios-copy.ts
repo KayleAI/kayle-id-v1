@@ -162,6 +162,62 @@ export const IOS_COPY_EN = {
     "You can optionally choose to share these details.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
     "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.",
+
+  // Document-name nouns. Substituted into otherwise-localized parent
+  // strings (e.g. "Look for this symbol on %@.") so they MUST be
+  // localized too — otherwise French users get English nouns spliced
+  // into French sentences.
+  "a document": "a document",
+  "a passport": "a passport",
+  "a residence permit": "a residence permit",
+  "an ID card": "an ID card",
+  document: "document",
+  "document chip": "document chip",
+  "ID card": "ID card",
+  "ID card chip": "ID card chip",
+  passport: "passport",
+  "passport chip": "passport chip",
+  "residence permit": "residence permit",
+  "residence permit chip": "residence permit chip",
+  "your document": "your document",
+  "your ID card": "your ID card",
+  "your passport": "your passport",
+  "your residence permit": "your residence permit",
+
+  // VerificationError / LivenessError descriptions.
+  "Connection to the verification session was lost. Start again from the beginning.":
+    "Connection to the verification session was lost. Start again from the beginning.",
+  "Could not read the recorded video. Please try again.":
+    "Could not read the recorded video. Please try again.",
+  "Failed to encrypt data.": "Failed to encrypt data.",
+  "Failed to upload data. Please try again.":
+    "Failed to upload data. Please try again.",
+  "Failed to upload the liveness recording. Please try again.":
+    "Failed to upload the liveness recording. Please try again.",
+  "Liveness recording failed. Please try again.":
+    "Liveness recording failed. Please try again.",
+  "Missing %@ from NFC read. Please scan your %@ again.":
+    "Missing %@ from NFC read. Please scan your %@ again.",
+  "Retry could not start. %@": "Retry could not start. %@",
+  "Session not initialized. Please scan a QR code.":
+    "Session not initialized. Please scan a QR code.",
+  "The recorded liveness video was empty. Please try again.":
+    "The recorded liveness video was empty. Please try again.",
+
+  // DocumentNFCReader.status / VerificationSession.nfcUploadStatusMessage.
+  "BAC failed.": "BAC failed.",
+  "BAC succeeded.": "BAC succeeded.",
+  "Document detected.": "Document detected.",
+  Idle: "Idle",
+  "PACE failed, falling back to BAC…": "PACE failed, falling back to BAC…",
+  "PACE succeeded.": "PACE succeeded.",
+  "Performing BAC authentication…": "Performing BAC authentication…",
+  "Performing PACE authentication…": "Performing PACE authentication…",
+  "Preparing secure upload…": "Preparing secure upload…",
+  "Reading Card Access…": "Reading Card Access…",
+  "Reconnecting to continue secure upload…":
+    "Reconnecting to continue secure upload…",
+  "Waiting for secure verification…": "Waiting for secure verification…",
 } as const;
 
 export type IosCopyKey = keyof typeof IOS_COPY_EN;

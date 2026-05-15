@@ -137,9 +137,9 @@ final class VerificationSession: ObservableObject {
     beginNFCUpload(totalChunkCount: totalChunkCount)
     await Task.yield()
     await waitForPendingPhaseUpdates()
-    nfcUploadStatusMessage = "Reconnecting to continue secure upload…"
+    nfcUploadStatusMessage = String(localized: "Reconnecting to continue secure upload…")
     try await webSocketService.reconnectForTransfer()
-    nfcUploadStatusMessage = "Preparing secure upload…"
+    nfcUploadStatusMessage = String(localized: "Preparing secure upload…")
 
     do {
       for plan in plans {
@@ -156,7 +156,7 @@ final class VerificationSession: ObservableObject {
         )
       }
 
-      nfcUploadStatusMessage = "Waiting for secure verification…"
+      nfcUploadStatusMessage = String(localized: "Waiting for secure verification…")
       let shouldContinue = try await completeNFCPhase(
         plans: plans,
         via: webSocketService,
@@ -327,7 +327,9 @@ final class VerificationSession: ObservableObject {
     }
 
     let resolvedError = resolveDisplayError(error)
-    errorMessage = "Retry could not start. \(resolvedError.localizedDescription)"
+    errorMessage = String(
+      localized: "Retry could not start. \(resolvedError.localizedDescription)"
+    )
     isRetryingVerification = false
     step = .complete
   }
@@ -1337,7 +1339,7 @@ final class VerificationSession: ObservableObject {
   private func beginNFCUpload(totalChunkCount: Int) {
     isUploadingNFC = true
     nfcUploadProgress = totalChunkCount > 0 ? 0 : 1
-    nfcUploadStatusMessage = "Preparing secure upload…"
+    nfcUploadStatusMessage = String(localized: "Preparing secure upload…")
   }
 
   private func resetNFCUploadState() {
@@ -1358,15 +1360,21 @@ enum VerificationError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .notInitialized:
-      return "Session not initialized. Please scan a QR code."
+      return String(localized: "Session not initialized. Please scan a QR code.")
     case .encryptionFailed:
-      return "Failed to encrypt data."
+      return String(localized: "Failed to encrypt data.")
     case .uploadFailed:
-      return "Failed to upload data. Please try again."
+      return String(localized: "Failed to upload data. Please try again.")
     case .verificationInterrupted:
-      return "Connection to the verification session was lost. Start again from the beginning."
+      return String(
+        localized:
+          "Connection to the verification session was lost. Start again from the beginning."
+      )
     case .missingRequiredNFCData(let dataGroup, let documentChipName):
-      return "Missing \(dataGroup) from NFC read. Please scan your \(documentChipName) again."
+      return String(
+        localized:
+          "Missing \(dataGroup) from NFC read. Please scan your \(documentChipName) again."
+      )
     }
   }
 }
@@ -1380,13 +1388,19 @@ enum LivenessError: LocalizedError, Equatable {
   var errorDescription: String? {
     switch self {
     case .captureFailed:
-      return "Liveness recording failed. Please try again."
+      return String(localized: "Liveness recording failed. Please try again.")
     case .videoReadFailed:
-      return "Could not read the recorded video. Please try again."
+      return String(
+        localized: "Could not read the recorded video. Please try again."
+      )
     case .videoEmpty:
-      return "The recorded liveness video was empty. Please try again."
+      return String(
+        localized: "The recorded liveness video was empty. Please try again."
+      )
     case .uploadFailed:
-      return "Failed to upload the liveness recording. Please try again."
+      return String(
+        localized: "Failed to upload the liveness recording. Please try again."
+      )
     }
   }
 }

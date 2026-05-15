@@ -10,7 +10,7 @@ processes:
     env: {}
   Biometric Verifier:
     command: ./scripts/dev-with-healthcheck.sh
-    working_dir: ./infra/biometric-verifier
+    working_dir: ./apps/biometric-verifier
     auto_start: false
     auto_restart: true
     restart_when_changed: []

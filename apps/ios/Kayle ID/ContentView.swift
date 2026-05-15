@@ -545,15 +545,15 @@ struct ContentView: View {
   }
 
   private var defaultDocumentName: String {
-    "document"
+    String(localized: "document")
   }
 
   private var defaultDocumentNameWithArticle: String {
-    "a document"
+    String(localized: "a document")
   }
 
   private var defaultRFIDSymbolLocationDescription: String {
-    "your document"
+    String(localized: "your document")
   }
 
   @ViewBuilder

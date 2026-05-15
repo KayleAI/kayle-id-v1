@@ -51,6 +51,14 @@ processes:
     restart_when_changed: []
     env:
       IOS_DEVICE_IDENTIFIER: ''
+  iOS (Staging):
+    command: bash ./apps/ios/scripts/run-on-connected-device.sh --api-base-url https://api.staging.kayle.id
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ''
   Seed (Production):
     command: infisical run --env=prod -- bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
     working_dir: ./

@@ -44,9 +44,12 @@ interface PlatformWranglerConfig {
 	};
 }
 
+// JSONC strip — wrangler.jsonc allows `//` line comments which JSON.parse
+// chokes on. No block comments or trailing commas live in our wrangler
+// files, so a single line-comment pass is enough.
 async function readJson<T>(relativePath: string): Promise<T> {
 	const raw = await readFile(resolve(HERE, relativePath), "utf8");
-	return JSON.parse(raw) as T;
+	return JSON.parse(raw.replace(/^[ \t]*\/\/.*$/gm, "")) as T;
 }
 
 describe("storage-at-rest resource IDs match wrangler.jsonc", () => {

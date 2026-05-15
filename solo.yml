@@ -66,6 +66,13 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  Seed (Staging):
+    command: infisical run --env=staging -- bun run staging:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   Platform:
     command: bun run dev
     working_dir: ./apps/platform

@@ -132,6 +132,7 @@ jobs:
           wait_for_verifier() {
             local start_time
             start_time="$(date +%s)"
+            local last_progress=0
 
             while true; do
               if ! kill -0 "${VERIFIER_PID}" 2>/dev/null; then
@@ -144,9 +145,19 @@ jobs:
                 return 0
               fi
 
-              if [[ "$(($(date +%s) - start_time))" -ge 60 ]]; then
-                echo "Biometric verifier did not become healthy within 60 seconds."
+              # Cold runner build: apt install (~35s) + uv sync + download 5
+              # ONNX models + 5 smoke-test runs + Python startup + model load.
+              # Easily 2-3 minutes uncached; 5 minutes gives headroom.
+              local elapsed=$(($(date +%s) - start_time))
+              if [[ "${elapsed}" -ge 300 ]]; then
+                echo "Biometric verifier did not become healthy within 300 seconds."
                 return 1
+              fi
+
+              if [[ "$((elapsed - last_progress))" -ge 30 ]]; then
+                echo "Still waiting for biometric verifier after ${elapsed}s; last 20 lines of log:"
+                tail -n 20 /tmp/biometric-verifier.log || true
+                last_progress="${elapsed}"
               fi
 
               sleep 1

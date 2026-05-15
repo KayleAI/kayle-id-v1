@@ -21,7 +21,6 @@ from service import (
     NONCE_GUTTER,
     NONCE_PATCH_X,
     NONCE_PATCH_Y,
-    NONCE_ROWS,
     NONCE_SQUARE_SIZE,
     extract_frames_with_ffmpeg,
     extract_nonce_from_frame,

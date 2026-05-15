@@ -133,6 +133,12 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "Enregistrez les mouvements de tête demandés pour continuer.",
   },
 
+  LIVENESS_CHALLENGE_UNAVAILABLE: {
+    title: "Vérification indisponible",
+    description:
+      "Nous n’avons pas pu démarrer la vérification de présence sur ce serveur. Réessayez plus tard ou contactez le support.",
+  },
+
   SHARE_SELECTION_REQUIRED: {
     title: "Sélectionnez des informations",
     description: "Choisissez au moins une information pour continuer.",

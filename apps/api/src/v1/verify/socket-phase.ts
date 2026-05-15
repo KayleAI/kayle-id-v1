@@ -1,3 +1,4 @@
+import { logEvent } from "@kayle-id/config/logging";
 import { prewarmBiometricVerifier } from "./biometric-verifier-client";
 import { resolveVerifyErrorMessage } from "./error-response";
 import { deriveLivenessChallenge } from "./liveness-challenge";
@@ -98,17 +99,32 @@ export async function handlePhaseMessage(
 				}),
 			);
 			const authSecret = context.env.AUTH_SECRET;
-			if (typeof authSecret === "string" && authSecret.length > 0) {
-				const challenge = await deriveLivenessChallenge({
-					attemptId: state.attemptId,
-					authSecret,
+			if (!(typeof authSecret === "string" && authSecret.length > 0)) {
+				// Without AUTH_SECRET we can't derive the per-attempt
+				// challenge, and the verifier rejects clips without a
+				// matching nonce. Fail loudly here rather than letting the
+				// iOS engine hang on a never-arriving challenge.
+				logEvent(context.log, {
+					details: { attempt_id: state.attemptId },
+					event: "verify.ws.liveness_challenge_unavailable",
+					level: "warn",
 				});
-				state.livenessChallengeNonce = challenge.challengeNonce;
-				transport.sendLivenessChallenge({
-					maxDurationMs: challenge.maxDurationMs,
-					challengeNonce: challenge.challengeNonce,
-				});
+				transport.sendError(
+					"LIVENESS_CHALLENGE_UNAVAILABLE",
+					resolveVerifyErrorMessage("LIVENESS_CHALLENGE_UNAVAILABLE"),
+				);
+				transport.closeAfterVerdict("LIVENESS_CHALLENGE_UNAVAILABLE");
+				return;
 			}
+			const challenge = await deriveLivenessChallenge({
+				attemptId: state.attemptId,
+				authSecret,
+			});
+			state.livenessChallengeNonce = challenge.challengeNonce;
+			transport.sendLivenessChallenge({
+				maxDurationMs: challenge.maxDurationMs,
+				challengeNonce: challenge.challengeNonce,
+			});
 		}
 	}
 

@@ -128,6 +128,12 @@ export const ERROR_MESSAGES = {
     description: "Record the head-movement prompts to continue.",
   },
 
+  LIVENESS_CHALLENGE_UNAVAILABLE: {
+    title: "Verification unavailable",
+    description:
+      "We couldn’t start the liveness check on this server. Try again later or contact support.",
+  },
+
   SHARE_SELECTION_REQUIRED: {
     title: "Select details",
     description: "Choose at least one detail to continue.",

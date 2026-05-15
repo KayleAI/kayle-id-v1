@@ -1,4 +1,9 @@
 import {
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
+import {
 	createSafeRequestLogger,
 	emitSafeRequestLog,
 	getSafeErrorStatus,
@@ -8,6 +13,8 @@ import {
 } from "@kayle-id/config/logging";
 import type { Context, MiddlewareHandler } from "hono";
 import { config } from "@/config";
+
+const WORKER_NAME = "kayle-id-api";
 
 const REQUEST_LOG_KEY = "log";
 const REQUEST_LOG_EMITTED_KEY = "request_log_emitted";
@@ -65,6 +72,46 @@ export function markRequestLogForManualEmit(c: Context): void {
 	getLoggingContext(c).set(REQUEST_LOG_MANUAL_EMIT_KEY, true);
 }
 
+type RequestCostContext = Context<{
+	Variables: { organizationId?: string };
+}>;
+
+function emitRequestCostEvents(c: Context, startedAtMs: number): void {
+	const env = (c as unknown as { env: unknown }).env;
+	const dataset = resolveAnalyticsDataset(env);
+	if (!dataset) {
+		return;
+	}
+	const organizationId = (c as RequestCostContext).get("organizationId");
+	const durationMs = Math.max(0, Date.now() - startedAtMs);
+	const environment = config.environment ?? "unknown";
+	emitCostEvent({
+		dataset,
+		organizationId,
+		feature: COST_FEATURES.Unknown,
+		resource: "worker_request",
+		quantity: 1,
+		unit: "request",
+		workerName: WORKER_NAME,
+		environment,
+		version: config.version,
+	});
+	// Wall-clock duration is a rough proxy for billable CPU-ms — it
+	// includes I/O wait. Treat the resulting cost as an upper bound;
+	// CF only charges for active CPU.
+	emitCostEvent({
+		dataset,
+		organizationId,
+		feature: COST_FEATURES.Unknown,
+		resource: "worker_cpu",
+		quantity: durationMs,
+		unit: "ms",
+		workerName: WORKER_NAME,
+		environment,
+		version: config.version,
+	});
+}
+
 export function requestLoggingMiddleware({
 	emitRequestLogs = process.env.NODE_ENV !== "test",
 }: RequestLoggingMiddlewareOptions = {}): MiddlewareHandler {
@@ -78,6 +125,7 @@ export function requestLoggingMiddleware({
 		}
 
 		const logger = createSafeRequestLogger(c.req.raw);
+		const startedAt = Date.now();
 
 		loggingContext.set(REQUEST_LOG_KEY, logger);
 		loggingContext.set(REQUEST_LOG_EMITTED_KEY, false);
@@ -92,6 +140,7 @@ export function requestLoggingMiddleware({
 
 			if (emitRequestLogs) {
 				emitRequestLog(c, c.res.status);
+				emitRequestCostEvents(c, startedAt);
 			}
 		} catch (error) {
 			const status = getSafeErrorStatus(error) ?? 500;
@@ -105,6 +154,7 @@ export function requestLoggingMiddleware({
 			});
 			if (emitRequestLogs) {
 				emitRequestLog(c, status);
+				emitRequestCostEvents(c, startedAt);
 			}
 			throw error;
 		}

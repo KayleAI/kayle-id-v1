@@ -22,14 +22,14 @@ Read [AGENTS.md](../../AGENTS.md) first. TL;DR: prefer modifying existing code, 
 | Platform UI                                         | `apps/platform/src/`                                          |
 | Verify UI                                           | `apps/verify/src/`                                            |
 | Email template                                      | `packages/emails/`                                            |
-| Background container worker                         | `infra/face-matcher/`                                         |
+| Background container worker                         | `infra/biometric-verifier/`                                   |
 
 ## Adding an env var
 
 The single source of truth is the env schema in `packages/config/src/env.ts`. When you add a new variable:
 
 1. Add it to the Zod schema in `packages/config/src/env.ts`.
-2. Add the key (with a placeholder value) to **both** `apps/api/.env.example` and `infra/face-matcher/.env.example` if the variable is consumed by either Worker. These are inputs to `wrangler types`, so missing keys break the generated `cloudflare-env.d.ts`.
+2. Add the key (with a placeholder value) to **both** `apps/api/.env.example` and `infra/biometric-verifier/.env.example` if the variable is consumed by either Worker. These are inputs to `wrangler types`, so missing keys break the generated `cloudflare-env.d.ts`.
 3. Add a sensible default to `scripts/setup-env.ts` so a fresh contributor's `bun run env:setup` produces a working `.env`.
 4. If it's a real secret, add it to the Infisical project and update the `secrets.required` list in the relevant `wrangler.jsonc` `env.production` block.
 5. Regenerate Cloudflare types: `bun run cf:types` (run from the repo root or per-app).

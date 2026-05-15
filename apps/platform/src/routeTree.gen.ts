@@ -40,6 +40,7 @@ import { Route as AppOrganizationsDomainsRouteImport } from './routes/_app/organ
 import { Route as AppOrganizationsBusinessRouteImport } from './routes/_app/organizations/business'
 import { Route as AppOrganizationsAuditLogsRouteImport } from './routes/_app/organizations/audit-logs'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
+import { Route as AppAdminCostAnalyticsRouteImport } from './routes/_app/admin/cost-analytics'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
@@ -48,6 +49,7 @@ import { Route as ApiApiInternalWebhookReceiverRouteImport } from './routes/_api
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
 import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
 import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
+import { Route as ApiApiAdminSplatRouteImport } from './routes/_api/api/admin/$'
 
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
@@ -203,6 +205,11 @@ const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   path: '/api-keys/$key',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminCostAnalyticsRoute = AppAdminCostAnalyticsRouteImport.update({
+  id: '/admin/cost-analytics',
+  path: '/admin/cost-analytics',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -245,6 +252,11 @@ const ApiApiAnalyticsSplatRoute = ApiApiAnalyticsSplatRouteImport.update({
   path: '/api/analytics/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApiAdminSplatRoute = ApiApiAdminSplatRouteImport.update({
+  id: '/_api/api/admin/$',
+  path: '/api/admin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
@@ -258,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof LegalTermsRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
@@ -276,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/organizations/': typeof AppOrganizationsIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
   '/demo/': typeof MarketingDemoIndexRoute
+  '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -294,6 +308,7 @@ export interface FileRoutesByTo {
   '/terms': typeof LegalTermsRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
+  '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
@@ -312,6 +327,7 @@ export interface FileRoutesByTo {
   '/organizations': typeof AppOrganizationsIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/demo': typeof MarketingDemoIndexRoute
+  '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -336,6 +352,7 @@ export interface FileRoutesById {
   '/_marketing/': typeof MarketingIndexRoute
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
+  '/_app/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
   '/_app/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/_app/organizations/business': typeof AppOrganizationsBusinessRoute
@@ -354,6 +371,7 @@ export interface FileRoutesById {
   '/_app/organizations/': typeof AppOrganizationsIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_marketing/demo/': typeof MarketingDemoIndexRoute
+  '/_api/api/admin/$': typeof ApiApiAdminSplatRoute
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
@@ -375,6 +393,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/start-org-verification'
     | '/account/security'
+    | '/admin/cost-analytics'
     | '/api-keys/$key'
     | '/organizations/audit-logs'
     | '/organizations/business'
@@ -393,6 +412,7 @@ export interface FileRouteTypes {
     | '/organizations/'
     | '/webhooks/'
     | '/demo/'
+    | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
@@ -411,6 +431,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/start-org-verification'
     | '/account/security'
+    | '/admin/cost-analytics'
     | '/api-keys/$key'
     | '/organizations/audit-logs'
     | '/organizations/business'
@@ -429,6 +450,7 @@ export interface FileRouteTypes {
     | '/organizations'
     | '/webhooks'
     | '/demo'
+    | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
@@ -452,6 +474,7 @@ export interface FileRouteTypes {
     | '/_marketing/'
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
+    | '/_app/admin/cost-analytics'
     | '/_app/api-keys/$key'
     | '/_app/organizations/audit-logs'
     | '/_app/organizations/business'
@@ -470,6 +493,7 @@ export interface FileRouteTypes {
     | '/_app/organizations/'
     | '/_app/webhooks/'
     | '/_marketing/demo/'
+    | '/_api/api/admin/$'
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
@@ -484,6 +508,7 @@ export interface RootRouteChildren {
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
   ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
+  ApiApiAdminSplatRoute: typeof ApiApiAdminSplatRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
   ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
@@ -710,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApiKeysKeyRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/cost-analytics': {
+      id: '/_app/admin/cost-analytics'
+      path: '/admin/cost-analytics'
+      fullPath: '/admin/cost-analytics'
+      preLoaderRoute: typeof AppAdminCostAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/security': {
       id: '/_app/account/security'
       path: '/security'
@@ -766,6 +798,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApiAnalyticsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_api/api/admin/$': {
+      id: '/_api/api/admin/$'
+      path: '/api/admin/$'
+      fullPath: '/api/admin/$'
+      preLoaderRoute: typeof ApiApiAdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -786,6 +825,7 @@ const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
+  AppAdminCostAnalyticsRoute: typeof AppAdminCostAnalyticsRoute
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
   AppOrganizationsAuditLogsRoute: typeof AppOrganizationsAuditLogsRoute
   AppOrganizationsBusinessRoute: typeof AppOrganizationsBusinessRoute
@@ -804,6 +844,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
+  AppAdminCostAnalyticsRoute: AppAdminCostAnalyticsRoute,
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
   AppOrganizationsAuditLogsRoute: AppOrganizationsAuditLogsRoute,
   AppOrganizationsBusinessRoute: AppOrganizationsBusinessRoute,
@@ -877,6 +918,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
   ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
+  ApiApiAdminSplatRoute: ApiApiAdminSplatRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
   ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,

@@ -14,6 +14,7 @@ import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
+import { runStorageAtRestCron } from "@/scheduled/storage-at-rest";
 import v1 from "@/v1";
 import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
@@ -144,6 +145,19 @@ const worker = Object.assign(app, {
 		env: CloudflareBindings,
 		_executionCtx: ExecutionContext,
 	) => {
+		// Daily 00:00 UTC tick — storage-at-rest cost emission only. A
+		// rough daily snapshot is enough for the cost dashboard, and a
+		// dedicated cron avoids the per-minute gating that the other
+		// jobs need. The D1 dedupe row inside `runStorageAtRestCron`
+		// remains as belt-and-braces against double-fires on retry.
+		if (controller.cron === "0 0 * * *") {
+			await runStorageAtRestCron({
+				env,
+				now: new Date(controller.scheduledTime),
+			});
+			return;
+		}
+
 		if (shouldRunExpiredSessionNormalization(controller.scheduledTime)) {
 			await normalizeExpiredVerificationSessions({
 				env,

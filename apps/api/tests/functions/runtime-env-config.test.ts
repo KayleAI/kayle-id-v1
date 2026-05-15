@@ -1,8 +1,15 @@
 import { expect, test } from "bun:test";
 
+// JSONC strip — wrangler.jsonc allows `//` line comments which JSON.parse
+// chokes on. No block comments or trailing commas live in our wrangler
+// files, so a single line-comment pass is enough.
+function parseJsonc<T>(raw: string): T {
+	return JSON.parse(raw.replace(/^[ \t]*\/\/.*$/gm, "")) as T;
+}
+
 async function readWranglerConfig(): Promise<ApiWranglerConfig> {
 	const file = Bun.file(new URL("../../wrangler.jsonc", import.meta.url));
-	return JSON.parse(await file.text()) as ApiWranglerConfig;
+	return parseJsonc<ApiWranglerConfig>(await file.text());
 }
 
 type ApiWranglerConfig = {

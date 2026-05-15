@@ -8,12 +8,12 @@ export const IOS_COPY_FR: IosCopy = {
     "Données supplémentaires du document à lecture optique.",
   "Align the printed code within the box.":
     "Alignez le code imprimé dans le cadre.",
+  "Almost done…": "Presque terminé…",
   "An unexpected error occurred.": "Une erreur inattendue est survenue.",
   "Authenticating data…": "Authentification des données…",
   "Authenticating with document…": "Authentification avec le document…",
   Back: "Retour",
   Cancel: "Annuler",
-  "Capturing %lld of %lld": "Capture %lld sur %lld",
   "Checking verification…": "Vérification en cours…",
   "Choose at least one verification detail before continuing.":
     "Choisissez au moins une information de vérification pour continuer.",
@@ -33,7 +33,7 @@ export const IOS_COPY_FR: IosCopy = {
     "Suivez l’invite NFC et maintenez le haut de votre iPhone contre la puce.",
   "Get Started": "Commencer",
   "Given Names": "Prénoms",
-  "Hold still...": "Restez immobile…",
+  "Hold still for a moment": "Restez immobile un instant",
   "Hold your iPhone near your document.":
     "Tenez votre iPhone près de votre document.",
   "How Kayle ID collects, uses, and protects your information.":
@@ -61,18 +61,20 @@ export const IOS_COPY_FR: IosCopy = {
   "Make sure your face is well-lit and clearly visible":
     "Assurez-vous que votre visage est bien éclairé et clairement visible",
   Male: "Homme",
+  "Move slowly so the arcs around your face fill up":
+    "Déplacez-vous lentement pour que les arcs autour de votre visage se remplissent",
   "NFC read failed.": "Échec de la lecture NFC.",
   "Nationality Code": "Code de nationalité",
-  "Next, take a quick selfie": "Ensuite, prenez un selfie rapide",
+  "Next, a quick liveness check":
+    "Ensuite, une vérification rapide de présence",
   "Optional Details": "Informations facultatives",
-  "Perfect! Stay still to capture": "Parfait ! Restez immobile pour la capture",
   "Photo securely read from your document chip.":
     "Photo lue en toute sécurité depuis la puce de votre document.",
-  "Please wait while we securely upload your photos":
-    "Veuillez patienter pendant que nous téléversons vos photos en toute sécurité",
   "Point your camera at the QR code on the screen":
     "Pointez votre appareil photo vers le code QR à l’écran",
   "Position your face in the frame": "Positionnez votre visage dans le cadre",
+  "Position your face in the frame, then slowly turn your head to the left and right. Make sure your face is well-lit and clearly visible.":
+    "Positionnez votre visage dans le cadre, puis tournez lentement la tête vers la gauche et la droite. Assurez-vous que votre visage est bien éclairé et clairement visible.",
   "Press your document against your device and hold still to read the chip.":
     "Appuyez votre document contre votre appareil et restez immobile pour lire la puce.",
   "Privacy Policy": "Politique de confidentialité",
@@ -116,20 +118,21 @@ export const IOS_COPY_FR: IosCopy = {
     "Cela arrêtera la vérification en cours sur cet appareil.",
   "Try Again": "Réessayer",
   "Try Another Document": "Essayer un autre document",
+  "Turn your head left and right": "Tournez la tête à gauche et à droite",
   Unspecified: "Non spécifié",
   "Unexpected NFC completion response from the server.":
     "Réponse inattendue du serveur lors de la finalisation NFC.",
   "Unexpected NFC upload response from the server.":
     "Réponse inattendue du serveur lors du téléversement NFC.",
-  "Unexpected selfie completion response from the server.":
-    "Réponse inattendue du serveur lors de la finalisation du selfie.",
-  "Unexpected selfie upload response from the server.":
-    "Réponse inattendue du serveur lors du téléversement du selfie.",
+  "Unexpected liveness completion response from the server.":
+    "Réponse inattendue du serveur lors de la finalisation de la vérification de présence.",
+  "Unexpected liveness upload response from the server.":
+    "Réponse inattendue du serveur lors du téléversement de la vérification de présence.",
   "Unexpected share selection response from the server.":
     "Réponse inattendue du serveur lors de la sélection des informations à partager.",
   "Unexpected verification phase response from the server.":
     "Réponse inattendue du serveur pour la phase de vérification.",
-  "Uploading selfies...": "Téléversement des selfies…",
+  "Uploading…": "Téléversement…",
   "Uploading your %@ securely": "Téléversement de votre %@ en toute sécurité",
   "Use your camera to scan the printed code on your document, then read the chip if it has one.":
     "Utilisez votre appareil photo pour scanner le code imprimé sur votre document, puis lisez la puce s’il en a une.",
@@ -140,8 +143,6 @@ export const IOS_COPY_FR: IosCopy = {
   "Verified from your document.": "Vérifié depuis votre document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "Nous n’avons pas pu utiliser ce scan pour lire la puce. Réessayez.",
-  "We’ll automatically capture three photos. Make sure your face is well lit and clearly visible.":
-    "Nous capturerons automatiquement trois photos. Assurez-vous que votre visage est bien éclairé et clairement visible.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
     "Quand vous êtes prêt, appuyez sur Démarrer le scan et suivez l’invite NFC.",
   "Will share that you do not meet the %lld+ age requirement.":
@@ -153,4 +154,55 @@ export const IOS_COPY_FR: IosCopy = {
     "Vous pouvez choisir de partager ces informations.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
     "Vos données de vérification d’identité ont été transmises en toute sécurité. Vous pouvez maintenant fermer cette application et retourner à votre navigateur.",
+
+  "a document": "un document",
+  "a passport": "un passeport",
+  "a residence permit": "un permis de résidence",
+  "an ID card": "une carte d’identité",
+  document: "document",
+  "document chip": "puce du document",
+  "ID card": "carte d’identité",
+  "ID card chip": "puce de la carte d’identité",
+  passport: "passeport",
+  "passport chip": "puce du passeport",
+  "residence permit": "permis de résidence",
+  "residence permit chip": "puce du permis de résidence",
+  "your document": "votre document",
+  "your ID card": "votre carte d’identité",
+  "your passport": "votre passeport",
+  "your residence permit": "votre permis de résidence",
+
+  "Connection to the verification session was lost. Start again from the beginning.":
+    "La connexion à la session de vérification a été perdue. Veuillez recommencer depuis le début.",
+  "Could not read the recorded video. Please try again.":
+    "Impossible de lire la vidéo enregistrée. Veuillez réessayer.",
+  "Failed to encrypt data.": "Échec du chiffrement des données.",
+  "Failed to upload data. Please try again.":
+    "Échec de l’envoi des données. Veuillez réessayer.",
+  "Failed to upload the liveness recording. Please try again.":
+    "Échec de l’envoi de l’enregistrement de détection de présence. Veuillez réessayer.",
+  "Liveness recording failed. Please try again.":
+    "L’enregistrement de détection de présence a échoué. Veuillez réessayer.",
+  "Missing %@ from NFC read. Please scan your %@ again.":
+    "Donnée %@ absente de la lecture NFC. Veuillez scanner à nouveau votre %@.",
+  "Retry could not start. %@": "Impossible de relancer. %@",
+  "Session not initialized. Please scan a QR code.":
+    "Session non initialisée. Veuillez scanner un QR code.",
+  "The recorded liveness video was empty. Please try again.":
+    "La vidéo de détection de présence enregistrée était vide. Veuillez réessayer.",
+
+  "BAC failed.": "Échec de BAC.",
+  "BAC succeeded.": "BAC réussie.",
+  "Document detected.": "Document détecté.",
+  Idle: "Inactif",
+  "PACE failed, falling back to BAC…": "Échec de PACE, repli sur BAC…",
+  "PACE succeeded.": "PACE réussie.",
+  "Performing BAC authentication…": "Authentification BAC en cours…",
+  "Performing PACE authentication…": "Authentification PACE en cours…",
+  "Preparing secure upload…": "Préparation de l’envoi sécurisé…",
+  "Reading Card Access…": "Lecture du Card Access…",
+  "Reconnecting to continue secure upload…":
+    "Reconnexion pour poursuivre l’envoi sécurisé…",
+  "Waiting for secure verification…":
+    "En attente de la vérification sécurisée…",
 };

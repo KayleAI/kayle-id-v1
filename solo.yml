@@ -8,9 +8,9 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
-  Face Matcher:
+  Biometric Verifier:
     command: ./scripts/dev-with-healthcheck.sh
-    working_dir: ./infra/face-matcher
+    working_dir: ./apps/biometric-verifier
     auto_start: false
     auto_restart: true
     restart_when_changed: []
@@ -51,6 +51,14 @@ processes:
     restart_when_changed: []
     env:
       IOS_DEVICE_IDENTIFIER: ''
+  iOS (Staging):
+    command: bash ./apps/ios/scripts/run-on-connected-device.sh --api-base-url https://api.staging.kayle.id
+    working_dir: ./
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      IOS_DEVICE_IDENTIFIER: ''
   Seed (Production):
     command: infisical run --env=prod -- bun run prod:seed:pkd -- --objects ./temp/icao-pkd-objects.ldif --master-lists ./temp/icao-pkd-master-lists.ldif --output ./temp/icao-pkd-trust-store.sql
     working_dir: ./
@@ -82,6 +90,13 @@ processes:
   Verify:
     command: bun run dev
     working_dir: ./apps/verify
+    auto_start: false
+    auto_restart: true
+    restart_when_changed: []
+    env: {}
+  Debugger:
+    command: bun run dev
+    working_dir: ./apps/debugger
     auto_start: false
     auto_restart: true
     restart_when_changed: []

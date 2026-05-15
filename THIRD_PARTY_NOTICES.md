@@ -1,27 +1,38 @@
 # Third-Party Notices
 
-This project includes third-party model artifacts used by the face matcher in
-[`infra/face-matcher/models/`](/Users/arsen/Kayle/kayle-id/infra/face-matcher/models).
+This project includes third-party model artifacts used by the biometric
+verifier (downloaded into the container image at build time by
+[`apps/biometric-verifier/scripts/download-models.sh`](apps/biometric-verifier/scripts/download-models.sh))
+and, in the contributor-only debugger app, runtime-loaded MediaPipe
+assets from third-party CDNs.
 
-## Face Recognition: SFace
+## Face Recognition: AuraFace
 
-- Component: `face_recognition_sface_2021dec.onnx`
-- Upstream project: OpenCV Zoo
-- Upstream directory:
-  `models/face_recognition_sface`
+- Component: `auraface_glintr100.onnx`
+- Upstream project: fal/AuraFace-v1
+- Upstream artifact: `glintr100.onnx` (ResNet100 ArcFace face-embedding
+  model, trained on commercially-usable data)
 - License: Apache License 2.0
 - Source:
-  - <https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface>
-  - <https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_recognition_sface/README.md>
-  - <https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_recognition_sface/LICENSE>
+  - Upstream repository: <https://huggingface.co/fal/AuraFace-v1>
+  - Upstream file:
+    <https://huggingface.co/fal/AuraFace-v1/resolve/main/glintr100.onnx>
+  - Upstream license:
+    <https://huggingface.co/fal/AuraFace-v1/blob/main/LICENSE.md>
+  - ONNX distribution mirror (used by this project at build time):
+    <https://models.kayle.ai/auraface_glintr100.onnx>
+  - License + NOTICE in the Kayle models repo:
+    <https://github.com/KayleAI/models/tree/main/auraface>
 
-Upstream notice:
+The Kayle-hosted ONNX is a verbatim byte-for-byte mirror of the upstream
+`glintr100.onnx` published by fal.ai on Hugging Face — the sha256 used
+by the build matches the upstream LFS oid. The Apache 2.0 license terms
+carry through to the mirror. AuraFace is published by fal.ai
+specifically to enable commercial face-recognition use cases; the
+upstream model card calls this out explicitly.
 
-> All files in this directory are licensed under Apache 2.0 License.
-
-The Apache 2.0 license text is available in this repository at
-[`LICENSE`](/Users/arsen/Kayle/kayle-id/LICENSE) and upstream at the source
-link above.
+Copyright © fal.ai. Used with attribution under the terms of the Apache
+License, Version 2.0.
 
 ## Face Detection: YuNet
 
@@ -64,3 +75,66 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Presentation Attack Detection (Silent-Face-Anti-Spoofing / MiniFASNet)
+
+- Components: `pad_minifasnet_v2_scale27.onnx` and
+  `pad_minifasnet_v1se_scale40.onnx` (used together as an ensemble)
+- Upstream project: Silent-Face-Anti-Spoofing
+- Upstream artifact: MiniFASNetV2 + MiniFASNetV1SE PyTorch checkpoints
+  at scales 2.7 and 4.0 around the face bbox
+- License: Apache License 2.0
+- Source:
+  - Upstream repository: <https://github.com/minivision-ai/Silent-Face-Anti-Spoofing>
+    @ commit `b6d5f04ad78778917853b25c778acef6d5626d15`
+  - Upstream weights:
+    `resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth` and
+    `resources/anti_spoof_models/4_0_0_80x80_MiniFASNetV1SE.pth`
+  - Conversion script (PyTorch → ONNX) hosted by Kayle:
+    <https://github.com/KayleAI/models/blob/main/pad/scripts/convert.py>
+  - ONNX distribution mirror (used by this project at build time):
+    <https://models.kayle.ai/pad_minifasnet_v2_scale27.onnx> and
+    <https://models.kayle.ai/pad_minifasnet_v1se_scale40.onnx>
+  - License + NOTICE in the Kayle models repo:
+    <https://github.com/KayleAI/models/tree/main/pad>
+
+The Kayle-hosted ONNX files are format-only derivative works of
+Minivision's PyTorch state dicts — the weights and architecture are
+unchanged; only the serialization format and filenames differ. The
+Apache 2.0 license terms carry through to the converted artifacts.
+See the upstream license link above for the full text.
+
+Copyright © 2020 Minivision Technology Company. Used with attribution
+under the terms of the Apache License, Version 2.0.
+
+## Face Landmarks Detector (MediaPipe Face Landmarker)
+
+- Component: `face_landmarks_detector.onnx`
+- Upstream project: MediaPipe (Google)
+- Upstream artifact: MediaPipe Face Landmarker (478-point face mesh + iris)
+- License: Apache License 2.0
+- Source:
+  - Upstream `.task` distribution:
+    <https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task>
+  - Upstream repository: <https://github.com/google-ai-edge/mediapipe>
+  - Conversion script (TFLite → ONNX) hosted by Kayle:
+    <https://github.com/KayleAI/models/blob/main/face-landmarks-detector/scripts/convert.py>
+  - ONNX distribution mirror (used by this project at build time):
+    <https://models.kayle.ai/face_landmarks_detector.onnx>
+  - License + NOTICE in the Kayle models repo:
+    <https://github.com/KayleAI/models/tree/main/face-landmarks-detector>
+
+The Kayle-hosted ONNX is a format-only derivative work of Google's TFLite —
+the weights and architecture are unchanged; only the serialization format
+differs. The Apache 2.0 license terms (and Google's NOTICE attribution) carry
+through to the converted artifact. See the upstream license link above for
+the full text.
+
+Copyright 2019-2024 The MediaPipe Authors / Google LLC. Used with attribution
+under the terms of the Apache License, Version 2.0.
+
+The contributor-only debugger (`apps/debugger`) loads MediaPipe's wasm
+runtime and Face Landmarker `.task` model at runtime from jsdelivr and
+`storage.googleapis.com`. Not vendored, not deployed — see
+[`MediaPipeMeshLayer.tsx`](apps/debugger/src/biometric/MediaPipeMeshLayer.tsx)
+for the pinned URLs.

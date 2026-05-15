@@ -49,6 +49,21 @@ function createDg1({
 }
 
 describe("DG1 face match thresholds", () => {
+	test("threshold bounds match the AuraFace recalibration (raw cosine 0.375..0.60)", () => {
+		// Normalized score = (raw + 1) / 2. The new floor of 0.6875
+		// corresponds to raw cosine 0.375 — still comfortably above
+		// InsightFace's published same-person threshold of ~0.28–0.30
+		// (normalized ~0.64–0.65). The new ceiling of 0.80 (raw 0.60)
+		// is the strict gate for fresh adult passports. Anything that
+		// silently shifts these values away from the AuraFace
+		// calibration must be re-reviewed by the biometric team.
+		expect(MIN_FACE_MATCH_THRESHOLD).toBe(0.6875);
+		expect(MAX_FACE_MATCH_THRESHOLD).toBe(0.8);
+		expect(MIN_FACE_MATCH_THRESHOLD).toBeGreaterThan(0.65);
+		expect(MAX_FACE_MATCH_THRESHOLD).toBeLessThanOrEqual(1);
+		expect(MIN_FACE_MATCH_THRESHOLD).toBeLessThan(MAX_FACE_MATCH_THRESHOLD);
+	});
+
 	test("resolves a dynamic adult threshold from age at issue and document age", () => {
 		const threshold = resolveFaceMatchThresholdFromDg1({
 			dg1: createDg1({
@@ -58,7 +73,12 @@ describe("DG1 face match thresholds", () => {
 			now: new Date("2025-04-19T00:00:00.000Z"),
 		});
 
-		expect(threshold).toBeCloseTo(0.785, 4);
+		// Formula yields 0.685, which now clamps up to MIN=0.6875
+		// under the AuraFace-calibrated window. The dynamic path is
+		// still exercised (the formula runs); the result happens to
+		// hit the floor because raw cosine 0.375 is the IDV-safe
+		// minimum.
+		expect(threshold).toBe(MIN_FACE_MATCH_THRESHOLD);
 	});
 
 	test("resolves a dynamic child threshold from age at issue and document age", () => {
@@ -70,7 +90,10 @@ describe("DG1 face match thresholds", () => {
 			now: new Date("2026-04-19T00:00:00.000Z"),
 		});
 
-		expect(threshold).toBeCloseTo(0.752, 4);
+		// Formula yields 0.652 → clamped to MIN. Same shape as the
+		// adult dynamic case above; the explicit "fully aged"
+		// clamping test below covers the all-the-way-to-expiry edge.
+		expect(threshold).toBe(MIN_FACE_MATCH_THRESHOLD);
 	});
 
 	test("clamps to the maximum threshold for a fresh adult document", () => {

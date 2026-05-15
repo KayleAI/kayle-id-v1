@@ -23,8 +23,13 @@ const YOUTH_DRIFT_RANGE_YEARS = 10;
 const DOCUMENT_AGE_WEIGHT = 0.14;
 const YOUTH_DRIFT_WEIGHT = 0.09;
 
-export const MIN_FACE_MATCH_THRESHOLD = 0.75;
-export const MAX_FACE_MATCH_THRESHOLD = 0.9;
+// Threshold window slides between MIN and MAX based on document age +
+// youth drift. Raw cosine: MAX=0.80→0.60 (strict, fresh adult docs);
+// MIN=0.6875→0.375 (floor — above the InsightFace published
+// same-person threshold of ~0.28-0.30 but permissive enough to absorb
+// real-world ageing on aged child docs).
+export const MIN_FACE_MATCH_THRESHOLD = 0.6875;
+export const MAX_FACE_MATCH_THRESHOLD = 0.8;
 
 type DocumentValidityYears =
 	| typeof CHILD_DOCUMENT_VALIDITY_YEARS

@@ -42,11 +42,11 @@ jobs:
       force_full_release: ${{ steps.context.outputs.force_full_release }}
       release_allowed: ${{ steps.context.outputs.release_allowed }}
       release_tag: ${{ steps.context.outputs.release_tag }}
-      face_matcher_changed: ${{ steps.context.outputs.face_matcher_changed }}
+      biometric_verifier_changed: ${{ steps.context.outputs.biometric_verifier_changed }}
       api_changed: ${{ steps.context.outputs.api_changed }}
       platform_changed: ${{ steps.context.outputs.platform_changed }}
       verify_changed: ${{ steps.context.outputs.verify_changed }}
-      face_matcher: ${{ steps.context.outputs.face_matcher }}
+      biometric_verifier: ${{ steps.context.outputs.biometric_verifier }}
       api: ${{ steps.context.outputs.api }}
       platform: ${{ steps.context.outputs.platform }}
       verify: ${{ steps.context.outputs.verify }}
@@ -159,12 +159,12 @@ jobs:
           fi
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            face_matcher_changed="true"
+            biometric_verifier_changed="true"
             api_changed="true"
             platform_changed="true"
             verify_changed="true"
           elif ! git rev-parse HEAD^1 >/dev/null 2>&1; then
-            face_matcher_changed="true"
+            biometric_verifier_changed="true"
             api_changed="true"
             platform_changed="true"
             verify_changed="true"
@@ -179,10 +179,10 @@ jobs:
               fi
             }
 
-            face_matcher_changed="$(has_changes \
+            biometric_verifier_changed="$(has_changes \
               bun.lock \
               package.json \
-              infra/face-matcher \
+              apps/biometric-verifier \
               packages/config)"
             api_changed="$(has_changes \
               bun.lock \
@@ -206,14 +206,14 @@ jobs:
               packages/config)"
           fi
 
-          face_matcher="${face_matcher_changed}"
+          biometric_verifier="${biometric_verifier_changed}"
           api="${api_changed}"
           platform="${platform_changed}"
           verify="${verify_changed}"
 
           if [[ "${release_allowed}" == "true" ]]; then
             force_full_release="true"
-            face_matcher="true"
+            biometric_verifier="true"
             api="true"
             platform="true"
             verify="true"
@@ -224,11 +224,11 @@ jobs:
             echo "force_full_release=${force_full_release}"
             echo "release_allowed=${release_allowed}"
             echo "release_tag=${release_tag}"
-            echo "face_matcher_changed=${face_matcher_changed}"
+            echo "biometric_verifier_changed=${biometric_verifier_changed}"
             echo "api_changed=${api_changed}"
             echo "platform_changed=${platform_changed}"
             echo "verify_changed=${verify_changed}"
-            echo "face_matcher=${face_matcher}"
+            echo "biometric_verifier=${biometric_verifier}"
             echo "api=${api}"
             echo "platform=${platform}"
             echo "verify=${verify}"
@@ -277,13 +277,13 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: bun ./scripts/check-app-store-agreements.ts
 
-  preview_face_matcher:
-    name: Preview Face Matcher
+  preview_biometric_verifier:
+    name: Preview Biometric Verifier
     runs-on: ubuntu-latest
     needs:
       - detect_release
       - verify_app_store_agreements
-    if: needs.detect_release.outputs.face_matcher == 'true'
+    if: needs.detect_release.outputs.biometric_verifier == 'true'
 
     steps:
       - name: Check out repository code
@@ -294,11 +294,11 @@ jobs:
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun
 
-      - name: Build preview face matcher worker bundle
-        working-directory: infra/face-matcher
+      - name: Build preview biometric verifier worker bundle
+        working-directory: apps/biometric-verifier
         run: bunx wrangler deploy --dry-run --outdir .wrangler-out --env production
 
-      - name: Package face matcher deploy artifact
+      - name: Package biometric verifier deploy artifact
         id: package
         shell: bash
         env:
@@ -306,21 +306,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          artifact_dir="${RUNNER_TEMP}/worker-face-matcher-artifact"
-          archive_path="${RUNNER_TEMP}/kayle-id-worker-face-matcher-${APP_VERSION}.tgz"
+          artifact_dir="${RUNNER_TEMP}/worker-biometric-verifier-artifact"
+          archive_path="${RUNNER_TEMP}/kayle-id-worker-biometric-verifier-${APP_VERSION}.tgz"
 
           node ./scripts/package-worker-deploy-artifact.mjs \
-            --project-dir infra/face-matcher \
+            --project-dir apps/biometric-verifier \
             --artifact-dir "${artifact_dir}"
 
           tar -C "${artifact_dir}" -czf "${archive_path}" .
 
           echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
 
-      - name: Upload face matcher deploy artifact
+      - name: Upload biometric verifier deploy artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-face-matcher-package
+          name: worker-biometric-verifier-package
           path: ${{ steps.package.outputs.archive_path }}
           if-no-files-found: error
 
@@ -790,7 +790,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect_release
-      - preview_face_matcher
+      - preview_biometric_verifier
       - preview_api
       - preview_platform
       - preview_verify
@@ -800,8 +800,8 @@ jobs:
       needs.detect_release.outputs.release_allowed == 'true' &&
       needs.build_ios.result == 'success' &&
       (
-        needs.preview_face_matcher.result == 'success' ||
-        needs.preview_face_matcher.result == 'skipped'
+        needs.preview_biometric_verifier.result == 'success' ||
+        needs.preview_biometric_verifier.result == 'skipped'
       ) &&
       (
         needs.preview_api.result == 'success' ||
@@ -820,11 +820,11 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download face matcher release package
-        if: needs.detect_release.outputs.face_matcher == 'true'
+      - name: Download biometric verifier release package
+        if: needs.detect_release.outputs.biometric_verifier == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: worker-face-matcher-package
+          name: worker-biometric-verifier-package
           path: ${{ runner.temp }}/release-assets
 
       - name: Download API release package
@@ -862,11 +862,11 @@ jobs:
           RELEASE_TAG: ${{ needs.detect_release.outputs.release_tag }}
           TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           FORCE_FULL_RELEASE: ${{ needs.detect_release.outputs.force_full_release }}
-          FACE_MATCHER_CHANGED: ${{ needs.detect_release.outputs.face_matcher_changed }}
+          BIOMETRIC_VERIFIER_CHANGED: ${{ needs.detect_release.outputs.biometric_verifier_changed }}
           API_CHANGED: ${{ needs.detect_release.outputs.api_changed }}
           PLATFORM_CHANGED: ${{ needs.detect_release.outputs.platform_changed }}
           VERIFY_CHANGED: ${{ needs.detect_release.outputs.verify_changed }}
-          FACE_MATCHER_DEPLOYED: ${{ needs.detect_release.outputs.face_matcher }}
+          BIOMETRIC_VERIFIER_DEPLOYED: ${{ needs.detect_release.outputs.biometric_verifier }}
           API_DEPLOYED: ${{ needs.detect_release.outputs.api }}
           PLATFORM_DEPLOYED: ${{ needs.detect_release.outputs.platform }}
           VERIFY_DEPLOYED: ${{ needs.detect_release.outputs.verify }}
@@ -928,16 +928,16 @@ jobs:
             fi
           }
 
-          face_matcher_artifact="$(artifact_name_for face-matcher)"
+          biometric_verifier_artifact="$(artifact_name_for biometric-verifier)"
           api_artifact="$(artifact_name_for api)"
           platform_artifact="$(artifact_name_for platform)"
           verify_artifact="$(artifact_name_for verify)"
 
           worker_archives=()
 
-          if [[ "${FACE_MATCHER_DEPLOYED}" == "true" ]]; then
-            require_artifact "${release_assets_dir}/${face_matcher_artifact}"
-            worker_archives+=("${face_matcher_artifact}")
+          if [[ "${BIOMETRIC_VERIFIER_DEPLOYED}" == "true" ]]; then
+            require_artifact "${release_assets_dir}/${biometric_verifier_artifact}"
+            worker_archives+=("${biometric_verifier_artifact}")
           fi
 
           if [[ "${API_DEPLOYED}" == "true" ]]; then
@@ -977,10 +977,10 @@ jobs:
               "checksums": "$(basename "${checksums_path}")"
             },
             "workers": {
-              "faceMatcher": {
-                "changed": ${FACE_MATCHER_CHANGED},
-                "deployed": ${FACE_MATCHER_DEPLOYED},
-                "artifact": $(artifact_json_value "${FACE_MATCHER_DEPLOYED}" "${face_matcher_artifact}")
+              "biometricVerifier": {
+                "changed": ${BIOMETRIC_VERIFIER_CHANGED},
+                "deployed": ${BIOMETRIC_VERIFIER_DEPLOYED},
+                "artifact": $(artifact_json_value "${BIOMETRIC_VERIFIER_DEPLOYED}" "${biometric_verifier_artifact}")
               },
               "api": {
                 "changed": ${API_CHANGED},
@@ -1012,7 +1012,7 @@ jobs:
           Force full worker release: ${FORCE_FULL_RELEASE}
 
           Production worker deployment
-          - Face Matcher: changed=${FACE_MATCHER_CHANGED}, deployed=${FACE_MATCHER_DEPLOYED}, artifact=$(artifact_notes_value "${FACE_MATCHER_DEPLOYED}" "${face_matcher_artifact}")
+          - Biometric Verifier: changed=${BIOMETRIC_VERIFIER_CHANGED}, deployed=${BIOMETRIC_VERIFIER_DEPLOYED}, artifact=$(artifact_notes_value "${BIOMETRIC_VERIFIER_DEPLOYED}" "${biometric_verifier_artifact}")
           - API: changed=${API_CHANGED}, deployed=${API_DEPLOYED}, artifact=$(artifact_notes_value "${API_DEPLOYED}" "${api_artifact}")
           - Platform: changed=${PLATFORM_CHANGED}, deployed=${PLATFORM_DEPLOYED}, artifact=$(artifact_notes_value "${PLATFORM_DEPLOYED}" "${platform_artifact}")
           - Verify: changed=${VERIFY_CHANGED}, deployed=${VERIFY_DEPLOYED}, artifact=$(artifact_notes_value "${VERIFY_DEPLOYED}" "${verify_artifact}")
@@ -1053,17 +1053,17 @@ jobs:
           path: ${{ runner.temp }}/release-assets/*
           if-no-files-found: error
 
-  deploy_face_matcher:
-    name: Deploy Face Matcher
+  deploy_biometric_verifier:
+    name: Deploy Biometric Verifier
     runs-on: ubuntu-latest
     needs:
       - detect_release
-      - preview_face_matcher
+      - preview_biometric_verifier
       - attest_release_artifacts
     if: >-
       needs.detect_release.outputs.release_allowed == 'true' &&
-      needs.detect_release.outputs.face_matcher == 'true' &&
-      needs.preview_face_matcher.result == 'success' &&
+      needs.detect_release.outputs.biometric_verifier == 'true' &&
+      needs.preview_biometric_verifier.result == 'success' &&
       needs.attest_release_artifacts.result == 'success'
     steps:
       - name: Check out repository code
@@ -1080,32 +1080,32 @@ jobs:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
 
-      - name: Extract face matcher deploy artifact
+      - name: Extract biometric verifier deploy artifact
         shell: bash
         env:
           APP_VERSION: ${{ needs.detect_release.outputs.app_version }}
         run: |
           set -euo pipefail
 
-          archive_path="${RUNNER_TEMP}/release-assets/kayle-id-worker-face-matcher-${APP_VERSION}.tgz"
-          deploy_dir="${RUNNER_TEMP}/deploy-face-matcher"
+          archive_path="${RUNNER_TEMP}/release-assets/kayle-id-worker-biometric-verifier-${APP_VERSION}.tgz"
+          deploy_dir="${RUNNER_TEMP}/deploy-biometric-verifier"
 
           if [[ ! -f "${archive_path}" ]]; then
-            echo "Missing attested face matcher artifact ${archive_path}." >&2
+            echo "Missing attested biometric verifier artifact ${archive_path}." >&2
             exit 1
           fi
 
           mkdir -p "${deploy_dir}"
           tar -xzf "${archive_path}" -C "${deploy_dir}"
 
-      - name: Deploy face matcher worker to production
+      - name: Deploy biometric verifier worker to production
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           bunx wrangler deploy \
-            --config "${RUNNER_TEMP}/deploy-face-matcher/workspace/infra/face-matcher/wrangler.deploy.jsonc" \
+            --config "${RUNNER_TEMP}/deploy-biometric-verifier/workspace/apps/biometric-verifier/wrangler.deploy.jsonc" \
             --no-bundle \
             --env production
 
@@ -1116,15 +1116,15 @@ jobs:
       - detect_release
       - preview_api
       - attest_release_artifacts
-      - deploy_face_matcher
+      - deploy_biometric_verifier
     if: >-
       needs.detect_release.outputs.release_allowed == 'true' &&
       needs.detect_release.outputs.api == 'true' &&
       needs.preview_api.result == 'success' &&
       needs.attest_release_artifacts.result == 'success' &&
       (
-        needs.deploy_face_matcher.result == 'success' ||
-        needs.deploy_face_matcher.result == 'skipped'
+        needs.deploy_biometric_verifier.result == 'success' ||
+        needs.deploy_biometric_verifier.result == 'skipped'
       )
     steps:
       - name: Check out repository code
@@ -1356,7 +1356,7 @@ jobs:
     needs:
       - detect_release
       - attest_release_artifacts
-      - deploy_face_matcher
+      - deploy_biometric_verifier
       - deploy_api
       - deploy_platform
       - deploy_verify
@@ -1367,8 +1367,8 @@ jobs:
       needs.attest_release_artifacts.result == 'success' &&
       needs.upload_app_store.result == 'success' &&
       (
-        needs.deploy_face_matcher.result == 'success' ||
-        needs.deploy_face_matcher.result == 'skipped'
+        needs.deploy_biometric_verifier.result == 'success' ||
+        needs.deploy_biometric_verifier.result == 'skipped'
       ) &&
       (
         needs.deploy_api.result == 'success' ||

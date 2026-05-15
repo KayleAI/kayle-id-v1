@@ -1,11 +1,18 @@
 import {
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
+import {
 	isRequestBodyTooLarge,
 	readRequestJsonWithLimit,
 } from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
+import { APP_ENVIRONMENT, APP_VERSION } from "@/config/version";
 import { getPublicHost } from "@/utils/proxy-internal-api-utils";
 
+const PLATFORM_WORKER_NAME = "kayle-id-platform";
 const START_ORG_VERIFICATION_BODY_LIMIT_BYTES = 4 * 1024;
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
 const ORG_VERIFICATION_KV_PREFIX = "org-verify:";
@@ -208,6 +215,17 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 					}),
 					{ expirationTtl: SEVEN_DAYS_SECONDS },
 				);
+				emitCostEvent({
+					dataset: resolveAnalyticsDataset(env),
+					organizationId: organization.id,
+					feature: COST_FEATURES.PublicVerifySession,
+					resource: "kv_write",
+					quantity: 1,
+					unit: "operation",
+					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
+				});
 
 				return new Response(
 					JSON.stringify({

@@ -6,6 +6,7 @@ import {
 } from "@kayle-id/auth/server";
 import { createMiddleware } from "hono/factory";
 import { forbidden, unauthorized } from "@/v1/auth";
+import costAnalytics from "./cost-analytics";
 
 const admin = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -47,5 +48,7 @@ admin.get("/access", (c) =>
 		error: null,
 	}),
 );
+
+admin.route("/", costAnalytics);
 
 export default admin;

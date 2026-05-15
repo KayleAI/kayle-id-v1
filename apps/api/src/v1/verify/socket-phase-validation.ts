@@ -4,11 +4,17 @@ import { verification_attempts } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import { triggerWebhookDeliveryWorkflows } from "@/v1/webhooks/deliveries/service";
 import { isAttestationGateEnabled, verifyNfcAttestation } from "./attest-gate";
-import { getNfcTransferStatus, getSelfieTransferStatus } from "./data-payload";
+import {
+	type LivenessVerificationResult,
+	verifyLiveness,
+} from "./biometric-verifier-client";
+import {
+	getLivenessTransferStatus,
+	getNfcTransferStatus,
+} from "./data-payload";
 import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
 import { parseDg14 } from "./dg14-parser";
 import { resolveVerifyErrorMessage } from "./error-response";
-import { matchFaces } from "./face-matcher-client";
 import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
 import type { VerifySocketContext } from "./socket-context";
 import {
@@ -17,22 +23,20 @@ import {
 	validateAuthenticity,
 	validateChipAuthentication,
 } from "./validation";
-import {
-	type ActiveAuthValidationResult,
-	type ChipAuthValidationResult,
-	DEFAULT_FACE_MATCH_THRESHOLD,
-	type FaceScoreResult,
+import type {
+	ActiveAuthValidationResult,
+	ChipAuthValidationResult,
 } from "./validation-types";
 
 export function shouldRejectSuccessfulFallbackMatch({
-	faceResult,
+	result,
 	nodeEnv = process.env.NODE_ENV,
 }: {
-	faceResult: FaceScoreResult;
+	result: LivenessVerificationResult;
 	nodeEnv?: string;
 }): boolean {
 	return (
-		nodeEnv === "production" && faceResult.passed && faceResult.usedFallback
+		nodeEnv === "production" && result.faceMatchPassed && result.usedFallback
 	);
 }
 
@@ -40,7 +44,7 @@ export function buildMissingDataMessage(
 	context: VerifySocketContext,
 	nextPhase: string,
 ): {
-	code: "NFC_REQUIRED_DATA_MISSING" | "SELFIE_REQUIRED_DATA_MISSING";
+	code: "NFC_REQUIRED_DATA_MISSING" | "LIVENESS_REQUIRED_DATA_MISSING";
 	message: string;
 } | null {
 	if (nextPhase === "nfc_complete") {
@@ -48,7 +52,7 @@ export function buildMissingDataMessage(
 		return status.complete ? null : buildMissingNfcDataMessage(status);
 	}
 
-	if (nextPhase !== "selfie_complete") {
+	if (nextPhase !== "liveness_complete") {
 		return null;
 	}
 
@@ -56,21 +60,20 @@ export function buildMissingDataMessage(
 	// per-socket — on reconnect the prior socket's chunks are gone. Catch the
 	// missing-NFC case here and surface it so the client can re-stream,
 	// instead of letting runPhaseValidation silently early-return null and
-	// the phase machinery advance to selfie_complete with no validation.
+	// the phase machinery advance to liveness_complete with no validation.
 	const nfcStatus = getNfcTransferStatus(context.state.transfer);
 	if (!nfcStatus.complete) {
 		return buildMissingNfcDataMessage(nfcStatus);
 	}
 
-	const status = getSelfieTransferStatus(context.state.transfer);
+	const status = getLivenessTransferStatus(context.state.transfer);
 
 	return status.complete
 		? null
 		: {
-				code: "SELFIE_REQUIRED_DATA_MISSING",
+				code: "LIVENESS_REQUIRED_DATA_MISSING",
 				message: JSON.stringify({
-					required_total: status.requiredTotal,
-					missing_selfie_indexes: status.missingSelfieIndexes,
+					received_bytes: status.receivedBytes,
 					missing_chunks: status.missingChunks.map((chunk) => ({
 						kind: chunk.kind,
 						index: chunk.index,
@@ -110,6 +113,8 @@ async function rejectAttemptWithVerdict({
 		| "document_authenticity_failed"
 		| "document_active_authentication_failed"
 		| "document_chip_authentication_failed"
+		| "document_data_invalid"
+		| "liveness_failed"
 		| "selfie_face_mismatch";
 	context: VerifySocketContext;
 	riskScore: number;
@@ -139,20 +144,65 @@ async function rejectAttemptWithVerdict({
 	};
 }
 
-async function resolveSelfieVerdict(
+async function resolveLivenessVerdict(
 	context: VerifySocketContext,
 	attemptId: string,
-	faceResult: FaceScoreResult,
+	result: LivenessVerificationResult,
 ) {
+	if (!result.livenessPassed) {
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "liveness_failed",
+			context,
+			riskScore: 1,
+		});
+		context.log.set({
+			event: "verify.ws.rejected",
+			failure_code: verdict.reasonCode,
+			liveness_reason: result.reason ?? null,
+			liveness_score: result.livenessScore,
+			remaining_attempts: verdict.remainingAttempts,
+			retry_allowed: verdict.retryAllowed,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	// PAD gate. Movement coverage already passed, so a PAD failure here
+	// means the clip looks animate but the model thinks it's a spoof
+	// (printed photo, screen replay, mask, etc.). Treated as a liveness
+	// failure for the user-visible verdict so the messaging stays
+	// consistent; the specific `pad_*` reason survives in telemetry.
+	if (!result.padPassed) {
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "liveness_failed",
+			context,
+			riskScore: 1,
+		});
+		context.log.set({
+			event: "verify.ws.rejected",
+			failure_code: verdict.reasonCode,
+			liveness_reason: result.reason ?? null,
+			pad_score: result.padScore,
+			remaining_attempts: verdict.remainingAttempts,
+			retry_allowed: verdict.retryAllowed,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
 	if (
-		!faceResult.passed ||
-		shouldRejectSuccessfulFallbackMatch({ faceResult })
+		!result.faceMatchPassed ||
+		shouldRejectSuccessfulFallbackMatch({ result })
 	) {
-		if (faceResult.passed && faceResult.usedFallback) {
+		if (result.faceMatchPassed && result.usedFallback) {
 			logEvent(context.log, {
 				details: {
 					attempt_id: attemptId,
-					face_score: faceResult.faceScore,
+					face_match_score: result.faceMatchScore,
 					node_env: process.env.NODE_ENV ?? null,
 				},
 				event: "verify.ws.fallback_accept_blocked",
@@ -164,7 +214,7 @@ async function resolveSelfieVerdict(
 			attemptId,
 			code: "selfie_face_mismatch",
 			context,
-			riskScore: faceResult.usedFallback ? 1 : 1 - (faceResult.faceScore ?? 0),
+			riskScore: result.usedFallback ? 1 : 1 - (result.faceMatchScore ?? 0),
 		});
 		context.log.set({
 			event: "verify.ws.rejected",
@@ -177,11 +227,11 @@ async function resolveSelfieVerdict(
 		return verdict;
 	}
 
-	if (typeof faceResult.faceScore !== "number") {
+	if (typeof result.faceMatchScore !== "number") {
 		throw new Error("face_score_required_for_success");
 	}
 
-	context.state.acceptedFaceScore = faceResult.faceScore;
+	context.state.acceptedFaceScore = result.faceMatchScore;
 	return {
 		outcome: "accepted" as const,
 		reasonCode: "",
@@ -191,21 +241,33 @@ async function resolveSelfieVerdict(
 	};
 }
 
-function resolveSelfieMatchThreshold(
+type FaceMatchThresholdResult =
+	| { ok: true; threshold: number }
+	| { ok: false; reason: "dg1_missing" | "dg1_parse_failed" };
+
+function resolveFaceMatchThreshold(
 	context: VerifySocketContext,
 	attemptId: string,
-): number {
+): FaceMatchThresholdResult {
 	const dg1 = context.state.transfer.dg1;
 
 	if (!dg1) {
-		return DEFAULT_FACE_MATCH_THRESHOLD;
+		logEvent(context.log, {
+			details: { attempt_id: attemptId },
+			event: "verify.ws.face_match_threshold_dg1_missing",
+			level: "warn",
+		});
+		return { ok: false, reason: "dg1_missing" };
 	}
 
 	try {
-		return resolveFaceMatchThresholdFromDg1({
-			dg1,
-			now: new Date(),
-		});
+		return {
+			ok: true,
+			threshold: resolveFaceMatchThresholdFromDg1({
+				dg1,
+				now: new Date(),
+			}),
+		};
 	} catch (error) {
 		logEvent(context.log, {
 			details: {
@@ -215,11 +277,10 @@ function resolveSelfieMatchThreshold(
 						? error.message
 						: "face_match_threshold_invalid",
 			},
-			event: "verify.ws.face_match_threshold_defaulted",
+			event: "verify.ws.face_match_threshold_dg1_parse_failed",
 			level: "warn",
 		});
-
-		return DEFAULT_FACE_MATCH_THRESHOLD;
+		return { ok: false, reason: "dg1_parse_failed" };
 	}
 }
 
@@ -579,7 +640,7 @@ async function runAttestationValidation({
 export async function runPhaseValidation(
 	context: VerifySocketContext,
 	attemptId: string,
-	nextPhase: "nfc_complete" | "selfie_complete",
+	nextPhase: "nfc_complete" | "liveness_complete",
 ) {
 	if (nextPhase === "nfc_complete") {
 		const { dg1, dg2, dg14, dg15, sod } = context.state.transfer;
@@ -662,31 +723,85 @@ export async function runPhaseValidation(
 	}
 
 	const documentPortrait = context.state.transfer.dg2;
-	if (!documentPortrait) {
+	const livenessVideo = context.state.transfer.livenessVideo;
+	if (!(documentPortrait && livenessVideo)) {
 		return null;
 	}
 
-	const threshold = resolveSelfieMatchThreshold(context, attemptId);
+	const thresholdResult = resolveFaceMatchThreshold(context, attemptId);
 
-	const result = await matchFaces({
+	if (!thresholdResult.ok) {
+		// PA already validated DG1 by hash, so reaching here means the inner
+		// MRZ structure is malformed (or, under defence-in-depth, transfer
+		// state lost DG1 after the upstream presence check). Use
+		// `document_data_invalid` so it doesn't get conflated with a real
+		// authenticity rejection; `face_match_threshold_reason` discriminates
+		// the variant in telemetry.
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "document_data_invalid",
+			context,
+			riskScore: 1,
+		});
+		context.log.set({
+			event: "verify.ws.rejected",
+			failure_code: verdict.reasonCode,
+			face_match_threshold_reason: thresholdResult.reason,
+			remaining_attempts: verdict.remainingAttempts,
+			retry_allowed: verdict.retryAllowed,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	const threshold = thresholdResult.threshold;
+
+	// Fail fast on missing nonce (e.g. reconnect lost the issue);
+	// the container would reject anyway, this keeps the reason precise.
+	const challengeNonce = context.state.livenessChallengeNonce;
+	if (!challengeNonce) {
+		logEvent(context.log, {
+			details: { attempt_id: attemptId },
+			event: "verify.ws.liveness_challenge_nonce_missing",
+			level: "warn",
+		});
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "liveness_failed",
+			context,
+			riskScore: 1,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	const result = await verifyLiveness({
 		dg2Image: documentPortrait,
-		selfies: Array.from(context.state.transfer.selfies.values()),
-		threshold,
+		video: livenessVideo,
+		challengeNonce,
+		faceMatchThreshold: threshold,
 		env: context.env,
+		organizationId: context.session.organizationId,
 		attemptId,
 		logger: context.log,
 	});
 	logEvent(context.log, {
 		details: {
 			attempt_id: attemptId,
-			face_score: result.faceScore,
+			face_match_passed: result.faceMatchPassed,
+			face_match_score: result.faceMatchScore,
 			face_match_threshold: threshold,
-			passed: result.passed,
+			liveness_passed: result.livenessPassed,
+			liveness_score: result.livenessScore,
+			pad_passed: result.padPassed,
+			pad_score: result.padScore,
 			reason: result.reason ?? null,
 			used_fallback: result.usedFallback,
 		},
-		event: "verify.ws.face_score_evaluated",
+		event: "verify.ws.liveness_evaluated",
 	});
 
-	return resolveSelfieVerdict(context, attemptId, result);
+	return resolveLivenessVerdict(context, attemptId, result);
 }

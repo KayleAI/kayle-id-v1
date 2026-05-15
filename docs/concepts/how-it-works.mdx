@@ -15,7 +15,7 @@ A complete Kayle ID deployment is a small set of services that talk to each othe
 | `apps/api` | The Cloudflare Worker that exposes the public API and orchestrates verifications. |
 | `apps/verify` | The web app users land on (`verify.kayle.id`). Renders consent and produces a handoff payload for the mobile app. |
 | `apps/ios`, `apps/android` | Native apps that read the document chip over NFC and capture the selfie. |
-| `infra/face-matcher` | A separate Worker plus container that compares the on-chip portrait (DG2) to the user's selfies. |
+| `infra/biometric-verifier` | A separate Worker plus container that compares the on-chip portrait (DG2) to the user's selfies. |
 | `database/trust-store` | A Cloudflare D1 database seeded from the [ICAO PKD](https://pkddownload.icao.int/downloads). Holds CSCA certificates and CRLs used to verify document signatures. |
 | `database/kayle-id` | Postgres. Stores sessions, attempts, events, webhook deliveries — metadata only, never document data. |
 
@@ -29,7 +29,7 @@ sequenceDiagram
     participant API as Kayle API
     participant Verify as verify.kayle.id
     participant Mobile as iOS / Android app
-    participant FaceMatch as Face matcher
+    participant Biometric as Biometric verifier
 
     Partner->>API: POST /v1/sessions (share_fields, redirect_url)
     API-->>Partner: { verification_url, cancel_token }
@@ -40,8 +40,8 @@ sequenceDiagram
     Mobile->>API: WebSocket /v1/verify/session/:id (Cap'n Proto)
     Mobile->>API: NFC chip read (DG1, DG2, DG14, DG15, SOD)
     Mobile->>API: selfie frames
-    API->>FaceMatch: DG2 portrait + selfies
-    FaceMatch-->>API: { passed, score }
+    API->>Biometric: DG2 portrait + selfies
+    Biometric-->>API: { passed, score }
     API->>API: SOD trust chain, active auth, chip auth
     API-->>Mobile: ServerVerdict (accepted | rejected)
     API-->>Partner: webhook (verification.attempt.succeeded | failed)
@@ -58,7 +58,7 @@ Three independent checks run before a verification is accepted:
 2. **Active authentication** — If the document carries a DG15, the chip signs a freshly derived challenge with its private key. A successful signature proves the chip you're talking to is the same chip that was personalised at issuance, not a clone holding the same data.
 3. **Chip authentication** — If the document carries a DG14 (most modern passports), the chip and the reader run an authenticated key agreement. The transcript binds the rest of the session to the genuine chip and frustrates man-in-the-middle attempts.
 
-The selfie is matched against the on-chip portrait by the face matcher service. The decision is fail-closed: if the matcher is unavailable, the verdict is rejection. In production a fallback path is treated as a rejection even if the score is high.
+The selfie is matched against the on-chip portrait by the biometric verifier service. The decision is fail-closed: if the verifier is unavailable, the verdict is rejection. In production a fallback path is treated as a rejection even if the score is high.
 
 See [Document checks](/verifications/document-checks) for the full check list and the failure codes that map to each step.
 

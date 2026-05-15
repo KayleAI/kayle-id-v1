@@ -16,6 +16,9 @@
 			"service": "kayle-id-api"
 		}
 	],
+	"analytics_engine_datasets": [
+		{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+	],
 	"routes": [
 		{
 			"pattern": "verify.kayle.id",
@@ -30,6 +33,7 @@
 	],
 	"vars": {
 		"NODE_ENV": "production",
+		"KAYLE_ENVIRONMENT": "development",
 		"PUBLIC_API_HOST": "api.kayle.id",
 		"PUBLIC_API_PROTOCOL": "wss"
 	},
@@ -42,8 +46,12 @@
 					"service": "kayle-id-api"
 				}
 			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+			],
 			"vars": {
 				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "production",
 				"PUBLIC_API_HOST": "api.kayle.id",
 				"PUBLIC_API_PROTOCOL": "wss"
 			}
@@ -55,6 +63,9 @@
 					"binding": "API",
 					"service": "kayle-id-api-staging"
 				}
+			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
 			],
 			"routes": [
 				{
@@ -69,7 +80,9 @@
 				}
 			],
 			"vars": {
+				// NODE_ENV pins runtime mode; KAYLE_ENVIRONMENT tags telemetry.
 				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "staging",
 				"PUBLIC_API_HOST": "api.staging.kayle.id",
 				"PUBLIC_API_PROTOCOL": "wss"
 			}

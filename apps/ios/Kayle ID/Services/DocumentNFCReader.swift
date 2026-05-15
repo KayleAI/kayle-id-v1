@@ -93,7 +93,7 @@ struct DocumentDataGroup: Identifiable, Equatable {
 
 @MainActor
 final class DocumentNFCReader: NSObject, ObservableObject {
-  @Published var status: String = "Idle"
+  @Published var status: String = String(localized: "Idle")
   @Published var progress: Int = 0
   @Published var result: DocumentReadResult?
   @Published var errorMessage: String?
@@ -390,55 +390,55 @@ extension DocumentNFCReader: MRTDReaderTrackingDelegate {
   nonisolated func nfcTagDetected() {
     Task { @MainActor in
       self.progress = 1
-      self.status = "Document detected."
+      self.status = String(localized: "Document detected.")
     }
   }
 
   nonisolated func readCardAccess(cardAccess: CardAccess) {
     Task { @MainActor in
-      self.status = "Reading Card Access…"
+      self.status = String(localized: "Reading Card Access…")
     }
   }
 
   nonisolated func paceStarted() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "Performing PACE authentication…"
+      self.status = String(localized: "Performing PACE authentication…")
     }
   }
 
   nonisolated func paceSucceeded() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "PACE succeeded."
+      self.status = String(localized: "PACE succeeded.")
     }
   }
 
   nonisolated func paceFailed() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "PACE failed, falling back to BAC…"
+      self.status = String(localized: "PACE failed, falling back to BAC…")
     }
   }
 
   nonisolated func bacStarted() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "Performing BAC authentication…"
+      self.status = String(localized: "Performing BAC authentication…")
     }
   }
 
   nonisolated func bacSucceeded() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "BAC succeeded."
+      self.status = String(localized: "BAC succeeded.")
     }
   }
 
   nonisolated func bacFailed() {
     Task { @MainActor in
       self.progress = 2
-      self.status = "BAC failed."
+      self.status = String(localized: "BAC failed.")
     }
   }
 }

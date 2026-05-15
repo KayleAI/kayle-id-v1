@@ -11,7 +11,7 @@ This page covers the full local development setup — what to install, how to se
 | Verify web app        | `apps/verify`         | `http://localhost:2999`                             |
 | Postgres              | `infra/postgres`      | `postgres://postgres:postgres@localhost:6432/kayle-id` |
 | Redis (Upstash shim)  | `infra/redis`         | `http://localhost:8079` (token `a-super-secret-token`) |
-| Face matcher          | `infra/face-matcher`  | `http://127.0.0.1:8788`                             |
+| Biometric verifier    | `infra/biometric-verifier` | `http://127.0.0.1:8788`                        |
 | iOS app               | `apps/ios`            | physical iPhone (no simulator)                      |
 
 ## 0. Prerequisites
@@ -74,7 +74,7 @@ bun run env:setup
 
 This writes a working `.env` with:
 
-- random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, `FACE_MATCHER_SECRET`, `ORG_VERIFICATION_PEPPER`
+- random hex for `AUTH_SECRET`, `KAYLE_INTERNAL_TOKEN`, `BIOMETRIC_VERIFIER_SECRET`, `ORG_VERIFICATION_PEPPER`
 - `REDIS_URL` / `REDIS_TOKEN` pinned to the local Upstash REST shim (`http://localhost:8079`, token `a-super-secret-token`)
 - dummy `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 - `EMAIL_FROM_ADDRESS` set to `Kayle ID <auth@kayle.id>`
@@ -180,18 +180,18 @@ From the repo root:
 bun run dev
 ```
 
-That starts the API worker, face-matcher worker, platform app, and verify app. Local URLs:
+That starts the API worker, biometric-verifier worker, platform app, and verify app. Local URLs:
 
 - API health: `http://127.0.0.1:8787/`
 - API docs: `http://127.0.0.1:8787/reference`
-- Face matcher health: `http://127.0.0.1:8788/health`
+- Biometric verifier health: `http://127.0.0.1:8788/health`
 - Platform: `https://localhost:3000`
 - Verify: `http://localhost:2999`
 
 Notes:
 
 - The platform app uses a local HTTPS cert via Vite Basic SSL. On first launch, your browser may warn about the self-signed certificate.
-- The face matcher's first boot can take longer because Wrangler builds its container image and downloads the OpenCV ONNX models.
+- The biometric verifier's first boot can take longer because Wrangler builds its container image and downloads the OpenCV ONNX models.
 - If you only want one app at a time, use the workspace-level scripts (`cd apps/api && bun run dev`, etc.).
 
 ### Optional: create a demo API key through the platform UI

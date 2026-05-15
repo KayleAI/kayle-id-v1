@@ -163,9 +163,44 @@ verify_server_message_kind_t verify_server_message_kind(void* message_reader) {
       return VERIFY_SERVER_MESSAGE_SHARE_READY;
     case ServerMessage::ACTIVE_AUTH_CHALLENGE:
       return VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE;
+    case ServerMessage::LIVENESS_CHALLENGE:
+      return VERIFY_SERVER_MESSAGE_LIVENESS_CHALLENGE;
     default:
       return VERIFY_SERVER_MESSAGE_NONE;
   }
+}
+
+int verify_server_message_get_liveness_challenge(
+  void* message_reader,
+  uint32_t* out_max_duration_ms,
+  uint8_t* out_challenge_nonce,
+  size_t out_challenge_nonce_size,
+  size_t* out_challenge_nonce_length
+) {
+  if (
+    !message_reader ||
+    !out_max_duration_ms ||
+    !out_challenge_nonce_length
+  ) {
+    return 0;
+  }
+
+  auto* reader = reinterpret_cast<capnp::MessageReader*>(message_reader);
+  auto root = reader->getRoot<ServerMessage>();
+  if (root.which() != ServerMessage::LIVENESS_CHALLENGE) {
+    return 0;
+  }
+
+  auto challenge = root.getLivenessChallenge();
+  *out_max_duration_ms = challenge.getMaxDurationMs();
+  auto nonce = challenge.getChallengeNonce();
+  *out_challenge_nonce_length = nonce.size();
+
+  if (!out_challenge_nonce || out_challenge_nonce_size < nonce.size()) {
+    return 0;
+  }
+  std::memcpy(out_challenge_nonce, nonce.begin(), nonce.size());
+  return 1;
 }
 
 int verify_server_message_get_active_auth_challenge(

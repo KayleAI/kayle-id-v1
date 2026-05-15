@@ -24,6 +24,7 @@ interface ApiEnvelope<T> {
 
 const LOCAL_DEMO_WEBHOOK_ORIGIN = "http://127.0.0.1:3001";
 const PRODUCTION_DEMO_WEBHOOK_ORIGIN = "https://kayle.id";
+const STAGING_DEMO_WEBHOOK_ORIGIN = "https://staging.kayle.id";
 const UNEXPECTED_UPSTREAM_RESPONSE = "Unexpected upstream response.";
 
 export class DemoApiError extends Error {
@@ -200,6 +201,19 @@ async function requestApi<T>({
 	});
 }
 
+function resolveDemoWebhookOrigin(): string {
+	// Staging pins NODE_ENV=production too, so NODE_ENV alone can't separate
+	// the two prod-like deploys — use KAYLE_ENVIRONMENT, which staging sets
+	// to "staging" and production sets to "production".
+	if (process.env.KAYLE_ENVIRONMENT === "staging") {
+		return STAGING_DEMO_WEBHOOK_ORIGIN;
+	}
+	if (process.env.NODE_ENV === "production") {
+		return PRODUCTION_DEMO_WEBHOOK_ORIGIN;
+	}
+	return LOCAL_DEMO_WEBHOOK_ORIGIN;
+}
+
 export function buildDemoWebhookUrl({
 	runId,
 	token,
@@ -207,10 +221,7 @@ export function buildDemoWebhookUrl({
 	runId: string;
 	token: string;
 }): string {
-	const url =
-		process.env.NODE_ENV === "production"
-			? new URL(PRODUCTION_DEMO_WEBHOOK_ORIGIN)
-			: new URL(LOCAL_DEMO_WEBHOOK_ORIGIN);
+	const url = new URL(resolveDemoWebhookOrigin());
 	url.pathname = `/api/demo/webhooks/${runId}/${token}`;
 	url.search = "";
 	url.hash = "";

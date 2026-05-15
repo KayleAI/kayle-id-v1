@@ -7,13 +7,20 @@ import {
 } from "./api";
 
 const originalNodeEnv = process.env.NODE_ENV;
+const originalKayleEnvironment = process.env.KAYLE_ENVIRONMENT;
 
 afterEach(() => {
 	process.env.NODE_ENV = originalNodeEnv;
+	if (originalKayleEnvironment === undefined) {
+		delete process.env.KAYLE_ENVIRONMENT;
+	} else {
+		process.env.KAYLE_ENVIRONMENT = originalKayleEnvironment;
+	}
 });
 
 test("buildDemoWebhookUrl uses the local HTTP proxy in development", () => {
 	process.env.NODE_ENV = "development";
+	delete process.env.KAYLE_ENVIRONMENT;
 
 	expect(
 		buildDemoWebhookUrl({
@@ -25,6 +32,7 @@ test("buildDemoWebhookUrl uses the local HTTP proxy in development", () => {
 
 test("buildDemoWebhookUrl pins the canonical origin in production", () => {
 	process.env.NODE_ENV = "production";
+	process.env.KAYLE_ENVIRONMENT = "production";
 
 	expect(
 		buildDemoWebhookUrl({
@@ -32,6 +40,18 @@ test("buildDemoWebhookUrl pins the canonical origin in production", () => {
 			token: "token_123",
 		}),
 	).toBe("https://kayle.id/api/demo/webhooks/demo_123/token_123");
+});
+
+test("buildDemoWebhookUrl pins the staging origin on staging despite NODE_ENV=production", () => {
+	process.env.NODE_ENV = "production";
+	process.env.KAYLE_ENVIRONMENT = "staging";
+
+	expect(
+		buildDemoWebhookUrl({
+			runId: "demo_123",
+			token: "token_123",
+		}),
+	).toBe("https://staging.kayle.id/api/demo/webhooks/demo_123/token_123");
 });
 
 test("createDemoWebhookEndpoint subscribes the demo to every supported public event", async () => {

@@ -13,6 +13,7 @@ export type VerifySocketState = {
 	attemptId: string | null;
 	currentPhase: string | null;
 	helloReceived: boolean;
+	livenessChallengeNonce: Uint8Array | null;
 	shareManifest: VerifyShareManifest | null;
 	shareRequestSent: boolean;
 	transfer: VerifyTransferState;
@@ -65,6 +66,7 @@ export function createVerifySocketState(): VerifySocketState {
 		attemptId: null,
 		currentPhase: null,
 		helloReceived: false,
+		livenessChallengeNonce: null,
 		shareManifest: null,
 		shareRequestSent: false,
 		transfer: createTransferState(),

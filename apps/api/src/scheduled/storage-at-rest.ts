@@ -169,11 +169,10 @@ function formatRunDay(now: Date): string {
 
 /**
  * Insert today's `run_day` into `storage_at_rest_runs`. Returns `true`
- * iff this invocation owns the day's emission slot — i.e., the row did
- * not already exist. Subsequent calls in the same UTC day return
- * `false` and the caller must skip emission. Survives the 90-second
- * cron tolerance window, manual `wrangler cron trigger` re-runs, and
- * any future change to the shared `* * * * *` schedule.
+ * iff this invocation owns the day's emission slot. Fails closed on D1
+ * errors: a duplicate emission would distort the dashboard for the
+ * whole 24h window, while skipping costs at most one minute (the next
+ * cron tick within the 90s tolerance window retries).
  */
 async function claimDailyEmissionSlot({
 	env,
@@ -200,17 +199,15 @@ async function claimDailyEmissionSlot({
 		}
 		return inserted;
 	} catch (error) {
-		// Treat dedupe-table failures as "fail open" — better to risk a
-		// duplicate emission than to silently skip every day if the
-		// table is missing or D1 hiccups.
 		logSafeError(logger, {
 			code: "storage_at_rest_dedupe_failed",
 			details: { run_day: runDay },
 			error,
 			event: "storage_at_rest.dedupe_failed",
-			message: "storage-at-rest dedupe insert failed; proceeding anyway.",
+			message:
+				"storage-at-rest dedupe insert failed; skipping emission to avoid duplicate counting.",
 		});
-		return true;
+		return false;
 	}
 }
 

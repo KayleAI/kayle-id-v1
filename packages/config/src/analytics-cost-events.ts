@@ -46,6 +46,43 @@ export const COST_FEATURES = {
   Unknown: "unknown",
 } as const;
 
+/**
+ * Field-to-blob mapping for the cost-event data point. Analytics
+ * Engine columns are positional with no schema, so producer
+ * (`emitCostEvent`) and consumer (`buildSql` in the admin endpoint)
+ * MUST agree on which slot holds which field. Single source of truth
+ * for both sides — never hand-edit blob column references elsewhere.
+ */
+export const COST_EVENT_BLOB = {
+  feature: "blob1",
+  resource: "blob2",
+  workerName: "blob3",
+  unit: "blob4",
+  attemptId: "blob5",
+  environment: "blob6",
+  version: "blob7",
+} as const;
+
+export const COST_EVENT_INDEX = {
+  organizationId: "index1",
+} as const;
+
+export const COST_EVENT_DOUBLE = {
+  quantity: "double1",
+  usdPerUnit: "double2",
+  estimatedCostUsd: "double3",
+} as const;
+
+const COST_EVENT_BLOB_ORDER = [
+  "feature",
+  "resource",
+  "workerName",
+  "unit",
+  "attemptId",
+  "environment",
+  "version",
+] as const satisfies readonly (keyof typeof COST_EVENT_BLOB)[];
+
 export type CostFeature = (typeof COST_FEATURES)[keyof typeof COST_FEATURES];
 
 export interface EmitCostEventInput {
@@ -95,6 +132,16 @@ export function emitCostEvent(input: EmitCostEventInput): void {
   const rate: ResourceRate = rateForResource(input.resource);
   const estimatedCostUsd = input.quantity * rate.usdPerUnit;
 
+  const fieldValues: Record<keyof typeof COST_EVENT_BLOB, string> = {
+    feature: input.feature,
+    resource: input.resource,
+    workerName: input.workerName,
+    unit: input.unit,
+    attemptId: input.attemptId ?? "",
+    environment: input.environment,
+    version: input.version,
+  };
+
   try {
     input.dataset.writeDataPoint({
       indexes: [
@@ -102,15 +149,7 @@ export function emitCostEvent(input: EmitCostEventInput): void {
           ? input.organizationId
           : "_unattributed",
       ],
-      blobs: [
-        input.feature,
-        input.resource,
-        input.workerName,
-        input.unit,
-        input.attemptId ?? "",
-        input.environment,
-        input.version,
-      ],
+      blobs: COST_EVENT_BLOB_ORDER.map((key) => fieldValues[key]),
       doubles: [input.quantity, rate.usdPerUnit, estimatedCostUsd],
     });
   } catch {

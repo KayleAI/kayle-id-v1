@@ -23,10 +23,9 @@ import {
 	validateAuthenticity,
 	validateChipAuthentication,
 } from "./validation";
-import {
-	type ActiveAuthValidationResult,
-	type ChipAuthValidationResult,
-	DEFAULT_FACE_MATCH_THRESHOLD,
+import type {
+	ActiveAuthValidationResult,
+	ChipAuthValidationResult,
 } from "./validation-types";
 
 export function shouldRejectSuccessfulFallbackMatch({
@@ -241,21 +240,33 @@ async function resolveLivenessVerdict(
 	};
 }
 
+type FaceMatchThresholdResult =
+	| { ok: true; threshold: number }
+	| { ok: false; reason: "dg1_missing" | "dg1_parse_failed" };
+
 function resolveFaceMatchThreshold(
 	context: VerifySocketContext,
 	attemptId: string,
-): number {
+): FaceMatchThresholdResult {
 	const dg1 = context.state.transfer.dg1;
 
 	if (!dg1) {
-		return DEFAULT_FACE_MATCH_THRESHOLD;
+		logEvent(context.log, {
+			details: { attempt_id: attemptId },
+			event: "verify.ws.face_match_threshold_dg1_missing",
+			level: "warn",
+		});
+		return { ok: false, reason: "dg1_missing" };
 	}
 
 	try {
-		return resolveFaceMatchThresholdFromDg1({
-			dg1,
-			now: new Date(),
-		});
+		return {
+			ok: true,
+			threshold: resolveFaceMatchThresholdFromDg1({
+				dg1,
+				now: new Date(),
+			}),
+		};
 	} catch (error) {
 		logEvent(context.log, {
 			details: {
@@ -265,11 +276,10 @@ function resolveFaceMatchThreshold(
 						? error.message
 						: "face_match_threshold_invalid",
 			},
-			event: "verify.ws.face_match_threshold_defaulted",
+			event: "verify.ws.face_match_threshold_dg1_parse_failed",
 			level: "warn",
 		});
-
-		return DEFAULT_FACE_MATCH_THRESHOLD;
+		return { ok: false, reason: "dg1_parse_failed" };
 	}
 }
 
@@ -717,11 +727,33 @@ export async function runPhaseValidation(
 		return null;
 	}
 
-	const threshold = resolveFaceMatchThreshold(context, attemptId);
+	const thresholdResult = resolveFaceMatchThreshold(context, attemptId);
+
+	if (!thresholdResult.ok) {
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "document_authenticity_failed",
+			context,
+			riskScore: 1,
+		});
+		context.log.set({
+			event: "verify.ws.rejected",
+			failure_code: verdict.reasonCode,
+			face_match_threshold_reason: thresholdResult.reason,
+			remaining_attempts: verdict.remainingAttempts,
+			retry_allowed: verdict.retryAllowed,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
+	const threshold = thresholdResult.threshold;
 
 	const result = await verifyLiveness({
 		dg2Image: documentPortrait,
 		video: livenessVideo,
+		challengeNonce: context.state.livenessChallengeNonce ?? undefined,
 		faceMatchThreshold: threshold,
 		env: context.env,
 		organizationId: context.session.organizationId,

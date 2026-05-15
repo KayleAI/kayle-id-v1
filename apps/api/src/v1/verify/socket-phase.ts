@@ -1,5 +1,6 @@
 import { prewarmBiometricVerifier } from "./biometric-verifier-client";
 import { resolveVerifyErrorMessage } from "./error-response";
+import { deriveLivenessChallenge } from "./liveness-challenge";
 import {
 	isTrackedAttemptPhase,
 	persistTrackedAttemptPhase,
@@ -85,9 +86,10 @@ export async function handlePhaseMessage(
 		state.currentPhase = transition.nextPhase;
 
 		// User just entered liveness capture — they have ~10-15s of
-		// recording + upload runway. Nudge the verifier container awake
-		// now so its cold-start happens in parallel with that capture
-		// window instead of blocking the eventual /verify call.
+		// recording + upload runway. Prewarm the verifier container so
+		// its cold-start runs in parallel with capture instead of
+		// blocking the eventual /verify call, and issue the per-attempt
+		// challenge nonce the client will echo inside the recording.
 		if (transition.nextPhase === "liveness_capturing") {
 			context.scheduleTask(
 				prewarmBiometricVerifier({
@@ -95,6 +97,18 @@ export async function handlePhaseMessage(
 					attemptId: state.attemptId,
 				}),
 			);
+			const authSecret = context.env.AUTH_SECRET;
+			if (typeof authSecret === "string" && authSecret.length > 0) {
+				const challenge = await deriveLivenessChallenge({
+					attemptId: state.attemptId,
+					authSecret,
+				});
+				state.livenessChallengeNonce = challenge.challengeNonce;
+				transport.sendLivenessChallenge({
+					maxDurationMs: challenge.maxDurationMs,
+					challengeNonce: challenge.challengeNonce,
+				});
+			}
 		}
 	}
 

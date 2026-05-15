@@ -10,11 +10,6 @@ import {
 const BIOMETRIC_VERIFIER_CONTAINER_COUNT = 1;
 const CONTAINER_HEALTH_ATTEMPTS = 3;
 const CONTAINER_HEALTH_RETRY_DELAY_MS = 250;
-// Bumped from `face-matcher-v3` so deploys land a fresh durable-object
-// instance against the ffmpeg-bearing image + the new liveness pipeline.
-// Bump again whenever the image semantics change materially (anti-spoof
-// model, codec switch, etc.) so we don't reuse a warm container whose
-// pre-loaded models or validation rules diverge from the new code.
 const BIOMETRIC_VERIFIER_CONTAINER_NAME_PREFIX = "biometric-verifier-v4";
 
 function resolveContainerBinding(

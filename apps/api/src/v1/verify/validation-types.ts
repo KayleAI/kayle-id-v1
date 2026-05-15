@@ -1,10 +1,13 @@
+export type {
+	Dg2FaceImage,
+	SupportedImageFormat,
+} from "@kayle-id/config/dg2-face-image";
+
 export type SupportedHashAlgorithm =
 	| "SHA-256"
 	| "SHA-384"
 	| "SHA-512"
 	| "SHA-1";
-
-export type SupportedImageFormat = "jpeg" | "jpeg2000";
 
 export type PassiveAuthCrlStatus =
 	| "not_checked"
@@ -97,13 +100,6 @@ export type ChipAuthValidationResult =
 	  };
 
 export type PassiveAuthSignerSource = "bundle" | "sod";
-
-export type Dg2FaceImage = {
-	imageData: Uint8Array;
-	imageFormat: SupportedImageFormat;
-	imageWidth: number;
-	imageHeight: number;
-};
 
 // 0.7 normalised ≈ raw cosine 0.4 — InsightFace's canonical "same
 // person" threshold for glint360k-trained ArcFace R100. Same-identity

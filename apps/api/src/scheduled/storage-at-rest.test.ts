@@ -122,7 +122,7 @@ describe("runStorageAtRestCron idempotency", () => {
 		expect(points).toHaveLength(0);
 	});
 
-	it("fails open if the dedupe insert throws (still emits)", async () => {
+	it("fails closed if the dedupe insert throws (skips emission)", async () => {
 		const points: CapturedPoint[] = [];
 		const env: MockEnv = {
 			KAYLE_ID_ANALYTICS: {
@@ -150,6 +150,6 @@ describe("runStorageAtRestCron idempotency", () => {
 			env: env as unknown as CloudflareBindings,
 			now: new Date(Date.UTC(2026, 0, 15, 0, 0, 0)),
 		});
-		expect(points.length).toBeGreaterThan(0);
+		expect(points).toHaveLength(0);
 	});
 });

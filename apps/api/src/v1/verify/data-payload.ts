@@ -369,7 +369,6 @@ function storeData({
 }: {
 	state: VerifyTransferState;
 	kind: number;
-	index: number;
 	data: Uint8Array;
 }): { ok: true } | { ok: false; code: string; message: string } {
 	if (data.length > MAX_KIND_BYTES) {
@@ -566,13 +565,16 @@ function validateDataPayload({
 		});
 	}
 
+	// Liveness video is one artefact per attempt — `(index, total)`
+	// MUST be `(0, 1)`; chunks live on the `chunkIndex`/`chunkTotal`
+	// axis instead.
 	if (isLivenessVideoDataKind(kind) && total !== 1) {
 		return createChunkRetryResult({
 			state,
 			kind,
 			index,
 			chunkIndex,
-			reason: "invalid_liveness_total",
+			reason: "invalid_liveness_artifact_total",
 		});
 	}
 
@@ -582,7 +584,7 @@ function validateDataPayload({
 			kind,
 			index,
 			chunkIndex,
-			reason: "invalid_liveness_index",
+			reason: "invalid_liveness_artifact_index",
 		});
 	}
 
@@ -663,7 +665,6 @@ export function processDataPayload({
 	const stored = storeData({
 		state,
 		kind: normalizedPayload.kind,
-		index: normalizedPayload.index,
 		data: assembled.data ?? normalizedPayload.raw,
 	});
 

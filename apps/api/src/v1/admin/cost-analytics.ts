@@ -1,4 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import {
+	COST_EVENT_BLOB,
+	COST_EVENT_DOUBLE,
+	COST_EVENT_INDEX,
+} from "@kayle-id/config/analytics-cost-events";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
 import { z } from "zod";
 import { config } from "@/config";
@@ -6,10 +11,6 @@ import { getRequestLogger } from "@/logging";
 
 const cost = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
-	Variables: {
-		organizationId: string;
-		userId: string;
-	};
 }>();
 
 const groupBySchema = z
@@ -66,11 +67,11 @@ function parseRange(input: {
 }
 
 const GROUP_BY_COLUMN: Record<z.infer<typeof groupBySchema>, string> = {
-	feature: "blob1",
-	resource: "blob2",
+	feature: COST_EVENT_BLOB.feature,
+	resource: COST_EVENT_BLOB.resource,
 	day: "toDate(timestamp)",
-	org: "index1",
-	version: "blob7",
+	org: COST_EVENT_INDEX.organizationId,
+	version: COST_EVENT_BLOB.version,
 };
 
 /**
@@ -94,11 +95,11 @@ function buildSql({
 	const column = GROUP_BY_COLUMN[groupBy];
 	const safeEnv = environment.replace(/[^a-zA-Z0-9_-]/g, "");
 	return [
-		`SELECT ${column} AS group_key, SUM(double3) AS cost_usd, COUNT() AS event_count`,
+		`SELECT ${column} AS group_key, SUM(${COST_EVENT_DOUBLE.estimatedCostUsd}) AS cost_usd, COUNT() AS event_count`,
 		"FROM KAYLE_ID_ANALYTICS",
 		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
 		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
-		`  AND blob6 = '${safeEnv}'`,
+		`  AND ${COST_EVENT_BLOB.environment} = '${safeEnv}'`,
 		`GROUP BY ${column}`,
 		"ORDER BY cost_usd DESC",
 		"LIMIT 1000",

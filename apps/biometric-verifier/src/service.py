@@ -1572,23 +1572,44 @@ def verify_liveness_payload(
             response["_perfTrace"] = perf
         return response
 
-    # PAD runs after movement coverage to avoid wasted inference on
-    # clips that would fail anyway. When either model isn't loaded,
-    # padPassed defaults to True (the gate never runs single-model;
-    # published accuracy assumes both signals).
-    if pad_loaded:
+    # Fail closed when the ensemble can't run. The operator kill
+    # switch (`PAD_DISABLED=1`) is the only exception — that's a
+    # deliberate emergency lever and must let verification proceed.
+    if not pad_loaded:
+        if PAD_DISABLED:
+            emit_log("liveness_pad_disabled_by_operator")
+            pad_passed_for_response = True
+            pad_score_for_response = None
+        else:
+            emit_log(
+                "liveness_pad_unavailable",
+                pad_v2_loaded=pad_v2_session is not None,
+                pad_v1se_loaded=pad_v1se_session is not None,
+            )
+            response = {
+                "livenessPassed": False,
+                "livenessScore": liveness_score,
+                "faceMatchPassed": False,
+                "faceMatchScore": None,
+                "faceMatchAlignment": None,
+                "padPassed": False,
+                "padScore": None,
+                "usedFallback": True,
+                "reason": "liveness_pad_unavailable",
+            }
+            if debug is not None:
+                response["debug"] = debug
+            if perf is not None:
+                perf["totalMs"] = (time.monotonic() - request_started) * 1000.0
+                perf["frameCount"] = float(len(frames))
+                response["_perfTrace"] = perf
+            return response
+    else:
         pad_start = time.monotonic()
         pad_result = run_pad_over_timeline(
             pad_v2_session, pad_v1se_session, detector, frames, timeline
         )
         _mark("padMs", pad_start)
-        # Aggregate-only by default. Per-frame scores would let a
-        # log reader iteratively refine a presentation attack by
-        # watching which sub-second of their spoof made the model
-        # waver; the bulk stats give ops everything they need
-        # without the gradient signal. The full list comes back
-        # only under BIOMETRIC_VERIFIER_DEBUG_METRICS=1 (same flag
-        # that gates _perfTrace).
         finite_pad_scores = [
             float(score)
             for score in pad_result["padFrameScores"]
@@ -1645,9 +1666,6 @@ def verify_liveness_payload(
             return response
         pad_passed_for_response = True
         pad_score_for_response = pad_result["padScore"]
-    else:
-        pad_passed_for_response = True
-        pad_score_for_response = None
 
     center_index = pick_center_frame_index(timeline)
     if debug is not None:
@@ -1865,9 +1883,10 @@ class BiometricVerifierRuntime:
         self.recognizer = AuraFaceRecognizer(session)
 
     def _load_pad_model(self) -> None:
-        # Both ONNX files must load — falling back to single-model
-        # inference would silently degrade accuracy. If either side
-        # fails, leave both sessions None and the gate becomes a no-op.
+        # Both ONNX files must load — single-model inference would
+        # silently degrade accuracy. If either fails, both sessions
+        # stay None and the verdict path fails closed with
+        # `liveness_pad_unavailable`.
         if PAD_DISABLED:
             self.pad_load_error = "pad_disabled"
             return
@@ -2211,6 +2230,19 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
             return
 
         try:
+            # TODO(liveness-nonce-extraction): extract the 4 bytes from
+            # the rendered frames and reject mismatches here. Until
+            # that's wired we only log presence; the verdict path does
+            # NOT consult the nonce.
+            challenge_nonce_b64 = payload.get("challengeNonceBase64")
+            challenge_nonce_bytes = 0
+            if isinstance(challenge_nonce_b64, str) and challenge_nonce_b64:
+                try:
+                    challenge_nonce_bytes = len(
+                        base64.b64decode(challenge_nonce_b64)
+                    )
+                except Exception:
+                    challenge_nonce_bytes = -1
             result = RUNTIME.verify_liveness(payload)
             threshold = float(
                 payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD
@@ -2223,6 +2255,7 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                     )
                 ),
                 threshold=threshold,
+                challenge_nonce_bytes=challenge_nonce_bytes,
                 face_match_passed=result.get("faceMatchPassed"),
                 face_match_score=result.get("faceMatchScore"),
                 face_match_alignment=result.get("faceMatchAlignment"),

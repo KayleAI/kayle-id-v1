@@ -246,7 +246,7 @@ describe("verify data payload processor", () => {
 		});
 
 		expect(result.error?.code).toBe("DATA_CHUNK_RETRY");
-		expect(result.error?.message).toContain("invalid_liveness_index");
+		expect(result.error?.message).toContain("invalid_liveness_artifact_index");
 	});
 
 	test("rejects a liveness payload with total != 1", () => {
@@ -263,7 +263,7 @@ describe("verify data payload processor", () => {
 		});
 
 		expect(result.error?.code).toBe("DATA_CHUNK_RETRY");
-		expect(result.error?.message).toContain("invalid_liveness_total");
+		expect(result.error?.message).toContain("invalid_liveness_artifact_total");
 	});
 
 	test("exposes missing chunk metadata for incomplete liveness uploads", () => {

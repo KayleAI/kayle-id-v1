@@ -2,6 +2,7 @@ import type {
 	VerifyShareReady,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
+import { extractDg2FaceImage } from "@kayle-id/config/dg2-face-image";
 import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import {
 	isAgeOverClaim,
@@ -15,7 +16,6 @@ import {
 	type Dg1Claims,
 	parseDg1Claims,
 } from "./dg1-claims";
-import { extractDg2FaceImage } from "./dg2-face-image";
 
 type ShareSelectionValidationCode =
 	| "INVALID_SESSION_ID"

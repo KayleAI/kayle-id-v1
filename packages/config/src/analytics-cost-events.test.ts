@@ -1,10 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import {
+  COST_EVENT_BLOB,
+  COST_EVENT_DOUBLE,
+  COST_EVENT_INDEX,
   COST_FEATURES,
   emitCostEvent,
   resolveAnalyticsDataset,
   resolveEnvironment,
 } from "./analytics-cost-events";
+
+const BLOB_SLOT_PREFIX = /^blob/;
+const BLOB_SLOT_PATTERN = /^blob[1-9][0-9]*$/;
+
 import {
   CF_CONTAINER_ACTIVE_PER_MS_USD,
   CF_D1_ROW_READ_USD,
@@ -203,6 +210,64 @@ describe("resolveEnvironment", () => {
     expect(resolveEnvironment(null)).toBe("unknown");
     expect(resolveEnvironment(undefined)).toBe("unknown");
     expect(resolveEnvironment({ NODE_ENV: 7 })).toBe("unknown");
+  });
+});
+
+describe("blob-slot mapping", () => {
+  // These tests are the contract between `emitCostEvent` (producer)
+  // and the admin dashboard's SQL (`buildSql` consumer). Adding or
+  // reordering blob fields breaks the dashboard silently unless these
+  // assertions fail first.
+
+  it("emits each known field into its declared blob slot", () => {
+    const { dataset, calls } = captureDataset();
+
+    emitCostEvent({
+      dataset,
+      organizationId: "org-slot",
+      feature: COST_FEATURES.Verify,
+      resource: "container_active",
+      quantity: 1000,
+      unit: "ms",
+      workerName: "kayle-id-test",
+      attemptId: "attempt-slot",
+      environment: "production",
+      version: "9.9.9",
+    });
+
+    expect(calls).toHaveLength(1);
+    const call = calls[0] as CapturedDataPoint;
+    const blobs = call.blobs ?? [];
+
+    const slotIndex = (slot: string) =>
+      Number.parseInt(slot.replace(BLOB_SLOT_PREFIX, ""), 10) - 1;
+
+    expect(blobs[slotIndex(COST_EVENT_BLOB.feature)]).toBe("verify");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.resource)]).toBe("container_active");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.workerName)]).toBe("kayle-id-test");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.unit)]).toBe("ms");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.attemptId)]).toBe("attempt-slot");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.environment)]).toBe("production");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.version)]).toBe("9.9.9");
+
+    expect(call.indexes).toEqual(["org-slot"]);
+    expect(COST_EVENT_INDEX.organizationId).toBe("index1");
+
+    // double1=quantity, double2=usdPerUnit, double3=estimatedCostUsd —
+    // the admin SQL SUMs double3 for cost. Keep this aligned.
+    expect(COST_EVENT_DOUBLE.quantity).toBe("double1");
+    expect(COST_EVENT_DOUBLE.usdPerUnit).toBe("double2");
+    expect(COST_EVENT_DOUBLE.estimatedCostUsd).toBe("double3");
+  });
+
+  it("declares unique, sequential 1-indexed blob slots", () => {
+    const slots = Object.values(COST_EVENT_BLOB);
+    // Unique
+    expect(new Set(slots).size).toBe(slots.length);
+    // All match `blob<positive int>`
+    for (const slot of slots) {
+      expect(slot).toMatch(BLOB_SLOT_PATTERN);
+    }
   });
 });
 

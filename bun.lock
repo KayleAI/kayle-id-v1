@@ -52,6 +52,17 @@
         "wrangler": "4.83.0",
       },
     },
+    "apps/biometric-verifier": {
+      "name": "kayle-id-biometric-verifier",
+      "dependencies": {
+        "@cloudflare/containers": "^0.0.25",
+        "@kayle-id/config": "*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "22.19.1",
+      },
+    },
     "apps/debugger": {
       "name": "kayle-id-debugger",
       "dependencies": {
@@ -159,17 +170,6 @@
         "vitest": "4.1.4",
         "web-vitals": "5.1.0",
         "wrangler": "4.83.0",
-      },
-    },
-    "infra/biometric-verifier": {
-      "name": "kayle-id-biometric-verifier",
-      "dependencies": {
-        "@cloudflare/containers": "^0.0.25",
-        "@kayle-id/config": "*",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "22.19.1",
       },
     },
     "packages/auth": {
@@ -1399,7 +1399,7 @@
 
     "kayle-id-api": ["kayle-id-api@workspace:apps/api"],
 
-    "kayle-id-biometric-verifier": ["kayle-id-biometric-verifier@workspace:infra/biometric-verifier"],
+    "kayle-id-biometric-verifier": ["kayle-id-biometric-verifier@workspace:apps/biometric-verifier"],
 
     "kayle-id-debugger": ["kayle-id-debugger@workspace:apps/debugger"],
 

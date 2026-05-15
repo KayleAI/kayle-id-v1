@@ -2,8 +2,10 @@ import {
   type BiometricVerifierResponsePayload,
   biometricVerifierResponseSchema,
 } from "@kayle-id/config/biometric-verifier";
-import { extractDg2FaceImage } from "../../../apps/api/src/v1/verify/validation";
-import type { Dg2FaceImage } from "../../../apps/api/src/v1/verify/validation-types";
+import {
+  type Dg2FaceImage,
+  extractDg2FaceImage,
+} from "@kayle-id/config/dg2-face-image";
 
 interface ContainerLivenessRequestPayload {
   challengeNonceBase64?: string;

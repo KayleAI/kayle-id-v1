@@ -9,6 +9,11 @@ import Vision
 /// Drives the head-movement liveness flow. There is no server-issued
 /// pose challenge in v2 — the user freely turns left and right in either
 /// order, and the server validates the recorded video for both extremes.
+///
+/// TODO(liveness-nonce-extraction): embed
+/// `session.livenessChallenge?.challengeNonce` in the recorded video so
+/// the verifier (matching TODO in `service.py`) can bind the clip to
+/// this attempt. Until both halves land, the nonce is telemetry only.
 struct LivenessCaptureView: View {
   let onComplete: () -> Void
   let onRejected: () -> Void

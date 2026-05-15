@@ -14,15 +14,17 @@ export type LivenessChallenge = {
 /**
  * HMAC-derived liveness challenge nonce. Deterministic per attemptId so
  * reconnects re-issue the same value; unpredictable without
- * `authSecret`. Clients echo it back inside the recorded video.
+ * `authSecret`. Intended to be echoed inside the recorded video so the
+ * verifier can bind the clip to this attempt.
  *
- * Replay defence is timing-based: the verifier container compares
- * the recorded video duration / frame count against the nonce-bound
- * challenge and rejects clips whose timing doesn't match this
- * specific attempt. The 4-byte nonce alone is too short for
- * meaningful replay resistance — if the container's timing
- * validation is ever disabled or relaxed, this becomes unsafe and
- * the nonce must be widened (or paired with a per-attempt token).
+ * Currently: server derives + sends and the nonce flows through to the
+ * verifier, but the iOS embed + verifier extract halves are not yet
+ * wired — see TODO(liveness-nonce-extraction) in LivenessCaptureView
+ * and service.py. Until both land the nonce is telemetry only.
+ *
+ * 4 bytes is too short for replay resistance on its own; once the
+ * bytes-in-video check lands, pair it with the duration/frame-count
+ * timing window so 4 bytes × timing resists brute force.
  */
 export async function deriveLivenessChallenge({
 	attemptId,

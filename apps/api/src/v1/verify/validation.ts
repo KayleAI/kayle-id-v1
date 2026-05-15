@@ -1,9 +1,12 @@
 import {
+	type Dg2FaceImage as Dg2FaceImageValue,
+	extractDg2FaceImage as extractDg2FaceImageInternal,
+} from "@kayle-id/config/dg2-face-image";
+import {
 	deriveActiveAuthChallenge as deriveActiveAuthChallengeInternal,
 	validateActiveAuthentication as validateActiveAuthenticationInternal,
 } from "./active-auth";
 import { validateChipAuthentication as validateChipAuthenticationInternal } from "./chip-auth";
-import { extractDg2FaceImage as extractDg2FaceImageInternal } from "./dg2-face-image";
 import {
 	configurePkdTrustBundleLoaderFromEnv as configurePkdTrustBundleLoaderFromEnvInternal,
 	configurePkdTrustBundleLoader as configurePkdTrustBundleLoaderInternal,
@@ -14,7 +17,6 @@ import type {
 	ActiveAuthValidationResult as ActiveAuthValidationResultValue,
 	AuthenticityValidationResult as AuthenticityValidationResultValue,
 	ChipAuthValidationResult as ChipAuthValidationResultValue,
-	Dg2FaceImage as Dg2FaceImageValue,
 	SupportedHashAlgorithm,
 } from "./validation-types";
 

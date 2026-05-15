@@ -237,6 +237,15 @@ cost.get("/cost-analytics", async (c) => {
 	} catch (error) {
 		logSafeError(logger, {
 			code: "cost_analytics_query_failed",
+			details: {
+				// Upstream Cloudflare API error from `queryAnalyticsEngine` is
+				// shaped `cf_analytics_http_<status>:<body-snippet>` — never
+				// contains the API token or user input, so it's safe to log
+				// to internal telemetry. Surface it for diagnosis; the
+				// response body still gets the generic safe message.
+				underlying_message:
+					error instanceof Error ? error.message : String(error),
+			},
 			error,
 			event: "admin.cost_analytics.query_failed",
 			message: "Analytics Engine query failed.",

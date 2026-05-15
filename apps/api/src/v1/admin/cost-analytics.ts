@@ -107,13 +107,19 @@ function buildSql({
 	if (!VALID_ENV_VALUE.test(environment)) {
 		throw new Error(`cost_analytics_invalid_environment:${environment}`);
 	}
+	// Cloudflare Analytics Engine SQL rejects raw expressions in GROUP BY
+	// (HTTP 422 "you may only provide column names"). The SELECT aliases
+	// `${column}` (which may itself be an expression like `toDate(timestamp)`
+	// for day buckets) as `group_key`, so reference the alias here — that
+	// satisfies the column-name requirement for both real blob columns and
+	// derived expressions.
 	return [
 		`SELECT ${column} AS group_key, SUM(${COST_EVENT_DOUBLE.estimatedCostUsd}) AS cost_usd, COUNT() AS event_count`,
 		"FROM KAYLE_ID_ANALYTICS",
 		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
 		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
 		`  AND ${COST_EVENT_BLOB.environment} = '${environment}'`,
-		`GROUP BY ${column}`,
+		"GROUP BY group_key",
 		"ORDER BY cost_usd DESC",
 		"LIMIT 1000",
 	].join("\n");

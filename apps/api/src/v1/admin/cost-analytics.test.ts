@@ -57,8 +57,24 @@ describe("buildSql", () => {
 			environment: "production",
 		});
 		expect(sql).toContain("SELECT blob1 AS group_key");
-		expect(sql).toContain("GROUP BY blob1");
+		expect(sql).toContain("GROUP BY group_key");
 		expect(sql).toContain("FROM KAYLE_ID_ANALYTICS");
+	});
+
+	it("uses the SELECT alias in GROUP BY for expression columns", () => {
+		// AE SQL rejects raw expressions in GROUP BY with HTTP 422
+		// ("you may only provide column names"), so derived buckets like
+		// `toDate(timestamp)` must be referenced via their SELECT alias.
+		// This pins that contract for the day-grouping case specifically.
+		const sql = buildSql({
+			groupBy: "day",
+			from,
+			to,
+			environment: "production",
+		});
+		expect(sql).toContain("SELECT toDate(timestamp) AS group_key");
+		expect(sql).toContain("GROUP BY group_key");
+		expect(sql).not.toContain("GROUP BY toDate(timestamp)");
 	});
 
 	it("groups by resource using blob2", () => {

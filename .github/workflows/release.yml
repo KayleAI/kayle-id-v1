@@ -182,7 +182,7 @@ jobs:
             biometric_verifier_changed="$(has_changes \
               bun.lock \
               package.json \
-              infra/biometric-verifier \
+              apps/biometric-verifier \
               packages/config)"
             api_changed="$(has_changes \
               bun.lock \
@@ -295,7 +295,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Build preview biometric verifier worker bundle
-        working-directory: infra/biometric-verifier
+        working-directory: apps/biometric-verifier
         run: bunx wrangler deploy --dry-run --outdir .wrangler-out --env production
 
       - name: Package biometric verifier deploy artifact
@@ -310,7 +310,7 @@ jobs:
           archive_path="${RUNNER_TEMP}/kayle-id-worker-biometric-verifier-${APP_VERSION}.tgz"
 
           node ./scripts/package-worker-deploy-artifact.mjs \
-            --project-dir infra/biometric-verifier \
+            --project-dir apps/biometric-verifier \
             --artifact-dir "${artifact_dir}"
 
           tar -C "${artifact_dir}" -czf "${archive_path}" .
@@ -1105,7 +1105,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           bunx wrangler deploy \
-            --config "${RUNNER_TEMP}/deploy-biometric-verifier/workspace/infra/biometric-verifier/wrangler.deploy.jsonc" \
+            --config "${RUNNER_TEMP}/deploy-biometric-verifier/workspace/apps/biometric-verifier/wrangler.deploy.jsonc" \
             --no-bundle \
             --env production
 

@@ -97,20 +97,24 @@
       }
     },
     "staging": {
-      "name": "kayle-id-face-matcher-staging",
+      "name": "kayle-id-biometric-verifier-staging",
+      "vars": {
+        "NODE_ENV": "production"
+      },
       "containers": [
         {
-          "name": "kayle-id-face-matcher-staging-facematchercontainer",
-          "class_name": "FaceMatcherContainer",
+          "name": "kayle-id-biometric-verifier-staging-container",
+          "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
+          "instance_type": "standard-3",
           "max_instances": 2
         }
       ],
       "durable_objects": {
         "bindings": [
           {
-            "class_name": "FaceMatcherContainer",
-            "name": "FACE_MATCHER_CONTAINER"
+            "class_name": "BiometricVerifierContainer",
+            "name": "BIOMETRIC_VERIFIER_CONTAINER"
           }
         ]
       },
@@ -118,6 +122,15 @@
         {
           "tag": "v1",
           "new_sqlite_classes": ["FaceMatcherContainer"]
+        },
+        {
+          "tag": "v2",
+          "renamed_classes": [
+            {
+              "from": "FaceMatcherContainer",
+              "to": "BiometricVerifierContainer"
+            }
+          ]
         }
       ]
     },

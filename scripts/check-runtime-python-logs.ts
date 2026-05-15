@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-const RUNTIME_DIRECTORIES = ["infra/biometric-verifier/src"] as const;
+const RUNTIME_DIRECTORIES = ["apps/biometric-verifier/src"] as const;
 
 const ALLOW_MARKER = "# allow-print:";
 

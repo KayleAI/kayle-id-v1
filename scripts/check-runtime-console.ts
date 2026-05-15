@@ -4,7 +4,7 @@ const RUNTIME_DIRECTORIES = [
   "apps/api/src",
   "apps/platform/src",
   "apps/verify/src",
-  "infra/biometric-verifier/src",
+  "apps/biometric-verifier/src",
   "packages/auth/src",
 ] as const;
 

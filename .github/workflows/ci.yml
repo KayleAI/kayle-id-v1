@@ -187,7 +187,7 @@ jobs:
           trap 'cleanup $?' EXIT
 
           (
-            cd infra/biometric-verifier
+            cd apps/biometric-verifier
             bunx wrangler dev --env-file ../../.env.test.example --local --ip 127.0.0.1 --port 8788 --inspector-port 9232
           ) > /tmp/biometric-verifier.log 2>&1 &
           VERIFIER_PID=$!
@@ -228,7 +228,7 @@ jobs:
           generate-capnp-ts: "true"
 
       - name: Test biometric verifier
-        working-directory: infra/biometric-verifier
+        working-directory: apps/biometric-verifier
         run: bun run test
 
       - name: Test translations
@@ -255,7 +255,7 @@ jobs:
       matrix:
         include:
           - worker: biometric-verifier
-            working-directory: infra/biometric-verifier
+            working-directory: apps/biometric-verifier
             generate-capnp: "false"
             pre-build: ""
             wrangler-args: --env production

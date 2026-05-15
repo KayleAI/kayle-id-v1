@@ -173,8 +173,8 @@
 			],
 			"services": [
 				{
-					"binding": "FACE_MATCHER",
-					"service": "kayle-id-face-matcher-staging"
+					"binding": "BIOMETRIC_VERIFIER",
+					"service": "kayle-id-biometric-verifier-staging"
 				}
 			],
 			"r2_buckets": [

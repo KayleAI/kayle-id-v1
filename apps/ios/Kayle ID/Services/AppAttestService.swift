@@ -61,18 +61,22 @@ final class AppAttestService {
 
   private let appAttest = DCAppAttestService.shared
   private let keychainService = "id.kayle.AppAttest"
-  private let keychainAccount = "key-id"
+  private let legacyKeychainAccount = "key-id"
+  private let productionAPIHost = "api.kayle.id"
   private var cachedKeyId: String?
+  private var cachedKeyIdHost: String?
 
   private init() {}
 
   /// Returns the registered keyId, registering on first call.
   func currentKeyId(baseURL: String) async throws -> String {
-    if let cached = cachedKeyId, !cached.isEmpty {
+    let host = keychainAccountHost(for: baseURL)
+    if let cached = cachedKeyId, cachedKeyIdHost == host, !cached.isEmpty {
       return cached
     }
-    if let stored = readKeychainKeyId(), !stored.isEmpty {
+    if let stored = readKeychainKeyId(for: baseURL), !stored.isEmpty {
       cachedKeyId = stored
+      cachedKeyIdHost = host
       return stored
     }
     return try await register(baseURL: baseURL)
@@ -104,7 +108,7 @@ final class AppAttestService {
     } catch {
       // Apple invalidated the key (revoked, environment mismatch, etc.).
       // Drop the Keychain entry so the next call regenerates from scratch.
-      deleteKeychainKeyId()
+      deleteKeychainKeyId(for: baseURL)
       throw AppAttestError.attestationFailed(error)
     }
 
@@ -115,8 +119,9 @@ final class AppAttestService {
       challenge: challenge
     )
 
-    try writeKeychainKeyId(keyId)
+    try writeKeychainKeyId(keyId, for: baseURL)
     cachedKeyId = keyId
+    cachedKeyIdHost = keychainAccountHost(for: baseURL)
     return keyId
   }
 
@@ -189,8 +194,9 @@ final class AppAttestService {
       return (keyId: keyId, bytes: bytes)
     } catch let error as DCError where error.code == .invalidKey {
       // Server invalidated the key. Rotate exactly once.
-      deleteKeychainKeyId()
+      deleteKeychainKeyId(for: baseURL)
       cachedKeyId = nil
+      cachedKeyIdHost = nil
       let freshKeyId = try await register(baseURL: baseURL)
       do {
         let bytes = try await appAttest.generateAssertion(
@@ -282,16 +288,38 @@ final class AppAttestService {
 
   // MARK: - Keychain
 
-  private func keychainQuery() -> [String: Any] {
+  // Apple's App Attest keyId is tied to a server-side registration in a
+  // specific database. Production, staging, and local-dev each have their
+  // own `mobile_attest_keys` table, so sharing a single Keychain entry
+  // across environments produces `HELLO_ATTEST_KEY_UNKNOWN` ("Your device
+  // hasn't completed setup") as soon as you switch — the iOS side still
+  // remembers a keyId the new server has never seen. Scope the account by
+  // baseURL host so each environment holds its own registration.
+  //
+  // Production keeps the legacy `key-id` account to avoid forcing
+  // App Store users through a one-time re-registration on update.
+  private func keychainAccountHost(for baseURL: String) -> String {
+    URLComponents(string: baseURL)?.host?.lowercased() ?? ""
+  }
+
+  private func keychainAccount(for baseURL: String) -> String {
+    let host = keychainAccountHost(for: baseURL)
+    if host == productionAPIHost {
+      return legacyKeychainAccount
+    }
+    return "\(legacyKeychainAccount):\(host)"
+  }
+
+  private func keychainQuery(for baseURL: String) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: keychainService,
-      kSecAttrAccount as String: keychainAccount,
+      kSecAttrAccount as String: keychainAccount(for: baseURL),
     ]
   }
 
-  private func readKeychainKeyId() -> String? {
-    var query = keychainQuery()
+  private func readKeychainKeyId(for baseURL: String) -> String? {
+    var query = keychainQuery(for: baseURL)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -303,12 +331,12 @@ final class AppAttestService {
     return String(data: data, encoding: .utf8)
   }
 
-  private func writeKeychainKeyId(_ keyId: String) throws {
+  private func writeKeychainKeyId(_ keyId: String, for baseURL: String) throws {
     guard let data = keyId.data(using: .utf8) else {
       throw AppAttestError.invalidServerResponse
     }
 
-    var query = keychainQuery()
+    var query = keychainQuery(for: baseURL)
     query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
     let updateAttributes: [String: Any] = [kSecValueData as String: data]
@@ -334,8 +362,8 @@ final class AppAttestService {
     throw AppAttestError.keychainFailed(updateStatus)
   }
 
-  private func deleteKeychainKeyId() {
-    SecItemDelete(keychainQuery() as CFDictionary)
+  private func deleteKeychainKeyId(for baseURL: String) {
+    SecItemDelete(keychainQuery(for: baseURL) as CFDictionary)
   }
 }
 

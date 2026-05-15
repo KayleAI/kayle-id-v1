@@ -180,6 +180,12 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
       "Nous n’avons pas pu confirmer que ce scan provient d’un appareil de confiance. Réessayez sur le même appareil ou contactez le support.",
   },
 
+  document_data_invalid: {
+    title: "Impossible de lire les données du document",
+    description:
+      "Nous n’avons pas pu lire certaines informations de la puce de votre document. Réessayez ou utilisez-en un autre.",
+  },
+
   selfie_face_mismatch: {
     title: "Le visage ne correspond pas",
     description:

@@ -13,7 +13,11 @@
 		}
 	},
 	"triggers": {
-		"crons": ["* * * * *"]
+		// Minute tick drives the per-attempt housekeeping jobs (session
+		// expiry, receipt refresh, domain reverify, org deletion). The
+		// daily tick at 00:00 UTC drives storage-at-rest cost emission —
+		// dispatched in `scheduled` by `controller.cron`.
+		"crons": ["* * * * *", "0 0 * * *"]
 	},
 	"compatibility_flags": ["nodejs_compat"],
 	"send_email": [

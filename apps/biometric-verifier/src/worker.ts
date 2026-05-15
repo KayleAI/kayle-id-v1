@@ -313,14 +313,30 @@ async function handleLivenessRequest({
   }
 
   const container = await getContainer(env);
+
+  if (!container) {
+    logEvent(logger, {
+      details: {
+        error_code: "biometric_verifier_container_binding_missing",
+      },
+      event: "biometric_verifier.container_unavailable",
+      level: "warn",
+    });
+
+    return jsonResponse(
+      {
+        error: {
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier container binding is unavailable.",
+        },
+      },
+      503
+    );
+  }
+
   const startedAt = Date.now();
   const result = await verifyLivenessWithContainer({
-    container: container ?? {
-      fetch: async () =>
-        new Response(null, {
-          status: 503,
-        }),
-    },
+    container,
     dg2Image: payload.dg2Image,
     video: payload.video,
     challengeNonce: payload.challengeNonce,

@@ -264,9 +264,6 @@ function getOrCreateChunkEntry(
 ): VerifyChunkEntry {
 	const existing = chunks.get(key);
 	if (existing) {
-		if (existing.chunkTotal !== chunkTotal) {
-			existing.chunkTotal = chunkTotal;
-		}
 		return existing;
 	}
 

@@ -113,6 +113,7 @@ async function rejectAttemptWithVerdict({
 		| "document_authenticity_failed"
 		| "document_active_authentication_failed"
 		| "document_chip_authentication_failed"
+		| "document_data_invalid"
 		| "liveness_failed"
 		| "selfie_face_mismatch";
 	context: VerifySocketContext;
@@ -730,9 +731,15 @@ export async function runPhaseValidation(
 	const thresholdResult = resolveFaceMatchThreshold(context, attemptId);
 
 	if (!thresholdResult.ok) {
+		// PA already validated DG1 by hash, so reaching here means the inner
+		// MRZ structure is malformed (or, under defence-in-depth, transfer
+		// state lost DG1 after the upstream presence check). Use
+		// `document_data_invalid` so it doesn't get conflated with a real
+		// authenticity rejection; `face_match_threshold_reason` discriminates
+		// the variant in telemetry.
 		const verdict = await rejectAttemptWithVerdict({
 			attemptId,
-			code: "document_authenticity_failed",
+			code: "document_data_invalid",
 			context,
 			riskScore: 1,
 		});

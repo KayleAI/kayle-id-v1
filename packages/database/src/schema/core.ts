@@ -34,6 +34,7 @@ export const verificationAttemptFailureCodes = [
 	"document_active_authentication_failed",
 	"document_chip_authentication_failed",
 	"document_anti_cloning_attestation_failed",
+	"document_data_invalid",
 	"liveness_failed",
 	"selfie_face_mismatch",
 ] as const;

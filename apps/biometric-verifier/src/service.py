@@ -110,6 +110,22 @@ PREWARM_ENABLED = os.environ.get("BIOMETRIC_VERIFIER_PREWARM") == "1"
 LIVENESS_FRAME_COUNT = int(
     os.environ.get("BIOMETRIC_VERIFIER_FRAME_COUNT", "24")
 )
+# Hard server-side ceiling on clip length. The iOS client targets 8 s and
+# the soft deadline (`DEFAULT_MAX_DURATION_MS`) is advisory; this caps the
+# work a misbehaving / out-of-date / hostile client can push through the
+# decode + per-frame inference loops before we bail. Bounded so a typo'd
+# env override can't lift the ceiling unreasonably.
+LIVENESS_VIDEO_MAX_DURATION_SECONDS = max(
+    1.0,
+    min(
+        float(
+            os.environ.get(
+                "BIOMETRIC_VERIFIER_MAX_DURATION_SECONDS", "15"
+            )
+        ),
+        60.0,
+    ),
+)
 LIVENESS_CENTER_YAW_DEG = float(
     os.environ.get("BIOMETRIC_VERIFIER_CENTER_YAW_DEG", "15")
 )
@@ -1518,7 +1534,6 @@ def verify_liveness_payload(
     if not isinstance(video_b64, str) or len(video_b64) == 0:
         return liveness_failure_response(
             "liveness_video_missing",
-            threshold=threshold,
             debug=debug,
         )
 
@@ -1528,14 +1543,12 @@ def verify_liveness_payload(
     except Exception:
         return liveness_failure_response(
             "liveness_video_decode_failed",
-            threshold=threshold,
             debug=debug,
         )
 
     if len(video_bytes) == 0:
         return liveness_failure_response(
             "liveness_video_empty",
-            threshold=threshold,
             debug=debug,
         )
     _mark("videoDecodeMs", decode_start)
@@ -1555,7 +1568,24 @@ def verify_liveness_payload(
     if len(frames) == 0:
         return liveness_failure_response(
             "liveness_video_unreadable",
-            threshold=threshold,
+            debug=debug,
+        )
+
+    # Hard upper bound on clip length — protects the decode + per-frame
+    # inference loops from a misbehaving client that ignores the soft
+    # client deadline. The 16 MiB upload cap upstream limits raw bytes but
+    # not duration; a long low-bitrate clip can sneak past it.
+    if (
+        duration_seconds is not None
+        and duration_seconds > LIVENESS_VIDEO_MAX_DURATION_SECONDS
+    ):
+        emit_log(
+            "liveness_video_too_long",
+            duration_seconds=duration_seconds,
+            max_seconds=LIVENESS_VIDEO_MAX_DURATION_SECONDS,
+        )
+        return liveness_failure_response(
+            "liveness_video_too_long",
             debug=debug,
         )
 
@@ -1563,7 +1593,6 @@ def verify_liveness_payload(
     if len(frames) < max(LIVENESS_MIN_POSE_FRAMES * 2 + 1, 3):
         return liveness_failure_response(
             "liveness_video_too_short",
-            threshold=threshold,
             debug=debug,
         )
 
@@ -1572,7 +1601,6 @@ def verify_liveness_payload(
         emit_log("liveness_challenge_missing")
         return liveness_failure_response(
             "liveness_challenge_mismatch",
-            threshold=threshold,
             liveness_score=None,
             debug=debug,
         )
@@ -1582,7 +1610,6 @@ def verify_liveness_payload(
         emit_log("liveness_challenge_decode_failed")
         return liveness_failure_response(
             "liveness_challenge_mismatch",
-            threshold=threshold,
             liveness_score=None,
             debug=debug,
         )
@@ -1592,7 +1619,6 @@ def verify_liveness_payload(
         )
         return liveness_failure_response(
             "liveness_challenge_mismatch",
-            threshold=threshold,
             liveness_score=None,
             debug=debug,
         )
@@ -1607,7 +1633,6 @@ def verify_liveness_payload(
     if not nonce_result.matched:
         return liveness_failure_response(
             "liveness_challenge_mismatch",
-            threshold=threshold,
             liveness_score=None,
             debug=debug,
         )
@@ -1621,7 +1646,6 @@ def verify_liveness_payload(
     if detected_count == 0:
         return liveness_failure_response(
             "liveness_no_face",
-            threshold=threshold,
             debug=debug,
         )
 
@@ -1763,7 +1787,6 @@ def verify_liveness_payload(
     if center_index is None:
         return liveness_failure_response(
             "liveness_no_center_frame",
-            threshold=threshold,
             liveness_score=liveness_score,
             debug=debug,
         )
@@ -1791,7 +1814,6 @@ def verify_liveness_payload(
         emit_log("liveness_dg2_decode_failed", error=str(error))
         return liveness_failure_response(
             "liveness_dg2_decode_failed",
-            threshold=threshold,
             liveness_score=liveness_score,
             debug=debug,
         )
@@ -1871,11 +1893,9 @@ def decode_image_payload(image_payload: dict, label: str) -> np.ndarray:
 def liveness_failure_response(
     reason: str,
     *,
-    threshold: float,
     liveness_score: Optional[float] = None,
     debug: Optional[dict] = None,
 ) -> dict:
-    _ = threshold  # reserved for future telemetry
     response: dict = {
         "livenessPassed": False,
         "livenessScore": liveness_score,

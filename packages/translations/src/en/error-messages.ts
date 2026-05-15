@@ -174,6 +174,12 @@ export const ERROR_MESSAGES = {
       "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
 
+  document_data_invalid: {
+    title: "Document data couldn’t be read",
+    description:
+      "We couldn’t read some details from your document chip. Try again or use a different one.",
+  },
+
   selfie_face_mismatch: {
     title: "Face doesn’t match",
     description: "Your face doesn’t match your document photo. Try again.",

@@ -18,20 +18,6 @@ import type { ApiRequestLogger } from "@/logging";
 
 const WORKER_NAME = "kayle-id-api";
 const SECONDS_PER_DAY = 86_400;
-const CRON_HOUR_UTC = 0;
-const CRON_TICK_TOLERANCE_SEC = 90;
-
-/**
- * Fire only on the first minute-tick of the day (00:00 UTC). The
- * verifier's cron is `* * * * *` so this guard turns each minute tick
- * into "skip" except once daily.
- */
-export function shouldRunStorageAtRest(scheduledTime: number): boolean {
-	const date = new Date(scheduledTime);
-	if (date.getUTCHours() !== CRON_HOUR_UTC) return false;
-	const seconds = date.getUTCMinutes() * 60 + date.getUTCSeconds();
-	return seconds <= CRON_TICK_TOLERANCE_SEC;
-}
 
 interface CloudflareR2BucketUsage {
 	end?: string;
@@ -111,10 +97,25 @@ interface CloudflareKvNamespaceInfo {
 	storage_bytes?: number;
 }
 
+interface CloudflareKvResultInfo {
+	page?: number;
+	per_page?: number;
+	count?: number;
+	total_count?: number;
+	total_pages?: number;
+}
+
 interface CloudflareKvNamespacesResponse {
 	success?: boolean;
 	result?: CloudflareKvNamespaceInfo[];
+	result_info?: CloudflareKvResultInfo;
 }
+
+// Hard ceiling on pages we'll walk. CF's per_page max is 100; with a
+// 50-page cap we cover up to 5_000 namespaces — well above any
+// realistic Kayle ID account — without risking a runaway loop if the
+// API returns an off-by-one `total_pages`.
+const KV_NAMESPACE_PAGE_LIMIT = 50;
 
 async function fetchKvNamespaceBytes({
 	accountId,
@@ -126,23 +127,37 @@ async function fetchKvNamespaceBytes({
 	namespaceId: string;
 }): Promise<number | null> {
 	// CF's per-namespace endpoint doesn't expose storage_bytes directly,
-	// but the list endpoint does. List once, filter to the bound id.
-	const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces?per_page=100`;
-	const response = await fetch(url, {
-		headers: { Authorization: `Bearer ${apiToken}` },
-	});
-	if (!response.ok) {
-		return null;
+	// but the list endpoint does. Walk pages until we hit the target id;
+	// `?per_page=100` is the CF max so this is at most ceil(N / 100)
+	// round-trips, bounded by KV_NAMESPACE_PAGE_LIMIT.
+	for (let page = 1; page <= KV_NAMESPACE_PAGE_LIMIT; page += 1) {
+		const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces?per_page=100&page=${page}`;
+		const response = await fetch(url, {
+			headers: { Authorization: `Bearer ${apiToken}` },
+		});
+		if (!response.ok) {
+			return null;
+		}
+		const body = (await response
+			.json()
+			.catch(() => null)) as CloudflareKvNamespacesResponse | null;
+		if (!body?.success || !Array.isArray(body.result)) {
+			return null;
+		}
+		const match = body.result.find((entry) => entry.id === namespaceId);
+		if (match) {
+			const bytes = match.storage_bytes;
+			return typeof bytes === "number" && Number.isFinite(bytes) ? bytes : null;
+		}
+		const totalPages = body.result_info?.total_pages;
+		const exhausted =
+			(typeof totalPages === "number" && page >= totalPages) ||
+			body.result.length === 0;
+		if (exhausted) {
+			return null;
+		}
 	}
-	const body = (await response
-		.json()
-		.catch(() => null)) as CloudflareKvNamespacesResponse | null;
-	if (!body?.success || !Array.isArray(body.result)) {
-		return null;
-	}
-	const match = body.result.find((entry) => entry.id === namespaceId);
-	const bytes = match?.storage_bytes;
-	return typeof bytes === "number" && Number.isFinite(bytes) ? bytes : null;
+	return null;
 }
 
 interface RunStorageAtRestParams {

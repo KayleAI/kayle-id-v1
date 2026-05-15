@@ -22,7 +22,7 @@
       "class_name": "BiometricVerifierContainer",
       "image": "./Dockerfile",
       "instance_type": {
-        "disk_mb": 2000,
+        "disk_mb": 2500,
         "memory_mib": 6144,
         "vcpu": 2
       },
@@ -67,7 +67,7 @@
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
           "instance_type": {
-            "disk_mb": 2000,
+            "disk_mb": 2500,
             "memory_mib": 6144,
             "vcpu": 2
           },
@@ -115,7 +115,7 @@
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
           "instance_type": {
-            "disk_mb": 2000,
+            "disk_mb": 2500,
             "memory_mib": 3072,
             "vcpu": 1
           },

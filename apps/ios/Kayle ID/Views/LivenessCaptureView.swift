@@ -9,11 +9,9 @@ import Vision
 /// Drives the head-movement liveness flow. There is no server-issued
 /// pose challenge in v2 — the user freely turns left and right in either
 /// order, and the server validates the recorded video for both extremes.
-///
-/// TODO(liveness-nonce-extraction): embed
-/// `session.livenessChallenge?.challengeNonce` in the recorded video so
-/// the verifier (matching TODO in `service.py`) can bind the clip to
-/// this attempt. Until both halves land, the nonce is telemetry only.
+/// The per-attempt challenge nonce arrives over WS before this view is
+/// presented; recording is gated on its presence and every frame gets
+/// the nonce stamped into a fixed corner before being written.
 struct LivenessCaptureView: View {
   let onComplete: () -> Void
   let onRejected: () -> Void
@@ -44,11 +42,15 @@ struct LivenessCaptureView: View {
       }
     }
     .task {
+      engine.challengeNonce = session.livenessChallenge?.challengeNonce
       do {
         try await engine.start()
       } catch {
         onError(error)
       }
+    }
+    .onChange(of: session.livenessChallenge?.challengeNonce) { newNonce in
+      engine.challengeNonce = newNonce
     }
     .onChange(of: engine.recordedVideoURL) { newURL in
       guard let url = newURL else { return }
@@ -434,6 +436,11 @@ final class LivenessEngine: ObservableObject {
   private var maxLeftYawDeg: Double = 0
   private var maxRightYawDeg: Double = 0
 
+  // Server-issued per-attempt nonce stamped into every recorded
+  // frame. Recording stays in the framing stage until this is set —
+  // we never write a frame without it.
+  var challengeNonce: Data?
+
   init() {
     sampleBufferDelegate.engine = self
     captureSession.sessionPreset = .hd1280x720
@@ -631,7 +638,8 @@ final class LivenessEngine: ObservableObject {
 
   private func advanceStageIfNeeded() {
     guard state.stage == .framing,
-      consecutiveCenteredFrames >= centerHoldFrames
+      consecutiveCenteredFrames >= centerHoldFrames,
+      challengeNonce != nil
     else {
       return
     }
@@ -699,8 +707,20 @@ final class LivenessEngine: ObservableObject {
       let input = videoInput,
       let adaptor = pixelBufferAdaptor,
       writer.status == .writing,
-      input.isReadyForMoreMediaData
+      input.isReadyForMoreMediaData,
+      let nonce = challengeNonce
     else {
+      return
+    }
+    do {
+      try LivenessNonceStamp.stamp(into: pixelBuffer, nonce: nonce)
+    } catch {
+      // Stamp failure means the verifier will reject — abort the
+      // recording rather than ship a clip that's guaranteed to fail.
+      isWritingFrames = false
+      writer.cancelWriting()
+      cleanup(removingFile: true)
+      fatalError = .captureFailed
       return
     }
     if sessionStartTime == nil {

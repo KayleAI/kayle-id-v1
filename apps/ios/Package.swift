@@ -23,6 +23,7 @@ let package = Package(
         "Models/QRCodePayload.swift",
         "Models/VerificationStep.swift",
         "Models/VerifyWebSocketAuthPolicy.swift",
+        "Services/LivenessNonceStamp.swift",
         "Utilities/MRZParser.swift",
       ]
     ),
@@ -32,6 +33,7 @@ let package = Package(
       path: "Kayle IDTests",
       sources: [
         "AttemptScopeTests.swift",
+        "LivenessNonceStampTests.swift",
         "MRZParserTests.swift",
         "QRCodePayloadTests.swift",
         "VerificationStepReconnectTests.swift",

@@ -1,4 +1,5 @@
 import base64
+import dataclasses
 import json
 import math
 import os
@@ -212,6 +213,90 @@ def emit_log(event: str, **details: object) -> None:
 
 def clamp_score(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+# Per-attempt liveness challenge nonce embed. 32 squares × 1 bit each =
+# 32 bits = 4 bytes, stamped into every recorded frame by the iOS app
+# (see apps/ios/Kayle ID/Services/LivenessNonceStamp.swift). Layout
+# constants MUST match the Swift side verbatim.
+NONCE_PATCH_X = 16
+NONCE_PATCH_Y = 1120
+NONCE_COLS = 8
+NONCE_ROWS = 4
+NONCE_SQUARE_SIZE = 24
+NONCE_GUTTER = 8
+NONCE_THRESHOLD = 127
+NONCE_BYTES = 4
+NONCE_EXPECTED_WIDTH = 720
+NONCE_EXPECTED_HEIGHT = 1280
+
+
+def extract_nonce_from_frame(frame: np.ndarray) -> Optional[bytes]:
+    """Decode the 4-byte challenge nonce stamped into the recorded frame.
+
+    Returns None on shape mismatch (legacy clip with no stamp area or
+    rescaled frame); the caller treats that as "no signal from this
+    frame" and tries the next one.
+    """
+    if frame.ndim != 3 or frame.shape[2] != 3:
+        return None
+    height, width = frame.shape[:2]
+    if width != NONCE_EXPECTED_WIDTH or height != NONCE_EXPECTED_HEIGHT:
+        return None
+
+    bits = bytearray(NONCE_BYTES)
+    pitch = NONCE_SQUARE_SIZE + NONCE_GUTTER
+    for bit_index in range(NONCE_BYTES * 8):
+        col = bit_index % NONCE_COLS
+        row = bit_index // NONCE_COLS
+        x0 = NONCE_PATCH_X + col * pitch
+        y0 = NONCE_PATCH_Y + row * pitch
+        cx = x0 + NONCE_SQUARE_SIZE // 2
+        cy = y0 + NONCE_SQUARE_SIZE // 2
+        sample = frame[cy - 2 : cy + 2, cx - 2 : cx + 2]
+        if sample.size == 0:
+            return None
+        if float(sample.mean()) > NONCE_THRESHOLD:
+            byte_index = bit_index // 8
+            bit_in_byte = 7 - (bit_index % 8)
+            bits[byte_index] |= 1 << bit_in_byte
+    return bytes(bits)
+
+
+@dataclasses.dataclass(frozen=True)
+class NonceVerificationResult:
+    matched: bool
+    frames_total: int
+    frames_decoded: int
+    frames_matched: int
+
+
+def verify_challenge_nonce(
+    frames: list, expected: bytes
+) -> NonceVerificationResult:
+    """Majority-vote the embedded nonce against the API-supplied value.
+
+    Counts every sampled frame; accepts iff a strict majority match.
+    `frames_decoded` is the number of frames that decoded to non-None
+    bytes (i.e., had the expected shape); `frames_matched` is how many
+    of those matched `expected`.
+    """
+    decoded = 0
+    matched = 0
+    for frame in frames:
+        candidate = extract_nonce_from_frame(frame)
+        if candidate is None:
+            continue
+        decoded += 1
+        if candidate == expected:
+            matched += 1
+    total = len(frames)
+    return NonceVerificationResult(
+        matched=matched > total // 2,
+        frames_total=total,
+        frames_decoded=decoded,
+        frames_matched=matched,
+    )
 
 
 def normalize_cosine_score(raw_score: float) -> float:
@@ -1523,6 +1608,51 @@ def verify_liveness_payload(
             debug=debug,
         )
 
+    challenge_nonce_b64 = payload.get("challengeNonceBase64")
+    if not isinstance(challenge_nonce_b64, str) or len(challenge_nonce_b64) == 0:
+        emit_log("liveness_challenge_missing")
+        return liveness_failure_response(
+            "liveness_challenge_mismatch",
+            threshold=threshold,
+            liveness_score=None,
+            debug=debug,
+        )
+    try:
+        expected_nonce = base64.b64decode(challenge_nonce_b64)
+    except Exception:
+        emit_log("liveness_challenge_decode_failed")
+        return liveness_failure_response(
+            "liveness_challenge_mismatch",
+            threshold=threshold,
+            liveness_score=None,
+            debug=debug,
+        )
+    if len(expected_nonce) != NONCE_BYTES:
+        emit_log(
+            "liveness_challenge_wrong_length", nonce_bytes=len(expected_nonce)
+        )
+        return liveness_failure_response(
+            "liveness_challenge_mismatch",
+            threshold=threshold,
+            liveness_score=None,
+            debug=debug,
+        )
+    nonce_result = verify_challenge_nonce(frames, expected_nonce)
+    emit_log(
+        "liveness_challenge_evaluated",
+        matched=nonce_result.matched,
+        frames_total=nonce_result.frames_total,
+        frames_decoded=nonce_result.frames_decoded,
+        frames_matched=nonce_result.frames_matched,
+    )
+    if not nonce_result.matched:
+        return liveness_failure_response(
+            "liveness_challenge_mismatch",
+            threshold=threshold,
+            liveness_score=None,
+            debug=debug,
+        )
+
     pose_start = time.monotonic()
     timeline = build_pose_timeline(detector, mesh_session, frames)
     _mark("poseTimelineMs", pose_start)
@@ -2230,19 +2360,6 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            # TODO(liveness-nonce-extraction): extract the 4 bytes from
-            # the rendered frames and reject mismatches here. Until
-            # that's wired we only log presence; the verdict path does
-            # NOT consult the nonce.
-            challenge_nonce_b64 = payload.get("challengeNonceBase64")
-            challenge_nonce_bytes = 0
-            if isinstance(challenge_nonce_b64, str) and challenge_nonce_b64:
-                try:
-                    challenge_nonce_bytes = len(
-                        base64.b64decode(challenge_nonce_b64)
-                    )
-                except Exception:
-                    challenge_nonce_bytes = -1
             result = RUNTIME.verify_liveness(payload)
             threshold = float(
                 payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD
@@ -2255,7 +2372,6 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
                     )
                 ),
                 threshold=threshold,
-                challenge_nonce_bytes=challenge_nonce_bytes,
                 face_match_passed=result.get("faceMatchPassed"),
                 face_match_score=result.get("faceMatchScore"),
                 face_match_alignment=result.get("faceMatchAlignment"),

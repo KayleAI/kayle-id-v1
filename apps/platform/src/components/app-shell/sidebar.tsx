@@ -102,7 +102,7 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar className="border-r-0!" collapsible="icon" variant="sidebar">
-			<SidebarHeader className="h-14! flex items-center justify-center pr-0!">
+			<SidebarHeader className="h-14! flex items-center justify-center">
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
@@ -122,9 +122,7 @@ export function AppSidebar() {
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<div className="w-[calc(100%+18px)] h-px bg-sidebar-border"></div>
-
-			<SidebarHeader className="pr-0!">
+			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<DropdownMenu>
@@ -246,10 +244,8 @@ export function AppSidebar() {
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<div className="mx-3 w-[calc(100%-18px)] h-px bg-sidebar-border"></div>
-
 			<SidebarContent>
-				<SidebarGroup className="pr-0!">
+				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
 							{NAV_ITEMS.map((item) => (
@@ -332,8 +328,6 @@ export function AppSidebar() {
 						/>
 					</SidebarMenuItem>
 				</SidebarMenu>
-
-				<div className="mx-2 w-[calc(100%-6px)] h-px bg-sidebar-border"></div>
 
 				<SidebarMenu>
 					<SidebarMenuItem>

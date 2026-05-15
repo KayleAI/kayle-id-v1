@@ -30,6 +30,14 @@ class ClampScoreTests(unittest.TestCase):
         self.assertEqual(clamp_score(math.inf), 1.0)
         self.assertEqual(clamp_score(-math.inf), 0.0)
 
+    def test_nan_falls_back_to_default(self) -> None:
+        # NaN propagates through Python's min/max so the old clamp
+        # returned 1.0 (universally fail). DEFAULT_THRESHOLD is the
+        # explicit "treat as unspecified" answer.
+        from service import DEFAULT_THRESHOLD
+
+        self.assertEqual(clamp_score(float("nan")), DEFAULT_THRESHOLD)
+
 
 class MeshCropExpandTests(unittest.TestCase):
     def test_default_value_is_in_range(self) -> None:

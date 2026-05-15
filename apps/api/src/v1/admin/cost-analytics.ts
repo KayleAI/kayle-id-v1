@@ -9,8 +9,14 @@ import { z } from "zod";
 import { config } from "@/config";
 import { getRequestLogger } from "@/logging";
 
+type AdminContextVariables = {
+	userId: string;
+	organizationId: string;
+};
+
 const cost = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
+	Variables: AdminContextVariables;
 }>();
 
 const groupBySchema = z
@@ -59,8 +65,9 @@ function parseRange(input: {
 	if (from.getTime() >= to.getTime()) {
 		return { error: "from must be strictly before to" };
 	}
-	const spanDays = (to.getTime() - from.getTime()) / 86_400_000;
-	if (spanDays > MAX_RANGE_DAYS) {
+	// Integer-ms compare to dodge float rounding at the boundary.
+	const spanMs = to.getTime() - from.getTime();
+	if (spanMs > MAX_RANGE_DAYS * 86_400_000) {
 		return { error: `range exceeds ${MAX_RANGE_DAYS} days` };
 	}
 	return { from, to };
@@ -81,6 +88,8 @@ const GROUP_BY_COLUMN: Record<z.infer<typeof groupBySchema>, string> = {
  * showing only staging spend, prod showing only prod, with zero
  * client-controllable mixing.
  */
+const VALID_ENV_VALUE = /^[a-zA-Z0-9_-]+$/;
+
 function buildSql({
 	groupBy,
 	from,
@@ -93,13 +102,17 @@ function buildSql({
 	environment: string;
 }): string {
 	const column = GROUP_BY_COLUMN[groupBy];
-	const safeEnv = environment.replace(/[^a-zA-Z0-9_-]/g, "");
+	// Defence in depth — `environment` is server-pinned, so a bad value
+	// means the worker is misconfigured. Throw rather than silently strip.
+	if (!VALID_ENV_VALUE.test(environment)) {
+		throw new Error(`cost_analytics_invalid_environment:${environment}`);
+	}
 	return [
 		`SELECT ${column} AS group_key, SUM(${COST_EVENT_DOUBLE.estimatedCostUsd}) AS cost_usd, COUNT() AS event_count`,
 		"FROM KAYLE_ID_ANALYTICS",
 		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
 		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
-		`  AND ${COST_EVENT_BLOB.environment} = '${safeEnv}'`,
+		`  AND ${COST_EVENT_BLOB.environment} = '${environment}'`,
 		`GROUP BY ${column}`,
 		"ORDER BY cost_usd DESC",
 		"LIMIT 1000",
@@ -260,11 +273,12 @@ cost.get("/cost-analytics", async (c) => {
 		rows,
 	};
 
-	// Environment goes to internal telemetry only — never to the
-	// response body — so a compromised admin session can't enumerate
-	// which envs exist by toggling the dashboard.
+	// Environment + actor go to internal telemetry only — never to
+	// the response body.
 	logEvent(logger, {
 		details: {
+			actor_user_id: c.get("userId") ?? null,
+			actor_organization_id: c.get("organizationId") ?? null,
 			environment,
 			group_by: groupBy,
 			row_count: rows.length,

@@ -158,20 +158,27 @@ export function emitCostEvent(input: EmitCostEventInput): void {
 }
 
 /**
- * Resolve the deploy environment from a Workers env object. Reads
- * `NODE_ENV` (which every wrangler env block sets) and normalises
- * common values. Falls back to `"unknown"` when missing — analytics
- * rows with that value indicate a misconfigured Worker.
+ * Resolve the deploy environment from a Workers env object. Prefers
+ * `KAYLE_ENVIRONMENT` (the dedicated deploy-env tag —
+ * production/staging/development/test) over `NODE_ENV` (which is a
+ * runtime-mode flag that staging deliberately pins to "production"
+ * so prod-only gates close on staging too). Falls back to `"unknown"`
+ * when both are missing — analytics rows with that value indicate a
+ * misconfigured Worker.
  */
 export function resolveEnvironment(env: unknown): string {
   if (!(env && typeof env === "object")) {
     return "unknown";
   }
-  const candidate = Reflect.get(env, "NODE_ENV");
-  if (typeof candidate !== "string" || candidate.length === 0) {
+  const deployEnv = Reflect.get(env, "KAYLE_ENVIRONMENT");
+  if (typeof deployEnv === "string" && deployEnv.length > 0) {
+    return deployEnv;
+  }
+  const nodeEnv = Reflect.get(env, "NODE_ENV");
+  if (typeof nodeEnv !== "string" || nodeEnv.length === 0) {
     return "unknown";
   }
-  return candidate;
+  return nodeEnv;
 }
 
 /**

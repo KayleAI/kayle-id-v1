@@ -18,7 +18,11 @@ RUN chmod +x ./scripts/download-models.sh \
   && ./scripts/download-models.sh
 
 # curl is only needed for the download step; purge it from the runtime
-# image. ffmpeg stays — /verify_liveness shells out to it.
+# image. ffmpeg stays for cv2's libavcodec codec coverage — the
+# bundled FFmpeg in the opencv-python wheel handles the common cases,
+# but the apt binary adds breathing room for codec edge cases (e.g.
+# HEVC variants iOS may emit). Re-evaluate once bench data confirms
+# the bundled codecs cover every encoding we receive.
 RUN apt-get purge -y --auto-remove curl \
   && rm -rf /var/lib/apt/lists/*
 

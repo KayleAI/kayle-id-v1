@@ -167,12 +167,22 @@ function formatRunDay(now: Date): string {
 	return `${year}-${month}-${day}`;
 }
 
+function isMissingDedupeTableError(error: unknown): boolean {
+	const message =
+		error instanceof Error
+			? error.message
+			: typeof error === "string"
+				? error
+				: "";
+	return message.toLowerCase().includes("no such table");
+}
+
 /**
- * Insert today's `run_day` into `storage_at_rest_runs`. Returns `true`
- * iff this invocation owns the day's emission slot. Fails closed on D1
- * errors: a duplicate emission would distort the dashboard for the
- * whole 24h window, while skipping costs at most one minute (the next
- * cron tick within the 90s tolerance window retries).
+ * Insert today's `run_day` into `storage_at_rest_runs`. Returns
+ * `true` iff this invocation owns today's slot. Fails closed on D1
+ * errors — a duplicate emission would distort the dashboard for 24h.
+ * Migration drift surfaces as the distinct `dedupe_table_missing`
+ * event so operators can tell it apart from a transient D1 hiccup.
  */
 async function claimDailyEmissionSlot({
 	env,
@@ -199,6 +209,17 @@ async function claimDailyEmissionSlot({
 		}
 		return inserted;
 	} catch (error) {
+		if (isMissingDedupeTableError(error)) {
+			logSafeError(logger, {
+				code: "storage_at_rest_dedupe_table_missing",
+				details: { run_day: runDay },
+				error,
+				event: "storage_at_rest.dedupe_table_missing",
+				message:
+					"storage_at_rest_runs table is missing — apply migration 0002_storage_at_rest_runs.sql to this env.",
+			});
+			return false;
+		}
 		logSafeError(logger, {
 			code: "storage_at_rest_dedupe_failed",
 			details: { run_day: runDay },

@@ -19,7 +19,7 @@ export type VerifyOutcome =
 // Same-origin proxy. The Vite dev server forwards `/verifier/*` to the
 // local wrangler dev of the biometric verifier, attaching the shared
 // secret server-side so the browser bundle stays secret-free.
-const VERIFIER_URL = "/verifier/verify";
+const VERIFIER_URL = "/verifier/verify" as const;
 
 export async function verifyLiveness(
 	request: VerifyRequest,

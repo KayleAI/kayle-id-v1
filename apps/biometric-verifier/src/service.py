@@ -4,7 +4,6 @@ import json
 import math
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 import threading
@@ -13,7 +12,6 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Optional
 
 import cv2
@@ -120,10 +118,11 @@ LIVENESS_CENTER_YAW_DEG = float(
 LIVENESS_TILT_YAW_DEG = float(
     os.environ.get("BIOMETRIC_VERIFIER_TILT_YAW_DEG", "17")
 )
-LIVENESS_MIN_POSE_FRAMES = int(
-    os.environ.get("BIOMETRIC_VERIFIER_MIN_POSE_FRAMES", "1")
+# Clamped so a typo'd env override can't lock out every clip.
+LIVENESS_MIN_POSE_FRAMES = max(
+    1,
+    min(int(os.environ.get("BIOMETRIC_VERIFIER_MIN_POSE_FRAMES", "1")), 12),
 )
-LIVENESS_FFMPEG_BIN = os.environ.get("BIOMETRIC_VERIFIER_FFMPEG_BIN", "ffmpeg")
 
 # Silent-Face-Anti-Spoofing dual-model ensemble (MiniFASNetV2 +
 # MiniFASNetV1SE). Inference sums the two softmaxes; class index 1 is
@@ -212,6 +211,11 @@ def emit_log(event: str, **details: object) -> None:
 
 
 def clamp_score(value: float) -> float:
+    # NaN propagates through min/max as the non-NaN side, so the
+    # plain clamp would return 1.0 (universally fail). Fall back to
+    # the explicit default instead. ±inf clamps cleanly to 0/1.
+    if math.isnan(value):
+        return DEFAULT_THRESHOLD
     return max(0.0, min(1.0, value))
 
 
@@ -811,51 +815,6 @@ def extract_frames_with_ffmpeg(
             os.unlink(tmp_path)
         except OSError:
             pass
-
-
-def probe_duration_seconds(input_path: Path) -> Optional[float]:
-    """Read duration via ffmpeg's stderr probe (avoids the ffprobe
-    dependency so the container ships only one binary)."""
-    command = [
-        LIVENESS_FFMPEG_BIN,
-        "-nostdin",
-        "-hide_banner",
-        "-i",
-        str(input_path),
-    ]
-
-    try:
-        result = subprocess.run(
-            command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=5,
-        )
-    except subprocess.TimeoutExpired:
-        return None
-
-    stderr = result.stderr.decode("utf-8", errors="replace")
-    # Look for "Duration: HH:MM:SS.ms" in ffmpeg's stderr probe output.
-    needle = "Duration:"
-    start = stderr.find(needle)
-    if start == -1:
-        return None
-    fragment = stderr[start + len(needle):].strip()
-    end = fragment.find(",")
-    if end == -1:
-        return None
-    duration_text = fragment[:end].strip()
-    parts = duration_text.split(":")
-    if len(parts) != 3:
-        return None
-    try:
-        hours = float(parts[0])
-        minutes = float(parts[1])
-        seconds = float(parts[2])
-    except ValueError:
-        return None
-    total = hours * 3600 + minutes * 60 + seconds
-    return total if total > 0 else None
 
 
 # Canonical 3D head model in approximate millimetres. Right-handed
@@ -1548,7 +1507,7 @@ def verify_liveness_payload(
         if include_debug
         else None
     )
-    perf: dict[str, float] = {} if DEBUG_METRICS_ENABLED else None  # type: ignore[assignment]
+    perf: Optional[dict[str, float]] = {} if DEBUG_METRICS_ENABLED else None
     request_started = time.monotonic()
 
     def _mark(step: str, started: float) -> None:
@@ -1765,6 +1724,7 @@ def verify_liveness_payload(
             "pad_pass_fraction": PAD_PASS_FRACTION,
             "pad_reason": pad_result["padReason"],
         }
+        # Per-frame scores are bench-only; default logs stay aggregate.
         if DEBUG_METRICS_ENABLED:
             pad_log_details["pad_frame_scores"] = pad_result["padFrameScores"]
         emit_log("liveness_pad_evaluated", **pad_log_details)
@@ -2364,13 +2324,12 @@ class BiometricVerifierHandler(BaseHTTPRequestHandler):
             threshold = float(
                 payload.get("faceMatchThreshold") or DEFAULT_THRESHOLD
             )
+            # Length of the encoded payload (avoid a second base64 decode
+            # just for a log signal).
+            dg2_encoded = payload.get("dg2Image", {}).get("bytesBase64", "")
             emit_log(
                 "container_liveness_completed",
-                dg2_byte_count=len(
-                    base64.b64decode(
-                        payload.get("dg2Image", {}).get("bytesBase64", "")
-                    )
-                ),
+                dg2_base64_byte_count=len(dg2_encoded),
                 threshold=threshold,
                 face_match_passed=result.get("faceMatchPassed"),
                 face_match_score=result.get("faceMatchScore"),

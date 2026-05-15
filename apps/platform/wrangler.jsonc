@@ -31,13 +31,15 @@
 		}
 	],
 	"vars": {
-		"NODE_ENV": "development"
+		"NODE_ENV": "development",
+		"KAYLE_ENVIRONMENT": "development"
 	},
 	"env": {
 		"production": {
 			"name": "kayle-id-platform",
 			"vars": {
-				"NODE_ENV": "production"
+				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "production"
 			},
 			"durable_objects": {
 				"bindings": [
@@ -93,7 +95,9 @@
 		"staging": {
 			"name": "kayle-id-platform-staging",
 			"vars": {
-				"NODE_ENV": "production"
+				// NODE_ENV pins runtime mode; KAYLE_ENVIRONMENT tags telemetry.
+				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "staging"
 			},
 			"durable_objects": {
 				"bindings": [
@@ -120,6 +124,9 @@
 					"binding": "ORG_VERIFICATIONS_KV",
 					"id": "3509af7d462d46ca9aca4ac04bb6615e"
 				}
+			],
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
 			],
 			"routes": [
 				{

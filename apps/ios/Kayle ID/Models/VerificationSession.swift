@@ -81,6 +81,11 @@ final class VerificationSession: ObservableObject {
   private var livenessVideoBytes: Data?
   private var livenessUploadCancelled = false
   private var livenessUploadInFlight = false
+  // Queue of upload calls waiting for the slot to free. Resumed
+  // one-at-a-time in FIFO order by `releaseLivenessUploadSlot`, or
+  // resumed with CancellationError on teardown so parked callers
+  // unwind cleanly instead of waking up on a stale session.
+  private var livenessUploadWaiters: [CheckedContinuation<Void, Error>] = []
   private var pendingPhaseUpdateTask: Task<Void, Never>?
   private var reconnectTask: Task<Void, Never>?
   private let nfcChunkSize = 64 * 1024
@@ -182,7 +187,7 @@ final class VerificationSession: ObservableObject {
   func sendLivenessVideo(_ videoURL: URL) async throws -> Bool {
     try await waitForLivenessUploadTurn()
     defer {
-      livenessUploadInFlight = false
+      releaseLivenessUploadSlot()
     }
 
     guard let webSocketService else {
@@ -510,7 +515,7 @@ final class VerificationSession: ObservableObject {
     livenessUploadStarted = false
     livenessUploadComplete = false
     livenessUploadCancelled = false
-    livenessUploadInFlight = false
+    cancelLivenessUploadWaiters()
     resetNFCUploadState()
     pendingPhaseUpdateTask?.cancel()
     pendingPhaseUpdateTask = nil
@@ -644,8 +649,8 @@ final class VerificationSession: ObservableObject {
     livenessVideoBytes = nil
     livenessUploadStarted = false
     livenessUploadComplete = false
-    livenessUploadInFlight = false
     livenessUploadCancelled = false
+    cancelLivenessUploadWaiters()
     livenessCaptureGeneration = UUID()
 
     // Re-stream NFC artifacts so the server can face-match against dg2.
@@ -1316,12 +1321,37 @@ final class VerificationSession: ObservableObject {
     await task?.value
   }
 
+  /// Serialises liveness uploads via a continuation queue. Throws
+  /// `CancellationError` if the session is torn down while parked.
   private func waitForLivenessUploadTurn() async throws {
-    while livenessUploadInFlight {
-      try await Task.sleep(nanoseconds: 50_000_000)
+    if !livenessUploadInFlight {
+      livenessUploadInFlight = true
+      return
     }
+    try await withCheckedThrowingContinuation { continuation in
+      livenessUploadWaiters.append(continuation)
+    }
+    // Slot ownership transferred from the previous owner.
+  }
 
-    livenessUploadInFlight = true
+  /// Hand off the slot to the next waiter, or mark idle.
+  private func releaseLivenessUploadSlot() {
+    if livenessUploadWaiters.isEmpty {
+      livenessUploadInFlight = false
+      return
+    }
+    let next = livenessUploadWaiters.removeFirst()
+    next.resume()
+  }
+
+  /// Free the slot and unwind parked waiters with cancellation.
+  private func cancelLivenessUploadWaiters() {
+    let waiters = livenessUploadWaiters
+    livenessUploadWaiters = []
+    livenessUploadInFlight = false
+    for waiter in waiters {
+      waiter.resume(throwing: CancellationError())
+    }
   }
 
   private func resolveDisplayError(_ error: Error) -> Error {

@@ -72,13 +72,17 @@ export function markRequestLogForManualEmit(c: Context): void {
 	getLoggingContext(c).set(REQUEST_LOG_MANUAL_EMIT_KEY, true);
 }
 
+type RequestCostContext = Context<{
+	Variables: { organizationId?: string };
+}>;
+
 function emitRequestCostEvents(c: Context, startedAtMs: number): void {
 	const env = (c as unknown as { env: unknown }).env;
 	const dataset = resolveAnalyticsDataset(env);
 	if (!dataset) {
 		return;
 	}
-	const organizationId = c.get("organizationId" as never) as string | undefined;
+	const organizationId = (c as RequestCostContext).get("organizationId");
 	const durationMs = Math.max(0, Date.now() - startedAtMs);
 	const environment = config.environment ?? "unknown";
 	emitCostEvent({

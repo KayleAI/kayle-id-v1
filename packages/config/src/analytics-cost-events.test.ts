@@ -199,14 +199,39 @@ describe("emitCostEvent", () => {
 });
 
 describe("resolveEnvironment", () => {
-  it("returns NODE_ENV when bound on env", () => {
-    expect(resolveEnvironment({ NODE_ENV: "production" })).toBe("production");
-    expect(resolveEnvironment({ NODE_ENV: "bench" })).toBe("bench");
+  it("prefers KAYLE_ENVIRONMENT over NODE_ENV", () => {
+    // The whole point of the override — staging pins NODE_ENV=production
+    // for runtime-mode reasons, but tags telemetry as staging.
+    expect(
+      resolveEnvironment({
+        KAYLE_ENVIRONMENT: "staging",
+        NODE_ENV: "production",
+      })
+    ).toBe("staging");
   });
 
-  it("falls back to 'unknown' when missing or empty", () => {
+  it("returns KAYLE_ENVIRONMENT when bound", () => {
+    expect(resolveEnvironment({ KAYLE_ENVIRONMENT: "production" })).toBe(
+      "production"
+    );
+    expect(resolveEnvironment({ KAYLE_ENVIRONMENT: "bench" })).toBe("bench");
+  });
+
+  it("falls back to NODE_ENV when KAYLE_ENVIRONMENT is missing or empty", () => {
+    expect(resolveEnvironment({ NODE_ENV: "production" })).toBe("production");
+    expect(
+      resolveEnvironment({ KAYLE_ENVIRONMENT: "", NODE_ENV: "test" })
+    ).toBe("test");
+    expect(resolveEnvironment({ KAYLE_ENVIRONMENT: 7, NODE_ENV: "test" })).toBe(
+      "test"
+    );
+  });
+
+  it("falls back to 'unknown' when both are missing or empty", () => {
     expect(resolveEnvironment({})).toBe("unknown");
-    expect(resolveEnvironment({ NODE_ENV: "" })).toBe("unknown");
+    expect(resolveEnvironment({ KAYLE_ENVIRONMENT: "", NODE_ENV: "" })).toBe(
+      "unknown"
+    );
     expect(resolveEnvironment(null)).toBe("unknown");
     expect(resolveEnvironment(undefined)).toBe("unknown");
     expect(resolveEnvironment({ NODE_ENV: 7 })).toBe("unknown");

@@ -152,4 +152,40 @@ describe("runStorageAtRestCron idempotency", () => {
 		});
 		expect(points).toHaveLength(0);
 	});
+
+	it("fails closed and skips emission when the dedupe table is missing", async () => {
+		// D1 raises "no such table" when the 0002 migration hasn't been
+		// applied. We surface this as a distinct event in logs; the
+		// cron must still skip emission to avoid duplicate counting.
+		const points: CapturedPoint[] = [];
+		const env: MockEnv = {
+			KAYLE_ID_ANALYTICS: {
+				writeDataPoint(p: CapturedPoint) {
+					points.push(p);
+				},
+			},
+			TRUST_STORE: {
+				prepare() {
+					return {
+						bind() {
+							return {
+								async run() {
+									throw new Error(
+										"D1_ERROR: no such table: storage_at_rest_runs",
+									);
+								},
+							};
+						},
+					};
+				},
+			},
+			CLOUDFLARE_API_TOKEN: "test-token",
+			CLOUDFLARE_ACCOUNT_ID: "test-account",
+		};
+		await runStorageAtRestCron({
+			env: env as unknown as CloudflareBindings,
+			now: new Date(Date.UTC(2026, 0, 15, 0, 0, 0)),
+		});
+		expect(points).toHaveLength(0);
+	});
 });

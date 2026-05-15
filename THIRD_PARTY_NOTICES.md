@@ -1,8 +1,10 @@
 # Third-Party Notices
 
 This project includes third-party model artifacts used by the biometric
-verifier in
-[`infra/biometric-verifier/models/`](/Users/arsen/Kayle/kayle-id/infra/biometric-verifier/models).
+verifier (downloaded into the container image at build time by
+[`apps/biometric-verifier/scripts/download-models.sh`](apps/biometric-verifier/scripts/download-models.sh))
+and, in the contributor-only debugger app, runtime-loaded MediaPipe
+assets from third-party CDNs.
 
 ## Face Recognition: AuraFace
 
@@ -130,3 +132,9 @@ the full text.
 
 Copyright 2019-2024 The MediaPipe Authors / Google LLC. Used with attribution
 under the terms of the Apache License, Version 2.0.
+
+The contributor-only debugger (`apps/debugger`) loads MediaPipe's wasm
+runtime and Face Landmarker `.task` model at runtime from jsdelivr and
+`storage.googleapis.com`. Not vendored, not deployed — see
+[`MediaPipeMeshLayer.tsx`](apps/debugger/src/biometric/MediaPipeMeshLayer.tsx)
+for the pinned URLs.

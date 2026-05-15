@@ -82,11 +82,10 @@ async function requestContainerLiveness({
     }
 
     return parsedResponse.data;
-  } catch (error) {
+  } catch {
+    // Fixed code instead of error.message — keeps the `reason` field stable.
     return createUnavailableResult(
-      `biometric_verifier_unavailable:${
-        error instanceof Error ? error.message : String(error)
-      }`
+      "biometric_verifier_unavailable:container_request_failed"
     );
   }
 }

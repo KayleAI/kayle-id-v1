@@ -5,9 +5,9 @@ import {
 } from "@mediapipe/tasks-vision";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-// MediaPipe's wasm + model assets live off-CDN. Keep them as constants so
-// it's obvious what we're loading when reading the diff and easy to swap
-// later if we want to self-host the binaries.
+// Runtime-loaded from third-party CDNs (debugger is contributor-only,
+// not deployed). Pinned MediaPipe version. Vendor under public/ if we
+// ever ship this beyond contributor machines.
 const MEDIAPIPE_WASM_BASE =
 	"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
 const FACE_LANDMARKER_MODEL_URL =

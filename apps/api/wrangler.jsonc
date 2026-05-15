@@ -62,6 +62,7 @@
 	],
 	"vars": {
 		"NODE_ENV": "development",
+		"KAYLE_ENVIRONMENT": "development",
 		"PUBLIC_AUTH_URL": "http://localhost:3000",
 		"PUBLIC_VERIFY_URL": "http://localhost:2999",
 		"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>",
@@ -72,6 +73,7 @@
 			"name": "kayle-id-api",
 			"vars": {
 				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "production",
 				"PUBLIC_AUTH_URL": "https://kayle.id",
 				"PUBLIC_VERIFY_URL": "https://verify.kayle.id",
 				"PUBLIC_CDN_ORIGIN": "https://cdn.kayle.id",
@@ -152,11 +154,14 @@
 		"staging": {
 			"name": "kayle-id-api-staging",
 			"vars": {
+				// NODE_ENV pins runtime mode; KAYLE_ENVIRONMENT tags telemetry.
 				"NODE_ENV": "production",
+				"KAYLE_ENVIRONMENT": "staging",
 				"PUBLIC_AUTH_URL": "https://staging.kayle.id",
 				"PUBLIC_VERIFY_URL": "https://verify.staging.kayle.id",
 				"PUBLIC_CDN_ORIGIN": "https://cdn.staging.kayle.id",
-				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"
+				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>",
+				"MIN_APP_VERSION": "1.4.1"
 			},
 			"send_email": [
 				{
@@ -199,6 +204,10 @@
 					"class_name": "WebhookDeliveryWorkflow"
 				}
 			],
+			// Shared dataset; `blob6` (environment) discriminates rows.
+			"analytics_engine_datasets": [
+				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
+			],
 			"routes": [
 				{
 					"pattern": "api.staging.kayle.id",
@@ -215,6 +224,7 @@
 		"test": {
 			"vars": {
 				"NODE_ENV": "test",
+				"KAYLE_ENVIRONMENT": "test",
 				"PUBLIC_AUTH_URL": "http://localhost:3000",
 				"PUBLIC_VERIFY_URL": "http://localhost:2999",
 				"EMAIL_FROM_ADDRESS": "Kayle ID <security@care.kayle.id>"

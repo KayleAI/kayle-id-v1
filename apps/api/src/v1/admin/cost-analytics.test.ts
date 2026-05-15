@@ -123,19 +123,41 @@ describe("buildSql", () => {
 		expect(sql).not.toContain("'production'");
 	});
 
-	it("sanitises the environment value to a safe identifier", () => {
-		// Even though config.environment is server-controlled, defence in
-		// depth: any non-identifier char in the value gets stripped before
-		// it hits the SQL string.
+	it("rejects an environment value containing non-identifier chars", () => {
+		// Defence in depth — config.environment is server-pinned, so a
+		// bad value means the worker is misconfigured. Throw rather
+		// than silently stripping: a stripped value like
+		// "prodDROPTABLEfoo" would be syntactically valid SQL but
+		// produce empty results with no diagnostic.
+		expect(() =>
+			buildSql({
+				groupBy: "feature",
+				from,
+				to,
+				environment: "prod'; DROP TABLE foo;",
+			}),
+		).toThrow(/cost_analytics_invalid_environment/);
+	});
+
+	it("accepts identifier-safe environment values verbatim", () => {
 		const sql = buildSql({
 			groupBy: "feature",
 			from,
 			to,
-			environment: "prod'; DROP TABLE foo;",
+			environment: "bench-2",
 		});
-		expect(sql).toContain("AND blob6 = 'prodDROPTABLEfoo'");
-		expect(sql).not.toContain("DROP TABLE");
-		expect(sql).not.toContain("';");
+		expect(sql).toContain("AND blob6 = 'bench-2'");
+	});
+
+	it("accepts a range of exactly 90 days", () => {
+		const result = parseRange({
+			from: "2025-05-01T00:00:00Z",
+			to: "2025-07-30T00:00:00Z",
+		});
+		if ("error" in result) {
+			throw new Error(`expected range, got error: ${result.error}`);
+		}
+		expect(result.from.toISOString()).toBe("2025-05-01T00:00:00.000Z");
 	});
 
 	it("groups by version using blob7", () => {

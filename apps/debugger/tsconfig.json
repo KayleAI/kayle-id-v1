@@ -8,6 +8,9 @@
 		"types": ["node", "vite/client"],
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
+		// Off here (vs repo default `true`) for the TanStack Router
+		// codegen path — `routeTree.gen.ts` emits value-imports that
+		// verbatim-mode rejects.
 		"verbatimModuleSyntax": false,
 		"noEmit": true,
 		"skipLibCheck": true,

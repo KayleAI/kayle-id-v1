@@ -750,10 +750,30 @@ export async function runPhaseValidation(
 
 	const threshold = thresholdResult.threshold;
 
+	// Fail fast on missing nonce (e.g. reconnect lost the issue);
+	// the container would reject anyway, this keeps the reason precise.
+	const challengeNonce = context.state.livenessChallengeNonce;
+	if (!challengeNonce) {
+		logEvent(context.log, {
+			details: { attempt_id: attemptId },
+			event: "verify.ws.liveness_challenge_nonce_missing",
+			level: "warn",
+		});
+		const verdict = await rejectAttemptWithVerdict({
+			attemptId,
+			code: "liveness_failed",
+			context,
+			riskScore: 1,
+		});
+		context.transport.sendVerdict(verdict);
+		context.transport.closeAfterVerdict(verdict.reasonCode);
+		return verdict;
+	}
+
 	const result = await verifyLiveness({
 		dg2Image: documentPortrait,
 		video: livenessVideo,
-		challengeNonce: context.state.livenessChallengeNonce ?? undefined,
+		challengeNonce,
 		faceMatchThreshold: threshold,
 		env: context.env,
 		organizationId: context.session.organizationId,

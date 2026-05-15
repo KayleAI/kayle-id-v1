@@ -49,6 +49,10 @@ type ServerAckOrError = {
 	activeAuthChallenge?: {
 		challenge: Uint8Array;
 	};
+	livenessChallenge?: {
+		maxDurationMs: number;
+		challengeNonce: Uint8Array;
+	};
 	error?: {
 		code: string;
 		message: string;
@@ -252,6 +256,16 @@ function decodeServerMessage(bytes: Uint8Array): ServerAckOrError | null {
 					},
 				};
 
+			case ServerMessage.LIVENESS_CHALLENGE:
+				return {
+					livenessChallenge: {
+						maxDurationMs: root.livenessChallenge.maxDurationMs,
+						challengeNonce: new Uint8Array(
+							root.livenessChallenge.challengeNonce.toUint8Array(),
+						),
+					},
+				};
+
 			default:
 				return null;
 		}
@@ -330,6 +344,13 @@ function awaitServerMessage(socket: WebSocket): Promise<ServerAckOrError> {
 			// as part of the AA protocol. Tests that don't exercise AA expect the
 			// next ack/verdict directly, so skip the challenge and keep listening.
 			if (decoded.activeAuthChallenge !== undefined) {
+				return;
+			}
+
+			// Same pass-through for the liveness challenge emitted on the
+			// nfc_complete -> liveness_capturing transition; tests await the
+			// trailing phase_ok ack, not the challenge itself.
+			if (decoded.livenessChallenge !== undefined) {
 				return;
 			}
 
@@ -420,6 +441,10 @@ function awaitServerMessageOrClose(socket: WebSocket): Promise<
 			}
 
 			if (decoded.activeAuthChallenge !== undefined) {
+				return;
+			}
+
+			if (decoded.livenessChallenge !== undefined) {
 				return;
 			}
 

@@ -115,7 +115,7 @@
           "class_name": "BiometricVerifierContainer",
           "image": "./Dockerfile",
           "instance_type": {
-            "disk_mb": 2500,
+            "disk_mb": 4000,
             "memory_mib": 3072,
             "vcpu": 1
           },

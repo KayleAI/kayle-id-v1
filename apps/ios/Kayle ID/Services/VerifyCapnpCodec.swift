@@ -118,6 +118,15 @@ nonisolated private func verify_server_message_get_active_auth_challenge(
   _ outChallengeLength: UnsafeMutablePointer<Int>?
 ) -> Int32
 
+@_silgen_name("verify_server_message_get_liveness_challenge")
+nonisolated private func verify_server_message_get_liveness_challenge(
+  _ reader: UnsafeMutableRawPointer?,
+  _ outMaxDurationMs: UnsafeMutablePointer<UInt32>?,
+  _ outChallengeNonce: UnsafeMutablePointer<UInt8>?,
+  _ outChallengeNonceSize: Int,
+  _ outChallengeNonceLength: UnsafeMutablePointer<Int>?
+) -> Int32
+
 enum VerifyServerMessageKind: Int32 {
   case none = 0
   case ack = 1
@@ -126,6 +135,7 @@ enum VerifyServerMessageKind: Int32 {
   case shareRequest = 4
   case shareReady = 5
   case activeAuthChallenge = 6
+  case livenessChallenge = 7
 }
 
 struct VerifyServerMessage {
@@ -136,6 +146,7 @@ struct VerifyServerMessage {
   let shareRequest: VerifyShareRequest?
   let shareReady: VerifyShareReady?
   let activeAuthChallenge: Data?
+  let livenessChallenge: VerifyServerLivenessChallenge?
 
   init(
     ackMessage: String? = nil,
@@ -144,7 +155,8 @@ struct VerifyServerMessage {
     verdict: VerifyServerVerdict? = nil,
     shareRequest: VerifyShareRequest? = nil,
     shareReady: VerifyShareReady? = nil,
-    activeAuthChallenge: Data? = nil
+    activeAuthChallenge: Data? = nil,
+    livenessChallenge: VerifyServerLivenessChallenge? = nil
   ) {
     self.ackMessage = ackMessage
     self.errorCode = errorCode
@@ -153,6 +165,7 @@ struct VerifyServerMessage {
     self.shareRequest = shareRequest
     self.shareReady = shareReady
     self.activeAuthChallenge = activeAuthChallenge
+    self.livenessChallenge = livenessChallenge
   }
 }
 
@@ -582,6 +595,34 @@ final class VerifyCapnpCodec {
 
       return VerifyServerMessage(
         activeAuthChallenge: Data(buffer.prefix(length))
+      )
+    case .livenessChallenge:
+      var maxDurationMs: UInt32 = 0
+      let nonceCapacity = 32
+      var nonceBuffer = [UInt8](repeating: 0, count: nonceCapacity)
+      var nonceLength: Int = 0
+
+      let ok = verify_server_message_get_liveness_challenge(
+        reader.opaque,
+        &maxDurationMs,
+        &nonceBuffer,
+        nonceCapacity,
+        &nonceLength
+      )
+
+      guard ok == 1 else {
+        return VerifyServerMessage()
+      }
+
+      let nonce: Data = nonceLength > 0 && nonceLength <= nonceCapacity
+        ? Data(nonceBuffer.prefix(nonceLength))
+        : Data()
+
+      return VerifyServerMessage(
+        livenessChallenge: VerifyServerLivenessChallenge(
+          maxDurationMs: maxDurationMs,
+          challengeNonce: nonce
+        )
       )
     case .none:
       return nil

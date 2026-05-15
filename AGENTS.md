@@ -17,7 +17,7 @@ Infisical is the source of truth for both dev and prod secrets. Production sync 
 
 Two `.env.example` files survive as machine inputs to `wrangler types` and must stay in sync with the keys configured in Infisical:
 - `apps/api/.env.example`
-- `infra/face-matcher/.env.example`
+- `apps/biometric-verifier/.env.example`
 
 When adding or removing a runtime env var, update the relevant `.env.example`, the Infisical project, and the `env:setup` script's dummy/random defaults if appropriate. Do not introduce new per-app `.env` files.
 

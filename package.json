@@ -20,10 +20,11 @@
   },
   "name": "kayle-id",
   "scripts": {
-    "dev": "turbo run dev --filter=kayle-id-api --filter=kayle-id-face-matcher --filter=kayle-id-platform --filter=kayle-id-verify",
+    "dev": "turbo run dev --filter=kayle-id-api --filter=kayle-id-biometric-verifier --filter=kayle-id-platform --filter=kayle-id-verify",
     "dev:seed": "bash ./scripts/seed-local-dev.sh",
     "env:setup": "bun ./scripts/setup-env.ts",
     "env:pull": "bash ./scripts/pull-env.sh",
+    "keypair:webhook": "bun ./scripts/generate-webhook-keypair.ts",
     "test": "turbo run test",
     "prod:seed:pkd": "bash ./scripts/seed-production-pkd.sh",
     "dev:ios": "turbo run dev --filter=kayle-id-ios",
@@ -31,7 +32,7 @@
     "lint": "bun run lint:format && bun run lint:runtime-logs && bun run lint:actions",
     "typecheck": "turbo run typecheck",
     "lint:format": "ultracite check",
-    "lint:runtime-logs": "bun ./scripts/check-runtime-console.ts",
+    "lint:runtime-logs": "bun ./scripts/check-runtime-console.ts && bun ./scripts/check-runtime-python-logs.ts",
     "lint:actions": "bun ./scripts/check-github-actions-pinned.ts",
     "capnp:generate:ts": "bash ./scripts/generate-capnp-ts.sh",
     "format": "ultracite fix",
@@ -54,7 +55,7 @@
     "check": "ultracite check",
     "fix": "ultracite fix"
   },
-  "version": "1.3.6",
+  "version": "1.4.1",
   "workspaces": [
     "apps/*",
     "infra/*",

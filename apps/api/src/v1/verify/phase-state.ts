@@ -10,8 +10,8 @@ const PHASE_SEQUENCE = [
 	"mrz_complete",
 	"nfc_reading",
 	"nfc_complete",
-	"selfie_capturing",
-	"selfie_complete",
+	"liveness_capturing",
+	"liveness_complete",
 ] as const;
 
 export type TrackedAttemptPhase = (typeof PHASE_SEQUENCE)[number];
@@ -22,8 +22,8 @@ const PHASE_INDEX: Record<TrackedAttemptPhase, number> = {
 	mrz_complete: 2,
 	nfc_reading: 3,
 	nfc_complete: 4,
-	selfie_capturing: 5,
-	selfie_complete: 6,
+	liveness_capturing: 5,
+	liveness_complete: 6,
 };
 
 export function isTrackedAttemptPhase(

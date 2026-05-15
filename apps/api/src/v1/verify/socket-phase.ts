@@ -1,4 +1,7 @@
+import { logEvent } from "@kayle-id/config/logging";
+import { prewarmBiometricVerifier } from "./biometric-verifier-client";
 import { resolveVerifyErrorMessage } from "./error-response";
+import { deriveLivenessChallenge } from "./liveness-challenge";
 import {
 	isTrackedAttemptPhase,
 	persistTrackedAttemptPhase,
@@ -65,7 +68,7 @@ export async function handlePhaseMessage(
 	}
 
 	const verdict =
-		nextPhase === "nfc_complete" || nextPhase === "selfie_complete"
+		nextPhase === "nfc_complete" || nextPhase === "liveness_complete"
 			? await runPhaseValidation(context, state.attemptId, nextPhase)
 			: null;
 
@@ -82,9 +85,50 @@ export async function handlePhaseMessage(
 			phase: transition.nextPhase,
 		});
 		state.currentPhase = transition.nextPhase;
+
+		// User just entered liveness capture — they have ~10-15s of
+		// recording + upload runway. Prewarm the verifier container so
+		// its cold-start runs in parallel with capture instead of
+		// blocking the eventual /verify call, and issue the per-attempt
+		// challenge nonce the client will echo inside the recording.
+		if (transition.nextPhase === "liveness_capturing") {
+			context.scheduleTask(
+				prewarmBiometricVerifier({
+					env: context.env,
+					attemptId: state.attemptId,
+				}),
+			);
+			const authSecret = context.env.AUTH_SECRET;
+			if (!(typeof authSecret === "string" && authSecret.length > 0)) {
+				// Without AUTH_SECRET we can't derive the per-attempt
+				// challenge, and the verifier rejects clips without a
+				// matching nonce. Fail loudly here rather than letting the
+				// iOS engine hang on a never-arriving challenge.
+				logEvent(context.log, {
+					details: { attempt_id: state.attemptId },
+					event: "verify.ws.liveness_challenge_unavailable",
+					level: "warn",
+				});
+				transport.sendError(
+					"LIVENESS_CHALLENGE_UNAVAILABLE",
+					resolveVerifyErrorMessage("LIVENESS_CHALLENGE_UNAVAILABLE"),
+				);
+				transport.closeAfterVerdict("LIVENESS_CHALLENGE_UNAVAILABLE");
+				return;
+			}
+			const challenge = await deriveLivenessChallenge({
+				attemptId: state.attemptId,
+				authSecret,
+			});
+			state.livenessChallengeNonce = challenge.challengeNonce;
+			transport.sendLivenessChallenge({
+				maxDurationMs: challenge.maxDurationMs,
+				challengeNonce: challenge.challengeNonce,
+			});
+		}
 	}
 
-	if (nextPhase === "selfie_complete" && verdict) {
+	if (nextPhase === "liveness_complete" && verdict) {
 		transport.sendVerdict(verdict);
 		transport.sendShareRequest(context.shareRequestPayload);
 		state.shareRequestSent = true;

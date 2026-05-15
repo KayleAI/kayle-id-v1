@@ -27,10 +27,17 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!--
+		CFBundleShortVersionString + CFBundleVersion are overwritten at
+		build time by `scripts/sync-version-from-package-json.sh` using
+		the root `package.json` version (and `IOS_BUILD_NUMBER` from CI
+		for the build number). The placeholders below are inert — they
+		exist so PlistBuddy `Set` has a key to overwrite.
+	-->
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>0.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>0.0.0.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

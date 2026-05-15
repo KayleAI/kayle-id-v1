@@ -28,8 +28,8 @@ jobs:
           - workspace: verify
             working-directory: apps/verify
             generate-capnp: "true"
-          - workspace: face-matcher
-            working-directory: infra/face-matcher
+          - workspace: biometric-verifier
+            working-directory: apps/biometric-verifier
             generate-capnp: "false"
           - workspace: auth
             working-directory: packages/auth

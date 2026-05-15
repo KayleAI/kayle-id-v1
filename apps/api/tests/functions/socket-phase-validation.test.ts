@@ -17,28 +17,36 @@ afterEach(() => {
 	(process.env as Record<string, string | undefined>).NODE_ENV = undefined;
 });
 
-test("blocks successful fallback matches in production", () => {
+test("blocks successful fallback face-match in production", () => {
 	process.env.NODE_ENV = "production";
 
 	expect(
 		shouldRejectSuccessfulFallbackMatch({
-			faceResult: {
-				faceScore: 1,
-				passed: true,
+			result: {
+				livenessPassed: true,
+				livenessScore: 0.95,
+				faceMatchPassed: true,
+				faceMatchScore: 1,
+				padPassed: true,
+				padScore: 0.85,
 				usedFallback: true,
 			},
 		}),
 	).toBeTrue();
 });
 
-test("allows successful primary matches in production", () => {
+test("allows successful primary face-match in production", () => {
 	process.env.NODE_ENV = "production";
 
 	expect(
 		shouldRejectSuccessfulFallbackMatch({
-			faceResult: {
-				faceScore: 0.91,
-				passed: true,
+			result: {
+				livenessPassed: true,
+				livenessScore: 0.95,
+				faceMatchPassed: true,
+				faceMatchScore: 0.91,
+				padPassed: true,
+				padScore: 0.85,
 				usedFallback: false,
 			},
 		}),
@@ -50,9 +58,13 @@ test("allows successful fallback matches outside production", () => {
 
 	expect(
 		shouldRejectSuccessfulFallbackMatch({
-			faceResult: {
-				faceScore: 1,
-				passed: true,
+			result: {
+				livenessPassed: true,
+				livenessScore: 0.95,
+				faceMatchPassed: true,
+				faceMatchScore: 1,
+				padPassed: true,
+				padScore: 0.85,
 				usedFallback: true,
 			},
 		}),
@@ -77,10 +89,10 @@ function buildPhaseContextWithTransfer(
 	} as VerifySocketContext;
 }
 
-test("selfie_complete with empty NFC reports NFC missing", () => {
+test("liveness_complete with empty NFC reports NFC missing", () => {
 	const context = buildPhaseContextWithTransfer();
 
-	const result = buildMissingDataMessage(context, "selfie_complete");
+	const result = buildMissingDataMessage(context, "liveness_complete");
 
 	expect(result?.code).toBe("NFC_REQUIRED_DATA_MISSING");
 	const parsed = JSON.parse(result?.message ?? "{}") as {
@@ -89,27 +101,25 @@ test("selfie_complete with empty NFC reports NFC missing", () => {
 	expect(parsed.missing_artifacts).toEqual(["dg1", "dg2", "sod"]);
 });
 
-test("selfie_complete with NFC present but selfies missing reports selfie missing", () => {
+test("liveness_complete with NFC present but liveness video missing reports liveness missing", () => {
 	const context = buildPhaseContextWithTransfer((transfer) => {
 		transfer.dg1 = new Uint8Array([1]);
 		transfer.dg2 = new Uint8Array([2]);
 		transfer.sod = new Uint8Array([3]);
 	});
 
-	const result = buildMissingDataMessage(context, "selfie_complete");
+	const result = buildMissingDataMessage(context, "liveness_complete");
 
-	expect(result?.code).toBe("SELFIE_REQUIRED_DATA_MISSING");
+	expect(result?.code).toBe("LIVENESS_REQUIRED_DATA_MISSING");
 });
 
-test("selfie_complete with NFC and all selfies present returns null", () => {
+test("liveness_complete with NFC and liveness video present returns null", () => {
 	const context = buildPhaseContextWithTransfer((transfer) => {
 		transfer.dg1 = new Uint8Array([1]);
 		transfer.dg2 = new Uint8Array([2]);
 		transfer.sod = new Uint8Array([3]);
-		transfer.selfies.set(0, new Uint8Array([10]));
-		transfer.selfies.set(1, new Uint8Array([11]));
-		transfer.selfies.set(2, new Uint8Array([12]));
+		transfer.livenessVideo = new Uint8Array([10, 11, 12]);
 	});
 
-	expect(buildMissingDataMessage(context, "selfie_complete")).toBeNull();
+	expect(buildMissingDataMessage(context, "liveness_complete")).toBeNull();
 });

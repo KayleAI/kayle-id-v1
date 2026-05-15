@@ -5,10 +5,10 @@ import type {
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 
 function buildVerificationUrl(id: string, cancelToken?: string) {
-	const base =
-		process.env.NODE_ENV === "production"
-			? "https://verify.kayle.id"
-			: "http://localhost:2999";
+	const base = process.env.PUBLIC_VERIFY_URL;
+	if (!base) {
+		throw new Error("PUBLIC_VERIFY_URL is not configured");
+	}
 	const url = new URL(`/${id}`, base);
 	if (cancelToken) {
 		url.searchParams.set("cancel_token", cancelToken);

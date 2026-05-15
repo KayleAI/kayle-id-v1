@@ -5,11 +5,22 @@ enum VerifyDataKind: Int {
   case dg1 = 0
   case dg2 = 1
   case sod = 2
+  // selfie @3 is reserved on the wire — the server rejects this value. The
+  // case remains here only so the enum is contiguous and Cap'n Proto encoders
+  // round-trip correctly.
   case selfie = 3
   case dg14 = 4
   case dg15 = 5
   case activeAuth = 6
   case chipAuth = 7
+  case livenessVideo = 8
+}
+
+/// Server-issued liveness challenge: replay-defeating nonce + soft
+/// capture deadline.
+struct VerifyServerLivenessChallenge {
+  let maxDurationMs: UInt32
+  let challengeNonce: Data
 }
 
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
@@ -25,6 +36,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private let onFatalError: ((VerifyWebSocketError) -> Void)?
   private let onShareRequest: ((VerifyShareRequest) -> Void)?
   private let onActiveAuthChallenge: ((Data) -> Void)?
+  private let onLivenessChallenge: ((VerifyServerLivenessChallenge) -> Void)?
   private let codec = VerifyCapnpCodec()
 
   private var webSocketTask: URLSessionWebSocketTask?
@@ -58,7 +70,8 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     attestHelloChallenge: Data? = nil,
     onFatalError: ((VerifyWebSocketError) -> Void)? = nil,
     onShareRequest: ((VerifyShareRequest) -> Void)? = nil,
-    onActiveAuthChallenge: ((Data) -> Void)? = nil
+    onActiveAuthChallenge: ((Data) -> Void)? = nil,
+    onLivenessChallenge: ((VerifyServerLivenessChallenge) -> Void)? = nil
   ) {
     self.sessionId = sessionId
     self.attemptId = attemptId
@@ -68,6 +81,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     self.onFatalError = onFatalError
     self.onShareRequest = onShareRequest
     self.onActiveAuthChallenge = onActiveAuthChallenge
+    self.onLivenessChallenge = onLivenessChallenge
     super.init()
   }
 
@@ -535,6 +549,14 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  private func handleLivenessChallenge(
+    _ challenge: VerifyServerLivenessChallenge
+  ) {
+    Task { @MainActor [onLivenessChallenge] in
+      onLivenessChallenge?(challenge)
+    }
+  }
+
   private func handleUnexpectedConnectionLoss() {
     let shouldHandle = stateQueue.sync { () -> Bool in
       guard !isClosing else {
@@ -654,6 +676,16 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
               print("WS <- activeAuthChallenge bytes=\(challenge.count)")
 #endif
               self.handleActiveAuthChallenge(challenge)
+              self.receiveLoop(for: task)
+              return
+            }
+            if let livenessChallenge = serverMessage.livenessChallenge {
+#if DEBUG
+              print(
+                "WS <- livenessChallenge duration=\(livenessChallenge.maxDurationMs)ms nonce=\(livenessChallenge.challengeNonce.count)B"
+              )
+#endif
+              self.handleLivenessChallenge(livenessChallenge)
               self.receiveLoop(for: task)
               return
             }

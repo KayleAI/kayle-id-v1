@@ -123,14 +123,20 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "Terminez le scan de votre document pour continuer.",
   },
 
-  SELFIE_DATA_PHASE_REQUIRED: {
-    title: "Selfie requis",
-    description: "Prenez un selfie pour continuer.",
+  LIVENESS_DATA_PHASE_REQUIRED: {
+    title: "Vérification de présence requise",
+    description: "Suivez les instructions de mouvement de tête pour continuer.",
   },
 
-  SELFIE_REQUIRED_DATA_MISSING: {
-    title: "Selfie manquant",
-    description: "Prenez un selfie pour continuer.",
+  LIVENESS_REQUIRED_DATA_MISSING: {
+    title: "Vérification de présence incomplète",
+    description: "Enregistrez les mouvements de tête demandés pour continuer.",
+  },
+
+  LIVENESS_CHALLENGE_UNAVAILABLE: {
+    title: "Vérification indisponible",
+    description:
+      "Nous n’avons pas pu démarrer la vérification de présence sur ce serveur. Réessayez plus tard ou contactez le support.",
   },
 
   SHARE_SELECTION_REQUIRED: {
@@ -174,9 +180,21 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
       "Nous n’avons pas pu confirmer que ce scan provient d’un appareil de confiance. Réessayez sur le même appareil ou contactez le support.",
   },
 
+  document_data_invalid: {
+    title: "Impossible de lire les données du document",
+    description:
+      "Nous n’avons pas pu lire certaines informations de la puce de votre document. Réessayez ou utilisez-en un autre.",
+  },
+
   selfie_face_mismatch: {
     title: "Le visage ne correspond pas",
     description:
-      "Votre selfie ne correspond pas à la photo de votre document. Réessayez.",
+      "Votre visage ne correspond pas à la photo de votre document. Réessayez.",
+  },
+
+  liveness_failed: {
+    title: "Échec de la vérification de présence",
+    description:
+      "Nous n’avons pas pu confirmer la présence d’une personne en direct. Réessayez en suivant les instructions de mouvement de tête.",
   },
 };

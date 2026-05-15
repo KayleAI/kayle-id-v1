@@ -32,11 +32,14 @@ enum DataKind {
   dg1 @0;
   dg2 @1;
   sod @2;
+  # Field number 3 was the legacy three-stills selfie kind. Cap'n Proto
+  # forbids reusing enum ordinals; the client and server reject this value.
   selfie @3;
   dg14 @4;
   dg15 @5;
   activeAuth @6;
   chipAuth @7;
+  livenessVideo @8;
 }
 
 struct DataPayload {
@@ -105,6 +108,23 @@ struct ServerActiveAuthChallenge {
   challenge @0 :Data;
 }
 
+# Server-issued liveness challenge sent on the nfc_complete →
+# liveness_capturing transition. challengeNonce is a 4-byte HMAC prefix
+# derived deterministically from the AUTH_SECRET so reconnects yield the
+# same value; clients echo it back via the recorded video timing so the
+# server can detect replay. maxDurationMs is a soft client deadline for
+# the capture UX.
+#
+# Field @0 was a per-attempt pose sequence ([center, left, right]
+# permutation). The v2 liveness flow derives pose from video frames
+# server-side, so the pre-recorded sequence was redundant — reserved
+# here so Cap'n Proto wire-compat stays intact.
+struct ServerLivenessChallenge {
+  reservedPoseSequence @0 :List(UInt8);
+  maxDurationMs @1 :UInt32;
+  challengeNonce @2 :Data;
+}
+
 struct ServerMessage {
   union {
     ack @0 :ServerAck;
@@ -113,5 +133,6 @@ struct ServerMessage {
     shareRequest @3 :ShareRequest;
     shareReady @4 :ShareReady;
     activeAuthChallenge @5 :ServerActiveAuthChallenge;
+    livenessChallenge @6 :ServerLivenessChallenge;
   }
 }

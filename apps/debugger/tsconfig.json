@@ -1,0 +1,26 @@
+{
+	"include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
+	"compilerOptions": {
+		"target": "ES2022",
+		"jsx": "react-jsx",
+		"module": "ESNext",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["node", "vite/client"],
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		// Off here (vs repo default `true`) for the TanStack Router
+		// codegen path — `routeTree.gen.ts` emits value-imports that
+		// verbatim-mode rejects.
+		"verbatimModuleSyntax": false,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedSideEffectImports": true,
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	}
+}

@@ -82,33 +82,38 @@ struct MRZResult: Equatable {
 
   var userFacingDocumentName: String {
     switch documentCategory {
-    case .passport: return "passport"
-    case .idCard: return "ID card"
-    case .residencePermit: return "residence permit"
-    case .other: return "document"
+    case .passport: return String(localized: "passport")
+    case .idCard: return String(localized: "ID card")
+    case .residencePermit: return String(localized: "residence permit")
+    case .other: return String(localized: "document")
     }
   }
 
   var userFacingDocumentNameWithArticle: String {
     switch documentCategory {
-    case .passport: return "a passport"
-    case .idCard: return "an ID card"
-    case .residencePermit: return "a residence permit"
-    case .other: return "a document"
+    case .passport: return String(localized: "a passport")
+    case .idCard: return String(localized: "an ID card")
+    case .residencePermit: return String(localized: "a residence permit")
+    case .other: return String(localized: "a document")
     }
   }
 
   var userFacingRFIDSymbolLocationDescription: String {
     switch documentCategory {
-    case .passport: return "your passport"
-    case .idCard: return "your ID card"
-    case .residencePermit: return "your residence permit"
-    case .other: return "your document"
+    case .passport: return String(localized: "your passport")
+    case .idCard: return String(localized: "your ID card")
+    case .residencePermit: return String(localized: "your residence permit")
+    case .other: return String(localized: "your document")
     }
   }
 
   var userFacingDocumentChipName: String {
-    "\(userFacingDocumentName) chip"
+    switch documentCategory {
+    case .passport: return String(localized: "passport chip")
+    case .idCard: return String(localized: "ID card chip")
+    case .residencePermit: return String(localized: "residence permit chip")
+    case .other: return String(localized: "document chip")
+    }
   }
 
   /// Convert to JSON-encodable dictionary for E2EE upload.

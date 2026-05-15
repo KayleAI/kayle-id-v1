@@ -2,9 +2,11 @@ import {
 	encodeServerAck,
 	encodeServerActiveAuthChallenge,
 	encodeServerError,
+	encodeServerLivenessChallenge,
 	encodeServerShareReady,
 	encodeServerShareRequest,
 	encodeServerVerdict,
+	type VerifyServerLivenessChallenge,
 	type VerifyServerVerdict,
 	type VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
@@ -72,6 +74,14 @@ export function createVerifySocketTransport({
 	const sendActiveAuthChallenge = (challenge: Uint8Array) => {
 		logDebug("send_active_auth_challenge", { byte_length: challenge.length });
 		safeSend(encodeServerActiveAuthChallenge({ challenge }));
+	};
+
+	const sendLivenessChallenge = (challenge: VerifyServerLivenessChallenge) => {
+		logDebug("send_liveness_challenge", {
+			max_duration_ms: challenge.maxDurationMs,
+			nonce_bytes: challenge.challengeNonce.length,
+		});
+		safeSend(encodeServerLivenessChallenge(challenge));
 	};
 
 	const sendError = (code: string, message: string) => {
@@ -145,6 +155,7 @@ export function createVerifySocketTransport({
 			closeSocket(1008, code);
 		},
 		sendError,
+		sendLivenessChallenge,
 		sendShareReady,
 		sendShareRequest,
 		sendVerdict,

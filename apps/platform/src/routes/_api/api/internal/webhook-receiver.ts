@@ -1,14 +1,21 @@
 import {
+	COST_FEATURES,
+	emitCostEvent,
+	resolveAnalyticsDataset,
+} from "@kayle-id/config/analytics-cost-events";
+import {
 	isRequestBodyTooLarge,
 	readRequestTextWithLimit,
 } from "@kayle-id/config/request-body";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/config/env";
+import { APP_ENVIRONMENT, APP_VERSION } from "@/config/version";
 import { decryptCompactJwe, verifyWebhookSignature } from "@/demo/crypto";
 
 const SIGNATURE_HEADER = "x-kayle-signature";
 const PLATFORM_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 const KV_PREFIX = "org-verify:";
+const PLATFORM_WORKER_NAME = "kayle-id-platform";
 
 interface WebhookEnvelope {
 	type?: string;
@@ -172,6 +179,16 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 				const mappingText = await env.ORG_VERIFICATIONS_KV.get(
 					`${KV_PREFIX}${sessionId}`,
 				);
+				emitCostEvent({
+					dataset: resolveAnalyticsDataset(env),
+					feature: COST_FEATURES.WebhookDelivery,
+					resource: "kv_read",
+					quantity: 1,
+					unit: "operation",
+					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
+				});
 				if (!mappingText) {
 					return ack();
 				}
@@ -179,6 +196,16 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 				const orgVerificationMapping = parseOrgVerificationMapping(mappingText);
 				if (!orgVerificationMapping) {
 					await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
+					emitCostEvent({
+						dataset: resolveAnalyticsDataset(env),
+						feature: COST_FEATURES.WebhookDelivery,
+						resource: "kv_delete",
+						quantity: 1,
+						unit: "operation",
+						workerName: PLATFORM_WORKER_NAME,
+						environment: APP_ENVIRONMENT,
+						version: APP_VERSION,
+					});
 					return ack();
 				}
 
@@ -217,6 +244,17 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 
 				if (finalizeResponse.status === 409) {
 					await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
+					emitCostEvent({
+						dataset: resolveAnalyticsDataset(env),
+						organizationId: orgVerificationMapping.organization_id,
+						feature: COST_FEATURES.WebhookDelivery,
+						resource: "kv_delete",
+						quantity: 1,
+						unit: "operation",
+						workerName: PLATFORM_WORKER_NAME,
+						environment: APP_ENVIRONMENT,
+						version: APP_VERSION,
+					});
 					return ack();
 				}
 
@@ -227,6 +265,17 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 				}
 
 				await env.ORG_VERIFICATIONS_KV.delete(`${KV_PREFIX}${sessionId}`);
+				emitCostEvent({
+					dataset: resolveAnalyticsDataset(env),
+					organizationId: orgVerificationMapping.organization_id,
+					feature: COST_FEATURES.WebhookDelivery,
+					resource: "kv_delete",
+					quantity: 1,
+					unit: "operation",
+					workerName: PLATFORM_WORKER_NAME,
+					environment: APP_ENVIRONMENT,
+					version: APP_VERSION,
+				});
 				return ack();
 			},
 		},

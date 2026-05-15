@@ -160,9 +160,8 @@ struct VerifyMissingNFCDataInstruction: Equatable {
   let missingChunks: [VerifyMissingNFCChunk]
 }
 
-struct VerifyMissingSelfieDataInstruction: Equatable {
-  let requiredTotal: Int
-  let missingSelfieIndexes: [Int]
+struct VerifyMissingLivenessDataInstruction: Equatable {
+  let receivedBytes: Int
   let missingChunks: [VerifyMissingNFCChunk]
 }
 
@@ -258,11 +257,11 @@ nonisolated func parseMissingNFCDataInstruction(
   )
 }
 
-nonisolated func parseMissingSelfieDataInstruction(
+nonisolated func parseMissingLivenessDataInstruction(
   errorCode: String?,
   errorMessage: String?
-) -> VerifyMissingSelfieDataInstruction? {
-  guard errorCode == "SELFIE_REQUIRED_DATA_MISSING", let errorMessage else {
+) -> VerifyMissingLivenessDataInstruction? {
+  guard errorCode == "LIVENESS_REQUIRED_DATA_MISSING", let errorMessage else {
     return nil
   }
 
@@ -273,8 +272,7 @@ nonisolated func parseMissingSelfieDataInstruction(
     return nil
   }
 
-  let requiredTotal = json["required_total"] as? Int ?? 0
-  let missingSelfieIndexes = json["missing_selfie_indexes"] as? [Int] ?? []
+  let receivedBytes = json["received_bytes"] as? Int ?? 0
   let rawChunks = json["missing_chunks"] as? [[String: Any]] ?? []
   let missingChunks: [VerifyMissingNFCChunk] = rawChunks.compactMap { chunk in
     guard
@@ -294,9 +292,8 @@ nonisolated func parseMissingSelfieDataInstruction(
     )
   }
 
-  return VerifyMissingSelfieDataInstruction(
-    requiredTotal: requiredTotal,
-    missingSelfieIndexes: missingSelfieIndexes,
+  return VerifyMissingLivenessDataInstruction(
+    receivedBytes: receivedBytes,
     missingChunks: missingChunks
   )
 }

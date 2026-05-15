@@ -26,6 +26,15 @@ We minimise what we store, encrypt all verification results, and never use this 
 
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+[Apps](apps/) and [packages](packages/) are licensed under the
+[Business Source License 1.1](./LICENSE), which permits production use
+including self-hosting, but restricts offering Kayle ID as a competing
+hosted verification service. The BSL converts to the Apache License 2.0
+four years after each release.
 
-<sub>Copyright © 2025 Kayle Inc. All rights reserved.</sub>
+[Infrastructure code](infra/) is licensed under the Apache License 2.0.
+
+Third-party components bundled with Kayle ID retain their upstream
+licenses — see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+
+<sub>Copyright © 2026 Kayle Inc. All rights reserved.</sub>

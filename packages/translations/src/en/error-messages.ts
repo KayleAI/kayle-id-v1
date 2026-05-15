@@ -118,14 +118,20 @@ export const ERROR_MESSAGES = {
     description: "Finish scanning your document to continue.",
   },
 
-  SELFIE_DATA_PHASE_REQUIRED: {
-    title: "Selfie needed",
-    description: "Take a selfie to continue.",
+  LIVENESS_DATA_PHASE_REQUIRED: {
+    title: "Liveness check needed",
+    description: "Follow the head-movement prompts to continue.",
   },
 
-  SELFIE_REQUIRED_DATA_MISSING: {
-    title: "Selfie missing",
-    description: "Take a selfie to continue.",
+  LIVENESS_REQUIRED_DATA_MISSING: {
+    title: "Liveness check incomplete",
+    description: "Record the head-movement prompts to continue.",
+  },
+
+  LIVENESS_CHALLENGE_UNAVAILABLE: {
+    title: "Verification unavailable",
+    description:
+      "We couldn’t start the liveness check on this server. Try again later or contact support.",
   },
 
   SHARE_SELECTION_REQUIRED: {
@@ -168,8 +174,20 @@ export const ERROR_MESSAGES = {
       "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
 
+  document_data_invalid: {
+    title: "Document data couldn’t be read",
+    description:
+      "We couldn’t read some details from your document chip. Try again or use a different one.",
+  },
+
   selfie_face_mismatch: {
     title: "Face doesn’t match",
-    description: "Your selfie doesn’t match your document photo. Try again.",
+    description: "Your face doesn’t match your document photo. Try again.",
+  },
+
+  liveness_failed: {
+    title: "Liveness check failed",
+    description:
+      "We couldn’t confirm the camera was on a live person. Try again and follow the head-movement prompts.",
   },
 } as const;

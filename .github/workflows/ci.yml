@@ -104,9 +104,9 @@ jobs:
             set +e
 
             if [[ "${exit_code}" -ne 0 ]]; then
-              echo "Face matcher log:"
-              if [[ -f /tmp/face-matcher.log ]]; then
-                cat /tmp/face-matcher.log
+              echo "Biometric verifier log:"
+              if [[ -f /tmp/biometric-verifier.log ]]; then
+                cat /tmp/biometric-verifier.log
               fi
               echo "API log:"
               if [[ -f /tmp/api.log ]]; then
@@ -120,22 +120,23 @@ jobs:
               wait "${SERVER_PID}" 2>/dev/null || true
             fi
 
-            if [[ -n "${MATCHER_PID:-}" ]]; then
-              echo "Stopping face matcher with PID ${MATCHER_PID}"
-              kill "${MATCHER_PID}" 2>/dev/null || true
-              wait "${MATCHER_PID}" 2>/dev/null || true
+            if [[ -n "${VERIFIER_PID:-}" ]]; then
+              echo "Stopping biometric verifier with PID ${VERIFIER_PID}"
+              kill "${VERIFIER_PID}" 2>/dev/null || true
+              wait "${VERIFIER_PID}" 2>/dev/null || true
             fi
 
             exit "${exit_code}"
           }
 
-          wait_for_matcher() {
+          wait_for_verifier() {
             local start_time
             start_time="$(date +%s)"
+            local last_progress=0
 
             while true; do
-              if ! kill -0 "${MATCHER_PID}" 2>/dev/null; then
-                echo "Face matcher exited before becoming healthy."
+              if ! kill -0 "${VERIFIER_PID}" 2>/dev/null; then
+                echo "Biometric verifier exited before becoming healthy."
                 return 1
               fi
 
@@ -144,9 +145,19 @@ jobs:
                 return 0
               fi
 
-              if [[ "$(($(date +%s) - start_time))" -ge 60 ]]; then
-                echo "Face matcher did not become healthy within 60 seconds."
+              # Cold runner build: apt install (~35s) + uv sync + download 5
+              # ONNX models + 5 smoke-test runs + Python startup + model load.
+              # Easily 2-3 minutes uncached; 5 minutes gives headroom.
+              local elapsed=$(($(date +%s) - start_time))
+              if [[ "${elapsed}" -ge 300 ]]; then
+                echo "Biometric verifier did not become healthy within 300 seconds."
                 return 1
+              fi
+
+              if [[ "$((elapsed - last_progress))" -ge 30 ]]; then
+                echo "Still waiting for biometric verifier after ${elapsed}s; last 20 lines of log:"
+                tail -n 20 /tmp/biometric-verifier.log || true
+                last_progress="${elapsed}"
               fi
 
               sleep 1
@@ -187,12 +198,12 @@ jobs:
           trap 'cleanup $?' EXIT
 
           (
-            cd infra/face-matcher
+            cd apps/biometric-verifier
             bunx wrangler dev --env-file ../../.env.test.example --local --ip 127.0.0.1 --port 8788 --inspector-port 9232
-          ) > /tmp/face-matcher.log 2>&1 &
-          MATCHER_PID=$!
-          echo "Face matcher started with PID ${MATCHER_PID}"
-          wait_for_matcher
+          ) > /tmp/biometric-verifier.log 2>&1 &
+          VERIFIER_PID=$!
+          echo "Biometric verifier started with PID ${VERIFIER_PID}"
+          wait_for_verifier
 
           # Bun auto-loads `apps/api/.env.test` into the test process when
           # NODE_ENV=test, and wrangler dev needs the same vars — copy the
@@ -227,8 +238,8 @@ jobs:
         with:
           generate-capnp-ts: "true"
 
-      - name: Test face matcher
-        working-directory: infra/face-matcher
+      - name: Test biometric verifier
+        working-directory: apps/biometric-verifier
         run: bun run test
 
       - name: Test translations
@@ -254,8 +265,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - worker: face-matcher
-            working-directory: infra/face-matcher
+          - worker: biometric-verifier
+            working-directory: apps/biometric-verifier
             generate-capnp: "false"
             pre-build: ""
             wrangler-args: --env production

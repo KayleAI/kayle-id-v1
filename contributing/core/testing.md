@@ -12,7 +12,7 @@ This runs every package-level `test` script that participates in Turborepo. Whil
 
 - `apps/platform`
 - `apps/verify`
-- `infra/face-matcher`
+- `infra/biometric-verifier`
 
 CI exercises the same set in the `test-web` job (`.github/workflows/ci.yml`).
 
@@ -61,7 +61,7 @@ These run directly under Bun against the imported app:
 cd apps/api
 bun test ./tests/sessions.test.ts
 bun test ./tests/verify-handoff.test.ts
-bun test ./tests/functions/face-matcher-client.test.ts
+bun test ./tests/functions/biometric-verifier-client.test.ts
 ```
 
 Requirements: Postgres running and the root `.env` present.
@@ -70,10 +70,10 @@ Requirements: Postgres running and the root `.env` present.
 
 `apps/api/tests/verify.test.ts` opens a real websocket to `ws://127.0.0.1:8787`, so the safest way to run the full suite is to spin up the matching dev workers in three terminals.
 
-**Terminal A — face matcher:**
+**Terminal A — biometric verifier:**
 
 ```bash
-cd infra/face-matcher
+cd infra/biometric-verifier
 bunx wrangler dev --env-file ../../.env.test.example --local --ip 127.0.0.1 --port 8788 --inspector-port 9232
 ```
 

@@ -1,6 +1,6 @@
 # Building
 
-The four Cloudflare-hosted surfaces (`apps/api`, `apps/platform`, `apps/verify`, `infra/face-matcher`) are bundled by Wrangler. The iOS app is bundled by Xcode. Everything else is plain Bun.
+The four Cloudflare-hosted surfaces (`apps/api`, `apps/platform`, `apps/verify`, `infra/biometric-verifier`) are bundled by Wrangler. The iOS app is bundled by Xcode. Everything else is plain Bun.
 
 ## Bun + workspace install
 
@@ -37,7 +37,7 @@ Each Cloudflare surface has a `wrangler deploy --dry-run` invocation that bundle
 
 | Surface              | Working directory      | Command                                                                  |
 | -------------------- | ---------------------- | ------------------------------------------------------------------------ |
-| Face matcher         | `infra/face-matcher`   | `bunx wrangler deploy --dry-run --outdir .wrangler-out --env production` |
+| Biometric verifier   | `infra/biometric-verifier` | `bunx wrangler deploy --dry-run --outdir .wrangler-out --env production` |
 | API                  | `apps/api`             | `bunx wrangler deploy --dry-run --outdir .wrangler-out --minify --env production` |
 | Platform             | `apps/platform`        | `bun run build && bunx wrangler deploy --dry-run --outdir .wrangler-out --minify` |
 | Verify               | `apps/verify`          | `bun run build && bunx wrangler deploy --dry-run --outdir .wrangler-out --minify --env production` |
@@ -45,7 +45,7 @@ Each Cloudflare surface has a `wrangler deploy --dry-run` invocation that bundle
 Notes:
 
 - Platform and verify need a Vite build first because they're full TanStack Start apps; the Cloudflare Worker is generated from the Vite output.
-- The API and face-matcher dry-runs produce `.wrangler-out/` artifacts that mimic what production deploys upload. Delete the directory after inspection — it's gitignored but not auto-cleaned.
+- The API and biometric-verifier dry-runs produce `.wrangler-out/` artifacts that mimic what production deploys upload. Delete the directory after inspection — it's gitignored but not auto-cleaned.
 - Don't run `wrangler deploy` (without `--dry-run`) locally. Production deploys go through `release.yml` against attested artifacts; see [Release channels and publishing](../repository/release-channels-publishing.md).
 
 ## TypeScript checks

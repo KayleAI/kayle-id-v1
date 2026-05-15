@@ -1,7 +1,7 @@
 import type { VerifyDataPayload } from "./data-payload";
 import {
+	isLivenessVideoDataKind,
 	isNfcDataKind,
-	isSelfieDataKind,
 	processDataPayload,
 } from "./data-payload";
 import { resolveVerifyErrorMessage } from "./error-response";
@@ -24,8 +24,8 @@ export function handleDataMessage(
 		chunkTotal: payload.chunkTotal ?? 0,
 	});
 
-	// Allow NFC and selfie uploads at any phase from when the user starts the
-	// corresponding step onward, not just the strict initiating phase. A
+	// Allow NFC and liveness uploads at any phase from when the user starts
+	// the corresponding step onward, not just the strict initiating phase. A
 	// reconnect restores currentPhase from the DB (e.g., nfc_complete), and
 	// the client must be able to re-stream lost in-memory artifacts before
 	// the next phase advances. Strict equality here would reject the
@@ -42,12 +42,12 @@ export function handleDataMessage(
 	}
 
 	if (
-		isSelfieDataKind(kind) &&
-		!isPhaseAtOrAfter(state.currentPhase, "selfie_capturing")
+		isLivenessVideoDataKind(kind) &&
+		!isPhaseAtOrAfter(state.currentPhase, "liveness_capturing")
 	) {
 		transport.sendError(
-			"SELFIE_DATA_PHASE_REQUIRED",
-			resolveVerifyErrorMessage("SELFIE_DATA_PHASE_REQUIRED"),
+			"LIVENESS_DATA_PHASE_REQUIRED",
+			resolveVerifyErrorMessage("LIVENESS_DATA_PHASE_REQUIRED"),
 		);
 		return;
 	}

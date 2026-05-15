@@ -1,4 +1,5 @@
 import type {
+	VerifyServerLivenessChallenge,
 	VerifyServerVerdict,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
@@ -12,6 +13,7 @@ export type VerifySocketState = {
 	attemptId: string | null;
 	currentPhase: string | null;
 	helloReceived: boolean;
+	livenessChallengeNonce: Uint8Array | null;
 	shareManifest: VerifyShareManifest | null;
 	shareRequestSent: boolean;
 	transfer: VerifyTransferState;
@@ -23,6 +25,7 @@ export type VerifySocketTransport = {
 	logDebug: (label: string, details?: Record<string, unknown>) => void;
 	sendAck: (message: string) => void;
 	sendActiveAuthChallenge: (challenge: Uint8Array) => void;
+	sendLivenessChallenge: (challenge: VerifyServerLivenessChallenge) => void;
 	sendAuthErrorAndClose: (
 		code:
 			| "ATTEMPT_CONNECTION_ACTIVE"
@@ -63,6 +66,7 @@ export function createVerifySocketState(): VerifySocketState {
 		attemptId: null,
 		currentPhase: null,
 		helloReceived: false,
+		livenessChallengeNonce: null,
 		shareManifest: null,
 		shareRequestSent: false,
 		transfer: createTransferState(),

@@ -6,8 +6,8 @@ enum VerificationStep: Int, CaseIterable {
   case rfidCheck      // Asking if document has RFID (required, no skip)
   case rfidUnsupported // Document does not support RFID/NFC
   case nfc            // Reading NFC chip
-  case selfieIntro    // Preparing the user for selfie capture
-  case selfie         // Taking selfie
+  case livenessIntro  // Preparing the user for the head-movement liveness check
+  case liveness       // Recording the head-movement liveness video
   case shareDetails   // Review requested fields
   case complete       // Verification complete
   case error          // Error state
@@ -20,8 +20,8 @@ enum VerificationStep: Int, CaseIterable {
     case .rfidCheck: return "RFID Check"
     case .rfidUnsupported: return "Unsupported Document"
     case .nfc: return "Read Chip"
-    case .selfieIntro: return "Selfie Instructions"
-    case .selfie: return "Take Selfie"
+    case .livenessIntro: return "Liveness Instructions"
+    case .liveness: return "Liveness Check"
     case .shareDetails: return "Review Details"
     case .complete: return "Complete"
     case .error: return "Error"
@@ -38,8 +38,8 @@ enum AttemptPhase: String, Codable {
   case mrzComplete = "mrz_complete"
   case nfcReading = "nfc_reading"
   case nfcComplete = "nfc_complete"
-  case selfieCapturing = "selfie_capturing"
-  case selfieComplete = "selfie_complete"
+  case livenessCapturing = "liveness_capturing"
+  case livenessComplete = "liveness_complete"
   case uploading = "uploading"
   case complete = "complete"
   case error = "error"
@@ -57,8 +57,8 @@ nonisolated func isVerificationStepReconnectable(_ step: VerificationStep) -> Bo
        .rfidCheck,
        .rfidUnsupported,
        .nfc,
-       .selfieIntro,
-       .selfie,
+       .livenessIntro,
+       .liveness,
        .shareDetails:
     return true
   }

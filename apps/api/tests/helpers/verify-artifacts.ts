@@ -1,3 +1,4 @@
+import { createBiometricVerifierTestStubVideo } from "@kayle-id/config/biometric-verifier";
 import {
 	BitString,
 	fromBER,
@@ -759,55 +760,6 @@ async function loadFixedPassiveAuthChain(): Promise<PassiveAuthTestChain> {
 	};
 }
 
-export function createSelfieJpeg({
-	blue,
-	green,
-	height = 64,
-	red,
-	width = 64,
-}: {
-	red: number;
-	green: number;
-	blue: number;
-	width?: number;
-	height?: number;
-}): Uint8Array {
-	const rgba = new Uint8Array(width * height * 4);
-
-	for (let offset = 0; offset < rgba.length; offset += 4) {
-		rgba[offset] = red;
-		rgba[offset + 1] = green;
-		rgba[offset + 2] = blue;
-		rgba[offset + 3] = 255;
-	}
-
-	const encoded = jpeg.encode(
-		{
-			data: rgba,
-			width,
-			height,
-		},
-		90,
-	);
-
-	return new Uint8Array(encoded.data);
-}
-
-export function createLowSimilaritySelfies(): Uint8Array[] {
-	return [
-		createSelfieJpeg({
-			red: 0,
-			green: 0,
-			blue: 0,
-		}),
-		createSelfieJpeg({
-			red: 255,
-			green: 255,
-			blue: 255,
-		}),
-	];
-}
-
 export function createTd3MrzText(): string {
 	return [
 		"P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<",
@@ -853,21 +805,21 @@ export function createDg1Artifact(mrzText: string): Uint8Array {
 	return encodeTlv(DG1_ROOT_TAG, encodeTlv(DG1_MRZ_TAG, mrzBytes));
 }
 
-export async function createMismatchValidationSelfies(): Promise<Uint8Array[]> {
-	return [
-		...createLowSimilaritySelfies(),
-		await loadVerifyFixtureBytes("black.jpg"),
-	];
+// The verifier worker recognises a `KAYLE_TEST_STUB::<verdict>::` prefix
+// in the uploaded video and short-circuits to a canned response when
+// `NODE_ENV !== "production"`. These helpers produce those magic byte
+// blobs so integration tests can drive verdict-dependent flows without
+// generating a real face video the container can decode.
+export function createMatchingLivenessVideo(): Uint8Array {
+	return createBiometricVerifierTestStubVideo("accept");
 }
 
-export async function createMatchingValidationSelfies(): Promise<Uint8Array[]> {
-	const [lowSimilaritySelfie] = createLowSimilaritySelfies();
+export function createMismatchLivenessVideo(): Uint8Array {
+	return createBiometricVerifierTestStubVideo("reject_face_mismatch");
+}
 
-	return [
-		await createValidationPortraitJpeg(),
-		await createValidationPortraitJpeg(),
-		lowSimilaritySelfie,
-	];
+export function createFaceScoreUnavailableLivenessVideo(): Uint8Array {
+	return createBiometricVerifierTestStubVideo("reject_face_score_unavailable");
 }
 
 export function createDg2Artifact({

@@ -14,8 +14,8 @@ final class VerificationStepReconnectTests: XCTestCase {
     XCTAssertTrue(isVerificationStepReconnectable(.rfidCheck))
     XCTAssertTrue(isVerificationStepReconnectable(.rfidUnsupported))
     XCTAssertTrue(isVerificationStepReconnectable(.nfc))
-    XCTAssertTrue(isVerificationStepReconnectable(.selfieIntro))
-    XCTAssertTrue(isVerificationStepReconnectable(.selfie))
+    XCTAssertTrue(isVerificationStepReconnectable(.livenessIntro))
+    XCTAssertTrue(isVerificationStepReconnectable(.liveness))
     XCTAssertTrue(isVerificationStepReconnectable(.shareDetails))
   }
 

@@ -6,7 +6,7 @@ import {
 	logSafeError,
 	type SafeRequestLogger,
 } from "@kayle-id/config/logging";
-import { matchFaces } from "@/v1/verify/face-matcher-client";
+import { verifyLiveness } from "@/v1/verify/biometric-verifier-client";
 
 type LoggedCall = {
 	context: Record<string, unknown>;
@@ -111,13 +111,13 @@ test("buildSafeErrorContext uses explicit safe messages", () => {
 
 	expect(
 		buildSafeErrorContext({
-			code: "face_matcher_invalid_json",
+			code: "biometric_verifier_invalid_json",
 			error: unsafeError,
-			message: "Face matcher returned invalid JSON.",
+			message: "Biometric verifier returned invalid JSON.",
 		}),
 	).toEqual({
-		error_code: "face_matcher_invalid_json",
-		error_message: "Face matcher returned invalid JSON.",
+		error_code: "biometric_verifier_invalid_json",
+		error_message: "Biometric verifier returned invalid JSON.",
 		error_name: "SyntaxError",
 	});
 });
@@ -129,15 +129,15 @@ test("logEvent includes the event in info log context", () => {
 		details: {
 			duration_ms: 12,
 		},
-		event: "verify.face_matcher.request_succeeded",
+		event: "verify.biometric_verifier.request_succeeded",
 	});
 
 	expect(logger.infoCalls[0]).toEqual({
 		context: {
 			duration_ms: 12,
-			event: "verify.face_matcher.request_succeeded",
+			event: "verify.biometric_verifier.request_succeeded",
 		},
-		message: "verify.face_matcher.request_succeeded",
+		message: "verify.biometric_verifier.request_succeeded",
 	});
 });
 
@@ -147,71 +147,68 @@ test("logSafeError emits safe warn events", () => {
 	unsafeError.name = "SyntaxError";
 
 	logSafeError(logger, {
-		code: "face_matcher_invalid_json",
+		code: "biometric_verifier_invalid_json",
 		details: {
 			duration_ms: 12,
 		},
 		error: unsafeError,
-		event: "verify.face_matcher.invalid_json",
-		message: "Face matcher returned invalid JSON.",
+		event: "verify.biometric_verifier.invalid_json",
+		message: "Biometric verifier returned invalid JSON.",
 	});
 
 	expect(logger.warnCalls[0]).toEqual({
 		context: expect.objectContaining({
 			duration_ms: 12,
-			error_code: "face_matcher_invalid_json",
-			error_message: "Face matcher returned invalid JSON.",
+			error_code: "biometric_verifier_invalid_json",
+			error_message: "Biometric verifier returned invalid JSON.",
 			error_name: "SyntaxError",
-			event: "verify.face_matcher.invalid_json",
+			event: "verify.biometric_verifier.invalid_json",
 		}),
-		message: "verify.face_matcher.invalid_json",
+		message: "verify.biometric_verifier.invalid_json",
 	});
 	expect(logger.warnCalls[0]?.context).not.toHaveProperty("error_stack");
 });
 
-test("matchFaces does not log upstream response bodies on HTTP errors", async () => {
+test("verifyLiveness does not log upstream response bodies on HTTP errors", async () => {
 	const logger = createMockLogger();
 
-	const result = await matchFaces({
+	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02]),
+		video: new Uint8Array([0x03, 0x04]),
 		env: {
-			FACE_MATCHER: {
+			BIOMETRIC_VERIFIER: {
 				fetch: async () =>
 					new Response("secret=should-not-be-logged", {
 						status: 503,
 					}),
 			},
-			FACE_MATCHER_SECRET: "test-secret",
+			BIOMETRIC_VERIFIER_SECRET: "test-secret",
 		},
 		logger,
-		selfies: [new Uint8Array([0x03, 0x04])],
 	});
 
-	expect(result).toEqual({
-		faceScore: null,
-		passed: false,
-		reason: "face_matcher_unavailable",
-		usedFallback: true,
-	});
+	expect(result.livenessPassed).toBeFalse();
+	expect(result.reason).toBe("biometric_verifier_unavailable");
 	expect(logger.warnCalls[0]).toEqual({
 		context: expect.objectContaining({
 			duration_ms: expect.any(Number),
-			error_code: "face_matcher_http_error",
-			event: "verify.face_matcher.http_error",
+			error_code: "biometric_verifier_http_error",
+			event: "verify.biometric_verifier.http_error",
 			status: 503,
 		}),
-		message: "verify.face_matcher.http_error",
+		message: "verify.biometric_verifier.http_error",
 	});
 	expect(logger.warnCalls[0]?.context).not.toHaveProperty("response_text");
 });
 
-test("matchFaces logs safe invalid JSON errors without raw parser messages", async () => {
+test("verifyLiveness logs safe invalid JSON errors without raw parser messages", async () => {
 	const logger = createMockLogger();
 
-	const result = await matchFaces({
+	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01, 0x02]),
+		video: new Uint8Array([0x03, 0x04]),
 		env: {
-			FACE_MATCHER: {
+			BIOMETRIC_VERIFIER: {
 				fetch: async () =>
 					new Response("not-json", {
 						headers: {
@@ -220,27 +217,22 @@ test("matchFaces logs safe invalid JSON errors without raw parser messages", asy
 						status: 200,
 					}),
 			},
-			FACE_MATCHER_SECRET: "test-secret",
+			BIOMETRIC_VERIFIER_SECRET: "test-secret",
 		},
 		logger,
-		selfies: [new Uint8Array([0x03, 0x04])],
 	});
 
-	expect(result).toEqual({
-		faceScore: null,
-		passed: false,
-		reason: "face_matcher_unavailable",
-		usedFallback: true,
-	});
+	expect(result.livenessPassed).toBeFalse();
+	expect(result.reason).toBe("biometric_verifier_unavailable");
 	expect(logger.warnCalls[0]).toEqual({
 		context: expect.objectContaining({
 			duration_ms: expect.any(Number),
-			error_code: "face_matcher_invalid_json",
-			error_message: "Face matcher returned invalid JSON.",
+			error_code: "biometric_verifier_invalid_json",
+			error_message: "Biometric verifier returned invalid JSON.",
 			error_name: "SyntaxError",
-			event: "verify.face_matcher.invalid_json",
+			event: "verify.biometric_verifier.invalid_json",
 		}),
-		message: "verify.face_matcher.invalid_json",
+		message: "verify.biometric_verifier.invalid_json",
 	});
 	expect(logger.warnCalls[0]?.context).not.toHaveProperty("error_stack");
 });

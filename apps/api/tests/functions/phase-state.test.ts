@@ -19,10 +19,10 @@ test("returns true when candidate equals the reference", () => {
 
 test("returns true when candidate is past the reference", () => {
 	expect(isPhaseAtOrAfter("nfc_complete", "nfc_reading")).toBeTrue();
-	expect(isPhaseAtOrAfter("selfie_capturing", "nfc_reading")).toBeTrue();
-	expect(isPhaseAtOrAfter("selfie_complete", "nfc_reading")).toBeTrue();
+	expect(isPhaseAtOrAfter("liveness_capturing", "nfc_reading")).toBeTrue();
+	expect(isPhaseAtOrAfter("liveness_complete", "nfc_reading")).toBeTrue();
 });
 
-test("selfie reference rejects phases before selfie_capturing", () => {
-	expect(isPhaseAtOrAfter("nfc_complete", "selfie_capturing")).toBeFalse();
+test("liveness reference rejects phases before liveness_capturing", () => {
+	expect(isPhaseAtOrAfter("nfc_complete", "liveness_capturing")).toBeFalse();
 });

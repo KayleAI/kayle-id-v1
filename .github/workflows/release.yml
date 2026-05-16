@@ -355,7 +355,7 @@ jobs:
           echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload biometric verifier deploy artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: worker-biometric-verifier-package
           path: ${{ steps.package.outputs.archive_path }}
@@ -404,7 +404,7 @@ jobs:
           echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload API deploy artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: worker-api-package
           path: ${{ steps.package.outputs.archive_path }}
@@ -457,7 +457,7 @@ jobs:
           echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload platform deploy artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: worker-platform-package
           path: ${{ steps.package.outputs.archive_path }}
@@ -510,7 +510,7 @@ jobs:
           echo "archive_path=${archive_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload verify deploy artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: worker-verify-package
           path: ${{ steps.package.outputs.archive_path }}
@@ -613,7 +613,7 @@ jobs:
 
       - name: Restore capnproto-swift dependency cache
         id: capnproto_swift_cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ github.workspace }}/../../Work/capnproto-swift
           key: ${{ runner.os }}-capnproto-swift-${{ env.CAPNPROTO_SWIFT_REF }}-xcode-${{ steps.xcode.outputs.version }}-${{ steps.xcode.outputs.build }}-iossdk-${{ env.REQUIRED_IOS_SDK_MAJOR }}
@@ -664,7 +664,7 @@ jobs:
         run: bash ./scripts/generate-capnp.sh
 
       - name: Restore Swift package dependency cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: ${{ runner.temp }}/swiftpm-sourcepackages
           key: ${{ runner.os }}-swiftpm-xcode-${{ steps.xcode.outputs.version }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('apps/ios/Kayle ID.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'apps/ios/Kayle ID.xcodeproj/project.pbxproj') }}
@@ -687,14 +687,14 @@ jobs:
         run: bun ./scripts/resolve-ios-build-number.ts
 
       - name: Import App Store signing certificate
-        uses: apple-actions/import-codesign-certs@95e84a1a18f2bdbc5c6ab9b7f4429372e4b13a8b
+        uses: apple-actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466
         with:
           p12-file-base64: ${{ secrets.IOS_APP_STORE_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_APP_STORE_CERTIFICATE_PASSWORD }}
 
       - name: Download App Store provisioning profile
         id: provisioning
-        uses: apple-actions/download-provisioning-profiles@3167792207a5b26099bc0ca22b5010a323dd2a0b
+        uses: apple-actions/download-provisioning-profiles@c62019de00bb4395ed414e4a17c98f4e279636de
         with:
           bundle-id: ${{ env.APP_BUNDLE_ID }}
           profile-type: IOS_APP_STORE
@@ -865,7 +865,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Upload iOS build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ios-build-artifacts
           path: ${{ steps.ios_assets.outputs.staging_dir }}/*
@@ -908,34 +908,34 @@ jobs:
     steps:
       - name: Download biometric verifier release package
         if: needs.detect_release.outputs.biometric_verifier == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: worker-biometric-verifier-package
           path: ${{ runner.temp }}/release-assets
 
       - name: Download API release package
         if: needs.detect_release.outputs.api == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: worker-api-package
           path: ${{ runner.temp }}/release-assets
 
       - name: Download platform release package
         if: needs.detect_release.outputs.platform == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: worker-platform-package
           path: ${{ runner.temp }}/release-assets
 
       - name: Download verify release package
         if: needs.detect_release.outputs.verify == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: worker-verify-package
           path: ${{ runner.temp }}/release-assets
 
       - name: Download iOS build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ios-build-artifacts
           path: ${{ runner.temp }}/release-assets
@@ -1133,7 +1133,7 @@ jobs:
         run: cp "${BUNDLE_PATH}" "${PROVENANCE_PATH}"
 
       - name: Upload attested release assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets/*
@@ -1161,7 +1161,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
@@ -1222,7 +1222,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
@@ -1283,7 +1283,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
@@ -1344,7 +1344,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
@@ -1391,7 +1391,7 @@ jobs:
 
     steps:
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets
@@ -1479,7 +1479,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Download attested release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: ${{ runner.temp }}/release-assets

@@ -203,7 +203,6 @@
 					"class_name": "WebhookDeliveryWorkflow"
 				}
 			],
-			// Shared dataset; `blob6` (environment) discriminates rows.
 			"analytics_engine_datasets": [
 				{ "binding": "KAYLE_ID_ANALYTICS", "dataset": "KAYLE_ID_ANALYTICS" }
 			],

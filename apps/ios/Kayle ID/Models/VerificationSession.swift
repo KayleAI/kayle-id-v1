@@ -76,6 +76,8 @@ final class VerificationSession: ObservableObject {
 
   // Services
   private var webSocketService: VerifyWebSocketService?
+  private var initializingWebSocketService: VerifyWebSocketService?
+  private var initializationCancellationToken = UUID()
   private var livenessUploadStarted = false
   private var livenessUploadComplete = false
   private var livenessVideoBytes: Data?
@@ -109,8 +111,20 @@ final class VerificationSession: ObservableObject {
       throw QRCodePayloadError.invalidPayload
     }
 
+    let initializationToken = UUID()
+    initializationCancellationToken = initializationToken
     teardownAttemptState(clearPayload: true)
-    try await bootstrapAttempt(with: payload)
+    try await bootstrapAttempt(
+      with: payload,
+      initializationToken: initializationToken
+    )
+  }
+
+  func cancelInitializationAttempt() {
+    initializationCancellationToken = UUID()
+    let activeInitializingService = initializingWebSocketService
+    initializingWebSocketService = nil
+    activeInitializingService?.disconnect()
   }
 
   /// Update the current phase on the server.
@@ -140,30 +154,19 @@ final class VerificationSession: ObservableObject {
     var acknowledgedChunks = Set<String>()
 
     beginNFCUpload(totalChunkCount: totalChunkCount)
+    defer {
+      resetNFCUploadState()
+    }
+
     await Task.yield()
     await waitForPendingPhaseUpdates()
     nfcUploadStatusMessage = String(localized: "Reconnecting to continue secure upload…")
     try await webSocketService.reconnectForTransfer()
     nfcUploadStatusMessage = String(localized: "Preparing secure upload…")
 
-    do {
-      for plan in plans {
-        try await uploadNFCPlan(
-          plan,
-          via: webSocketService,
-          onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
-            guard let self else { return }
-            if acknowledgedChunks.insert(chunkKey).inserted {
-              self.nfcUploadProgress =
-                Double(acknowledgedChunks.count) / Double(totalChunkCount)
-            }
-          }
-        )
-      }
-
-      nfcUploadStatusMessage = String(localized: "Waiting for secure verification…")
-      let shouldContinue = try await completeNFCPhase(
-        plans: plans,
+    for plan in plans {
+      try await uploadNFCPlan(
+        plan,
         via: webSocketService,
         onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
           guard let self else { return }
@@ -173,12 +176,21 @@ final class VerificationSession: ObservableObject {
           }
         }
       )
-      resetNFCUploadState()
-      return shouldContinue
-    } catch {
-      resetNFCUploadState()
-      throw error
     }
+
+    nfcUploadStatusMessage = String(localized: "Waiting for secure verification…")
+    let shouldContinue = try await completeNFCPhase(
+      plans: plans,
+      via: webSocketService,
+      onChunkAcknowledged: { [weak self] chunkKey, chunkIndex, chunkTotal, kind in
+        guard let self else { return }
+        if acknowledgedChunks.insert(chunkKey).inserted {
+          self.nfcUploadProgress =
+            Double(acknowledgedChunks.count) / Double(totalChunkCount)
+        }
+      }
+    )
+    return shouldContinue
   }
   
   /// Upload the head-movement liveness video and advance to liveness_complete.
@@ -269,6 +281,11 @@ final class VerificationSession: ObservableObject {
     let isTransientConnectionLoss =
       socketError.map { isVerificationSessionConnectionLoss($0) } ?? false
     let isAuthFailure = socketError?.isNonRetryableAuthFailure ?? false
+
+    if isTransientConnectionLoss, step == .nfc, isUploadingNFC {
+      resetNFCUploadState()
+      return
+    }
 
     // Transient socket drops (background, network blip, idle close) lose state
     // the user has built up — scanned QR, captured MRZ, etc. Re-handshake
@@ -400,23 +417,61 @@ final class VerificationSession: ObservableObject {
     return nextPayload
   }
 
-  private func bootstrapAttempt(with payload: QRCodePayload) async throws {
+  private func bootstrapAttempt(
+    with payload: QRCodePayload,
+    initializationToken: UUID? = nil
+  ) async throws {
     let service = makeWebSocketService(for: payload)
+    initializingWebSocketService = service
+    defer {
+      if initializingWebSocketService === service {
+        initializingWebSocketService = nil
+      }
+    }
 
     do {
       try service.connect()
+      try ensureBootstrapStillCurrent(
+        initializationToken: initializationToken,
+        service: service
+      )
       try await service.sendHello()
+      try ensureBootstrapStillCurrent(
+        initializationToken: initializationToken,
+        service: service
+      )
     } catch {
       service.disconnect()
       throw error
     }
 
+    try ensureBootstrapStillCurrent(
+      initializationToken: initializationToken,
+      service: service
+    )
     let activeWebSocketService = webSocketService
     resetAttemptState(clearPayload: false)
     activeWebSocketService?.disconnect()
     self.payload = payload
     webSocketService = service
     await updatePhase(.mobileConnected)
+  }
+
+  private func ensureBootstrapStillCurrent(
+    initializationToken: UUID?,
+    service: VerifyWebSocketService
+  ) throws {
+    guard let initializationToken else {
+      try Task.checkCancellation()
+      return
+    }
+
+    guard initializationCancellationToken == initializationToken else {
+      service.disconnect()
+      throw CancellationError()
+    }
+
+    try Task.checkCancellation()
   }
 
   private func makeWebSocketService(
@@ -512,6 +567,7 @@ final class VerificationSession: ObservableObject {
     livenessChallenge = nil
     hasRFIDSymbol = nil
     webSocketService = nil
+    initializingWebSocketService = nil
     livenessUploadStarted = false
     livenessUploadComplete = false
     livenessUploadCancelled = false
@@ -525,8 +581,10 @@ final class VerificationSession: ObservableObject {
 
   private func teardownAttemptState(clearPayload: Bool) {
     let activeWebSocketService = webSocketService
+    let activeInitializingService = initializingWebSocketService
     resetAttemptState(clearPayload: clearPayload)
     activeWebSocketService?.disconnect()
+    activeInitializingService?.disconnect()
   }
 
   private func closeActiveAttemptConnection() {

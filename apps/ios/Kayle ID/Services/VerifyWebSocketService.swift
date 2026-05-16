@@ -23,6 +23,41 @@ struct VerifyServerLivenessChallenge {
   let challengeNonce: Data
 }
 
+nonisolated private final class OneShotContinuation<Value>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var continuation: CheckedContinuation<Value, Error>?
+
+  init(_ continuation: CheckedContinuation<Value, Error>) {
+    self.continuation = continuation
+  }
+
+  func resume(returning value: Value) {
+    resume(with: .success(value))
+  }
+
+  func resume(throwing error: Error) {
+    resume(with: .failure(error))
+  }
+
+  private func resume(with result: Result<Value, Error>) {
+    lock.lock()
+    let pendingContinuation = continuation
+    continuation = nil
+    lock.unlock()
+
+    guard let pendingContinuation else {
+      return
+    }
+
+    switch result {
+    case .success(let value):
+      pendingContinuation.resume(returning: value)
+    case .failure(let error):
+      pendingContinuation.resume(throwing: error)
+    }
+  }
+}
+
 final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   // The verification flow keeps the socket open while the user scans MRZ and reads NFC.
   private let requestTimeoutSeconds = 10 * 60.0
@@ -41,6 +76,8 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
   private var webSocketTask: URLSessionWebSocketTask?
   private let stateQueue = DispatchQueue(label: "com.kayle.verify.websocket.state")
+  private let helloAttestationTimeoutNs: UInt64 = 6_000_000_000
+  private let sendTimeoutNs: UInt64 = 8_000_000_000
   private let helloAckTimeoutNs: UInt64 = 8_000_000_000
   private let serverResponseTimeoutNs: UInt64 = 8_000_000_000
 
@@ -103,13 +140,19 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     var helloAssertion = Data()
     if let challenge = attestHelloChallenge, !challenge.isEmpty {
       do {
-        let result = try await AppAttestService.shared.helloAssertion(
-          baseURL: baseURL,
-          attemptId: attemptId,
-          deviceId: deviceId,
-          appVersion: appVersion,
-          challenge: challenge
-        )
+        let helloBaseURL = baseURL
+        let helloAttemptId = attemptId
+        let result = try await runWithTimeout(
+          nanoseconds: helloAttestationTimeoutNs
+        ) {
+          try await AppAttestService.shared.helloAssertion(
+            baseURL: helloBaseURL,
+            attemptId: helloAttemptId,
+            deviceId: deviceId,
+            appVersion: appVersion,
+            challenge: challenge
+          )
+        }
         attestKeyId = result.keyId
         helloAssertion = result.assertion
       } catch {
@@ -402,6 +445,31 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  private func runWithTimeout<T>(
+    nanoseconds: UInt64,
+    operation: @escaping @Sendable () async throws -> T
+  ) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+      group.addTask {
+        try await operation()
+      }
+      group.addTask {
+        try await Task.sleep(nanoseconds: nanoseconds)
+        throw VerifyWebSocketError.helloTimedOut
+      }
+
+      defer {
+        group.cancelAll()
+      }
+
+      guard let value = try await group.next() else {
+        throw VerifyWebSocketError.helloTimedOut
+      }
+
+      return value
+    }
+  }
+
   private func resolvePendingHello(_ result: Result<Void, VerifyWebSocketError>) {
     let continuation: CheckedContinuation<Void, Error>? = stateQueue.sync {
       let pending = pendingHelloContinuation
@@ -578,40 +646,71 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     handleFatalError(.connectionClosed)
   }
 
+  private func closeAfterSendFailure() {
+    stateQueue.sync {
+      isClosing = true
+      expectedVerdictClose = false
+    }
+    stopKeepalive()
+    closeSocket()
+    resolvePendingHello(.failure(.connectionClosed))
+    resolvePendingServerResponse(.failure(.connectionClosed))
+  }
+
   private func send(data: Data) async throws {
     guard let task = webSocketTask else {
       throw VerifyWebSocketError.notConnected
     }
 
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      let oneShotContinuation = OneShotContinuation(continuation)
+      let timeoutTask = Task { [weak self, oneShotContinuation] in
+        guard let self else {
+          oneShotContinuation.resume(throwing: VerifyWebSocketError.connectionClosed)
+          return
+        }
+
+        do {
+          try await Task.sleep(nanoseconds: self.sendTimeoutNs)
+        } catch {
+          return
+        }
+
+#if DEBUG
+        print("WebSocket send timed out")
+#endif
+        self.closeAfterSendFailure()
+        oneShotContinuation.resume(
+          throwing: VerifyWebSocketError.sendFailedWithReason(
+            "Timed out sending WebSocket message."
+          )
+        )
+      }
+
       task.send(.data(data)) { error in
+        timeoutTask.cancel()
         if let error {
           if self.isConnectionLossError(error) {
 #if DEBUG
             print("WebSocket send failed after connection loss: \(error.localizedDescription)")
 #endif
-            self.stateQueue.sync {
-              self.isClosing = true
-              self.expectedVerdictClose = false
-            }
-            self.stopKeepalive()
-            self.closeSocket()
-            self.resolvePendingHello(.failure(.connectionClosed))
-            self.resolvePendingServerResponse(.failure(.connectionClosed))
-            continuation.resume(throwing: VerifyWebSocketError.connectionClosed)
+            self.closeAfterSendFailure()
+            oneShotContinuation.resume(
+              throwing: VerifyWebSocketError.connectionClosed
+            )
             return
           }
 
 #if DEBUG
           print("WebSocket send error: \(error.localizedDescription)")
 #endif
-          continuation.resume(
+          oneShotContinuation.resume(
             throwing: VerifyWebSocketError.sendFailedWithReason(
               error.localizedDescription
             )
           )
         } else {
-          continuation.resume()
+          oneShotContinuation.resume(returning: ())
         }
       }
     }
@@ -648,15 +747,36 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
 
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      let oneShotContinuation = OneShotContinuation(continuation)
+      let timeoutTask = Task { [weak self, oneShotContinuation] in
+        guard let self else {
+          oneShotContinuation.resume(throwing: VerifyWebSocketError.connectionClosed)
+          return
+        }
+
+        do {
+          try await Task.sleep(nanoseconds: self.sendTimeoutNs)
+        } catch {
+          return
+        }
+
+#if DEBUG
+        print("WebSocket ping timed out")
+#endif
+        self.handleUnexpectedConnectionLoss()
+        oneShotContinuation.resume(throwing: VerifyWebSocketError.connectionClosed)
+      }
+
       task.sendPing { error in
+        timeoutTask.cancel()
         if let error {
-          continuation.resume(
+          oneShotContinuation.resume(
             throwing: VerifyWebSocketError.sendFailedWithReason(
               error.localizedDescription
             )
           )
         } else {
-          continuation.resume()
+          oneShotContinuation.resume(returning: ())
         }
       }
     }

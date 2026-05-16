@@ -65,6 +65,8 @@ final class AppAttestService {
   private let productionAPIHost = "api.kayle.id"
   private var cachedKeyId: String?
   private var cachedKeyIdHost: String?
+  private var prewarmTasksByHost: [String: Task<Void, Never>] = [:]
+  private var registrationTasksByHost: [String: Task<String, Error>] = [:]
 
   private init() {}
 
@@ -79,7 +81,48 @@ final class AppAttestService {
       cachedKeyIdHost = host
       return stored
     }
-    return try await register(baseURL: baseURL)
+
+    if let registrationTask = registrationTasksByHost[host] {
+      return try await registrationTask.value
+    }
+
+    let registrationTask = Task { @MainActor in
+      try await self.register(baseURL: baseURL)
+    }
+    registrationTasksByHost[host] = registrationTask
+
+    do {
+      let keyId = try await registrationTask.value
+      registrationTasksByHost[host] = nil
+      return keyId
+    } catch {
+      registrationTasksByHost[host] = nil
+      throw error
+    }
+  }
+
+  func prewarm(baseURL: String) {
+    let host = keychainAccountHost(for: baseURL)
+    guard prewarmTasksByHost[host] == nil else {
+      return
+    }
+
+    prewarmTasksByHost[host] = Task { @MainActor [weak self] in
+      guard let self else {
+        return
+      }
+      defer {
+        self.prewarmTasksByHost[host] = nil
+      }
+
+      do {
+        _ = try await self.currentKeyId(baseURL: baseURL)
+      } catch {
+#if DEBUG
+        print("AppAttest prewarm failed: \(error.localizedDescription)")
+#endif
+      }
+    }
   }
 
   /// Performs a fresh App Attest registration. Generates a new SE key, fetches

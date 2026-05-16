@@ -67,6 +67,7 @@ private struct FrozenNFCReadingView: View {
       hasStarted: snapshot.hasStarted,
       onBack: onBack,
       onStart: {},
+      onRetryUpload: {},
       onComplete: { _ in }
     )
     .allowsHitTesting(false)
@@ -124,10 +125,13 @@ struct ContentView: View {
   @State private var cardAccessNumber: String?
   @State private var isAboutSheetPresented = false
   @State private var isResolvingQRCode = false
+  @State private var activeQRCodeResolutionID: UUID?
+  @State private var qrResolutionTimeoutTask: Task<Void, Never>?
   @State private var isCancelVerificationConfirmationPresented = false
   @State private var hasStartedNFCScan = false
   @State private var isRetainingNFCUploadUI = false
   @State private var retainedNFCUploadProgress: Double = 0
+  private let qrInitializationTimeoutNs: UInt64 = 15_000_000_000
 
   @MainActor
   init(
@@ -194,6 +198,13 @@ struct ContentView: View {
       if isUploading {
         isRetainingNFCUploadUI = true
         retainedNFCUploadProgress = session.nfcUploadProgress
+      } else if session.step == .nfc, session.nfcResult != nil {
+        clearRetainedNFCUploadUI()
+      }
+    }
+    .onChange(of: session.isReconnecting) { isReconnecting in
+      if isReconnecting {
+        clearRetainedNFCUploadUI()
       }
     }
     .onChange(of: session.nfcUploadProgress) { progress in
@@ -344,20 +355,9 @@ struct ContentView: View {
         hasStarted: hasStartedNFCScan,
         onBack: nfcBackAction,
         onStart: startNFCScan,
+        onRetryUpload: retryNFCUpload,
         onComplete: { result in
-          session.nfcResult = result
-          let attemptId = session.payload?.attemptId
-
-          Task {
-            do {
-              let shouldContinue = try await session.uploadNFCData()
-              if shouldContinue {
-                session.moveToStep(.livenessIntro)
-              }
-            } catch {
-              session.handleError(error, forAttemptId: attemptId)
-            }
-          }
+          uploadNFCResult(result)
         }
       )
       )
@@ -581,15 +581,13 @@ struct ContentView: View {
   }
 
   private var qrScannerDrawer: some View {
-    ZStack {
-      QRScannerView { code in
+    QRScannerView(
+      onScan: { code in
         handleQRCode(code)
-      }
-
-      if isResolvingQRCode {
-        BlockingLoadingOverlay(message: String(localized: "Checking verification…"))
-      }
-    }
+      },
+      isConnecting: isResolvingQRCode,
+      connectingMessage: String(localized: "Connecting securely...")
+    )
   }
 
   private var mrzScannerDrawer: some View {
@@ -725,22 +723,68 @@ struct ContentView: View {
       return
     }
 
-    activeCameraDrawer = nil
+    let resolutionID = UUID()
+    activeQRCodeResolutionID = resolutionID
     isResolvingQRCode = true
+    startQRCodeResolutionTimeout(for: resolutionID)
 
     Task { @MainActor in
       defer {
-        isResolvingQRCode = false
+        clearQRCodeResolutionState(for: resolutionID)
       }
 
       do {
         let payload = try QRCodePayload.parse(from: code)
         try await session.initialize(with: payload)
+        guard activeQRCodeResolutionID == resolutionID else {
+          return
+        }
+        clearQRCodeResolutionState(for: resolutionID)
+        activeCameraDrawer = nil
         session.moveToStep(.mrz)
       } catch {
+        guard activeQRCodeResolutionID == resolutionID else {
+          return
+        }
         session.handleError(error)
       }
     }
+  }
+
+  private func startQRCodeResolutionTimeout(for resolutionID: UUID) {
+    qrResolutionTimeoutTask?.cancel()
+    qrResolutionTimeoutTask = Task { @MainActor in
+      do {
+        try await Task.sleep(nanoseconds: qrInitializationTimeoutNs)
+      } catch {
+        return
+      }
+
+      guard activeQRCodeResolutionID == resolutionID, isResolvingQRCode else {
+        return
+      }
+
+      activeQRCodeResolutionID = nil
+      qrResolutionTimeoutTask = nil
+      isResolvingQRCode = false
+      session.cancelInitializationAttempt()
+      session.handleError(VerifyWebSocketError.helloTimedOut)
+    }
+  }
+
+  private func clearQRCodeResolutionState(for resolutionID: UUID) {
+    guard activeQRCodeResolutionID == resolutionID else {
+      return
+    }
+
+    clearQRCodeResolutionState()
+  }
+
+  private func clearQRCodeResolutionState() {
+    activeQRCodeResolutionID = nil
+    qrResolutionTimeoutTask?.cancel()
+    qrResolutionTimeoutTask = nil
+    isResolvingQRCode = false
   }
 
   private func startQRScanning() {
@@ -789,6 +833,7 @@ struct ContentView: View {
   }
 
   private func presentQRDrawer() {
+    AppAttestService.shared.prewarm(baseURL: APIService.baseURL(from: ""))
     activeCameraDrawer = .qr
   }
 
@@ -803,6 +848,10 @@ struct ContentView: View {
   }
 
   private func handleCameraDrawerDismiss() {
+    if isResolvingQRCode {
+      session.cancelInitializationAttempt()
+      clearQRCodeResolutionState()
+    }
     isMRZLocked = false
     cameraBlur = 0
     didTriggerMRZ = false
@@ -828,6 +877,38 @@ struct ContentView: View {
       cardAccessNumber: cardAccessNumber,
       activeAuthChallenge: session.activeAuthChallenge
     )
+  }
+
+  private func retryNFCUpload() {
+    guard let nfcResult = session.nfcResult ?? nfcReader.result else {
+      return
+    }
+
+    uploadNFCResult(nfcResult)
+  }
+
+  private func uploadNFCResult(_ result: DocumentReadResult) {
+    session.nfcResult = result
+    clearRetainedNFCUploadUI()
+    let attemptId = session.payload?.attemptId
+
+    Task {
+      do {
+        let shouldContinue = try await session.uploadNFCData()
+        if shouldContinue {
+          session.moveToStep(.livenessIntro)
+        }
+      } catch {
+        clearRetainedNFCUploadUI()
+        if
+          let socketError = error as? VerifyWebSocketError,
+          isVerificationSessionConnectionLoss(socketError)
+        {
+          return
+        }
+        session.handleError(error, forAttemptId: attemptId)
+      }
+    }
   }
 
   private func captureCurrentStepSnapshot() {
@@ -946,6 +1027,8 @@ struct ContentView: View {
 
   private func clearDocumentCaptureUIState() {
     activeCameraDrawer = nil
+    session.cancelInitializationAttempt()
+    clearQRCodeResolutionState()
     isMRZLocked = false
     cameraBlur = 0
     didTriggerMRZ = false

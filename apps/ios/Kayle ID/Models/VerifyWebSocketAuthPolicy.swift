@@ -830,7 +830,10 @@ nonisolated func isNonRetryableAuthErrorCode(_ code: String) -> Bool {
     "HANDOFF_TOKEN_INVALID",
     "HANDOFF_TOKEN_EXPIRED",
     "HANDOFF_TOKEN_CONSUMED",
-    "HANDOFF_DEVICE_MISMATCH":
+    "HANDOFF_DEVICE_MISMATCH",
+    "HELLO_ATTEST_INVALID",
+    "HELLO_ATTEST_KEY_UNKNOWN",
+    "MIN_APP_VERSION_REQUIRED":
     return true
   default:
     return false

@@ -33,9 +33,9 @@ fi
 
 # CFBundleVersion (the "build number" in Apple terminology) must be unique per
 # CFBundleShortVersionString in App Store Connect. CI passes IOS_BUILD_NUMBER as
-# the GitHub workflow's run_attempt so each re-run of the same package version
-# produces a fresh CFBundleVersion (e.g. 1.2.1.1, 1.2.1.2, ...). Local builds
-# default to 1, which is harmless because they are never uploaded.
+# the next available App Store Connect build-number suffix for the current
+# package version. Local builds default to 1, which is harmless because they are
+# never uploaded.
 IOS_BUILD_NUMBER="${IOS_BUILD_NUMBER:-1}"
 
 case "${IOS_BUILD_NUMBER}" in

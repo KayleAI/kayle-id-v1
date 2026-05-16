@@ -540,39 +540,8 @@ jobs:
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun
 
-      - name: Prepare capnproto-swift dependency
-        env:
-          CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift
-        run: |
-          set -euo pipefail
-
-          if [[ -e "${CAPNPROTO_SWIFT_PATH}" ]]; then
-            echo "Expected dependency path ${CAPNPROTO_SWIFT_PATH} already exists." >&2
-            exit 1
-          fi
-
-          mkdir -p "$(dirname "${CAPNPROTO_SWIFT_PATH}")"
-          git init "${CAPNPROTO_SWIFT_PATH}"
-          git -C "${CAPNPROTO_SWIFT_PATH}" remote add origin "${CAPNPROTO_SWIFT_REPOSITORY}"
-          git -C "${CAPNPROTO_SWIFT_PATH}" fetch --depth 1 origin "${CAPNPROTO_SWIFT_REF}"
-          git -C "${CAPNPROTO_SWIFT_PATH}" checkout --detach FETCH_HEAD
-          git -C "${CAPNPROTO_SWIFT_PATH}" submodule update --init --recursive --depth 1
-
-          resolved_ref="$(git -C "${CAPNPROTO_SWIFT_PATH}" rev-parse HEAD)"
-          if [[ "${resolved_ref}" != "${CAPNPROTO_SWIFT_REF}" ]]; then
-            echo "Expected capnproto-swift ref ${CAPNPROTO_SWIFT_REF}, received ${resolved_ref}." >&2
-            exit 1
-          fi
-
-          "${CAPNPROTO_SWIFT_PATH}/scripts/build-xcframework.sh"
-
-      - name: Generate native Cap'n Proto artifacts
-        env:
-          CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift
-          CAPNP_GENERATE_TS: "false"
-        run: bash ./scripts/generate-capnp.sh
-
       - name: Select required Xcode
+        id: xcode
         shell: bash
         env:
           REQUIRED_XCODE_MAJOR: ${{ env.REQUIRED_XCODE_MAJOR }}
@@ -624,14 +593,98 @@ jobs:
           echo "Selected Xcode:"
           xcodebuild -version
 
+          selected_xcode_version="$(
+            xcodebuild -version | awk '/^Xcode / { print $2; exit }'
+          )"
+          selected_xcode_build="$(
+            xcodebuild -version | awk '/^Build version / { print $3; exit }'
+          )"
+
+          {
+            echo "version=${selected_xcode_version}"
+            echo "build=${selected_xcode_build}"
+          } >> "${GITHUB_OUTPUT}"
+
           if ! xcodebuild -showsdks | grep -Eq "iphoneos${REQUIRED_IOS_SDK_MAJOR}"; then
             echo "Selected Xcode does not expose the iOS ${REQUIRED_IOS_SDK_MAJOR} SDK required for App Store uploads." >&2
             xcodebuild -showsdks >&2
             exit 1
           fi
 
+      - name: Restore capnproto-swift dependency cache
+        id: capnproto_swift_cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ github.workspace }}/../../Work/capnproto-swift
+          key: ${{ runner.os }}-capnproto-swift-${{ env.CAPNPROTO_SWIFT_REF }}-xcode-${{ steps.xcode.outputs.version }}-${{ steps.xcode.outputs.build }}-iossdk-${{ env.REQUIRED_IOS_SDK_MAJOR }}
+
+      - name: Prepare capnproto-swift dependency
+        if: steps.capnproto_swift_cache.outputs.cache-hit != 'true'
+        env:
+          CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift
+        run: |
+          set -euo pipefail
+
+          if [[ -e "${CAPNPROTO_SWIFT_PATH}" ]]; then
+            echo "Expected dependency path ${CAPNPROTO_SWIFT_PATH} already exists." >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "${CAPNPROTO_SWIFT_PATH}")"
+          git init "${CAPNPROTO_SWIFT_PATH}"
+          git -C "${CAPNPROTO_SWIFT_PATH}" remote add origin "${CAPNPROTO_SWIFT_REPOSITORY}"
+          git -C "${CAPNPROTO_SWIFT_PATH}" fetch --depth 1 origin "${CAPNPROTO_SWIFT_REF}"
+          git -C "${CAPNPROTO_SWIFT_PATH}" checkout --detach FETCH_HEAD
+          git -C "${CAPNPROTO_SWIFT_PATH}" submodule update --init --recursive --depth 1
+
+          "${CAPNPROTO_SWIFT_PATH}/scripts/build-xcframework.sh"
+
+      - name: Verify capnproto-swift dependency
+        env:
+          CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift
+        run: |
+          set -euo pipefail
+
+          resolved_ref="$(git -C "${CAPNPROTO_SWIFT_PATH}" rev-parse HEAD)"
+          if [[ "${resolved_ref}" != "${CAPNPROTO_SWIFT_REF}" ]]; then
+            echo "Expected capnproto-swift ref ${CAPNPROTO_SWIFT_REF}, received ${resolved_ref}." >&2
+            exit 1
+          fi
+
+          capnp_bin="${CAPNPROTO_SWIFT_PATH}/.build/xcframework/macosx/capnproto/c++/src/capnp/capnp"
+          if [[ ! -x "${capnp_bin}" ]]; then
+            echo "Expected built capnp compiler at ${capnp_bin}." >&2
+            exit 1
+          fi
+
+      - name: Generate native Cap'n Proto artifacts
+        env:
+          CAPNPROTO_SWIFT_PATH: ${{ github.workspace }}/../../Work/capnproto-swift
+          CAPNP_GENERATE_TS: "false"
+        run: bash ./scripts/generate-capnp.sh
+
+      - name: Restore Swift package dependency cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/swiftpm-sourcepackages
+          key: ${{ runner.os }}-swiftpm-xcode-${{ steps.xcode.outputs.version }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('apps/ios/Kayle ID.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'apps/ios/Kayle ID.xcodeproj/project.pbxproj') }}
+
       - name: Resolve Swift package dependencies
-        run: xcodebuild -resolvePackageDependencies -project "${APP_PROJECT_PATH}" -scheme "${APP_SCHEME}"
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "${APP_PROJECT_PATH}" \
+            -scheme "${APP_SCHEME}" \
+            -clonedSourcePackagesDirPath "${RUNNER_TEMP}/swiftpm-sourcepackages"
+
+      - name: Resolve iOS App Store build number
+        id: ios_build_number
+        env:
+          APP_BUNDLE_ID: ${{ env.APP_BUNDLE_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          APP_VERSION: ${{ needs.detect_release.outputs.app_version }}
+        run: bun ./scripts/resolve-ios-build-number.ts
 
       - name: Import App Store signing certificate
         uses: apple-actions/import-codesign-certs@95e84a1a18f2bdbc5c6ab9b7f4429372e4b13a8b
@@ -723,13 +776,8 @@ jobs:
       - name: Archive release build
         env:
           ARCHIVE_PATH: ${{ runner.temp }}/KayleID.xcarchive
+          IOS_BUILD_NUMBER: ${{ steps.ios_build_number.outputs.build_number }}
           PROVISIONING_PROFILE_NAME: ${{ steps.profile.outputs.name }}
-          # Append the workflow's run_attempt to CFBundleVersion so each re-run
-          # of the same package version uploads as a fresh build (1.2.1.1,
-          # 1.2.1.2, ...) instead of being rejected by App Store Connect for
-          # duplicating CFBundleVersion. CFBundleShortVersionString stays at
-          # the package.json marketing version.
-          IOS_BUILD_NUMBER: ${{ github.run_attempt }}
         run: |
           xcodebuild archive \
             -project "${APP_PROJECT_PATH}" \
@@ -737,6 +785,7 @@ jobs:
             -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "${ARCHIVE_PATH}" \
+            -clonedSourcePackagesDirPath "${RUNNER_TEMP}/swiftpm-sourcepackages" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM="${APP_TEAM_ID}" \

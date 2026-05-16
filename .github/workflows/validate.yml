@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Validate
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -25,5 +25,5 @@ jobs:
         with:
           apt-packages: ripgrep
 
-      - name: Run repository validation
+      - name: Run repository linting
         run: bun run lint

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-workers:
-    name: Build Worker (${{ matrix.worker }})
+    name: ${{ matrix.worker }}
     runs-on: ubuntu-latest
     env:
       NODE_ENV: production
@@ -23,22 +23,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - worker: biometric-verifier
+          - worker: Biometric Verifier
             working-directory: apps/biometric-verifier
             generate-capnp: "false"
             pre-build: ""
             wrangler-args: --env production
-          - worker: api
+          - worker: API
             working-directory: apps/api
             generate-capnp: "true"
             pre-build: ""
             wrangler-args: --minify --env production
-          - worker: platform
+          - worker: Platform
             working-directory: apps/platform
             generate-capnp: "false"
             pre-build: bun run build
             wrangler-args: --minify --env production
-          - worker: verify
+          - worker: Verify
             working-directory: apps/verify
             generate-capnp: "true"
             pre-build: bun run build

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test-workspace:
-    name: Test (${{ matrix.workspace }})
+    name: ${{ matrix.workspace }}
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
@@ -22,16 +22,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - workspace: biometric-verifier
+          - workspace: Biometric Verifier
             working-directory: apps/biometric-verifier
             generate-capnp: "true"
-          - workspace: platform
+          - workspace: Platform
             working-directory: apps/platform
             generate-capnp: "false"
-          - workspace: verify
+          - workspace: Verify
             working-directory: apps/verify
             generate-capnp: "true"
-          - workspace: translations
+          - workspace: Translations
             working-directory: packages/translations
             generate-capnp: "false"
 
@@ -49,7 +49,7 @@ jobs:
         run: bun run test
 
   test-api-integration:
-    name: Test API Integration
+    name: API Integration
     runs-on: ubuntu-latest
     env:
       POSTGRES_USER: postgres

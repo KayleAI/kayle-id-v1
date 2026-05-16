@@ -3,12 +3,15 @@ name: Release Staging
 on:
   workflow_run:
     workflows:
-      - CI
+      - Validate
+      - Build
+      - Test
     types:
       - completed
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -32,6 +35,7 @@ jobs:
       )
     outputs:
       head_sha: ${{ steps.context.outputs.head_sha }}
+      release_ready: ${{ steps.manual.outputs.ready || steps.required.outputs.ready }}
 
     steps:
       - name: Reject manual run from non-staging ref
@@ -51,10 +55,38 @@ jobs:
             echo "head_sha=${{ github.sha }}" >> "${GITHUB_OUTPUT}"
           fi
 
+      - name: Mark manual dispatch ready
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "ready=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out repository code
+        if: github.event_name == 'workflow_run'
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ steps.context.outputs.head_sha }}
+
+      - name: Check required workflow results
+        id: required
+        if: github.event_name == 'workflow_run'
+        uses: ./.github/actions/check-required-workflows
+        with:
+          current-workflow-conclusion: ${{ github.event.workflow_run.conclusion }}
+          current-workflow-path: ${{ github.event.workflow_run.path }}
+          github-token: ${{ github.token }}
+          head-branch: ${{ github.event.workflow_run.head_branch }}
+          head-sha: ${{ steps.context.outputs.head_sha }}
+          workflow-event: ${{ github.event.workflow_run.event }}
+          required-workflows: |
+            validate.yml
+            build.yml
+            test.yml
+
   migrate_database:
     name: Migrate Staging Database
     runs-on: ubuntu-latest
     needs: guard
+    if: needs.guard.outputs.release_ready == 'true'
 
     steps:
       - name: Check out repository code
@@ -75,6 +107,7 @@ jobs:
     name: Deploy Biometric Verifier (staging)
     runs-on: ubuntu-latest
     needs: guard
+    if: needs.guard.outputs.release_ready == 'true'
 
     steps:
       - name: Check out repository code
@@ -99,6 +132,7 @@ jobs:
       - guard
       - migrate_database
       - deploy_biometric_verifier
+    if: needs.guard.outputs.release_ready == 'true'
 
     steps:
       - name: Check out repository code
@@ -124,6 +158,7 @@ jobs:
     needs:
       - guard
       - deploy_api
+    if: needs.guard.outputs.release_ready == 'true'
 
     steps:
       - name: Check out repository code
@@ -154,6 +189,7 @@ jobs:
     needs:
       - guard
       - deploy_api
+    if: needs.guard.outputs.release_ready == 'true'
 
     steps:
       - name: Check out repository code

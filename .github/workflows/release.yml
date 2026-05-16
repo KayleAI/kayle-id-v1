@@ -3,12 +3,15 @@ name: Release
 on:
   workflow_run:
     workflows:
-      - CI
+      - Validate
+      - Build
+      - Test
     types:
       - completed
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -28,15 +31,77 @@ env:
   REQUIRED_XCODE_MAJOR: "26"
 
 jobs:
-  detect_release:
-    name: Detect Release
+  check_required_workflows:
+    name: Check Required Workflows
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success'
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event == 'push'
       )
+    outputs:
+      head_branch: ${{ steps.context.outputs.head_branch }}
+      head_sha: ${{ steps.context.outputs.head_sha }}
+      release_ready: ${{ steps.manual.outputs.ready || steps.required.outputs.ready }}
+      workflow_event: ${{ steps.context.outputs.workflow_event }}
+
+    steps:
+      - name: Resolve release workflow context
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            {
+              echo "head_branch=${{ github.event.workflow_run.head_branch }}"
+              echo "head_sha=${{ github.event.workflow_run.head_sha }}"
+              echo "workflow_event=${{ github.event.workflow_run.event }}"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            {
+              echo "head_branch=${GITHUB_REF_NAME}"
+              echo "head_sha=${GITHUB_SHA}"
+              echo "workflow_event=${GITHUB_EVENT_NAME}"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Mark manual dispatch ready
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "ready=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out repository code
+        if: github.event_name == 'workflow_run'
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ steps.context.outputs.head_sha }}
+
+      - name: Check required workflow results
+        id: required
+        if: github.event_name == 'workflow_run'
+        uses: ./.github/actions/check-required-workflows
+        with:
+          current-workflow-conclusion: ${{ github.event.workflow_run.conclusion }}
+          current-workflow-path: ${{ github.event.workflow_run.path }}
+          github-token: ${{ github.token }}
+          head-branch: ${{ steps.context.outputs.head_branch }}
+          head-sha: ${{ steps.context.outputs.head_sha }}
+          workflow-event: ${{ steps.context.outputs.workflow_event }}
+          required-workflows: |
+            validate.yml
+            build.yml
+            test.yml
+
+  detect_release:
+    name: Detect Release
+    runs-on: ubuntu-latest
+    needs: check_required_workflows
+    if: >-
+      needs.check_required_workflows.outputs.release_ready == 'true'
     outputs:
       app_version: ${{ steps.context.outputs.app_version }}
       force_full_release: ${{ steps.context.outputs.force_full_release }}

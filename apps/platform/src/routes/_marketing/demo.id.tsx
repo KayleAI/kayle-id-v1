@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Demo } from "@/marketing/demo";
+import { IdDemo } from "@/marketing/demo/id-demo";
 
 export const Route = createFileRoute("/_marketing/demo/id")({
-	component: () => <Demo mode="id" />,
+	component: IdDemo,
 });

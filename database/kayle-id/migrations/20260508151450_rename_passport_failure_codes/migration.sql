@@ -3,6 +3,9 @@
 -- ID cards in addition to TD3 passports, so failure codes are now phrased in
 -- terms of the document. failure_code is stored as text + CHECK (not a Postgres
 -- enum), so this is a single-pass rewrite — no ALTER TYPE needed.
+ALTER TABLE "verification_attempts"
+	DROP CONSTRAINT IF EXISTS "verif_attempts_failure_code_check";
+
 UPDATE "verification_attempts"
 SET "failure_code" = CASE "failure_code"
 	WHEN 'passport_authenticity_failed'             THEN 'document_authenticity_failed'
@@ -12,9 +15,6 @@ SET "failure_code" = CASE "failure_code"
 	ELSE "failure_code"
 END
 WHERE "failure_code" LIKE 'passport_%';
-
-ALTER TABLE "verification_attempts"
-	DROP CONSTRAINT IF EXISTS "verif_attempts_failure_code_check";
 
 ALTER TABLE "verification_attempts"
 	ADD CONSTRAINT "verif_attempts_failure_code_check"

@@ -23,8 +23,8 @@
       "image": "./Dockerfile",
       "instance_type": {
         "disk_mb": 3072,
-        "memory_mib": 4096,
-        "vcpu": 2
+        "memory_mib": 3072,
+        "vcpu": 1
       },
       "max_instances": 2
     }
@@ -68,8 +68,8 @@
           "image": "./Dockerfile",
           "instance_type": {
             "disk_mb": 3072,
-            "memory_mib": 4096,
-            "vcpu": 2
+            "memory_mib": 3072,
+            "vcpu": 1
           },
           "max_instances": 2
         }
@@ -116,8 +116,8 @@
           "image": "./Dockerfile",
           "instance_type": {
             "disk_mb": 3072,
-            "memory_mib": 4096,
-            "vcpu": 2
+            "memory_mib": 3072,
+            "vcpu": 1
           },
           "max_instances": 2
         }

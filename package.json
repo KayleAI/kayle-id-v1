@@ -56,7 +56,7 @@
     "check": "ultracite check",
     "fix": "ultracite fix"
   },
-  "version": "1.4.1",
+  "version": "1.5.0",
   "workspaces": [
     "apps/*",
     "infra/*",

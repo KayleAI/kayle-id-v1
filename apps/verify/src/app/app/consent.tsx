@@ -84,7 +84,7 @@ export function SessionConsent({
 
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
-			<div className="flex min-h-[calc(100dvh_-_6rem)] [@media(min-height:800px)]:min-h-[44rem] w-full max-w-md flex-col">
+			<div className="flex w-full max-w-md flex-col">
 				{/* Header */}
 				<div>
 					<div className="mb-8">

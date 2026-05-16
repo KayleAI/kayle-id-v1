@@ -5,6 +5,8 @@ import SwiftUI
 /// Scans QR codes with the `kayle-id://` URL scheme.
 struct QRScannerView: View {
   let onScan: (String) -> Void
+  var isConnecting = false
+  var connectingMessage = String(localized: "Connecting securely...")
 
   @State private var isScanning = true
   @State private var lastScannedCode: String?
@@ -13,6 +15,8 @@ struct QRScannerView: View {
     ZStack {
       if PreviewSupport.isRunningInXcodePreview {
         Color.black.ignoresSafeArea()
+          .blur(radius: cameraBlur)
+          .animation(.easeInOut(duration: 1.0), value: isConnecting)
       } else {
         QRScannerViewController(
           onScan: { code in
@@ -23,18 +27,57 @@ struct QRScannerView: View {
           }
         )
         .ignoresSafeArea()
+        .blur(radius: cameraBlur)
+        .animation(.easeInOut(duration: 1.0), value: isConnecting)
       }
 
       ScannerOverlayView(
-        cutout: .centeredSquare(size: 250, cornerRadius: 24),
+        cutout: .centeredSquare(
+          size: QRScannerMetrics.cutoutSize,
+          cornerRadius: QRScannerMetrics.cutoutCornerRadius
+        ),
         title: String(localized: "Scan QR Code"),
         subtitle: String(
           localized: "Point your camera at the QR code on the screen"
         ),
+        borderColor: isConnecting ? .green : .white,
+        borderWidth: isConnecting ? 6 : 4,
         instructionHorizontalPadding: 32,
         instructionBottomPadding: CameraDrawerMetrics.instructionBottomPadding
       )
+      .animation(.easeInOut(duration: 0.25), value: isConnecting)
+
+      if isConnecting {
+        QRScannerConnectionStatus(message: connectingMessage)
+      }
     }
+  }
+
+  private var cameraBlur: CGFloat {
+    isConnecting ? QRScannerMetrics.lockedBlurRadius : 0
+  }
+}
+
+private enum QRScannerMetrics {
+  static let cutoutSize: CGFloat = 250
+  static let cutoutCornerRadius: CGFloat = 24
+  static let lockedBlurRadius: CGFloat = 8
+}
+
+private struct QRScannerConnectionStatus: View {
+  let message: String
+
+  var body: some View {
+    ZStack {
+      LoadingStatusRow(message: message, tone: .light)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.black.opacity(0.65), in: Capsule())
+        .frame(width: QRScannerMetrics.cutoutSize - 32)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .ignoresSafeArea()
+    .allowsHitTesting(true)
   }
 }
 

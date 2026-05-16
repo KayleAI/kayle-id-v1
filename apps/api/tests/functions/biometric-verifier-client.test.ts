@@ -17,6 +17,59 @@ function requireCapturedValue(value: string | null, label: string): string {
 	return value;
 }
 
+function readyVerifierHealthResponse(): Response {
+	return new Response(
+		JSON.stringify({
+			data: {
+				ready: true,
+			},
+		}),
+		{
+			headers: {
+				"content-type": "application/json",
+			},
+			status: 200,
+		},
+	);
+}
+
+function unreadyVerifierHealthResponse(): Response {
+	return new Response(
+		JSON.stringify({
+			data: {
+				ready: false,
+			},
+		}),
+		{
+			headers: {
+				"content-type": "application/json",
+			},
+			status: 503,
+		},
+	);
+}
+
+function successfulVerifierResponse(): Response {
+	return new Response(
+		JSON.stringify({
+			livenessPassed: true,
+			livenessScore: 0.9,
+			faceMatchPassed: true,
+			faceMatchScore: 0.9,
+			faceMatchAlignment: "mesh",
+			padPassed: true,
+			padScore: 0.85,
+			usedFallback: false,
+		}),
+		{
+			headers: {
+				"content-type": "application/json",
+			},
+			status: 200,
+		},
+	);
+}
+
 afterEach(() => {
 	globalThis.fetch = originalFetch;
 	mock.restore();
@@ -28,10 +81,18 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	let capturedAuthHeader: string | null = null;
 	let capturedDg2Size = 0;
 	let capturedVideoSize = 0;
+	const requestPaths: string[] = [];
 
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
 			const request = new Request(input, init);
+			const pathname = new URL(request.url).pathname;
+			requestPaths.push(pathname);
+
+			if (pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
 			const formData = await request.formData();
 
 			capturedThisValue = this;
@@ -81,6 +142,7 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	expect(result.faceMatchPassed).toBeTrue();
 	expect(result.padPassed).toBeTrue();
 	expect(result.padScore).toBe(0.82);
+	expect(requestPaths).toEqual(["/health", "/verify"]);
 	expect(
 		requireCapturedValue(capturedUrl, "biometric verifier request URL"),
 	).toBe("https://biometric-verifier.internal/verify");
@@ -94,6 +156,45 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 	).toBe("test-secret");
 	expect(capturedDg2Size).toBe(3);
 	expect(capturedVideoSize).toBe(4);
+});
+
+test("verifyLiveness waits for verifier readiness before uploading video", async () => {
+	const requestPaths: string[] = [];
+	let healthAttempts = 0;
+	let videoUploaded = false;
+
+	const verifierBinding = {
+		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			const pathname = new URL(request.url).pathname;
+			requestPaths.push(pathname);
+
+			if (pathname === "/health") {
+				healthAttempts += 1;
+				return healthAttempts >= 2
+					? readyVerifierHealthResponse()
+					: unreadyVerifierHealthResponse();
+			}
+
+			const formData = await request.formData();
+			videoUploaded = formData.has(BIOMETRIC_VERIFIER_VIDEO_FIELD);
+			return successfulVerifierResponse();
+		},
+	};
+
+	const result = await verifyLiveness({
+		dg2Image: new Uint8Array([0x01, 0x02, 0x03]),
+		video: new Uint8Array([0x10, 0x11, 0x12, 0x13]),
+		env: {
+			BIOMETRIC_VERIFIER: verifierBinding,
+			BIOMETRIC_VERIFIER_SECRET: "test-secret",
+		},
+		faceMatchThreshold: 0.8,
+	});
+
+	expect(result.livenessPassed).toBeTrue();
+	expect(videoUploaded).toBeTrue();
+	expect(requestPaths).toEqual(["/health", "/health", "/verify"]);
 });
 
 test("verifyLiveness fails closed when verifier config is unavailable", async () => {
@@ -156,15 +257,19 @@ test("verifyLiveness fails closed when the verifier binding is set but the secre
 });
 
 test("verifyLiveness fails closed when the verifier returns invalid JSON", async () => {
-	globalThis.fetch = createMockFetch(
-		async () =>
-			new Response("not-json", {
-				headers: {
-					"content-type": "application/json",
-				},
-				status: 200,
-			}),
-	);
+	globalThis.fetch = createMockFetch(async (input, init) => {
+		const request = new Request(input, init);
+		if (new URL(request.url).pathname === "/health") {
+			return readyVerifierHealthResponse();
+		}
+
+		return new Response("not-json", {
+			headers: {
+				"content-type": "application/json",
+			},
+			status: 200,
+		});
+	});
 
 	const result = await verifyLiveness({
 		dg2Image: new Uint8Array([0x01]),
@@ -215,23 +320,13 @@ function envForVerifierCall(opts: {
 test("verifyLiveness emits a container_active cost event on success", async () => {
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
-		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
-			return new Response(
-				JSON.stringify({
-					livenessPassed: true,
-					livenessScore: 0.9,
-					faceMatchPassed: true,
-					faceMatchScore: 0.9,
-					faceMatchAlignment: "mesh",
-					padPassed: true,
-					padScore: 0.85,
-					usedFallback: false,
-				}),
-				{
-					headers: { "content-type": "application/json" },
-					status: 200,
-				},
-			);
+		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			if (new URL(request.url).pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
+			return successfulVerifierResponse();
 		},
 	};
 
@@ -256,7 +351,12 @@ test("verifyLiveness emits a container_active cost event on success", async () =
 test("verifyLiveness still emits a container_active cost event on HTTP error", async () => {
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
-		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			if (new URL(request.url).pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
 			return new Response("upstream went sideways", { status: 502 });
 		},
 	};
@@ -276,7 +376,12 @@ test("verifyLiveness still emits a container_active cost event on HTTP error", a
 test("verifyLiveness still emits a container_active cost event on invalid JSON", async () => {
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
-		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			if (new URL(request.url).pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
 			return new Response("not-json", {
 				headers: { "content-type": "application/json" },
 				status: 200,
@@ -298,7 +403,12 @@ test("verifyLiveness still emits a container_active cost event on invalid JSON",
 test("verifyLiveness still emits a container_active cost event on schema mismatch", async () => {
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
-		async fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
+		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			if (new URL(request.url).pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
 			return new Response(JSON.stringify({ unrelated: "shape" }), {
 				headers: { "content-type": "application/json" },
 				status: 200,
@@ -320,8 +430,13 @@ test("verifyLiveness still emits a container_active cost event on schema mismatc
 test("verifyLiveness still emits a container_active cost event when the binding throws", async () => {
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
-		fetch(this: unknown, _input: RequestInfo | URL, _init?: RequestInit) {
-			throw new Error("network goblin");
+		fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+			const request = new Request(input, init);
+			if (new URL(request.url).pathname === "/health") {
+				return readyVerifierHealthResponse();
+			}
+
+			throw new Error("network failure");
 		},
 	};
 

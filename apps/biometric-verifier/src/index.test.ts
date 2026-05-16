@@ -59,6 +59,59 @@ function buildValidPayloadParams(
   };
 }
 
+function readyHealthResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      data: {
+        ready: true,
+      },
+    }),
+    {
+      headers: {
+        "content-type": "application/json",
+      },
+      status: 200,
+    }
+  );
+}
+
+function unreadyHealthResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      data: {
+        ready: false,
+      },
+    }),
+    {
+      headers: {
+        "content-type": "application/json",
+      },
+      status: 503,
+    }
+  );
+}
+
+function successfulVerifierResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      livenessPassed: true,
+      livenessScore: 0.92,
+      faceMatchPassed: true,
+      faceMatchScore: 0.91,
+      faceMatchAlignment: "mesh",
+      padPassed: true,
+      padScore: 0.85,
+      usedFallback: false,
+    }),
+    {
+      headers: {
+        "content-type": "application/json",
+      },
+      status: 200,
+    }
+  );
+}
+
 test("biometric verifier worker forwards liveness payload to the container", async () => {
   const portrait = await loadVerifyFixtureBytes("icon.jpg");
   const videoBytes = new Uint8Array(8192).fill(7);
@@ -70,27 +123,15 @@ test("biometric verifier worker forwards liveness payload to the container", asy
     getContainer: async () => ({
       fetch: async (input, init) => {
         const request = new Request(input, init);
-        capturedPathname = new URL(request.url).pathname;
-        capturedPayload = await request.json();
+        const pathname = new URL(request.url).pathname;
+        if (pathname === "/health") {
+          return readyHealthResponse();
+        }
 
-        return new Response(
-          JSON.stringify({
-            livenessPassed: true,
-            livenessScore: 0.92,
-            faceMatchPassed: true,
-            faceMatchScore: 0.91,
-            faceMatchAlignment: "mesh",
-            padPassed: true,
-            padScore: 0.85,
-            usedFallback: false,
-          }),
-          {
-            headers: {
-              "content-type": "application/json",
-            },
-            status: 200,
-          }
-        );
+        capturedPathname = pathname;
+        capturedPayload = await request.formData();
+
+        return successfulVerifierResponse();
       },
     }),
   });
@@ -118,16 +159,13 @@ test("biometric verifier worker forwards liveness payload to the container", asy
       `Expected container path to be /verify, got ${capturedPathname}`
     );
   }
-  expect(capturedPayload).toEqual(
-    expect.objectContaining({
-      dg2Image: expect.objectContaining({
-        bytesBase64: expect.any(String),
-        format: expect.any(String),
-      }),
-      videoBase64: expect.any(String),
-      faceMatchThreshold: 0.7853,
-    })
-  );
+  if (!(capturedPayload instanceof FormData)) {
+    throw new Error("Expected container payload to be multipart FormData");
+  }
+  expect(capturedPayload.get("dg2Format")).toBe("jpeg");
+  expect(capturedPayload.get("faceMatchThreshold")).toBe("0.7853");
+  expect(capturedPayload.get("dg2Image")).toBeInstanceOf(Blob);
+  expect(capturedPayload.get("video")).toBeInstanceOf(Blob);
   const payload = (await response.json()) as Record<string, unknown>;
   expect(payload).toEqual({
     livenessPassed: true,
@@ -139,6 +177,96 @@ test("biometric verifier worker forwards liveness payload to the container", asy
     padScore: 0.85,
     usedFallback: false,
   });
+});
+
+test("biometric verifier worker waits for container readiness before forwarding video", async () => {
+  const portrait = await loadVerifyFixtureBytes("icon.jpg");
+  const videoBytes = new Uint8Array(8192).fill(8);
+  const paths: string[] = [];
+  let healthAttempts = 0;
+
+  const worker = createBiometricVerifierWorker({
+    containerReadyAttempts: 3,
+    containerReadyRetryDelayMs: 0,
+    emitRequestLogs: false,
+    getContainer: async () => ({
+      fetch: (input, init) => {
+        const request = new Request(input, init);
+        const pathname = new URL(request.url).pathname;
+        paths.push(pathname);
+
+        if (pathname === "/health") {
+          healthAttempts += 1;
+          return Promise.resolve(
+            healthAttempts >= 2
+              ? readyHealthResponse()
+              : unreadyHealthResponse()
+          );
+        }
+
+        return Promise.resolve(successfulVerifierResponse());
+      },
+    }),
+  });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://biometric-verifier/verify", {
+      body: createBiometricVerifierRequestFormData(
+        buildValidPayloadParams(portrait, videoBytes)
+      ),
+      headers: {
+        [BIOMETRIC_VERIFIER_AUTH_HEADER]: "test-secret",
+      },
+      method: "POST",
+    }),
+    createBindings({
+      BIOMETRIC_VERIFIER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(200);
+  expect(paths).toEqual(["/health", "/health", "/verify"]);
+});
+
+test("biometric verifier worker does not forward video when the container never becomes ready", async () => {
+  const portrait = await loadVerifyFixtureBytes("icon.jpg");
+  const videoBytes = new Uint8Array(8192).fill(9);
+  const paths: string[] = [];
+
+  const worker = createBiometricVerifierWorker({
+    containerReadyAttempts: 2,
+    containerReadyRetryDelayMs: 0,
+    emitRequestLogs: false,
+    getContainer: async () => ({
+      fetch: (input, init) => {
+        const request = new Request(input, init);
+        const pathname = new URL(request.url).pathname;
+        paths.push(pathname);
+
+        return Promise.resolve(unreadyHealthResponse());
+      },
+    }),
+  });
+
+  const response = await worker.fetch(
+    createWorkerRequest("http://biometric-verifier/verify", {
+      body: createBiometricVerifierRequestFormData(
+        buildValidPayloadParams(portrait, videoBytes)
+      ),
+      headers: {
+        [BIOMETRIC_VERIFIER_AUTH_HEADER]: "test-secret",
+      },
+      method: "POST",
+    }),
+    createBindings({
+      BIOMETRIC_VERIFIER_SECRET: "test-secret",
+    }),
+    createExecutionContext()
+  );
+
+  expect(response.status).toBe(503);
+  expect(paths).toEqual(["/health", "/health"]);
 });
 
 test("biometric verifier worker rejects malformed requests", async () => {
@@ -231,24 +359,14 @@ test("biometric verifier worker accepts the bearer auth header", async () => {
   const worker = createBiometricVerifierWorker({
     emitRequestLogs: false,
     getContainer: async () => ({
-      fetch: async () =>
-        new Response(
-          JSON.stringify({
-            livenessPassed: true,
-            livenessScore: 0.9,
-            faceMatchPassed: true,
-            faceMatchScore: 0.9,
-            padPassed: true,
-            padScore: 0.85,
-            usedFallback: false,
-          }),
-          {
-            headers: {
-              "content-type": "application/json",
-            },
-            status: 200,
-          }
-        ),
+      fetch: (input, init) => {
+        const request = new Request(input, init);
+        if (new URL(request.url).pathname === "/health") {
+          return Promise.resolve(readyHealthResponse());
+        }
+
+        return Promise.resolve(successfulVerifierResponse());
+      },
     }),
   });
 

@@ -9,8 +9,8 @@
 //!   - Any other path → 404 with the Python NOT_FOUND envelope.
 
 use crate::runtime::Runtime;
-use crate::types::{NotFoundEnvelope, VerifyResponse};
-use axum::extract::State;
+use crate::types::{Dg2ImagePayload, NotFoundEnvelope, VerifyRequest, VerifyResponse};
+use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -38,16 +38,18 @@ async fn health(State(runtime): State<Runtime>) -> Response {
     (status, Json(payload)).into_response()
 }
 
-async fn verify(
-    State(runtime): State<Runtime>,
-    Json(_request): Json<crate::types::VerifyRequest>,
-) -> Response {
+async fn verify(State(runtime): State<Runtime>, multipart: Multipart) -> Response {
+    let request = match parse_verify_multipart(multipart).await {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+
     if !runtime.ready() {
         let suffix = runtime.unavailable_reason();
         let reason = format!("biometric_verifier_unavailable:runtime_not_ready:{suffix}");
         return (StatusCode::OK, Json(VerifyResponse::unavailable(reason))).into_response();
     }
-    let result = match crate::pipeline::verify_liveness_payload(&runtime, _request).await {
+    let result = match crate::pipeline::verify_liveness_payload(&runtime, request).await {
         Ok(r) => r,
         Err(e) => {
             tracing::event!(
@@ -60,6 +62,107 @@ async fn verify(
         }
     };
     (StatusCode::OK, Json(result)).into_response()
+}
+
+async fn parse_verify_multipart(mut multipart: Multipart) -> Result<VerifyRequest, Response> {
+    let mut dg2_image: Option<Vec<u8>> = None;
+    let mut dg2_format: Option<String> = None;
+    let mut video: Option<Vec<u8>> = None;
+    let mut challenge_nonce: Option<Vec<u8>> = None;
+    let mut face_match_threshold: Option<f64> = None;
+    let mut include_debug: Option<bool> = None;
+    let mut skip_face_match: Option<bool> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(invalid_verify_request)?
+    {
+        let name = field.name().unwrap_or_default().to_owned();
+        match name.as_str() {
+            "dg2Image" => {
+                dg2_image = Some(
+                    field
+                        .bytes()
+                        .await
+                        .map_err(invalid_verify_request)?
+                        .to_vec(),
+                );
+            }
+            "dg2Format" => {
+                let value = field.text().await.map_err(invalid_verify_request)?;
+                dg2_format = if value.is_empty() { None } else { Some(value) };
+            }
+            "video" => {
+                video = Some(
+                    field
+                        .bytes()
+                        .await
+                        .map_err(invalid_verify_request)?
+                        .to_vec(),
+                );
+            }
+            "challengeNonce" => {
+                challenge_nonce = Some(
+                    field
+                        .bytes()
+                        .await
+                        .map_err(invalid_verify_request)?
+                        .to_vec(),
+                );
+            }
+            "faceMatchThreshold" => {
+                let value = field.text().await.map_err(invalid_verify_request)?;
+                face_match_threshold = Some(value.parse().map_err(invalid_verify_request)?);
+            }
+            "includeDebug" => {
+                let value = field.text().await.map_err(invalid_verify_request)?;
+                include_debug = Some(parse_bool_field(&value).ok_or_else(invalid_verify_response)?);
+            }
+            "skipFaceMatch" => {
+                let value = field.text().await.map_err(invalid_verify_request)?;
+                skip_face_match =
+                    Some(parse_bool_field(&value).ok_or_else(invalid_verify_response)?);
+            }
+            _ => {}
+        }
+    }
+
+    let Some(dg2_image) = dg2_image else {
+        return Err(invalid_verify_response());
+    };
+
+    Ok(VerifyRequest {
+        dg2_image: Dg2ImagePayload {
+            bytes: dg2_image,
+            format: dg2_format,
+        },
+        video: video.unwrap_or_default(),
+        challenge_nonce,
+        face_match_threshold,
+        include_debug,
+        skip_face_match,
+    })
+}
+
+fn parse_bool_field(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" => Some(true),
+        "0" | "false" => Some(false),
+        _ => None,
+    }
+}
+
+fn invalid_verify_request<E>(_error: E) -> Response {
+    invalid_verify_response()
+}
+
+fn invalid_verify_response() -> Response {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(VerifyResponse::unavailable("invalid_verify_request")),
+    )
+        .into_response()
 }
 
 async fn debug_metrics(State(runtime): State<Runtime>) -> Response {
@@ -236,6 +339,26 @@ mod tests {
         }
     }
 
+    fn verify_multipart_body() -> (String, Vec<u8>) {
+        let boundary = "kayle-test-boundary";
+        let body = concat!(
+            "--kayle-test-boundary\r\n",
+            "Content-Disposition: form-data; name=\"dg2Image\"; filename=\"dg2.jpg\"\r\n",
+            "Content-Type: application/octet-stream\r\n\r\n",
+            "\0",
+            "\r\n--kayle-test-boundary\r\n",
+            "Content-Disposition: form-data; name=\"dg2Format\"\r\n\r\n",
+            "jpeg",
+            "\r\n--kayle-test-boundary\r\n",
+            "Content-Disposition: form-data; name=\"video\"; filename=\"liveness.mp4\"\r\n",
+            "Content-Type: application/octet-stream\r\n\r\n",
+            "\r\n--kayle-test-boundary--\r\n",
+        )
+        .as_bytes()
+        .to_vec();
+        (format!("multipart/form-data; boundary={boundary}"), body)
+    }
+
     #[tokio::test]
     async fn health_503_when_runtime_unready() {
         let app = router(dev_runtime());
@@ -261,13 +384,13 @@ mod tests {
     #[tokio::test]
     async fn verify_returns_runtime_not_ready_failure() {
         let app = router(dev_runtime());
-        let body = r#"{"dg2Image":{"bytesBase64":"AA=="},"videoBase64":""}"#;
+        let (content_type, body) = verify_multipart_body();
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
                     .uri("/verify")
-                    .header("content-type", "application/json")
+                    .header("content-type", content_type)
                     .body(Body::from(body))
                     .unwrap(),
             )
@@ -292,13 +415,13 @@ mod tests {
     #[tokio::test]
     async fn verify_runtime_not_ready_reason_uses_model_load_error() {
         let app = router(runtime_with_detector_load_error());
-        let body = r#"{"dg2Image":{"bytesBase64":"AA=="},"videoBase64":""}"#;
+        let (content_type, body) = verify_multipart_body();
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
                     .uri("/verify")
-                    .header("content-type", "application/json")
+                    .header("content-type", content_type)
                     .body(Body::from(body))
                     .unwrap(),
             )

@@ -1,9 +1,9 @@
 import type { VerifyShareRequest } from "@kayle-id/capnp/verify-codec";
 import { db } from "@kayle-id/database/drizzle";
+import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
-import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { createShareRequestPayload } from "./share-manifest";
 import { isTerminalSessionStatus } from "./status";
 
@@ -27,13 +27,20 @@ export async function loadActiveVerifySession(
 			value: ActiveVerifySessionContext;
 	  }
 > {
-	const [sessionRow] = await db
-		.select()
+	const [row] = await db
+		.select({
+			pendingDeletionAt: auth_organizations.pending_deletion_at,
+			session: verification_sessions,
+		})
 		.from(verification_sessions)
+		.leftJoin(
+			auth_organizations,
+			eq(auth_organizations.id, verification_sessions.organizationId),
+		)
 		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
-	if (!sessionRow) {
+	if (!row) {
 		return {
 			ok: false,
 			code: "SESSION_NOT_FOUND",
@@ -43,7 +50,7 @@ export async function loadActiveVerifySession(
 	// If the verification's owning org is scheduled for deletion, treat the
 	// session as if it doesn't exist publicly — no leakage of org state to
 	// the verifying user.
-	if (await isPublicVerifySessionHidden(sessionRow.organizationId)) {
+	if (row.pendingDeletionAt) {
 		return {
 			ok: false,
 			code: "SESSION_NOT_FOUND",
@@ -52,7 +59,7 @@ export async function loadActiveVerifySession(
 
 	const session = await expireVerificationSessionIfNeeded({
 		env,
-		row: sessionRow,
+		row: row.session,
 	});
 
 	if (

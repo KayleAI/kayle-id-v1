@@ -152,6 +152,16 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       )
     )
 
+    XCTAssertFalse(
+      isExpectedDataAck(
+        ackMessage: "data_ok_1_0",
+        kind: 1,
+        index: 0,
+        chunkIndex: 1,
+        chunkTotal: 3
+      )
+    )
+
     XCTAssertTrue(
       isExpectedDataAck(
         ackMessage: "data_ok_3_2",

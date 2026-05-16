@@ -487,7 +487,6 @@ export function Handoff() {
 			<InfoCard
 				buttons={buttons}
 				colour={handoffError ? "red" : screenContent.colour}
-				compact={stateContent === null}
 				footer={false}
 				header={{
 					title: screenContent.headerTitle,

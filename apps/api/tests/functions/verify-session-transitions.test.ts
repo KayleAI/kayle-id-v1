@@ -2,12 +2,16 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
+	mobile_attest_keys,
 	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
-import { markSessionInProgress } from "@/v1/verify/hello-auth";
+import {
+	markSessionInProgress,
+	persistFirstHelloState,
+} from "@/v1/verify/hello-auth";
 import {
 	MAX_FAILED_ATTEMPTS,
 	markAttemptFailed,
@@ -62,6 +66,96 @@ async function seedActiveSessionWithAttempt(): Promise<{
 }
 
 describe("verify session state transitions", () => {
+	test("persistFirstHelloState marks the session in progress and consumes the hello attempt", async () => {
+		if (!TEST_DATA) {
+			throw new Error("Test data not initialized");
+		}
+
+		const sessionId = generateId({ type: "vs" });
+		const attemptId = generateId({ type: "va" });
+		const attestKeyId = `test-${crypto.randomUUID()}`;
+		const [session] = await db
+			.insert(verification_sessions)
+			.values({
+				id: sessionId,
+				organizationId: TEST_DATA.organizationId,
+				status: "created",
+				contractVersion: 1,
+				shareFields: {},
+				expiresAt: new Date("2026-12-31T00:00:00.000Z"),
+			})
+			.returning({
+				id: verification_sessions.id,
+				status: verification_sessions.status,
+			});
+
+		if (!session) {
+			throw new Error("Failed to seed verification session");
+		}
+
+		await db.insert(mobile_attest_keys).values({
+			keyId: attestKeyId,
+			provider: "ios_app_attest",
+		});
+
+		await db.insert(verification_attempts).values({
+			id: attemptId,
+			verificationSessionId: sessionId,
+			status: "in_progress",
+		});
+
+		const changed = await persistFirstHelloState({
+			appVersion: "1.2.3",
+			attemptId,
+			deviceIdHash: "device-hash",
+			mobileAttestKeyId: attestKeyId,
+			session,
+		});
+
+		expect(changed).toBe(true);
+		expect(session.status).toBe("in_progress");
+
+		const [sessionAfter] = await db
+			.select({
+				status: verification_sessions.status,
+			})
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, sessionId))
+			.limit(1);
+		expect(sessionAfter?.status).toBe("in_progress");
+
+		const [attemptAfter] = await db
+			.select({
+				currentPhase: verification_attempts.currentPhase,
+				mobileAttestKeyId: verification_attempts.mobileAttestKeyId,
+				mobileHelloAppVersion: verification_attempts.mobileHelloAppVersion,
+				mobileHelloDeviceIdHash: verification_attempts.mobileHelloDeviceIdHash,
+				mobileWriteTokenConsumedAt:
+					verification_attempts.mobileWriteTokenConsumedAt,
+				phaseUpdatedAt: verification_attempts.phaseUpdatedAt,
+			})
+			.from(verification_attempts)
+			.where(eq(verification_attempts.id, attemptId))
+			.limit(1);
+
+		expect(attemptAfter?.currentPhase).toBe("mobile_connected");
+		expect(attemptAfter?.mobileAttestKeyId).toBe(attestKeyId);
+		expect(attemptAfter?.mobileHelloAppVersion).toBe("1.2.3");
+		expect(attemptAfter?.mobileHelloDeviceIdHash).toBe("device-hash");
+		expect(attemptAfter?.mobileWriteTokenConsumedAt).toBeInstanceOf(Date);
+		expect(attemptAfter?.phaseUpdatedAt).toBeInstanceOf(Date);
+
+		await db
+			.update(verification_attempts)
+			.set({
+				mobileAttestKeyId: null,
+			})
+			.where(eq(verification_attempts.id, attemptId));
+		await db
+			.delete(mobile_attest_keys)
+			.where(eq(mobile_attest_keys.keyId, attestKeyId));
+	});
+
 	test("markSessionInProgress does not resurrect a terminal session", async () => {
 		if (!TEST_DATA) {
 			throw new Error("Test data not initialized");

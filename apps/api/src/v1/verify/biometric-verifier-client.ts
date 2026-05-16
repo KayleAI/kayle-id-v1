@@ -13,6 +13,8 @@ import { config } from "@/config";
 import type { ApiRequestLogger } from "@/logging";
 
 const WORKER_NAME = "kayle-id-api";
+const BIOMETRIC_VERIFIER_READY_ATTEMPTS = 80;
+const BIOMETRIC_VERIFIER_READY_RETRY_DELAY_MS = 250;
 
 type BiometricVerifierServiceBinding = {
 	fetch: typeof fetch;
@@ -77,6 +79,99 @@ function resolveBiometricVerifierSecret(env: unknown): string | null {
 	return resolveStringEnvValue(env, "BIOMETRIC_VERIFIER_SECRET");
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object";
+}
+
+function parseVerifierReady(payload: unknown): boolean {
+	if (!isObjectRecord(payload)) {
+		return false;
+	}
+
+	const data = payload.data;
+	return isObjectRecord(data) && data.ready === true;
+}
+
+function wait(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForBiometricVerifierReady({
+	verifierBinding,
+	verifierSecret,
+	attemptId,
+	logger,
+}: {
+	verifierBinding: BiometricVerifierServiceBinding;
+	verifierSecret: string;
+	attemptId?: string;
+	logger?: ApiRequestLogger;
+}): Promise<boolean> {
+	const startedAt = Date.now();
+	let lastStatus: number | null = null;
+
+	for (
+		let attempt = 1;
+		attempt <= BIOMETRIC_VERIFIER_READY_ATTEMPTS;
+		attempt += 1
+	) {
+		try {
+			const request = new Request(
+				"https://biometric-verifier.internal/health",
+				{
+					headers: {
+						authorization: `Bearer ${verifierSecret}`,
+						[BIOMETRIC_VERIFIER_AUTH_HEADER]: verifierSecret,
+					},
+					method: "GET",
+				},
+			);
+			const response = (await Reflect.apply(
+				verifierBinding.fetch,
+				verifierBinding,
+				[request],
+			)) as Response;
+			lastStatus = response.status;
+
+			if (response.ok) {
+				const payload = await response.json().catch(() => null);
+				if (parseVerifierReady(payload)) {
+					if (attempt > 1) {
+						logEvent(logger, {
+							details: {
+								attempt_id: attemptId ?? null,
+								duration_ms: Date.now() - startedAt,
+								ready_attempts: attempt,
+							},
+							event: "verify.biometric_verifier.ready_waited",
+						});
+					}
+					return true;
+				}
+			}
+		} catch {
+			lastStatus = null;
+		}
+
+		if (attempt < BIOMETRIC_VERIFIER_READY_ATTEMPTS) {
+			await wait(BIOMETRIC_VERIFIER_READY_RETRY_DELAY_MS);
+		}
+	}
+
+	logEvent(logger, {
+		details: {
+			attempt_id: attemptId ?? null,
+			duration_ms: Date.now() - startedAt,
+			error_code: "biometric_verifier_not_ready",
+			last_status: lastStatus,
+			ready_attempts: BIOMETRIC_VERIFIER_READY_ATTEMPTS,
+		},
+		event: "verify.biometric_verifier.not_ready",
+		level: "warn",
+	});
+	return false;
+}
+
 async function requestBiometricVerifier({
 	dg2Image,
 	video,
@@ -101,14 +196,28 @@ async function requestBiometricVerifier({
 	logger?: ApiRequestLogger;
 }): Promise<LivenessVerificationResult> {
 	const startedAt = Date.now();
-	const formData = createBiometricVerifierRequestFormData({
-		dg2Image,
-		video,
-		challengeNonce,
-		faceMatchThreshold,
-	});
 
 	try {
+		const ready = await waitForBiometricVerifierReady({
+			verifierBinding,
+			verifierSecret,
+			attemptId,
+			logger,
+		});
+
+		if (!ready) {
+			return createUnavailableResult(
+				"biometric_verifier_unavailable:not_ready",
+			);
+		}
+
+		const formData = createBiometricVerifierRequestFormData({
+			dg2Image,
+			video,
+			challengeNonce,
+			faceMatchThreshold,
+		});
+
 		const request = new Request("https://biometric-verifier.internal/verify", {
 			body: formData,
 			headers: {

@@ -182,7 +182,8 @@ nonisolated func isExpectedDataAck(
 
   let chunkAck = "data_chunk_ok_\(kind)_\(index)_\(chunkIndex)"
   let finalAck = "data_ok_\(kind)_\(index)"
-  return ackMessage == chunkAck || ackMessage == finalAck
+  return ackMessage == chunkAck ||
+    (chunkIndex == chunkTotal - 1 && ackMessage == finalAck)
 }
 
 nonisolated func isExpectedPhaseAck(_ ackMessage: String?) -> Bool {

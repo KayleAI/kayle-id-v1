@@ -30,6 +30,8 @@ export const BIOMETRIC_VERIFIER_DETECTOR_PATH =
   "/app/models/face_detection_yunet_2023mar.onnx";
 export const BIOMETRIC_VERIFIER_MESH_MODEL_PATH =
   "/app/models/face_landmarks_detector.onnx";
+const CONTAINER_READY_ATTEMPTS = 80;
+const CONTAINER_READY_RETRY_DELAY_MS = 250;
 
 export type FetchLike = (
   input: RequestInfo | URL,
@@ -43,6 +45,8 @@ type GetContainer = (env: unknown) => Promise<ContainerFetcher | null>;
 type BiometricVerifierRequestLogger = SafeRequestLogger;
 
 interface BiometricVerifierWorkerOptions {
+  containerReadyAttempts?: number;
+  containerReadyRetryDelayMs?: number;
   emitRequestLogs?: boolean;
   getContainer?: GetContainer;
 }
@@ -101,6 +105,79 @@ function resolveStringEnvValue(env: unknown, key: string): string | null {
   return typeof candidate === "string" && candidate.length > 0
     ? candidate
     : null;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+function parseContainerReady(payload: unknown): boolean {
+  if (!isObjectRecord(payload)) {
+    return false;
+  }
+
+  const data = payload.data;
+  return isObjectRecord(data) && data.ready === true;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForContainerReady({
+  attempts,
+  container,
+  logger,
+  retryDelayMs,
+}: {
+  attempts: number;
+  container: ContainerFetcher;
+  logger: BiometricVerifierRequestLogger;
+  retryDelayMs: number;
+}): Promise<boolean> {
+  const startedAt = Date.now();
+  let lastStatus: number | null = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await container.fetch("http://container/health");
+      lastStatus = response.status;
+
+      if (response.ok) {
+        const payload = await response.json().catch(() => null);
+        if (parseContainerReady(payload)) {
+          if (attempt > 1) {
+            logEvent(logger, {
+              details: {
+                duration_ms: Date.now() - startedAt,
+                ready_attempts: attempt,
+              },
+              event: "biometric_verifier.container_ready_waited",
+            });
+          }
+          return true;
+        }
+      }
+    } catch {
+      lastStatus = null;
+    }
+
+    if (attempt < attempts) {
+      await wait(retryDelayMs);
+    }
+  }
+
+  logEvent(logger, {
+    details: {
+      duration_ms: Date.now() - startedAt,
+      error_code: "biometric_verifier_container_not_ready",
+      last_status: lastStatus,
+      ready_attempts: attempts,
+    },
+    event: "biometric_verifier.container_not_ready",
+    level: "warn",
+  });
+  return false;
 }
 
 async function proxyHealth(
@@ -223,9 +300,13 @@ async function parseLivenessPayload({
 async function handleLivenessRequest({
   env,
   getContainer,
+  containerReadyAttempts,
+  containerReadyRetryDelayMs,
   request,
   logger,
 }: {
+  containerReadyAttempts: number;
+  containerReadyRetryDelayMs: number;
   env: BiometricVerifierBindings;
   getContainer: GetContainer;
   request: Request;
@@ -328,6 +409,25 @@ async function handleLivenessRequest({
         error: {
           code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
           message: "Biometric verifier container binding is unavailable.",
+        },
+      },
+      503
+    );
+  }
+
+  const ready = await waitForContainerReady({
+    attempts: containerReadyAttempts,
+    container,
+    logger,
+    retryDelayMs: containerReadyRetryDelayMs,
+  });
+
+  if (!ready) {
+    return jsonResponse(
+      {
+        error: {
+          code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
+          message: "Biometric verifier container is not ready.",
         },
       },
       503
@@ -506,6 +606,8 @@ async function handleDebugMetricsRequest({
 }
 
 export function createBiometricVerifierWorker({
+  containerReadyAttempts = CONTAINER_READY_ATTEMPTS,
+  containerReadyRetryDelayMs = CONTAINER_READY_RETRY_DELAY_MS,
   emitRequestLogs = true,
   getContainer = async () => null,
 }: BiometricVerifierWorkerOptions = {}): Required<
@@ -529,6 +631,8 @@ export function createBiometricVerifierWorker({
 
         if (request.method === "POST" && url.pathname === "/verify") {
           const response = await handleLivenessRequest({
+            containerReadyAttempts,
+            containerReadyRetryDelayMs,
             env,
             getContainer,
             logger,

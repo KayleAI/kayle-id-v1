@@ -43,16 +43,35 @@ function createUnavailableResult(reason: string): LivenessContainerResult {
   };
 }
 
+function bytesToBlobPart(bytes: Uint8Array): BlobPart {
+  if (bytes.buffer instanceof ArrayBuffer) {
+    return bytes.byteOffset === 0 &&
+      bytes.byteLength === bytes.buffer.byteLength
+      ? bytes.buffer
+      : bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength
+        );
+  }
+
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 function createContainerLivenessFormData(
   payload: ContainerLivenessRequestPayload
 ): FormData {
   const formData = new FormData();
-  formData.set("dg2Image", new Blob([payload.dg2Image.bytes]));
+  formData.set("dg2Image", new Blob([bytesToBlobPart(payload.dg2Image.bytes)]));
   formData.set("dg2Format", payload.dg2Image.format);
-  formData.set("video", new Blob([payload.video]));
+  formData.set("video", new Blob([bytesToBlobPart(payload.video)]));
 
   if (payload.challengeNonce && payload.challengeNonce.byteLength > 0) {
-    formData.set("challengeNonce", new Blob([payload.challengeNonce]));
+    formData.set(
+      "challengeNonce",
+      new Blob([bytesToBlobPart(payload.challengeNonce)])
+    );
   }
   if (typeof payload.faceMatchThreshold === "number") {
     formData.set("faceMatchThreshold", String(payload.faceMatchThreshold));

@@ -107,14 +107,14 @@ jobs:
       force_full_release: ${{ steps.context.outputs.force_full_release }}
       release_allowed: ${{ steps.context.outputs.release_allowed }}
       release_tag: ${{ steps.context.outputs.release_tag }}
-      biometric_verifier_changed: ${{ steps.context.outputs.biometric_verifier_changed }}
-      api_changed: ${{ steps.context.outputs.api_changed }}
-      platform_changed: ${{ steps.context.outputs.platform_changed }}
-      verify_changed: ${{ steps.context.outputs.verify_changed }}
-      biometric_verifier: ${{ steps.context.outputs.biometric_verifier }}
-      api: ${{ steps.context.outputs.api }}
-      platform: ${{ steps.context.outputs.platform }}
-      verify: ${{ steps.context.outputs.verify }}
+      biometric_verifier_changed: ${{ steps.worker_changes.outputs.biometric_verifier_changed }}
+      api_changed: ${{ steps.worker_changes.outputs.api_changed }}
+      platform_changed: ${{ steps.worker_changes.outputs.platform_changed }}
+      verify_changed: ${{ steps.worker_changes.outputs.verify_changed }}
+      biometric_verifier: ${{ steps.worker_selection.outputs.biometric_verifier }}
+      api: ${{ steps.worker_selection.outputs.api }}
+      platform: ${{ steps.worker_selection.outputs.platform }}
+      verify: ${{ steps.worker_selection.outputs.verify }}
 
     steps:
       - name: Check out repository code
@@ -223,65 +223,8 @@ jobs:
             fi
           fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            biometric_verifier_changed="true"
-            api_changed="true"
-            platform_changed="true"
-            verify_changed="true"
-          elif ! git rev-parse HEAD^1 >/dev/null 2>&1; then
-            biometric_verifier_changed="true"
-            api_changed="true"
-            platform_changed="true"
-            verify_changed="true"
-          else
-            base_ref="$(git rev-parse HEAD^1)"
-
-            has_changes() {
-              if git diff --quiet "${base_ref}" HEAD -- "$@"; then
-                echo "false"
-              else
-                echo "true"
-              fi
-            }
-
-            biometric_verifier_changed="$(has_changes \
-              bun.lock \
-              package.json \
-              apps/biometric-verifier \
-              packages/config)"
-            api_changed="$(has_changes \
-              bun.lock \
-              package.json \
-              apps/api \
-              packages/auth \
-              packages/capnp \
-              packages/config \
-              packages/database)"
-            platform_changed="$(has_changes \
-              bun.lock \
-              package.json \
-              apps/platform \
-              packages/auth \
-              packages/config)"
-            verify_changed="$(has_changes \
-              bun.lock \
-              package.json \
-              apps/verify \
-              packages/capnp \
-              packages/config)"
-          fi
-
-          biometric_verifier="${biometric_verifier_changed}"
-          api="${api_changed}"
-          platform="${platform_changed}"
-          verify="${verify_changed}"
-
           if [[ "${release_allowed}" == "true" ]]; then
             force_full_release="true"
-            biometric_verifier="true"
-            api="true"
-            platform="true"
-            verify="true"
           fi
 
           {
@@ -289,10 +232,39 @@ jobs:
             echo "force_full_release=${force_full_release}"
             echo "release_allowed=${release_allowed}"
             echo "release_tag=${release_tag}"
-            echo "biometric_verifier_changed=${biometric_verifier_changed}"
-            echo "api_changed=${api_changed}"
-            echo "platform_changed=${platform_changed}"
-            echo "verify_changed=${verify_changed}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Detect changed worker apps
+        id: worker_changes
+        uses: ./.github/actions/detect-worker-changes
+        with:
+          force-all: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
+      - name: Select worker release scope
+        id: worker_selection
+        shell: bash
+        env:
+          API_CHANGED: ${{ steps.worker_changes.outputs.api_changed }}
+          BIOMETRIC_VERIFIER_CHANGED: ${{ steps.worker_changes.outputs.biometric_verifier_changed }}
+          PLATFORM_CHANGED: ${{ steps.worker_changes.outputs.platform_changed }}
+          RELEASE_ALLOWED: ${{ steps.context.outputs.release_allowed }}
+          VERIFY_CHANGED: ${{ steps.worker_changes.outputs.verify_changed }}
+        run: |
+          set -euo pipefail
+
+          biometric_verifier="${BIOMETRIC_VERIFIER_CHANGED}"
+          api="${API_CHANGED}"
+          platform="${PLATFORM_CHANGED}"
+          verify="${VERIFY_CHANGED}"
+
+          if [[ "${RELEASE_ALLOWED}" == "true" ]]; then
+            biometric_verifier="true"
+            api="true"
+            platform="true"
+            verify="true"
+          fi
+
+          {
             echo "biometric_verifier=${biometric_verifier}"
             echo "api=${api}"
             echo "platform=${platform}"

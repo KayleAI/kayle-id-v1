@@ -1,0 +1,116 @@
+name: Detect worker app changes
+description: Detect which deployable worker apps changed between two Git refs.
+
+inputs:
+  base-ref:
+    description: Base Git ref for the diff.
+    required: false
+    default: HEAD^1
+  force-all:
+    description: Mark every worker app as changed.
+    required: false
+    default: "false"
+  head-ref:
+    description: Head Git ref for the diff.
+    required: false
+    default: HEAD
+
+outputs:
+  api_changed:
+    description: Whether the API worker or its shared runtime dependencies changed.
+    value: ${{ steps.detect.outputs.api_changed }}
+  biometric_verifier_changed:
+    description: Whether the biometric verifier worker or its shared runtime dependencies changed.
+    value: ${{ steps.detect.outputs.biometric_verifier_changed }}
+  platform_changed:
+    description: Whether the platform worker or its shared runtime dependencies changed.
+    value: ${{ steps.detect.outputs.platform_changed }}
+  verify_changed:
+    description: Whether the verify worker or its shared runtime dependencies changed.
+    value: ${{ steps.detect.outputs.verify_changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect worker app changes
+      id: detect
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+        FORCE_ALL: ${{ inputs.force-all }}
+        HEAD_REF: ${{ inputs.head-ref }}
+      run: |
+        set -euo pipefail
+
+        if [[ "${FORCE_ALL}" != "true" && "${FORCE_ALL}" != "false" ]]; then
+          echo "force-all must be either true or false. Received ${FORCE_ALL}." >&2
+          exit 1
+        fi
+
+        mark_all_changed() {
+          biometric_verifier_changed="true"
+          api_changed="true"
+          platform_changed="true"
+          verify_changed="true"
+        }
+
+        if ! head_sha="$(git rev-parse --verify "${HEAD_REF}^{commit}")"; then
+          echo "Unable to resolve head ref ${HEAD_REF}." >&2
+          exit 1
+        fi
+
+        if [[ "${FORCE_ALL}" == "true" ]]; then
+          mark_all_changed
+        elif ! base_sha="$(git rev-parse --verify "${BASE_REF}^{commit}" 2>/dev/null)"; then
+          echo "Unable to resolve base ref ${BASE_REF}; marking every worker app as changed."
+          mark_all_changed
+        else
+          has_changes() {
+            if git diff --quiet "${base_sha}" "${head_sha}" -- "$@"; then
+              echo "false"
+            else
+              echo "true"
+            fi
+          }
+
+          biometric_verifier_changed="$(has_changes \
+            bun.lock \
+            package.json \
+            apps/biometric-verifier \
+            packages/config)"
+          api_changed="$(has_changes \
+            bun.lock \
+            package.json \
+            apps/api \
+            packages/auth \
+            packages/capnp \
+            packages/config \
+            packages/database)"
+          platform_changed="$(has_changes \
+            bun.lock \
+            package.json \
+            apps/platform \
+            packages/auth \
+            packages/config)"
+          verify_changed="$(has_changes \
+            bun.lock \
+            package.json \
+            apps/verify \
+            packages/capnp \
+            packages/config)"
+        fi
+
+        {
+          echo "biometric_verifier_changed=${biometric_verifier_changed}"
+          echo "api_changed=${api_changed}"
+          echo "platform_changed=${platform_changed}"
+          echo "verify_changed=${verify_changed}"
+        } >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "Worker app changes:"
+          echo "- Biometric Verifier: ${biometric_verifier_changed}"
+          echo "- API: ${api_changed}"
+          echo "- Platform: ${platform_changed}"
+          echo "- Verify: ${verify_changed}"
+        } >> "${GITHUB_STEP_SUMMARY}"

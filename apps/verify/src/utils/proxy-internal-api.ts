@@ -5,9 +5,19 @@ import {
 } from "@kayle-id/config/client-ip";
 
 function getPublicHost(): string {
-	return process.env.NODE_ENV === "production"
-		? "https://verify.kayle.id"
-		: "https://localhost:2999";
+	// Staging pins NODE_ENV=production too, so NODE_ENV alone can't separate
+	// the two prod-like deploys — use KAYLE_ENVIRONMENT, which staging sets
+	// to "staging" and production sets to "production". This host is only
+	// used as a base for parsing request URLs (the output is rebased onto
+	// `http://api`), so a wrong value here is latent rather than user-facing;
+	// keep it correct anyway so future callers don't trip on it.
+	if (process.env.KAYLE_ENVIRONMENT === "staging") {
+		return "https://verify.staging.kayle.id";
+	}
+	if (process.env.NODE_ENV === "production") {
+		return "https://verify.kayle.id";
+	}
+	return "https://localhost:2999";
 }
 
 export function buildApiProxyUrl(

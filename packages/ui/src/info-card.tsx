@@ -7,6 +7,9 @@ import OctagonCheck from "./icons/octagon-check.tsx";
 import OctagonInfo from "./icons/octagon-info.tsx";
 import OctagonAlert from "./icons/octagon-warning.tsx";
 
+const TERMS_URL = "/terms";
+const PRIVACY_URL = "/privacy";
+
 type ButtonAction = {
   label: string;
 } & (
@@ -72,7 +75,11 @@ const COLOUR_CLASSES = {
   },
 };
 
-export default function InfoCard({
+interface ButtonProps {
+  button?: ButtonAction;
+}
+
+export function InfoCard({
   colour = "red",
   header = {
     title: "Session Error",
@@ -172,7 +179,7 @@ export default function InfoCard({
               className="inline-block h-fit! p-0 text-foreground text-xs!"
               nativeButton={false}
               render={
-                <a href="/terms" rel="noopener noreferrer" target="_blank">
+                <a href={TERMS_URL} rel="noopener noreferrer" target="_blank">
                   Terms of Service
                 </a>
               }
@@ -185,7 +192,7 @@ export default function InfoCard({
               className="inline-block h-fit! p-0 text-foreground text-xs!"
               nativeButton={false}
               render={
-                <a href="/privacy" rel="noopener noreferrer" target="_blank">
+                <a href={PRIVACY_URL} rel="noopener noreferrer" target="_blank">
                   Privacy Policy
                 </a>
               }
@@ -200,30 +207,23 @@ export default function InfoCard({
   );
 }
 
-interface ButtonProps {
-  button?: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    disabled?: boolean;
-  };
-}
-
 function PrimaryButton({ button }: ButtonProps) {
   if (!button) {
     return null;
   }
 
-  return button.onClick ? (
-    <Button disabled={button.disabled} onClick={button.onClick} type="button">
-      {button.label}
-    </Button>
-  ) : (
+  if (button.onClick) {
+    return (
+      <Button disabled={button.disabled} onClick={button.onClick} type="button">
+        {button.label}
+      </Button>
+    );
+  }
+
+  return (
     <Button
       nativeButton={false}
-      render={
-        <Link to={button.href ?? "/sign-in"}>{button.label ?? "Sign In"}</Link>
-      }
+      render={<Link to={button.href}>{button.label}</Link>}
       variant="default"
     />
   );
@@ -234,21 +234,23 @@ function SecondaryButton({ button }: ButtonProps) {
     return null;
   }
 
-  return button.onClick ? (
-    <Button
-      disabled={button.disabled}
-      onClick={button.onClick}
-      type="button"
-      variant="outline"
-    >
-      {button.label}
-    </Button>
-  ) : (
+  if (button.onClick) {
+    return (
+      <Button
+        disabled={button.disabled}
+        onClick={button.onClick}
+        type="button"
+        variant="outline"
+      >
+        {button.label}
+      </Button>
+    );
+  }
+
+  return (
     <Button
       nativeButton={false}
-      render={
-        <Link to={button.href ?? "/home"}>{button.label ?? "Go Home"}</Link>
-      }
+      render={<Link to={button.href}>{button.label}</Link>}
       variant="outline"
     />
   );

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_legal/terms")({
 
 function TermsPage() {
 	return (
-		<div className="min-h-screen bg-white pt-16">
+		<div className="min-h-screen bg-background pt-16">
 			<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 				<PageHeading
 					description={`Last updated ${LAST_UPDATED}.\n\nThese Terms of Service apply to both developers who integrate Kayle ID and end-users who complete a Kayle ID verification flow.`}

@@ -4,7 +4,6 @@
   "scripts": {
     "dev": "./scripts/dev-with-healthcheck.sh",
     "deploy": "bunx wrangler deploy --minify --env production",
-    "deploy:bench": "bunx wrangler deploy --minify --env bench",
     "cf:types": "bunx wrangler types --env-file .env.example --env-interface BiometricVerifierBindings cloudflare-env.d.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

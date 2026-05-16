@@ -27,6 +27,7 @@
     "keypair:webhook": "bun ./scripts/generate-webhook-keypair.ts",
     "test": "turbo run test",
     "prod:seed:pkd": "bash ./scripts/seed-production-pkd.sh",
+    "staging:seed:pkd": "bash ./scripts/seed-production-pkd.sh --env staging --database kayle-id-trust-store-staging",
     "dev:ios": "turbo run dev --filter=kayle-id-ios",
     "dev:android": "turbo run dev --filter=kayle-id-android",
     "lint": "bun run lint:format && bun run lint:runtime-logs && bun run lint:actions",
@@ -55,7 +56,7 @@
     "check": "ultracite check",
     "fix": "ultracite fix"
   },
-  "version": "1.4.1",
+  "version": "1.5.0",
   "workspaces": [
     "apps/*",
     "infra/*",

@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-workers:
+    name: ${{ matrix.worker }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+      CLOUDFLARE_ENV: production
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - worker: Biometric Verifier
+            working-directory: apps/biometric-verifier
+            generate-capnp: "false"
+            pre-build: ""
+            wrangler-args: --env production
+          - worker: API
+            working-directory: apps/api
+            generate-capnp: "true"
+            pre-build: ""
+            wrangler-args: --minify --env production
+          - worker: Platform
+            working-directory: apps/platform
+            generate-capnp: "false"
+            pre-build: bun run build
+            wrangler-args: --minify --env production
+          - worker: Verify
+            working-directory: apps/verify
+            generate-capnp: "true"
+            pre-build: bun run build
+            wrangler-args: --minify --env production
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Set up Bun workspace
+        uses: ./.github/actions/setup-bun
+        with:
+          generate-capnp-ts: ${{ matrix.generate-capnp }}
+
+      - name: Pre-build (vite)
+        if: matrix.pre-build != ''
+        working-directory: ${{ matrix.working-directory }}
+        run: ${{ matrix.pre-build }}
+
+      - name: Wrangler dry-run deploy
+        working-directory: ${{ matrix.working-directory }}
+        run: bunx wrangler deploy --dry-run --outdir .wrangler-out ${{ matrix.wrangler-args }}

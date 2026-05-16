@@ -1,4 +1,4 @@
-import InfoCard from "@kayle-id/ui/info-card";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import {
 	AlertDialog,
 	AlertDialogAction,

@@ -59,7 +59,7 @@ function NavItem({
 
 	return (
 		<Link
-			className="font-medium text-neutral-600 text-sm transition-colors duration-200 hover:text-neutral-900"
+			className="font-medium text-muted-foreground text-sm transition-colors duration-200 hover:text-foreground"
 			to={to}
 		>
 			{children}
@@ -92,7 +92,7 @@ const ListItem = ({
 				render={() => (
 					<Link
 						className={cn(
-							"block select-none space-y-1 rounded-md p-3 font-medium leading-none no-underline outline-none transition-colors hover:bg-neutral-100 hover:text-neutral-900",
+							"block select-none space-y-1 rounded-md p-3 font-medium leading-none no-underline outline-none transition-colors hover:bg-muted hover:text-foreground",
 							className,
 						)}
 						ref={ref}
@@ -100,7 +100,7 @@ const ListItem = ({
 						{...props}
 					>
 						<div className="font-medium text-sm leading-none">{title}</div>
-						<p className="line-clamp-2 text-neutral-500 text-sm leading-snug">
+						<p className="line-clamp-2 text-muted-foreground text-sm leading-snug">
 							{children}
 						</p>
 					</Link>
@@ -119,7 +119,7 @@ function MobileNavItem({
 }) {
 	return (
 		<Link
-			className="block text-lg text-neutral-600 transition-colors hover:text-neutral-900"
+			className="block text-lg text-muted-foreground transition-colors hover:text-foreground"
 			to={to}
 		>
 			{children}
@@ -147,7 +147,7 @@ function MobileNavigation() {
 				render={() => (
 					<button
 						aria-label="Open menu"
-						className="rounded-lg p-2 transition-colors hover:bg-neutral-200 lg:hidden"
+						className="rounded-lg p-2 transition-colors hover:bg-muted lg:hidden"
 						type="button"
 					>
 						<Menu className="size-6" />
@@ -160,11 +160,8 @@ function MobileNavigation() {
 				</SheetTitle>
 				<nav className="mt-8 flex flex-col gap-4">
 					{navigationItems.map((item) => (
-						<div
-							className="border-neutral-200 border-b pb-4"
-							key={item.section}
-						>
-							<h3 className="font-medium text-neutral-600 text-sm">
+						<div className="border-border border-b pb-4" key={item.section}>
+							<h3 className="font-medium text-muted-foreground text-sm">
 								{item.section}
 							</h3>
 							<ul className="mt-2 flex flex-col gap-y-2">
@@ -178,7 +175,7 @@ function MobileNavigation() {
 					))}
 					<div className="pt-4">
 						<Link
-							className="block w-full rounded-full bg-neutral-900 px-4 py-2 text-center text-white transition-all duration-200 ease-in-out hover:bg-neutral-800"
+							className="block w-full rounded-full bg-foreground px-4 py-2 text-background text-center transition-colors duration-200 ease-in-out hover:bg-foreground/90"
 							to={status === "authenticated" ? "/dashboard" : "/sign-in"}
 						>
 							Get Started
@@ -194,7 +191,7 @@ export function Header() {
 	const { status } = useAuth();
 
 	return (
-		<header className="fixed top-0 right-0 left-0 z-50 border-neutral-100 border-b bg-white/80 backdrop-blur-sm">
+		<header className="fixed top-0 right-0 left-0 z-50 border-border/70 border-b bg-background/80 backdrop-blur-sm">
 			<div className="mx-auto max-w-7xl px-6 lg:px-8">
 				<div className="flex h-16 items-center justify-between">
 					<div className="flex items-center gap-12">

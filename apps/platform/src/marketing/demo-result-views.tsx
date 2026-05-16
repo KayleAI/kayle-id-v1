@@ -220,7 +220,7 @@ function DocumentPortrait({ preview }: { preview: DemoDocumentPreview }) {
 	const supportsInlineImage = preview.documentPhoto?.format === "jpeg";
 
 	return (
-		<div className="overflow-hidden rounded-[1.75rem] border border-black/8 bg-zinc-100">
+		<div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted">
 			{supportsInlineImage && preview.documentPhoto ? (
 				<img
 					alt="Document holder portrait"
@@ -230,9 +230,9 @@ function DocumentPortrait({ preview }: { preview: DemoDocumentPreview }) {
 					width={preview.documentPhoto.width}
 				/>
 			) : (
-				<div className="relative aspect-4/5 bg-zinc-100">
-					<div className="absolute top-[18%] left-1/2 h-16 w-16 -translate-x-1/2 rounded-full bg-black/8" />
-					<div className="absolute bottom-[12%] left-1/2 h-[48%] w-[46%] -translate-x-1/2 rounded-t-[999px] rounded-b-[1.2rem] bg-black/8" />
+				<div className="relative aspect-4/5 bg-muted">
+					<div className="absolute top-[18%] left-1/2 h-16 w-16 -translate-x-1/2 rounded-full bg-foreground/10" />
+					<div className="absolute bottom-[12%] left-1/2 h-[48%] w-[46%] -translate-x-1/2 rounded-t-[999px] rounded-b-[1.2rem] bg-foreground/10" />
 				</div>
 			)}
 		</div>
@@ -250,12 +250,12 @@ function ProfileFieldItem({
 }) {
 	return (
 		<div>
-			<dt className="font-medium text-neutral-950 text-sm">{label}</dt>
+			<dt className="font-medium text-foreground text-sm">{label}</dt>
 			<dd
 				className={cn(
-					"mt-1 break-words text-[1rem] text-neutral-700",
+					"mt-1 break-words text-[1rem] text-foreground/80",
 					monospace &&
-						"break-all font-mono text-[0.92rem] text-neutral-950 tabular-nums tracking-[0.04em]",
+						"break-all font-mono text-[0.92rem] text-foreground tabular-nums tracking-[0.04em]",
 				)}
 			>
 				{value}
@@ -275,19 +275,23 @@ function AgeGateStatusItem({
 
 	return (
 		<div>
-			<dt className="font-medium text-neutral-950 text-sm">Age check</dt>
+			<dt className="font-medium text-foreground text-sm">Age check</dt>
 			<dd className="mt-1">
 				<div className="flex items-center gap-2.5">
 					<Icon
 						className={cn(
 							"size-4 shrink-0",
-							passed ? "text-emerald-600" : "text-red-600",
+							passed
+								? "text-emerald-600 dark:text-emerald-400"
+								: "text-red-600 dark:text-red-400",
 						)}
 					/>
 					<span
 						className={cn(
 							"text-[1rem]",
-							passed ? "text-emerald-700" : "text-red-700",
+							passed
+								? "text-emerald-700 dark:text-emerald-300"
+								: "text-red-700 dark:text-red-300",
 						)}
 					>
 						{passed ? `Over ${threshold}` : `Under ${threshold}`}
@@ -307,10 +311,10 @@ function ResultSectionHeading({
 }) {
 	return (
 		<div className="max-w-3xl">
-			<h3 className="max-w-[18ch] text-balance text-2xl text-neutral-950 tracking-tight">
+			<h3 className="max-w-[18ch] text-balance text-2xl text-foreground tracking-tight">
 				{title}
 			</h3>
-			<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-neutral-600 leading-6">
+			<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-muted-foreground leading-6">
 				{description}
 			</p>
 		</div>
@@ -333,7 +337,7 @@ function WebhookMetadataGrid({
 		>
 			{items.map((item) => (
 				<div
-					className="rounded-md bg-neutral-50 p-4 sm:p-5"
+					className="rounded-md bg-muted/40 p-4 sm:p-5"
 					key={`${item.label}-${item.value}`}
 				>
 					<ProfileFieldItem
@@ -352,17 +356,17 @@ function WebhookPayloadDisclosure({ payload }: { payload: string }) {
 		<details className="group">
 			<summary className="flex cursor-pointer list-none flex-col gap-4 marker:content-none sm:flex-row sm:items-center sm:justify-between">
 				<div className="min-w-0">
-					<p className="font-medium text-base text-neutral-950">Payload JSON</p>
-					<p className="mt-2 max-w-[54ch] text-pretty text-neutral-600 text-sm leading-6 sm:text-base">
+					<p className="font-medium text-base text-foreground">Payload JSON</p>
+					<p className="mt-2 max-w-[54ch] text-pretty text-muted-foreground text-sm leading-6 sm:text-base">
 						Expand the verified JSON payload for a raw inspection view.
 					</p>
 				</div>
-				<span className="shrink-0 font-medium text-[0.8rem] text-neutral-700">
+				<span className="shrink-0 font-medium text-[0.8rem] text-foreground/80">
 					Show raw JSON
 				</span>
 			</summary>
 
-			<div className="mt-5 overflow-hidden rounded-4xl border border-neutral-200/80">
+			<div className="mt-5 overflow-hidden rounded-4xl border border-border/70">
 				<pre className="max-h-[28rem] overflow-auto bg-neutral-950 px-4 py-4 font-mono text-[0.82rem] text-neutral-100 leading-6 sm:px-5 sm:py-5">
 					{payload}
 				</pre>
@@ -392,17 +396,17 @@ export function DemoDocumentPreviewPanel({
 	).length;
 
 	return (
-		<div className="divide-y divide-neutral-200/80">
+		<div className="divide-y divide-border/70">
 			<section className="pb-6 sm:pb-8">
 				<div className="grid gap-6 lg:grid-cols-[9rem_minmax(0,1fr)] lg:items-start">
 					<div className="w-24 sm:w-34">
 						<DocumentPortrait preview={preview} />
 					</div>
 					<div className="min-w-0">
-						<h3 className="max-w-[16ch] text-balance text-2xl text-neutral-950 capitalize tracking-tight">
+						<h3 className="max-w-[16ch] text-balance text-2xl text-foreground capitalize tracking-tight">
 							{displayName || "No name"}
 						</h3>
-						<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-neutral-600 leading-6">
+						<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-muted-foreground leading-6">
 							{visibleItemCount > 0
 								? `${visibleItemCount} shared ${
 										visibleItemCount === 1 ? "field" : "fields"
@@ -423,7 +427,7 @@ export function DemoDocumentPreviewPanel({
 
 							return (
 								<div
-									className="rounded-md bg-neutral-50 p-4 sm:p-5"
+									className="rounded-md bg-muted/40 p-4 sm:p-5"
 									key={item.key}
 								>
 									{item.kind === "age-gate" ? (
@@ -451,7 +455,7 @@ export function DemoDocumentPreviewPanel({
 				</section>
 			) : null}
 
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<WebhookPayloadDisclosure payload={payload} />
 			</section>
 		</div>
@@ -470,7 +474,7 @@ export function DemoFailedAttemptPreviewPanel({
 	const description = preview.failureDescription ?? preview.description;
 
 	return (
-		<div className="divide-y divide-neutral-200/80">
+		<div className="divide-y divide-border/70">
 			<section className="pb-6 sm:pb-8">
 				<ResultSectionHeading description={description} title={title} />
 			</section>
@@ -479,7 +483,7 @@ export function DemoFailedAttemptPreviewPanel({
 				<WebhookMetadataGrid items={metadataItems} />
 			</section>
 
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<WebhookPayloadDisclosure payload={payload} />
 			</section>
 		</div>
@@ -502,15 +506,15 @@ export function DemoWebhookEventPreviewPanel({
 	}
 
 	return (
-		<div className="border-neutral-200/80 border-t">
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+		<div className="border-border/70 border-t">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<ResultSectionHeading
 					description={preview.description}
 					title={preview.title}
 				/>
 			</section>
 
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<ResultSectionHeading
 					description="Identifiers and metadata from the selected verified event."
 					title="Event details"
@@ -520,7 +524,7 @@ export function DemoWebhookEventPreviewPanel({
 				</div>
 			</section>
 
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<ResultSectionHeading
 					description="Inspect the webhook JSON exactly as it was verified."
 					title="Raw payload"
@@ -541,8 +545,8 @@ export function DocumentStatePanel({
 	title: string;
 }) {
 	return (
-		<div className="border-neutral-200/80 border-t">
-			<section className="border-neutral-200/80 border-b py-6 sm:py-8">
+		<div className="border-border/70 border-t">
+			<section className="border-border/70 border-b py-6 sm:py-8">
 				<ResultSectionHeading description={description} title={title} />
 			</section>
 		</div>

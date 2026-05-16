@@ -85,7 +85,7 @@ function CostBreakdownCard({
 	const total = data?.totalCostUsd ?? 0;
 
 	return (
-		<Card>
+		<Card className="py-0!">
 			<CardContent className="p-6">
 				<div className="mb-4 flex items-baseline justify-between">
 					<h3 className="font-medium text-base">{title}</h3>
@@ -240,16 +240,6 @@ export function AdminCostAnalyticsPage() {
 					title={`Top orgs (${GROUP_BY_LABEL.org.toLowerCase()})`}
 				/>
 			</div>
-
-			<p className="text-muted-foreground text-xs">
-				Costs are estimates computed at event time from the rate card in{" "}
-				<code className="font-mono">
-					packages/config/src/analytics-rate-card.ts
-				</code>
-				. Reconcile against your Cloudflare invoice monthly; if the dashboard
-				total drifts more than ±20% from actuals, recalibrate the
-				worst-offending resource constants.
-			</p>
 		</div>
 	);
 }

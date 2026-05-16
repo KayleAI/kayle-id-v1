@@ -211,15 +211,19 @@ const publicGoogleCallbackURL = new URL(
 
 // WebAuthn requires the relying-party ID to be a registrable domain that
 // matches the origin where the credential is created/used. Our public site
-// runs on `kayle.id` in production and `localhost:3000` in development, while
-// the auth server itself may sit on a different host (e.g. 127.0.0.1:8787).
+// runs on `kayle.id` in production, `staging.kayle.id` in staging, and
+// `localhost:3000` in development, while the auth server itself may sit on a
+// different host (e.g. 127.0.0.1:8787). Derive these from PUBLIC_AUTH_URL so
+// staging passkeys are tied to `staging.kayle.id` (not `kayle.id`) and don't
+// cross the environment boundary.
 const isProduction = process.env.NODE_ENV === "production";
-const passkeyRpID = isProduction ? "kayle.id" : "localhost";
+const publicAuthOriginUrl = new URL(env.PUBLIC_AUTH_URL);
+const passkeyRpID = isProduction ? publicAuthOriginUrl.hostname : "localhost";
 const passkeyOrigin = isProduction
-  ? "https://kayle.id"
+  ? publicAuthOriginUrl.origin
   : ["https://localhost:3000", "https://localhost:8787"];
 const trustedOrigins = isProduction
-  ? ["https://kayle.id"]
+  ? [publicAuthOriginUrl.origin]
   : ["https://localhost:3000", "https://localhost:8787"];
 
 interface MagicOtpPayload {
@@ -868,7 +872,7 @@ export const auth = betterAuth({
     },
   },
   emailAndPassword: {
-    enabled: (process.env.NODE_ENV as string) === "test",
+    enabled: String(process.env.NODE_ENV) === "test",
     autoSignIn: true,
   },
   trustedOrigins,

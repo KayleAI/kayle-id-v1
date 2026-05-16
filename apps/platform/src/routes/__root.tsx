@@ -10,10 +10,8 @@ import { useEffect } from "react";
 import appCss from "@/routes/styles.css?url";
 
 // Sets the `dark` class on `<html>` before React mounts so dark-mode users
-// don't see a light-mode flash on first paint. Surfaces that opt out (e.g.
-// marketing, legal) wrap their content in `.light`, which both re-declares
-// the CSS variables back to light values and short-circuits the `dark:`
-// variant — see web-theme.css.
+// don't see a light-mode flash on first paint. Surfaces can still opt out by
+// wrapping their content in `.light`; see web-theme.css.
 const colorSchemeScript = `(function(){try{if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})();`;
 
 export const Route = createRootRoute({

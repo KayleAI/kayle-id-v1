@@ -137,7 +137,7 @@ final class MRZParserTests: XCTestCase {
   }
 
   func testResidencePermitCategoryAndCopy() {
-    let result = MRZResultFixture.make(documentType: "IR")
+    let result = MRZResultFixture.make(format: .td2, documentType: "IR")
 
     XCTAssertEqual(result.documentCategory, .residencePermit)
     XCTAssertEqual(result.userFacingDocumentName, "residence permit")
@@ -147,14 +147,14 @@ final class MRZParserTests: XCTestCase {
   }
 
   func testCrewCertificateMapsToIdCardCopy() {
-    let result = MRZResultFixture.make(documentType: "AC")
+    let result = MRZResultFixture.make(format: .td1, documentType: "AC")
 
     XCTAssertEqual(result.documentCategory, .idCard)
     XCTAssertEqual(result.userFacingDocumentName, "ID card")
   }
 
   func testUnknownDocumentTypeFallsBackToDocumentCopy() {
-    let result = MRZResultFixture.make(documentType: "V<")
+    let result = MRZResultFixture.make(format: .td3, documentType: "V<")
 
     XCTAssertEqual(result.documentCategory, .other)
     XCTAssertEqual(result.userFacingDocumentName, "document")
@@ -164,7 +164,7 @@ final class MRZParserTests: XCTestCase {
   }
 
   func testPassportFillerCharactersStillResolveToPassport() {
-    let result = MRZResultFixture.make(documentType: "P<")
+    let result = MRZResultFixture.make(format: .td3, documentType: "P<")
 
     XCTAssertEqual(result.documentCategory, .passport)
     XCTAssertEqual(result.userFacingDocumentName, "passport")
@@ -172,9 +172,9 @@ final class MRZParserTests: XCTestCase {
 }
 
 private enum MRZResultFixture {
-  static func make(documentType: String) -> MRZResult {
+  static func make(format: MRZFormat = .td1, documentType: String) -> MRZResult {
     MRZResult(
-      format: .td1,
+      format: format,
       documentType: documentType,
       issuingCountry: "UTO",
       surnames: "DOE",

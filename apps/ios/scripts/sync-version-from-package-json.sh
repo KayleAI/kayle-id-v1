@@ -67,3 +67,15 @@ cp "${SOURCE_INFO_PLIST_PATH}" "${GENERATED_INFO_PLIST_PATH}"
 if [ "${CONFIGURATION:-Release}" != "Debug" ]; then
   "${PLIST_BUDDY}" -c "Delete :NSAppTransportSecurity:NSAllowsArbitraryLoads" "${GENERATED_INFO_PLIST_PATH}" 2>/dev/null || true
 fi
+
+# `KAYLE_DEV_API_BASE_URL` baked into Info.plist lets DEBUG builds (e.g. the
+# `iOS (Staging)` solo task) survive iOS relaunches without losing the
+# pointer to staging — devicectl's `--environment-variables` only persists
+# for the initial process, so any cold launch reverts to the production URL.
+# `APIService.configuredDevelopmentBaseURL()` reads the env var first and
+# falls back to this Info.plist key. Always strip for non-Debug so the
+# value never ships in a Release / App Store bundle.
+"${PLIST_BUDDY}" -c "Delete :KAYLE_DEV_API_BASE_URL" "${GENERATED_INFO_PLIST_PATH}" 2>/dev/null || true
+if [ "${CONFIGURATION:-Release}" = "Debug" ] && [ -n "${KAYLE_DEV_API_BASE_URL:-}" ]; then
+  "${PLIST_BUDDY}" -c "Add :KAYLE_DEV_API_BASE_URL string ${KAYLE_DEV_API_BASE_URL}" "${GENERATED_INFO_PLIST_PATH}"
+fi

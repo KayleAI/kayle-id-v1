@@ -16,9 +16,17 @@ export class InternalApiProxyPathError extends Error {
 }
 
 export function getPublicHost(): string {
-	return process.env.NODE_ENV === "production"
-		? "https://kayle.id"
-		: "https://localhost:3000";
+	// Staging pins NODE_ENV=production too, so NODE_ENV alone can't separate
+	// the two prod-like deploys — use KAYLE_ENVIRONMENT, which staging sets
+	// to "staging" and production sets to "production". Anything else (local
+	// dev, tests) falls back to the localhost origin.
+	if (process.env.KAYLE_ENVIRONMENT === "staging") {
+		return "https://staging.kayle.id";
+	}
+	if (process.env.NODE_ENV === "production") {
+		return "https://kayle.id";
+	}
+	return "https://localhost:3000";
 }
 
 export function buildInternalApiProxyUrl(

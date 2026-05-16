@@ -7,6 +7,7 @@ PKD_OBJECTS_LDIF="${ICAO_PKD_OBJECTS_LDIF:-${ROOT_DIR}/temp/icaopkd-001-complete
 PKD_MASTER_LISTS_LDIF="${ICAO_PKD_MASTER_LISTS_LDIF:-${ROOT_DIR}/temp/icaopkd-002-complete-508.ldif}"
 PKD_BUNDLE_OUTPUT="${PKD_BUNDLE_OUTPUT:-${ROOT_DIR}/temp/icao-pkd-trust-store.sql}"
 TRUST_STORE_DATABASE_NAME="${TRUST_STORE_DATABASE_NAME:-kayle-id-trust-store}"
+WRANGLER_ENV="${WRANGLER_ENV:-}"
 SKIP_PKD_IMPORT="false"
 SKIP_D1_SEED="false"
 
@@ -20,6 +21,7 @@ Options:
   --master-lists <path>  Path to the ICAO PKD CSCA master-list LDIF.
   --output <path>        Output path for the generated trust-store seed SQL.
   --database <name>      Remote D1 database name for trust-store seeding.
+  --env <name>           Wrangler env block (e.g. staging) for d1 commands.
   --skip-pkd-import      Skip PKD bundle generation and reuse --output as-is.
   --skip-d1-seed         Skip applying migrations and importing the trust-store seed into remote D1.
   -h, --help             Show this help text.
@@ -45,14 +47,6 @@ log() {
 fail() {
   printf '%s\n' "$1" >&2
   exit 1
-}
-
-cleanup_temp_log() {
-  local log_file="$1"
-
-  if [[ -n "${log_file}" && -f "${log_file}" ]]; then
-    rm -f "${log_file}"
-  fi
 }
 
 require_file() {
@@ -108,6 +102,10 @@ parse_args() {
         ;;
       --database)
         TRUST_STORE_DATABASE_NAME="$2"
+        shift 2
+        ;;
+      --env)
+        WRANGLER_ENV="$2"
         shift 2
         ;;
       --skip-pkd-import)
@@ -177,8 +175,10 @@ seed_remote_trust_store() {
 
   require_file "${PKD_BUNDLE_OUTPUT}"
 
-  local execute_log_file=""
-  execute_log_file="$(mktemp)"
+  local -a env_args=()
+  if [[ -n "${WRANGLER_ENV}" ]]; then
+    env_args=(--env "${WRANGLER_ENV}")
+  fi
 
   (
     cd "${ROOT_DIR}/apps/api"
@@ -186,34 +186,24 @@ seed_remote_trust_store() {
     bunx wrangler d1 migrations apply \
       "${TRUST_STORE_DATABASE_NAME}" \
       --config ./wrangler.jsonc \
+      "${env_args[@]+"${env_args[@]}"}" \
       --remote
     log "Importing ICAO PKD trust-store seed into remote D1..."
+    # `set -o pipefail` (set at the top of the script) propagates wrangler's
+    # non-zero exit code through the pipeline so `if !` triggers on failure.
+    # Wrangler streams its own progress and a JSON summary, so there's no
+    # need to capture-and-re-emit; let it land directly on the terminal.
     if ! bunx wrangler d1 execute \
       "${TRUST_STORE_DATABASE_NAME}" \
       --config ./wrangler.jsonc \
+      "${env_args[@]+"${env_args[@]}"}" \
       --file "${PKD_BUNDLE_OUTPUT}" \
-      --remote \
-      >"${execute_log_file}" 2>&1; then
-      cat "${execute_log_file}" >&2
-      cleanup_temp_log "${execute_log_file}"
+      --remote; then
       fail "Remote D1 trust-store seed import failed."
     fi
   )
 
-  local execute_summary=""
-  execute_summary="$(
-    LC_ALL=C grep -Eo '🚣 [0-9]+ commands executed successfully\.' \
-      "${execute_log_file}" \
-      | tail -n 1
-  )"
-
-  if [[ -n "${execute_summary}" ]]; then
-    log "${execute_summary}"
-  else
-    log "Remote D1 trust-store seed import completed."
-  fi
-
-  cleanup_temp_log "${execute_log_file}"
+  log "Remote D1 trust-store seed import completed."
 }
 
 main() {

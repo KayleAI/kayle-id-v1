@@ -13,10 +13,6 @@
 		}
 	},
 	"triggers": {
-		// Minute tick drives the per-attempt housekeeping jobs (session
-		// expiry, receipt refresh, domain reverify, org deletion). The
-		// daily tick at 00:00 UTC drives storage-at-rest cost emission —
-		// dispatched in `scheduled` by `controller.cron`.
 		"crons": ["* * * * *", "0 0 * * *"]
 	},
 	"compatibility_flags": ["nodejs_compat"],
@@ -158,7 +154,6 @@
 		"staging": {
 			"name": "kayle-id-api-staging",
 			"vars": {
-				// NODE_ENV pins runtime mode; KAYLE_ENVIRONMENT tags telemetry.
 				"NODE_ENV": "production",
 				"KAYLE_ENVIRONMENT": "staging",
 				"PUBLIC_AUTH_URL": "https://staging.kayle.id",

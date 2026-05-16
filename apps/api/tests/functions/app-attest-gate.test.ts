@@ -70,3 +70,27 @@ test("App Attest environment still treats the public Kayle URL as production", (
 		} as CloudflareBindings),
 	).toBe("production");
 });
+
+test("App Attest environment is development on staging even though NODE_ENV=production", () => {
+	// Staging deliberately runs with NODE_ENV=production to mirror real
+	// prod runtime, but iOS DEBUG builds (the only client that can point at
+	// staging) produce development-AAGUID attestations. Without this branch
+	// every register call would fail with `aaguid_mismatch`.
+	expect(
+		resolveAppAttestEnvironment({
+			KAYLE_ENVIRONMENT: "staging",
+			NODE_ENV: "production",
+			PUBLIC_AUTH_URL: "https://staging.kayle.id",
+		} as CloudflareBindings),
+	).toBe("development");
+});
+
+test("App Attest environment is production when KAYLE_ENVIRONMENT is production", () => {
+	expect(
+		resolveAppAttestEnvironment({
+			KAYLE_ENVIRONMENT: "production",
+			NODE_ENV: "production",
+			PUBLIC_AUTH_URL: "https://kayle.id",
+		} as CloudflareBindings),
+	).toBe("production");
+});

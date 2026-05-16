@@ -56,6 +56,30 @@ export function isAttestationGateEnabled(env: CloudflareBindings): boolean {
 export function resolveAppAttestEnvironment(
 	env: CloudflareBindings,
 ): AppAttestEnvironment {
+	// Staging runs with `NODE_ENV=production` to exercise the same code paths
+	// as prod, but the only iOS client that can point at staging is a DEBUG
+	// build, and Apple's App Attest service stamps DEBUG-signed attestations
+	// with the `appattestdevelop` AAGUID. Discriminate by `KAYLE_ENVIRONMENT`
+	// so only the production deploy — the one App Store / TestFlight builds
+	// talk to — checks against the production AAGUID. Staging, test, and
+	// local dev all expect the development AAGUID.
+	const kayleEnv =
+		(env as { KAYLE_ENVIRONMENT?: string }).KAYLE_ENVIRONMENT ??
+		process.env.KAYLE_ENVIRONMENT;
+	if (kayleEnv === "production") {
+		return "production";
+	}
+	if (
+		kayleEnv === "staging" ||
+		kayleEnv === "test" ||
+		kayleEnv === "development"
+	) {
+		return "development";
+	}
+
+	// Fallback when `KAYLE_ENVIRONMENT` isn't set (ad-hoc invocations, tests
+	// that only pin NODE_ENV). Preserves the previous semantics so callers
+	// outside the four-deploy matrix don't silently change behavior.
 	const nodeEnv =
 		(env as { NODE_ENV?: string }).NODE_ENV ?? process.env.NODE_ENV;
 	return nodeEnv === "production" || env.PUBLIC_AUTH_URL === "https://kayle.id"

@@ -95,7 +95,6 @@
 		"staging": {
 			"name": "kayle-id-platform-staging",
 			"vars": {
-				// NODE_ENV pins runtime mode; KAYLE_ENVIRONMENT tags telemetry.
 				"NODE_ENV": "production",
 				"KAYLE_ENVIRONMENT": "staging"
 			},

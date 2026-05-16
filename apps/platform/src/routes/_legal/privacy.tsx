@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_legal/privacy")({
 
 function PrivacyPage() {
 	return (
-		<div className="min-h-screen bg-white pt-16">
+		<div className="min-h-screen bg-background pt-16">
 			<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 				<PageHeading
 					description={`Last updated ${LAST_UPDATED}.\n\nThis Privacy Policy applies to developers who integrate Kayle ID and people who use Kayle ID to verify their identity.`}

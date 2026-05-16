@@ -37,13 +37,29 @@ app.use(async (c, next) => {
 		includeStrictTransportSecurity: isHttpsRequest(c.req.raw),
 	});
 });
+// PUBLIC_AUTH_URL is set per env in wrangler (kayle.id / staging.kayle.id /
+// localhost:3000), so it doubles as the CORS-allowed platform origin without
+// us having to branch on NODE_ENV here (staging pins NODE_ENV=production).
+const corsAllowedOrigin =
+	process.env.PUBLIC_AUTH_URL ?? "https://localhost:3000";
+
+// Derive the OpenAPI server URL from PUBLIC_AUTH_URL so staging documents
+// `api.staging.kayle.id` instead of `api.kayle.id`. Out of production we fall
+// back to the local wrangler dev port.
+function resolveOpenApiServerUrl(): string {
+	if (process.env.NODE_ENV !== "production") {
+		return "http://127.0.0.1:8787";
+	}
+	try {
+		const authUrl = new URL(corsAllowedOrigin);
+		return `${authUrl.protocol}//api.${authUrl.hostname}`;
+	} catch {
+		return "https://api.kayle.id";
+	}
+}
 app.use(
 	cors({
-		origin: [
-			process.env.NODE_ENV === "production"
-				? "https://kayle.id"
-				: "https://localhost:3000",
-		],
+		origin: [corsAllowedOrigin],
 		allowHeaders: ["Authorization", "Content-Type"],
 		allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 		credentials: true,
@@ -125,10 +141,7 @@ app.doc("/openapi", {
 	},
 	servers: [
 		{
-			url:
-				process.env.NODE_ENV === "production"
-					? "https://api.kayle.id"
-					: "http://127.0.0.1:8787",
+			url: resolveOpenApiServerUrl(),
 			description: "",
 		},
 	],

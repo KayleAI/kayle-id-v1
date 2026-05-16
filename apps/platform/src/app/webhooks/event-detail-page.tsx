@@ -1,4 +1,4 @@
-import InfoCard from "@kayle-id/ui/info-card";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import { Button } from "@kayleai/ui/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";

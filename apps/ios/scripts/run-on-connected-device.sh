@@ -132,6 +132,24 @@ build_app() {
   mkdir -p "${DERIVED_DATA_PATH}"
 
   log "Building ${SCHEME_NAME} for device ${DEVICE_IDENTIFIER}..."
+  # Export so the `Sync version from package.json` build phase script can
+  # bake the URL into the generated Info.plist. devicectl's runtime
+  # `--environment-variables` only survives the initial process launch;
+  # the Info.plist value is what keeps staging selected after a relaunch.
+  if [[ -n "${API_BASE_URL}" ]]; then
+    export KAYLE_DEV_API_BASE_URL="${API_BASE_URL}"
+  else
+    unset KAYLE_DEV_API_BASE_URL
+  fi
+
+  # Xcode only re-runs the version-sync build phase when its declared inputs
+  # change. The phase's output depends on KAYLE_DEV_API_BASE_URL, but the
+  # env var isn't an input file — so touch the source Info.plist (which is
+  # an input) to invalidate the cache and force a re-bake on every solo run.
+  # Without this, switching from iOS (Local) to iOS (Staging) would keep
+  # whichever URL was baked on the previous build.
+  touch "${ROOT_DIR}/apps/ios/Kayle ID/Info.plist"
+
   xcodebuild \
     -project "${PROJECT_PATH}" \
     -scheme "${SCHEME_NAME}" \

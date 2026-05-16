@@ -15,12 +15,20 @@ interface FooterColumnProps {
 	title: string;
 }
 
+const API_REFERENCE_URL = "https://docs.kayle.id/api-reference";
+const DOCUMENTATION_URL = "https://docs.kayle.id/";
+const PRIVACY_URL = "/privacy" satisfies keyof FileRoutesByTo;
+const TERMS_URL = "/terms" satisfies keyof FileRoutesByTo;
+
 const columns: FooterColumnProps[] = [
 	{
 		title: "Product",
 		links: [
-			{ label: "API Reference", to: "/api-reference" },
-			{ label: "Documentation", to: "/docs" },
+			{
+				label: "API Reference",
+				to: API_REFERENCE_URL,
+			},
+			{ label: "Documentation", to: DOCUMENTATION_URL },
 		],
 	},
 	{
@@ -33,8 +41,8 @@ const columns: FooterColumnProps[] = [
 	{
 		title: "Legal",
 		links: [
-			{ label: "Privacy", to: "/privacy" },
-			{ label: "Terms", to: "/terms" },
+			{ label: "Privacy", to: PRIVACY_URL },
+			{ label: "Terms", to: TERMS_URL },
 		],
 	},
 ];
@@ -42,12 +50,12 @@ const columns: FooterColumnProps[] = [
 function FooterColumn({ title, links }: FooterColumnProps) {
 	return (
 		<div>
-			<h4 className="mb-4 font-medium text-neutral-900 text-sm">{title}</h4>
+			<h4 className="mb-4 font-medium text-foreground text-sm">{title}</h4>
 			<ul className="space-y-3">
 				{links.map((link) => (
 					<li key={link.to}>
 						<Link
-							className="text-neutral-500 text-sm transition-colors hover:text-neutral-900"
+							className="text-muted-foreground text-sm transition-colors hover:text-foreground"
 							to={link.to}
 							{...(link.to.startsWith("https://")
 								? { target: "_blank", rel: "noopener noreferrer" }
@@ -66,7 +74,7 @@ export function Footer({ className }: { readonly className?: string }) {
 	return (
 		<footer
 			className={cn(
-				"border-neutral-100 border-t",
+				"border-border/70 border-t",
 				"mx-auto max-w-7xl",
 				"px-6 py-6 lg:px-8",
 				className,
@@ -78,13 +86,13 @@ export function Footer({ className }: { readonly className?: string }) {
 						<Link to="/">
 							<Logo title="Kayle ID" variant="small" />
 						</Link>
-						<p className="mt-3 max-w-xs text-balance text-neutral-500 text-sm leading-relaxed">
+						<p className="mt-3 max-w-xs text-balance text-muted-foreground text-sm leading-relaxed">
 							Primitives for Identity Verification
 						</p>
 						<div className="mt-4 flex items-center gap-6">
 							<a
 								aria-label="Discord"
-								className="text-neutral-600 hover:text-neutral-900"
+								className="text-muted-foreground transition-colors hover:text-foreground"
 								href="https://go.kayle.ai/discord"
 								rel="noopener noreferrer"
 								target="_blank"
@@ -93,7 +101,7 @@ export function Footer({ className }: { readonly className?: string }) {
 							</a>
 							<a
 								aria-label="LinkedIn"
-								className="text-neutral-600 hover:text-neutral-900"
+								className="text-muted-foreground transition-colors hover:text-foreground"
 								href="https://go.kayle.ai/linkedin"
 								rel="noopener noreferrer"
 								target="_blank"
@@ -102,7 +110,7 @@ export function Footer({ className }: { readonly className?: string }) {
 							</a>
 							<a
 								aria-label="GitHub"
-								className="text-neutral-600 hover:text-neutral-900"
+								className="text-muted-foreground transition-colors hover:text-foreground"
 								href="https://github.com/kayleai/kayle-id"
 								rel="noopener noreferrer"
 								target="_blank"
@@ -111,7 +119,7 @@ export function Footer({ className }: { readonly className?: string }) {
 							</a>
 							<a
 								aria-label="X"
-								className="text-neutral-600 hover:text-neutral-900"
+								className="text-muted-foreground transition-colors hover:text-foreground"
 								href="https://go.kayle.ai/x"
 								rel="noopener noreferrer"
 								target="_blank"
@@ -125,11 +133,11 @@ export function Footer({ className }: { readonly className?: string }) {
 					))}
 				</div>
 
-				<div className="mt-20 flex flex-col justify-between gap-3 border-neutral-100 border-t pt-8 md:flex-row md:items-center">
-					<p className="order-last text-neutral-500 text-sm md:order-first">
+				<div className="mt-20 flex flex-col justify-between gap-3 border-border/70 border-t pt-8 md:flex-row md:items-center">
+					<p className="order-last text-muted-foreground text-sm md:order-first">
 						© {new Date().getFullYear()} ID by{" "}
 						<a
-							className="font-semibold text-neutral-700 underline decoration-dashed underline-offset-2 transition-colors hover:text-neutral-950"
+							className="font-semibold text-foreground/80 underline decoration-dashed underline-offset-2 transition-colors hover:text-foreground"
 							href="https://kayle.ai"
 							rel="noopener noreferrer"
 							target="_blank"
@@ -139,7 +147,7 @@ export function Footer({ className }: { readonly className?: string }) {
 						All rights reserved.
 					</p>
 					<a
-						className="font-semibold text-neutral-700 text-xs tabular-nums underline decoration-dashed underline-offset-2 transition-colors hover:text-neutral-950"
+						className="font-semibold text-foreground/80 text-xs tabular-nums underline decoration-dashed underline-offset-2 transition-colors hover:text-foreground"
 						href={`https://github.com/kayleai/kayle-id/releases/tag/v${__APP_VERSION__}`}
 						rel="noopener noreferrer"
 						target="_blank"

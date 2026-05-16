@@ -1,55 +1,84 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58
+# Multi-stage Rust build for the biometric verifier container.
+#
+# Migrated from the Python + uv image (`service.py`); the container's
+# HTTP contract is unchanged. See ../scripts/dynamize-yunet.py for the
+# one-shot ONNX rewrite needed because the upstream YuNet export
+# declares fixed 640×640 input shape (ort enforces this; cv::dnn was
+# tolerant in the Python build).
 
-WORKDIR /app
-
-ENV UV_LINK_MODE=copy \
-    UV_PROJECT_ENVIRONMENT=/app/.venv \
-    PYTHONUNBUFFERED=1
-
+# ---- Stage 1: build Rust binary ---------------------------------------
+FROM rust:1.91-slim-bookworm@sha256:8514999d4786ef12efe89239e86b3d0a021b94b9d35108c8efe6c79ca7dc1a65 AS builder
+WORKDIR /build
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl ffmpeg \
+  && apt-get install -y --no-install-recommends \
+       pkg-config \
+       libssl-dev \
+       clang \
+       libavcodec-dev \
+       libavformat-dev \
+       libavutil-dev \
+       libswscale-dev \
+       libavfilter-dev \
   && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-RUN uv sync --no-dev --no-install-project
-
-COPY scripts/download-models.sh ./scripts/download-models.sh
-RUN chmod +x ./scripts/download-models.sh \
-  && ./scripts/download-models.sh
-
-# curl is only needed for the download step; purge it from the runtime
-# image. ffmpeg stays for cv2's libavcodec codec coverage — the
-# bundled FFmpeg in the opencv-python wheel handles the common cases,
-# but the apt binary adds breathing room for codec edge cases (e.g.
-# HEVC variants iOS may emit). Re-evaluate once bench data confirms
-# the bundled codecs cover every encoding we receive.
-RUN apt-get purge -y --auto-remove curl \
-  && rm -rf /var/lib/apt/lists/*
+# Cache deps separately so source-only changes don't redownload crates.
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && echo 'fn main(){}' > src/main.rs && cargo build --release --bin biometric-verifier && rm -rf src
 
 COPY src/ ./src/
+RUN cargo build --release --locked --bin biometric-verifier
 
-# Smoke-test each model at build time so a structurally broken file
-# trips the build rather than the first request.
-RUN uv run --no-sync python -c "import cv2; detector = cv2.FaceDetectorYN.create('/app/models/face_detection_yunet_2023mar.onnx', '', (320, 320), 0.85, 0.3, 5000); assert detector is not None"
-RUN uv run --no-sync python -c "import onnxruntime as ort; sess = ort.InferenceSession('/app/models/face_landmarks_detector.onnx', providers=['CPUExecutionProvider']); assert sess.get_inputs(); print('mesh model OK:', sess.get_inputs()[0].name, sess.get_inputs()[0].shape)"
-RUN uv run --no-sync python -c "import onnxruntime as ort; sess = ort.InferenceSession('/app/models/auraface_glintr100.onnx', providers=['CPUExecutionProvider']); assert sess.get_inputs(); print('auraface model OK:', sess.get_inputs()[0].name, sess.get_inputs()[0].shape)"
-RUN uv run --no-sync python -c "import onnxruntime as ort; sess = ort.InferenceSession('/app/models/pad_minifasnet_v2_scale27.onnx', providers=['CPUExecutionProvider']); assert sess.get_inputs(); print('pad v2 OK:', sess.get_inputs()[0].name, sess.get_inputs()[0].shape)"
-RUN uv run --no-sync python -c "import onnxruntime as ort; sess = ort.InferenceSession('/app/models/pad_minifasnet_v1se_scale40.onnx', providers=['CPUExecutionProvider']); assert sess.get_inputs(); print('pad v1se OK:', sess.get_inputs()[0].name, sess.get_inputs()[0].shape)"
+# ---- Stage 2: fetch + dynamize models ---------------------------------
+# Reuse the existing download-models.sh verbatim. The dynamize step
+# rewrites YuNet's input shape from fixed 640×640 to dynamic H/W so
+# the Rust ort runtime can run at the actual frame resolution.
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS models
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       curl \
+       ca-certificates \
+       python3 \
+       python3-pip \
+  && pip3 install --no-cache-dir --break-system-packages onnx==1.16.2 \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+COPY scripts/download-models.sh ./scripts/
+COPY scripts/dynamize-yunet.py ./scripts/
+RUN chmod +x scripts/download-models.sh \
+  && scripts/download-models.sh \
+  && python3 scripts/dynamize-yunet.py \
+       models/face_detection_yunet_2023mar.onnx \
+       models/face_detection_yunet_2023mar.dynamic.onnx \
+  && rm models/face_detection_yunet_2023mar.onnx \
+  && mv models/face_detection_yunet_2023mar.dynamic.onnx models/face_detection_yunet_2023mar.onnx
 
-RUN groupadd --system app \
-  && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app \
-  && chown -R app:app /app
+# ---- Stage 3: runtime image -------------------------------------------
+# Runtime needs the libav .so's for ffmpeg-next; ort's download-binaries
+# feature statically links libonnxruntime so no extra ONNX lib ships.
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       libavcodec59 \
+       libavformat59 \
+       libavutil57 \
+       libswscale6 \
+       ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system app \
+  && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
+
+WORKDIR /app
+COPY --from=builder /build/target/release/biometric-verifier /app/biometric-verifier
+COPY --from=models /work/models /app/models
+RUN chown -R app:app /app
 
 ENV BIOMETRIC_VERIFIER_DETECTOR_PATH=/app/models/face_detection_yunet_2023mar.onnx \
     BIOMETRIC_VERIFIER_MODEL_PATH=/app/models/auraface_glintr100.onnx \
     BIOMETRIC_VERIFIER_PAD_V2_MODEL_PATH=/app/models/pad_minifasnet_v2_scale27.onnx \
     BIOMETRIC_VERIFIER_PAD_V1SE_MODEL_PATH=/app/models/pad_minifasnet_v1se_scale40.onnx \
     BIOMETRIC_VERIFIER_MESH_MODEL_PATH=/app/models/face_landmarks_detector.onnx \
-    PATH="/app/.venv/bin:${PATH}" \
     PORT=8080
 
 EXPOSE 8080
-
 USER app
-
-CMD ["uv", "run", "--no-sync", "python", "src/service.py"]
+CMD ["/app/biometric-verifier"]

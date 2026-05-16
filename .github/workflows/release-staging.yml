@@ -3,12 +3,15 @@ name: Release Staging
 on:
   workflow_run:
     workflows:
-      - CI
+      - Validate
+      - Build
+      - Test
     types:
       - completed
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -32,6 +35,7 @@ jobs:
       )
     outputs:
       head_sha: ${{ steps.context.outputs.head_sha }}
+      release_ready: ${{ steps.manual.outputs.ready || steps.required.outputs.ready }}
 
     steps:
       - name: Reject manual run from non-staging ref
@@ -51,10 +55,66 @@ jobs:
             echo "head_sha=${{ github.sha }}" >> "${GITHUB_OUTPUT}"
           fi
 
+      - name: Mark manual dispatch ready
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "ready=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out repository code
+        if: github.event_name == 'workflow_run'
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ steps.context.outputs.head_sha }}
+
+      - name: Check required workflow results
+        id: required
+        if: github.event_name == 'workflow_run'
+        uses: ./.github/actions/check-required-workflows
+        with:
+          current-workflow-conclusion: ${{ github.event.workflow_run.conclusion }}
+          current-workflow-path: ${{ github.event.workflow_run.path }}
+          github-token: ${{ github.token }}
+          head-branch: ${{ github.event.workflow_run.head_branch }}
+          head-sha: ${{ steps.context.outputs.head_sha }}
+          workflow-event: ${{ github.event.workflow_run.event }}
+          required-workflows: |
+            validate.yml
+            build.yml
+            test.yml
+
+  detect_changes:
+    name: Detect Staging Changes
+    runs-on: ubuntu-latest
+    needs: guard
+    if: needs.guard.outputs.release_ready == 'true'
+    outputs:
+      api: ${{ steps.worker_changes.outputs.api_changed }}
+      biometric_verifier: ${{ steps.worker_changes.outputs.biometric_verifier_changed }}
+      platform: ${{ steps.worker_changes.outputs.platform_changed }}
+      verify: ${{ steps.worker_changes.outputs.verify_changed }}
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.guard.outputs.head_sha }}
+
+      - name: Detect changed staging apps
+        id: worker_changes
+        uses: ./.github/actions/detect-worker-changes
+        with:
+          force-all: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
   migrate_database:
     name: Migrate Staging Database
     runs-on: ubuntu-latest
-    needs: guard
+    needs:
+      - guard
+      - detect_changes
+    if: >-
+      needs.guard.outputs.release_ready == 'true' &&
+      needs.detect_changes.outputs.api == 'true'
 
     steps:
       - name: Check out repository code
@@ -74,7 +134,12 @@ jobs:
   deploy_biometric_verifier:
     name: Deploy Biometric Verifier (staging)
     runs-on: ubuntu-latest
-    needs: guard
+    needs:
+      - guard
+      - detect_changes
+    if: >-
+      needs.guard.outputs.release_ready == 'true' &&
+      needs.detect_changes.outputs.biometric_verifier == 'true'
 
     steps:
       - name: Check out repository code
@@ -97,8 +162,18 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - guard
+      - detect_changes
       - migrate_database
       - deploy_biometric_verifier
+    if: >-
+      always() &&
+      needs.guard.outputs.release_ready == 'true' &&
+      needs.detect_changes.outputs.api == 'true' &&
+      needs.migrate_database.result == 'success' &&
+      (
+        needs.deploy_biometric_verifier.result == 'success' ||
+        needs.deploy_biometric_verifier.result == 'skipped'
+      )
 
     steps:
       - name: Check out repository code
@@ -123,7 +198,16 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - guard
+      - detect_changes
       - deploy_api
+    if: >-
+      always() &&
+      needs.guard.outputs.release_ready == 'true' &&
+      needs.detect_changes.outputs.platform == 'true' &&
+      (
+        needs.deploy_api.result == 'success' ||
+        needs.deploy_api.result == 'skipped'
+      )
 
     steps:
       - name: Check out repository code
@@ -153,7 +237,16 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - guard
+      - detect_changes
       - deploy_api
+    if: >-
+      always() &&
+      needs.guard.outputs.release_ready == 'true' &&
+      needs.detect_changes.outputs.verify == 'true' &&
+      (
+        needs.deploy_api.result == 'success' ||
+        needs.deploy_api.result == 'skipped'
+      )
 
     steps:
       - name: Check out repository code

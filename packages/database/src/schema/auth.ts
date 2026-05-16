@@ -33,6 +33,10 @@ export const auth_two_factors = pgTable(
 			.references(() => auth_users.id, { onDelete: "cascade" }),
 		secret: text("secret").notNull(),
 		backupCodes: text("backup_codes").notNull(),
+		// Better Auth explicitly writes false for first-time TOTP enrollment
+		// and promotes it after verification. The DB default remains true so
+		// existing rows and skip-verification enrollment stay compatible with
+		// Better Auth's generated schema.
 		verified: boolean("verified").default(true).notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")

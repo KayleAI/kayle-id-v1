@@ -107,13 +107,19 @@ function buildSql({
 	if (!VALID_ENV_VALUE.test(environment)) {
 		throw new Error(`cost_analytics_invalid_environment:${environment}`);
 	}
+	// Cloudflare Analytics Engine SQL rejects raw expressions in GROUP BY
+	// (HTTP 422 "you may only provide column names"). The SELECT aliases
+	// `${column}` (which may itself be an expression like `toDate(timestamp)`
+	// for day buckets) as `group_key`, so reference the alias here — that
+	// satisfies the column-name requirement for both real blob columns and
+	// derived expressions.
 	return [
 		`SELECT ${column} AS group_key, SUM(${COST_EVENT_DOUBLE.estimatedCostUsd}) AS cost_usd, COUNT() AS event_count`,
 		"FROM KAYLE_ID_ANALYTICS",
 		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
 		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
 		`  AND ${COST_EVENT_BLOB.environment} = '${environment}'`,
-		`GROUP BY ${column}`,
+		"GROUP BY group_key",
 		"ORDER BY cost_usd DESC",
 		"LIMIT 1000",
 	].join("\n");
@@ -237,6 +243,15 @@ cost.get("/cost-analytics", async (c) => {
 	} catch (error) {
 		logSafeError(logger, {
 			code: "cost_analytics_query_failed",
+			details: {
+				// Upstream Cloudflare API error from `queryAnalyticsEngine` is
+				// shaped `cf_analytics_http_<status>:<body-snippet>` — never
+				// contains the API token or user input, so it's safe to log
+				// to internal telemetry. Surface it for diagnosis; the
+				// response body still gets the generic safe message.
+				underlying_message:
+					error instanceof Error ? error.message : String(error),
+			},
 			error,
 			event: "admin.cost_analytics.query_failed",
 			message: "Analytics Engine query failed.",

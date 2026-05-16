@@ -115,7 +115,7 @@ async function getContainerInstance(
 
 function resolveNodeEnv(env: unknown): Record<string, string> {
   // Forward NODE_ENV from the worker env (set by wrangler `vars`) to the
-  // container. This is the single switch the Python runtime reads to
+  // container. This is the single switch the runtime reads to
   // decide whether the dev-only escape hatches (pixel fallback, face
   // match skip, rich debug responses) are enabled. Production wrangler
   // sets NODE_ENV=production; dev sets NODE_ENV=development; missing on
@@ -130,7 +130,7 @@ function resolveNodeEnv(env: unknown): Record<string, string> {
 
 function resolveDebugMetrics(env: unknown): Record<string, string> {
   // Bench envs set BIOMETRIC_VERIFIER_DEBUG_METRICS=1 in the worker
-  // `vars`; that needs to land inside the container too so service.py
+  // `vars`; that needs to land inside the container too so the runtime
   // unlocks /_debug/metrics. Production keeps it unset → 404.
   const value = isObjectRecord(env)
     ? Reflect.get(env, "BIOMETRIC_VERIFIER_DEBUG_METRICS")
@@ -179,9 +179,6 @@ export class BiometricVerifierContainer extends Container<BiometricVerifierBindi
     ...resolveNodeEnv(this.env),
     ...resolveDebugMetrics(this.env),
     ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS"),
-    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"),
-    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_FRAME_PARALLEL_WORKERS"),
-    ...forwardStringEnv(this.env, "BIOMETRIC_VERIFIER_PREWARM"),
     ...forwardStringEnv(this.env, "OMP_NUM_THREADS"),
     ...forwardStringEnv(this.env, "MKL_NUM_THREADS"),
     ...forwardStringEnv(this.env, "OPENBLAS_NUM_THREADS"),

@@ -7,7 +7,7 @@
 # tolerant in the Python build).
 
 # ---- Stage 1: build Rust binary ---------------------------------------
-FROM rust:1.91-slim-bookworm AS builder
+FROM rust:1.91-slim-bookworm@sha256:8514999d4786ef12efe89239e86b3d0a021b94b9d35108c8efe6c79ca7dc1a65 AS builder
 WORKDIR /build
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -32,7 +32,7 @@ RUN cargo build --release --locked --bin biometric-verifier
 # Reuse the existing download-models.sh verbatim. The dynamize step
 # rewrites YuNet's input shape from fixed 640×640 to dynamic H/W so
 # the Rust ort runtime can run at the actual frame resolution.
-FROM debian:bookworm-slim AS models
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS models
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
        curl \
@@ -55,7 +55,7 @@ RUN chmod +x scripts/download-models.sh \
 # ---- Stage 3: runtime image -------------------------------------------
 # Runtime needs the libav .so's for ffmpeg-next; ort's download-binaries
 # feature statically links libonnxruntime so no extra ONNX lib ships.
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
        libavcodec59 \

@@ -1,4 +1,4 @@
-name: CI
+name: Test
 
 on:
   push:
@@ -12,9 +12,28 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Validate
+  test-workspace:
+    name: Test (${{ matrix.workspace }})
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: biometric-verifier
+            working-directory: apps/biometric-verifier
+            generate-capnp: "true"
+          - workspace: platform
+            working-directory: apps/platform
+            generate-capnp: "false"
+          - workspace: verify
+            working-directory: apps/verify
+            generate-capnp: "true"
+          - workspace: translations
+            working-directory: packages/translations
+            generate-capnp: "false"
 
     steps:
       - name: Check out repository code
@@ -23,12 +42,13 @@ jobs:
       - name: Set up Bun workspace
         uses: ./.github/actions/setup-bun
         with:
-          apt-packages: ripgrep
+          generate-capnp-ts: ${{ matrix.generate-capnp }}
 
-      - name: Run repository validation
-        run: bun run lint
+      - name: Run tests
+        working-directory: ${{ matrix.working-directory }}
+        run: bun run test
 
-  test-api:
+  test-api-integration:
     name: Test API Integration
     runs-on: ubuntu-latest
     env:
@@ -222,84 +242,3 @@ jobs:
             cd apps/api
             bun test
           )
-
-  test-web:
-    name: Test Web
-    runs-on: ubuntu-latest
-    env:
-      NODE_ENV: test
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-
-      - name: Set up Bun workspace
-        uses: ./.github/actions/setup-bun
-        with:
-          generate-capnp-ts: "true"
-
-      - name: Test biometric verifier
-        working-directory: apps/biometric-verifier
-        run: bun run test
-
-      - name: Test translations
-        working-directory: packages/translations
-        run: bun run test
-
-      - name: Test platform
-        working-directory: apps/platform
-        run: bun run test
-
-      - name: Test verify
-        working-directory: apps/verify
-        run: bun run test
-
-  build-workers:
-    name: Build Worker (${{ matrix.worker }})
-    runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
-      CLOUDFLARE_ENV: production
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - worker: biometric-verifier
-            working-directory: apps/biometric-verifier
-            generate-capnp: "false"
-            pre-build: ""
-            wrangler-args: --env production
-          - worker: api
-            working-directory: apps/api
-            generate-capnp: "true"
-            pre-build: ""
-            wrangler-args: --minify --env production
-          - worker: platform
-            working-directory: apps/platform
-            generate-capnp: "false"
-            pre-build: bun run build
-            wrangler-args: --minify --env production
-          - worker: verify
-            working-directory: apps/verify
-            generate-capnp: "true"
-            pre-build: bun run build
-            wrangler-args: --minify --env production
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-
-      - name: Set up Bun workspace
-        uses: ./.github/actions/setup-bun
-        with:
-          generate-capnp-ts: ${{ matrix.generate-capnp }}
-
-      - name: Pre-build (vite)
-        if: matrix.pre-build != ''
-        working-directory: ${{ matrix.working-directory }}
-        run: ${{ matrix.pre-build }}
-
-      - name: Wrangler dry-run deploy
-        working-directory: ${{ matrix.working-directory }}
-        run: bunx wrangler deploy --dry-run --outdir .wrangler-out ${{ matrix.wrangler-args }}

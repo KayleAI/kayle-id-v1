@@ -26,7 +26,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"]
 thiserror = "1"
 anyhow = "1"
 once_cell = "1"
-rayon = "1"
 half = "2"
 hex = "0.4"
 sha2 = "0.10"
@@ -35,6 +34,8 @@ libc = "0.2"
 tempfile = "3"
 
 [dependencies.ort]
+# Keep this exact rc pin until `download-binaries` is stable on an ort release;
+# it controls how libonnxruntime is bundled into the container image.
 version = "=2.0.0-rc.10"
 default-features = false
 features = ["std", "ndarray", "download-binaries"]

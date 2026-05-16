@@ -66,7 +66,10 @@ impl Runtime {
             init_error: None,
         };
 
-        match YunetDetector::from_file(&settings.detector_model_path, settings.onnx_intra_op_threads) {
+        match YunetDetector::from_file(
+            &settings.detector_model_path,
+            settings.onnx_intra_op_threads,
+        ) {
             Ok(d) => state.detector = Some(d),
             Err(e) => {
                 state.detector_load_error = Some(e.to_string());
@@ -112,12 +115,20 @@ impl Runtime {
         }
 
         if !settings.pad_disabled {
-            let v2 = PadSession::from_file(&settings.pad_v2_model_path, settings.onnx_intra_op_threads);
-            let v1se =
-                PadSession::from_file(&settings.pad_v1se_model_path, settings.onnx_intra_op_threads);
+            let v2 =
+                PadSession::from_file(&settings.pad_v2_model_path, settings.onnx_intra_op_threads);
+            let v1se = PadSession::from_file(
+                &settings.pad_v1se_model_path,
+                settings.onnx_intra_op_threads,
+            );
             match (v2, v1se) {
                 (Ok(v2), Ok(v1se)) => {
-                    state.pad = Some(PadDetector::new(v2, v1se, PAD_V2_CROP_SCALE, PAD_V1SE_CROP_SCALE));
+                    state.pad = Some(PadDetector::new(
+                        v2,
+                        v1se,
+                        PAD_V2_CROP_SCALE,
+                        PAD_V1SE_CROP_SCALE,
+                    ));
                 }
                 (v2_res, v1se_res) => {
                     let mut errors = Vec::new();
@@ -145,9 +156,8 @@ impl Runtime {
         }
     }
 
-    /// Placeholder runtime — used in tests where ONNX loading is undesirable.
-    /// `ready()` returns false and `/verify` short-circuits with
-    /// "runtime_not_ready". Production uses [`Runtime::load`].
+    /// Placeholder runtime for tests where ONNX loading is undesirable.
+    /// Production uses [`Runtime::load`].
     pub fn placeholder(settings: Settings) -> Self {
         Self {
             settings: Arc::new(settings),
@@ -160,7 +170,7 @@ impl Runtime {
                 detector_load_error: None,
                 pad_load_error: None,
                 mesh_load_error: None,
-                init_error: Some("not_yet_implemented".into()),
+                init_error: Some("placeholder_runtime_unavailable".into()),
             }),
         }
     }
@@ -169,6 +179,15 @@ impl Runtime {
         self.state.init_error.is_none()
             && self.state.detector_loaded()
             && self.state.recognizer_loaded()
+    }
+
+    pub fn unavailable_reason(&self) -> String {
+        self.state
+            .init_error
+            .clone()
+            .or_else(|| self.state.detector_load_error.clone())
+            .or_else(|| self.state.recognizer_load_error.clone())
+            .unwrap_or_else(|| "Biometric verifier runtime is unavailable.".into())
     }
 
     pub fn health_payload(&self) -> HealthResponse {
@@ -191,13 +210,7 @@ impl Runtime {
             } else {
                 Some(HealthError {
                     code: "BIOMETRIC_VERIFIER_UNAVAILABLE",
-                    message: self
-                        .state
-                        .init_error
-                        .clone()
-                        .or_else(|| self.state.detector_load_error.clone())
-                        .or_else(|| self.state.recognizer_load_error.clone())
-                        .unwrap_or_else(|| "Biometric verifier runtime is unavailable.".into()),
+                    message: self.unavailable_reason(),
                 })
             },
         }

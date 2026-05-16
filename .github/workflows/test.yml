@@ -165,12 +165,12 @@ jobs:
                 return 0
               fi
 
-              # Cold runner build: apt install (~35s) + uv sync + download 5
-              # ONNX models + 5 smoke-test runs + Python startup + model load.
-              # Easily 2-3 minutes uncached; 5 minutes gives headroom.
+              # Cold runner build: Rust release compile + ONNX model download
+              # + container startup/model load. First-time ort binary fetch and
+              # thin-LTO can be slow on Actions runners.
               local elapsed=$(($(date +%s) - start_time))
-              if [[ "${elapsed}" -ge 300 ]]; then
-                echo "Biometric verifier did not become healthy within 300 seconds."
+              if [[ "${elapsed}" -ge 600 ]]; then
+                echo "Biometric verifier did not become healthy within 600 seconds."
                 return 1
               fi
 

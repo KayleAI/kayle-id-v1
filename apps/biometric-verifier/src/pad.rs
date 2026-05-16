@@ -40,9 +40,13 @@ impl PadSession {
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .context("optimization level")?;
         if let Some(n) = intra_threads {
-            builder = builder.with_intra_threads(n as usize).context("intra threads")?;
+            builder = builder
+                .with_intra_threads(n as usize)
+                .context("intra threads")?;
         }
-        let session = builder.commit_from_file(path).context("session from file")?;
+        let session = builder
+            .commit_from_file(path)
+            .context("session from file")?;
         let input_name = session
             .inputs
             .first()
@@ -64,11 +68,7 @@ impl PadSession {
             let outputs = session
                 .run(ort::inputs![self.input_name.as_str() => input_value])
                 .context("PAD inference")?;
-            let value = outputs
-                .iter()
-                .next()
-                .context("PAD produced no outputs")?
-                .1;
+            let value = outputs.iter().next().context("PAD produced no outputs")?.1;
             let (_, data) = value
                 .try_extract_tensor::<f32>()
                 .context("extract PAD tensor")?;
@@ -116,7 +116,11 @@ impl PadDetector {
 /// clipped to the image. Direct port of `crop_face_for_pad` at
 /// `service.py:1226-1286`. Edge clipping shifts the centre inward rather
 /// than truncating, matching upstream `CropImage._get_new_box`.
-pub fn crop_face_for_pad(image: &BgrImage, bbox: (f64, f64, f64, f64), scale: f64) -> Option<Vec<u8>> {
+pub fn crop_face_for_pad(
+    image: &BgrImage,
+    bbox: (f64, f64, f64, f64),
+    scale: f64,
+) -> Option<Vec<u8>> {
     let (src_w, src_h) = (image.width as f64, image.height as f64);
     if image.width <= 1 || image.height <= 1 {
         return None;
@@ -240,7 +244,7 @@ pub fn run_pad_over_timeline(
     pad: &PadDetector,
     frames: &[BgrImage],
     timeline: &[PoseEntry],
-) -> Result<PadVerdict> {
+) -> PadVerdict {
     let mut per_frame = Vec::with_capacity(timeline.len());
     for entry in timeline {
         if !entry.face_detected {
@@ -252,7 +256,19 @@ pub fn run_pad_over_timeline(
             continue;
         };
         let frame = &frames[entry.frame_index as usize];
-        let score = pad.predict(frame, face.bbox())?;
+        let score = match pad.predict(frame, face.bbox()) {
+            Ok(score) => score,
+            Err(error) => {
+                tracing::event!(
+                    target: "biometric_verifier",
+                    tracing::Level::WARN,
+                    name = "pad_frame_failed",
+                    frame_index = entry.frame_index as i64,
+                    error = %error,
+                );
+                None
+            }
+        };
         per_frame.push(score);
     }
 
@@ -269,26 +285,30 @@ pub fn run_pad_over_timeline(
         }
     }
     if scored_count == 0 {
-        return Ok(PadVerdict {
+        return PadVerdict {
             pad_passed: false,
             pad_score: None,
             pad_scored_frames: 0,
             pad_passing_frames: 0,
             pad_frame_scores: per_frame,
             pad_reason: Some("liveness_pad_no_scored_frames"),
-        });
+        };
     }
     let mean_score = score_sum / scored_count as f64;
     let pass_fraction = pass_count as f64 / scored_count as f64;
     let passed = pass_fraction >= PAD_PASS_FRACTION;
-    Ok(PadVerdict {
+    PadVerdict {
         pad_passed: passed,
         pad_score: Some(clamp_score(mean_score)),
         pad_scored_frames: scored_count,
         pad_passing_frames: pass_count,
         pad_frame_scores: per_frame,
-        pad_reason: if passed { None } else { Some("liveness_spoof_suspected") },
-    })
+        pad_reason: if passed {
+            None
+        } else {
+            Some("liveness_spoof_suspected")
+        },
+    }
 }
 
 #[cfg(test)]

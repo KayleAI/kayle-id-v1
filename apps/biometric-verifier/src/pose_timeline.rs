@@ -32,22 +32,13 @@ pub enum PoseLabel {
     Unknown,
 }
 
-impl PoseLabel {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            PoseLabel::Center => "center",
-            PoseLabel::Left => "left",
-            PoseLabel::Right => "right",
-            PoseLabel::Unknown => "unknown",
-        }
-    }
-}
-
 /// Classify yaw into pose buckets, mirroring `classify_pose` at
 /// `service.py:1089-1101`. Subject's perspective: "left" = subject
 /// turned their head to their own left (yaw ≥ tilt_yaw_deg).
 pub fn classify_pose(yaw_deg: Option<f64>, settings: &Settings) -> PoseLabel {
-    let Some(yaw) = yaw_deg else { return PoseLabel::Unknown };
+    let Some(yaw) = yaw_deg else {
+        return PoseLabel::Unknown;
+    };
     if yaw.abs() <= settings.liveness_center_yaw_deg {
         return PoseLabel::Center;
     }
@@ -111,7 +102,11 @@ pub fn build_pose_entry(
     }
 }
 
-fn pose_from_yunet(face: &Detection, frame_width: usize, frame_height: usize) -> Option<(f64, f64, f64)> {
+fn pose_from_yunet(
+    face: &Detection,
+    frame_width: usize,
+    frame_height: usize,
+) -> Option<(f64, f64, f64)> {
     let object: [(f64, f64, f64); 5] = [
         (32.0, -35.0, -30.0),
         (-32.0, -35.0, -30.0),
@@ -144,10 +139,6 @@ fn pose_from_mesh(
 }
 
 /// Build the full timeline from a list of decoded frames.
-/// Sequential rather than parallel for now — `FRAME_PARALLEL_WORKERS`
-/// in the Python implementation primarily helps when mesh+PAD dominate;
-/// we'll add a rayon-based parallel variant in Phase 5/6 if benchmarks
-/// show it's worthwhile.
 pub fn build_pose_timeline(
     frames: &[BgrImage],
     detector: &YunetDetector,
@@ -164,7 +155,10 @@ pub fn build_pose_timeline(
 /// Pass if the clip contains a decisive turn in either direction.
 /// Direct port of `validate_movement_coverage` at `service.py:1172-1202`.
 /// Returns `Some(reason_code)` on failure, `None` on pass.
-pub fn validate_movement_coverage(timeline: &[PoseEntry], settings: &Settings) -> Option<&'static str> {
+pub fn validate_movement_coverage(
+    timeline: &[PoseEntry],
+    settings: &Settings,
+) -> Option<&'static str> {
     let mut left_run = 0_u32;
     let mut right_run = 0_u32;
     let mut saw_left = false;

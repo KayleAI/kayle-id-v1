@@ -51,9 +51,6 @@ pub struct Settings {
     pub debug_metrics_enabled: bool,
 
     pub onnx_intra_op_threads: Option<i32>,
-    pub onnx_inter_op_threads: Option<i32>,
-    pub frame_parallel_workers: u32,
-    pub prewarm_enabled: bool,
 
     pub liveness_frame_count: u32,
     pub liveness_video_max_duration_seconds: f64,
@@ -84,12 +81,9 @@ impl Settings {
             debug_metrics_enabled: env::var("BIOMETRIC_VERIFIER_DEBUG_METRICS").unwrap_or_default()
                 == "1",
 
-            onnx_intra_op_threads: read_positive_i32_env("BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS"),
-            onnx_inter_op_threads: read_positive_i32_env("BIOMETRIC_VERIFIER_ONNX_INTER_OP_THREADS"),
-            frame_parallel_workers: read_positive_i32_env("BIOMETRIC_VERIFIER_FRAME_PARALLEL_WORKERS")
-                .map(|v| v as u32)
-                .unwrap_or(1),
-            prewarm_enabled: env::var("BIOMETRIC_VERIFIER_PREWARM").unwrap_or_default() == "1",
+            onnx_intra_op_threads: read_positive_i32_env(
+                "BIOMETRIC_VERIFIER_ONNX_INTRA_OP_THREADS",
+            ),
 
             liveness_frame_count: read_i32_env("BIOMETRIC_VERIFIER_FRAME_COUNT")
                 .map(|v| v.max(0) as u32)
@@ -98,7 +92,8 @@ impl Settings {
                 let v = read_f64_env("BIOMETRIC_VERIFIER_MAX_DURATION_SECONDS").unwrap_or(15.0);
                 v.max(1.0).min(60.0)
             },
-            liveness_center_yaw_deg: read_f64_env("BIOMETRIC_VERIFIER_CENTER_YAW_DEG").unwrap_or(15.0),
+            liveness_center_yaw_deg: read_f64_env("BIOMETRIC_VERIFIER_CENTER_YAW_DEG")
+                .unwrap_or(15.0),
             liveness_tilt_yaw_deg: read_f64_env("BIOMETRIC_VERIFIER_TILT_YAW_DEG").unwrap_or(17.0),
             liveness_min_pose_frames: {
                 let v = read_i32_env("BIOMETRIC_VERIFIER_MIN_POSE_FRAMES").unwrap_or(1);

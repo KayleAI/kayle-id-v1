@@ -1,4 +1,4 @@
-import InfoCard from "@kayle-id/ui/info-card";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";

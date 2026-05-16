@@ -31,7 +31,7 @@ export const env = createEnv({
 });
 
 function isDevelopment(): boolean {
-	return (process.env.NODE_ENV as string) === "development";
+	return import.meta.env.DEV;
 }
 
 function getApiHost(): string {

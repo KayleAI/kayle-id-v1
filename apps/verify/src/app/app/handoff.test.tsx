@@ -191,7 +191,7 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 });
 
 vi.mock("@kayle-id/ui/info-card", () => ({
-	default: ({
+	InfoCard: ({
 		buttons,
 		children,
 		header,

@@ -872,7 +872,7 @@ export const auth = betterAuth({
     },
   },
   emailAndPassword: {
-    enabled: (process.env.NODE_ENV as string) === "test",
+    enabled: String(process.env.NODE_ENV) === "test",
     autoSignIn: true,
   },
   trustedOrigins,

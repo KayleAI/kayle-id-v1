@@ -15,12 +15,20 @@ interface FooterColumnProps {
 	title: string;
 }
 
+const API_REFERENCE_URL = "https://docs.kayle.id/api-reference";
+const DOCUMENTATION_URL = "https://docs.kayle.id/";
+const PRIVACY_URL = "/privacy" satisfies keyof FileRoutesByTo;
+const TERMS_URL = "/terms" satisfies keyof FileRoutesByTo;
+
 const columns: FooterColumnProps[] = [
 	{
 		title: "Product",
 		links: [
-			{ label: "API Reference", to: "/api-reference" },
-			{ label: "Documentation", to: "/docs" },
+			{
+				label: "API Reference",
+				to: API_REFERENCE_URL,
+			},
+			{ label: "Documentation", to: DOCUMENTATION_URL },
 		],
 	},
 	{
@@ -33,8 +41,8 @@ const columns: FooterColumnProps[] = [
 	{
 		title: "Legal",
 		links: [
-			{ label: "Privacy", to: "/privacy" },
-			{ label: "Terms", to: "/terms" },
+			{ label: "Privacy", to: PRIVACY_URL },
+			{ label: "Terms", to: TERMS_URL },
 		],
 	},
 ];

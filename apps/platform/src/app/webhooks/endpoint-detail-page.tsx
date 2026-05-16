@@ -1,5 +1,5 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
-import InfoCard from "@kayle-id/ui/info-card";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kayleai/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

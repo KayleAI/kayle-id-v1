@@ -1,4 +1,4 @@
-import InfoCard from "@kayle-id/ui/info-card";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import { useErrorMessages, useVerifyHandoffCopy } from "@/i18n/provider";
 import { useSession } from "./session-provider";
 

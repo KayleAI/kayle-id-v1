@@ -1,7 +1,9 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import { Button } from "@kayleai/ui/button";
 import { Card, CardContent } from "@kayleai/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
+import { Clock3Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
 import {
@@ -13,6 +15,8 @@ import {
 } from "@/lib/api/cost-analytics";
 
 type RangePreset = "7d" | "30d" | "90d";
+
+const DAY_MS = 86_400_000;
 
 const RANGE_DAYS: Record<RangePreset, number> = {
 	"7d": 7,
@@ -27,10 +31,23 @@ const GROUP_BY_LABEL: Record<CostAnalyticsGroupBy, string> = {
 	resource: "Resource",
 };
 
+const TRACKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
+
 function rangeWindow(preset: RangePreset): { from: string; to: string } {
 	const to = new Date();
-	const from = new Date(to.getTime() - RANGE_DAYS[preset] * 86_400_000);
+	const from = new Date(to.getTime() - RANGE_DAYS[preset] * DAY_MS);
 	return { from: from.toISOString(), to: to.toISOString() };
+}
+
+function trackingWindow(from: string): { from: string; to: string } {
+	return { from, to: new Date().toISOString() };
+}
+
+function formatTrackingStart(from: string): string {
+	return TRACKING_DATE_FORMATTER.format(new Date(from));
 }
 
 function formatUsd(usd: number): string {
@@ -131,14 +148,33 @@ function CostBreakdownCard({
 	);
 }
 
-export function AdminCostAnalyticsPage() {
+interface AdminCostAnalyticsPageProps {
+	onTrackingFromChange: (from: string | undefined) => void;
+	trackingFrom?: string;
+}
+
+export function AdminCostAnalyticsPage({
+	onTrackingFromChange,
+	trackingFrom,
+}: AdminCostAnalyticsPageProps) {
 	const { isPlatformAdmin, status } = useAuth();
 	const [preset, setPreset] = useState<RangePreset>("30d");
 
-	const window = useMemo(() => rangeWindow(preset), [preset]);
+	const window = useMemo(
+		() => (trackingFrom ? trackingWindow(trackingFrom) : rangeWindow(preset)),
+		[preset, trackingFrom],
+	);
+	const windowLabel = trackingFrom
+		? `since ${formatTrackingStart(trackingFrom)}`
+		: `last ${RANGE_DAYS[preset]} days`;
 
 	const byFeature = useQuery({
-		queryKey: [...COST_ANALYTICS_QUERY_KEY, "feature", preset] as const,
+		queryKey: [
+			...COST_ANALYTICS_QUERY_KEY,
+			"feature",
+			window.from,
+			window.to,
+		] as const,
 		queryFn: () =>
 			fetchCostAnalytics({
 				groupBy: "feature",
@@ -149,7 +185,12 @@ export function AdminCostAnalyticsPage() {
 	});
 
 	const byResource = useQuery({
-		queryKey: [...COST_ANALYTICS_QUERY_KEY, "resource", preset] as const,
+		queryKey: [
+			...COST_ANALYTICS_QUERY_KEY,
+			"resource",
+			window.from,
+			window.to,
+		] as const,
 		queryFn: () =>
 			fetchCostAnalytics({
 				groupBy: "resource",
@@ -160,14 +201,24 @@ export function AdminCostAnalyticsPage() {
 	});
 
 	const byDay = useQuery({
-		queryKey: [...COST_ANALYTICS_QUERY_KEY, "day", preset] as const,
+		queryKey: [
+			...COST_ANALYTICS_QUERY_KEY,
+			"day",
+			window.from,
+			window.to,
+		] as const,
 		queryFn: () =>
 			fetchCostAnalytics({ groupBy: "day", from: window.from, to: window.to }),
 		enabled: isPlatformAdmin,
 	});
 
 	const byOrg = useQuery({
-		queryKey: [...COST_ANALYTICS_QUERY_KEY, "org", preset] as const,
+		queryKey: [
+			...COST_ANALYTICS_QUERY_KEY,
+			"org",
+			window.from,
+			window.to,
+		] as const,
 		queryFn: () =>
 			fetchCostAnalytics({ groupBy: "org", from: window.from, to: window.to }),
 		enabled: isPlatformAdmin,
@@ -190,27 +241,43 @@ export function AdminCostAnalyticsPage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<div className="text-muted-foreground text-xs uppercase tracking-wide">
-						Estimated spend · last {RANGE_DAYS[preset]} days
+						Estimated spend · {windowLabel}
 					</div>
 					<div className="font-semibold text-3xl tabular-nums">
 						{formatUsd(totalUsd)}
 					</div>
 				</div>
-				<div className="flex gap-1 rounded-md border border-zinc-800 p-1">
-					{(Object.keys(RANGE_DAYS) as RangePreset[]).map((p) => (
-						<button
-							className={`rounded px-3 py-1 text-sm transition-colors ${
-								p === preset
-									? "bg-zinc-800 text-zinc-100"
-									: "text-zinc-400 hover:text-zinc-100"
-							}`}
-							key={p}
-							onClick={() => setPreset(p)}
-							type="button"
-						>
-							{p}
-						</button>
-					))}
+				<div className="flex flex-wrap items-center justify-end gap-2">
+					<Button
+						aria-pressed={Boolean(trackingFrom)}
+						onClick={() => onTrackingFromChange(new Date().toISOString())}
+						size="sm"
+						type="button"
+						variant={trackingFrom ? "secondary" : "outline"}
+					>
+						<Clock3Icon className="mr-2 size-4" />
+						Track from now
+					</Button>
+					<div className="flex gap-1 rounded-md border border-zinc-800 p-1">
+						{(Object.keys(RANGE_DAYS) as RangePreset[]).map((p) => (
+							<button
+								aria-pressed={p === preset && !trackingFrom}
+								className={`rounded px-3 py-1 text-sm transition-colors ${
+									p === preset && !trackingFrom
+										? "bg-zinc-800 text-zinc-100"
+										: "text-zinc-400 hover:text-zinc-100"
+								}`}
+								key={p}
+								onClick={() => {
+									setPreset(p);
+									onTrackingFromChange(undefined);
+								}}
+								type="button"
+							>
+								{p}
+							</button>
+						))}
+					</div>
 				</div>
 			</div>
 

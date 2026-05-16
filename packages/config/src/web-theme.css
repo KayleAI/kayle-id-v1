@@ -1,9 +1,8 @@
 /* Re-scope the `dark:` variant so it does NOT fire inside a `.light`
- * subtree. Layouts that opt out of dark mode (marketing, legal) wrap
- * their content in `<div class="light">`; combined with the `.light`
- * variable reset below, anything within renders as if `<html>` had no
- * `.dark` at all — even when the rest of the document is dark. The
- * original variant in `@kayleai/ui/config.css` is `&:is(.dark *)`; this
+ * subtree. Layouts that intentionally opt out of dark mode can wrap their
+ * content in `<div class="light">`; combined with the `.light` variable
+ * reset below, anything within renders as if `<html>` had no `.dark` at all.
+ * The original variant in `@kayleai/ui/config.css` is `&:is(.dark *)`; this
  * one is identical except for the `:not(.light *)` exclusion. */
 @custom-variant dark (&:is(.dark *):not(.light *));
 

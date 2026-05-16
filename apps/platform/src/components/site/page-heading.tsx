@@ -24,11 +24,11 @@ export function PageHeading({
 }: PageHeadingProps) {
 	return (
 		<div className="mb-12 sm:mb-16">
-			<h1 className="mx-auto max-w-[24ch] text-balance text-center font-light text-5xl text-neutral-950 tracking-tighter sm:text-6xl lg:text-7xl">
+			<h1 className="mx-auto max-w-[24ch] text-balance text-center font-light text-5xl text-foreground tracking-tighter sm:text-6xl lg:text-7xl">
 				{title}
 			</h1>
 			{description && (
-				<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center font-medium text-lg text-neutral-600 sm:mt-8 sm:text-xl lg:text-2xl">
+				<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center font-medium text-lg text-muted-foreground sm:mt-8 sm:text-xl lg:text-2xl">
 					{description.split("\n").map((line) => (
 						<Fragment key={line}>
 							{line}
@@ -50,7 +50,7 @@ export function PageHeading({
 				</div>
 			)}
 			{quote && (
-				<blockquote className="mx-auto mt-10 max-w-2xl text-balance text-center font-light text-neutral-500 text-xl italic sm:mt-12 sm:text-2xl">
+				<blockquote className="mx-auto mt-10 max-w-2xl text-balance text-center font-light text-muted-foreground text-xl italic sm:mt-12 sm:text-2xl">
 					“{quote}”
 				</blockquote>
 			)}

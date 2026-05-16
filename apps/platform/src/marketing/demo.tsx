@@ -130,21 +130,21 @@ function getModeButtonClass({
 	option: DemoFieldMode;
 }): string {
 	if (!active) {
-		return "text-neutral-600 hover:text-neutral-950";
+		return "text-muted-foreground hover:text-foreground";
 	}
 
 	if (option === "optional" || option === "required") {
-		return "bg-neutral-900 text-white";
+		return "bg-foreground text-background";
 	}
 
-	return "bg-white text-neutral-950";
+	return "bg-background text-foreground";
 }
 
 function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
 	return (
 		<div
 			className={cn(
-				"rounded-[1rem] border border-red-200/70 bg-red-50/40 px-4 py-3",
+				"rounded-[1rem] border border-red-200/70 bg-red-50/40 px-4 py-3 dark:border-red-900/70 dark:bg-red-950/30",
 				className,
 			)}
 			role="alert"
@@ -153,12 +153,16 @@ function DemoNotice({ action, children, className, title }: DemoNoticeProps) {
 				<div className="mt-1.5 size-2 shrink-0 rounded-full bg-red-500/90" />
 				<div className="min-w-0 flex-1">
 					{title ? (
-						<p className="font-medium text-red-950 text-sm">{title}</p>
+						<p className="font-medium text-red-950 text-sm dark:text-red-200">
+							{title}
+						</p>
 					) : null}
 					<div
 						className={cn(
 							"text-sm leading-relaxed",
-							title ? "mt-1 text-red-800/90" : "text-red-900/90",
+							title
+								? "mt-1 text-red-800/90 dark:text-red-200/90"
+								: "text-red-900/90 dark:text-red-200/90",
 						)}
 					>
 						{children}
@@ -203,16 +207,16 @@ function DemoStepPanel({
 	return (
 		<section
 			className={cn(
-				"scroll-mt-24 rounded-2xl border border-neutral-100 bg-neutral-50/60 p-6 sm:p-8",
+				"scroll-mt-24 rounded-2xl border border-border/70 bg-card/70 p-6 sm:p-8",
 				isLocked && "pointer-events-none opacity-50",
 				className,
 			)}
 			id={getDemoStepSectionId(stepId)}
 		>
-			<h2 className="font-light text-2xl text-neutral-950 tracking-tight">
+			<h2 className="font-light text-2xl text-foreground tracking-tight">
 				{title}
 			</h2>
-			<p className="mb-4 mt-1.5 max-w-2xl text-neutral-600 text-pretty leading-relaxed">
+			<p className="mb-4 mt-1.5 max-w-2xl text-muted-foreground text-pretty leading-relaxed">
 				{description}
 			</p>
 			{children}
@@ -234,22 +238,23 @@ function AgeGateSelector({
 	const isOff = thresholdText.trim() === "";
 	const isInputActive = isInputFocused || !isOff;
 	const hasError = Boolean(errorMessage);
-	let ageThresholdStateClassName = "text-neutral-600 hover:text-neutral-950";
+	let ageThresholdStateClassName =
+		"text-muted-foreground hover:text-foreground";
 
 	if (isInputActive) {
 		ageThresholdStateClassName = hasError
-			? "bg-white ring-1 ring-red-200"
-			: "bg-white";
+			? "bg-background ring-1 ring-red-200 dark:ring-red-900/70"
+			: "bg-background";
 	}
 
 	return (
-		<div className="border-neutral-200/80 border-b py-4 sm:py-5">
+		<div className="border-border/70 border-b py-4 sm:py-5">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div className="min-w-0 pr-0 sm:pr-6">
-					<div className="font-medium text-base text-neutral-950">
+					<div className="font-medium text-base text-foreground">
 						Minimum age
 					</div>
-					<p className="max-w-xl text-neutral-500 text-sm leading-relaxed">
+					<p className="max-w-xl text-muted-foreground text-sm leading-relaxed">
 						Entering `18` asks for an over-18 proof rather than the full date of
 						birth.
 					</p>
@@ -259,8 +264,8 @@ function AgeGateSelector({
 						className={cn(
 							"grid min-h-12 w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-[1.25rem] border p-1 sm:inline-flex sm:w-auto",
 							hasError
-								? "border-red-200/80 bg-red-50/70"
-								: "border-neutral-200 bg-neutral-100/90",
+								? "border-red-200/80 bg-red-50/70 dark:border-red-900/70 dark:bg-red-950/30"
+								: "border-border bg-muted/80",
 						)}
 					>
 						<button
@@ -421,10 +426,10 @@ function AttemptSelector({
 	total: number;
 }) {
 	return (
-		<div className="mb-6 flex flex-col gap-4 rounded-[1.25rem] border border-neutral-200/80 bg-neutral-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+		<div className="mb-6 flex flex-col gap-4 rounded-[1.25rem] border border-border/70 bg-muted/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
 			<div className="min-w-0">
-				<p className="font-medium text-neutral-950 text-sm">Attempts</p>
-				<p className="mt-1 text-neutral-600 text-sm leading-relaxed">
+				<p className="font-medium text-foreground text-sm">Attempts</p>
+				<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
 					Showing attempt {selectedIndex + 1} of {total}.
 				</p>
 			</div>
@@ -681,10 +686,10 @@ function ClaimPicker({
 					}}
 					shouldFilter
 				>
-					<div className="flex h-11 items-center gap-2 rounded-[1rem] border border-neutral-200 bg-white px-3 has-[input:focus]:border-neutral-400">
-						<SearchIcon className="size-4 shrink-0 text-neutral-400" />
+					<div className="flex h-11 items-center gap-2 rounded-[1rem] border border-border bg-background px-3 has-[input:focus]:border-ring">
+						<SearchIcon className="size-4 shrink-0 text-muted-foreground" />
 						<CommandPrimitive.Input
-							className="flex-1 bg-transparent text-neutral-950 text-sm outline-none placeholder:text-neutral-400"
+							className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
 							onClick={() => setOpen(true)}
 							onFocus={() => setOpen(true)}
 							onValueChange={setQuery}
@@ -693,8 +698,8 @@ function ClaimPicker({
 						/>
 					</div>
 					{open ? (
-						<div className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg ring-1 ring-neutral-900/5">
-							<CommandList className="max-h-72 **:data-[slot=command-group-items]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent **:[[data-slot=command-item][data-selected=true]]:bg-neutral-100">
+						<div className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-border bg-popover shadow-lg ring-1 ring-border/60">
+							<CommandList className="max-h-72 **:data-[slot=command-group-items]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent **:[[data-slot=command-item][data-selected=true]]:bg-muted">
 								<CommandEmpty>No matching claims.</CommandEmpty>
 								<CommandGroup heading="Constraints">
 									<CommandItem
@@ -716,10 +721,10 @@ function ClaimPicker({
 										}}
 										value="minimum_age"
 									>
-										<span className="font-medium text-neutral-950">
+										<span className="font-medium text-foreground">
 											Minimum age
 										</span>
-										<span className="ml-2 flex-1 truncate text-neutral-500 text-xs">
+										<span className="ml-2 flex-1 truncate text-muted-foreground text-xs">
 											Request an over-N proof rather than the date of birth.
 										</span>
 									</CommandItem>
@@ -747,11 +752,11 @@ function ClaimPicker({
 													}}
 													value={claimKey}
 												>
-													<span className="font-medium text-neutral-950">
+													<span className="font-medium text-foreground">
 														{getClaimLabel(claimKey)}
 													</span>
 													{getClaimDescription(claimKey) ? (
-														<span className="ml-2 flex-1 truncate text-neutral-500 text-xs">
+														<span className="ml-2 flex-1 truncate text-muted-foreground text-xs">
 															{getClaimDescription(claimKey)}
 														</span>
 													) : null}
@@ -767,22 +772,22 @@ function ClaimPicker({
 			</div>
 
 			{selectedClaims.length === 0 && !isAgeSelected ? (
-				<p className="rounded-[1rem] border border-neutral-200/80 border-dashed bg-white/50 px-4 py-4.5 text-center text-neutral-500 text-sm">
+				<p className="rounded-[1rem] border border-border/70 border-dashed bg-background/50 px-4 py-4.5 text-center text-muted-foreground text-sm">
 					Nothing selected — search above to add a claim or constraint.
 				</p>
 			) : (
-				<ul className="divide-y divide-neutral-200/80 overflow-hidden rounded-[1rem] border border-neutral-200/80 bg-white">
+				<ul className="divide-y divide-border/70 overflow-hidden rounded-[1rem] border border-border/70 bg-background">
 					{isAgeSelected ? (
 						<li className="flex items-center gap-3 px-3 py-2.5">
 							<div className="min-w-0 flex-1">
-								<div className="font-medium text-neutral-950 text-sm">
+								<div className="font-medium text-foreground text-sm">
 									Minimum age
 								</div>
-								<div className="hidden truncate text-neutral-500 text-xs sm:block">
+								<div className="hidden truncate text-muted-foreground text-xs sm:block">
 									Returns an over-N proof rather than the date of birth.
 								</div>
 								{ageErrorMessage ? (
-									<div className="mt-1 text-red-700 text-xs">
+									<div className="mt-1 text-red-700 text-xs dark:text-red-300">
 										{ageErrorMessage}
 									</div>
 								) : null}
@@ -795,8 +800,8 @@ function ClaimPicker({
 								className={cn(
 									"h-9 w-20 rounded-[0.75rem] text-center text-sm shadow-none",
 									ageErrorMessage
-										? "border-red-200 ring-1 ring-red-200"
-										: "border-neutral-200",
+										? "border-red-200 ring-1 ring-red-200 dark:border-red-900/70 dark:ring-red-900/70"
+										: "border-border",
 								)}
 								id="claim-age-threshold"
 								inputMode="numeric"
@@ -809,7 +814,7 @@ function ClaimPicker({
 							/>
 							<button
 								aria-label="Remove minimum age"
-								className="shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+								className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
 								onClick={() => onAgeThresholdChange("")}
 								type="button"
 							>
@@ -826,11 +831,11 @@ function ClaimPicker({
 								key={claimKey}
 							>
 								<div className="min-w-0 flex-1">
-									<div className="font-medium text-neutral-950 text-sm">
+									<div className="font-medium text-foreground text-sm">
 										{getClaimLabel(claimKey)}
 									</div>
 									{getClaimDescription(claimKey) ? (
-										<div className="hidden truncate text-neutral-500 text-xs sm:block">
+										<div className="hidden truncate text-muted-foreground text-xs sm:block">
 											{getClaimDescription(claimKey)}
 										</div>
 									) : null}
@@ -840,7 +845,7 @@ function ClaimPicker({
 								option is just shown disabled. */}
 								<select
 									aria-label={`${getClaimLabel(claimKey)} mode`}
-									className="shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 px-3 py-1 font-medium text-neutral-700 text-xs sm:hidden"
+									className="shrink-0 rounded-full border border-border bg-muted/80 px-3 py-1 font-medium text-foreground text-xs sm:hidden"
 									onChange={(event) => {
 										onClaimModeChange(
 											claimKey,
@@ -857,7 +862,7 @@ function ClaimPicker({
 									</option>
 									<option value="required">{getModeLabel("required")}</option>
 								</select>
-								<div className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-100/90 p-0.5 sm:inline-flex">
+								<div className="hidden shrink-0 rounded-full border border-border bg-muted/80 p-0.5 sm:inline-flex">
 									{(["optional", "required"] as const).map((option) => {
 										const active = mode === option;
 										const isDisabled =
@@ -870,10 +875,10 @@ function ClaimPicker({
 												className={cn(
 													"rounded-full px-3 py-1 font-medium text-xs transition-colors",
 													active
-														? "bg-neutral-900 text-white"
-														: "text-neutral-600 hover:text-neutral-950",
+														? "bg-foreground text-background"
+														: "text-muted-foreground hover:text-foreground",
 													isDisabled &&
-														"cursor-not-allowed text-neutral-300 hover:text-neutral-300",
+														"cursor-not-allowed text-muted-foreground/40 hover:text-muted-foreground/40",
 												)}
 												disabled={isDisabled}
 												onClick={() => onClaimModeChange(claimKey, option)}
@@ -900,7 +905,7 @@ function ClaimPicker({
 								</div>
 								<button
 									aria-label={`Remove ${getClaimLabel(claimKey)}`}
-									className="shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+									className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
 									onClick={() => onClaimModeChange(claimKey, "off")}
 									type="button"
 								>
@@ -1320,10 +1325,10 @@ export function Demo({ mode = "id" }: { mode?: DemoMode } = {}) {
 		<TooltipProvider>
 			<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
 				<section className="mb-16 sm:mb-20">
-					<h1 className="mx-auto max-w-[22ch] text-balance text-center font-light text-5xl text-neutral-950 tracking-tighter sm:text-6xl">
+					<h1 className="mx-auto max-w-[22ch] text-balance text-center font-light text-5xl text-foreground tracking-tighter sm:text-6xl">
 						{copy.title}
 					</h1>
-					<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-neutral-600 sm:mt-8 sm:text-xl">
+					<p className="mx-auto mt-6 max-w-[56ch] text-balance text-center text-lg text-muted-foreground sm:mt-8 sm:text-xl">
 						{copy.description}
 					</p>
 				</section>

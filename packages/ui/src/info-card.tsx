@@ -25,15 +25,6 @@ interface InfoCardProps {
   };
   children?: ReactNode;
   colour: "red" | "blue" | "emerald";
-  /**
-   * Drops the min-height + flex-fill layout and renders the card at its
-   * natural content height. Defaults to `true` when no children are passed —
-   * a buttons-only card has nothing to grow into and should sit centered
-   * inside its parent rather than stretch to the viewport. Pass `false`
-   * explicitly when children should flex-fill the card body (e.g. a result
-   * panel that anchors buttons to the bottom of the viewport).
-   */
-  compact?: boolean;
   footer?: boolean;
   header: {
     title: string;
@@ -101,21 +92,13 @@ export function InfoCard({
     },
   },
   footer = true,
-  compact,
   children,
 }: InfoCardProps) {
   const hasButtons = Boolean(buttons?.primary || buttons?.secondary);
-  const isCompact = compact ?? !children;
 
   return (
-    <div className="relative flex w-full flex-1 flex-col items-center justify-center">
-      <div
-        className={cn(
-          "w-full max-w-md space-y-8",
-          !isCompact &&
-            "flex min-h-[calc(100dvh_-_6rem)] flex-col [@media(min-height:800px)]:min-h-[44rem]"
-        )}
-      >
+    <div className="relative flex w-full flex-col items-center justify-center">
+      <div className={cn("w-full max-w-md space-y-8")}>
         {/* Header */}
         <div>
           <div className="mb-8">
@@ -156,12 +139,9 @@ export function InfoCard({
           </div>
         </div>
 
-        {/* Children: in non-compact mode, wrap in a flex-1 fill so buttons stay at the bottom */}
-        {isCompact ? (
-          children
-        ) : (
+        {children ? (
           <div className="flex flex-1 flex-col justify-center">{children}</div>
-        )}
+        ) : null}
 
         {/* Action Buttons */}
         {hasButtons ? (

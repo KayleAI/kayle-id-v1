@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import OSLog
 import SwiftUI
 
 nonisolated func describeUnexpectedServerMessage(
@@ -40,6 +41,11 @@ nonisolated func describeUnexpectedServerMessage(
 /// Observable session state for the verification flow.
 @MainActor
 final class VerificationSession: ObservableObject {
+  private let performanceLogger = Logger(
+    subsystem: "id.kayle.ios",
+    category: "VerificationPerformance"
+  )
+
   @Published var step: VerificationStep = .welcome
   @Published var payload: QRCodePayload?
   @Published var errorMessage: String?
@@ -90,8 +96,9 @@ final class VerificationSession: ObservableObject {
   private var livenessUploadWaiters: [CheckedContinuation<Void, Error>] = []
   private var pendingPhaseUpdateTask: Task<Void, Never>?
   private var reconnectTask: Task<Void, Never>?
-  private let nfcChunkSize = 64 * 1024
-  private let livenessChunkSize = 128 * 1024
+  private let nfcChunkSize = 224 * 1024
+  private let livenessChunkSize = 224 * 1024
+  private let uploadWindowSize = 3
   private let maxReconnectAttempts = 5
   // 1s base, exponential up to ~16s — total budget ~30s before giving up.
   private let reconnectBaseDelayNs: UInt64 = 1_000_000_000
@@ -101,7 +108,8 @@ final class VerificationSession: ObservableObject {
     let chunks: [Data]
   }
 
-  private struct LivenessUploadPlan {
+  private struct LivenessUploadPlan: Sendable {
+    let videoBytes: Data
     let chunks: [Data]
   }
 
@@ -142,6 +150,12 @@ final class VerificationSession: ObservableObject {
   
   /// Upload NFC data immediately after NFC read completes.
   func uploadNFCData() async throws -> Bool {
+    let uploadStartedAt = Date()
+    defer {
+      let durationMs = Int(Date().timeIntervalSince(uploadStartedAt) * 1000)
+      performanceLogger.info("nfc_upload_duration_ms=\(durationMs)")
+    }
+
     guard let nfcResult else {
       throw VerificationError.notInitialized
     }
@@ -197,6 +211,12 @@ final class VerificationSession: ObservableObject {
   /// Returns the recorded verdict (accepted or rejected) once the server has
   /// run the liveness + face match validation.
   func sendLivenessVideo(_ videoURL: URL) async throws -> Bool {
+    let uploadStartedAt = Date()
+    defer {
+      let durationMs = Int(Date().timeIntervalSince(uploadStartedAt) * 1000)
+      performanceLogger.info("liveness_upload_duration_ms=\(durationMs)")
+    }
+
     try await waitForLivenessUploadTurn()
     defer {
       releaseLivenessUploadSlot()
@@ -212,21 +232,14 @@ final class VerificationSession: ObservableObject {
       throw LivenessError.uploadFailed
     }
 
-    let videoBytes: Data
-    do {
-      videoBytes = try Data(contentsOf: videoURL, options: .mappedIfSafe)
-    } catch {
-      throw LivenessError.videoReadFailed
-    }
+    let plan = try await Self.buildLivenessUploadPlan(
+      videoURL: videoURL,
+      chunkSize: livenessChunkSize
+    )
 
-    guard !videoBytes.isEmpty else {
-      throw LivenessError.videoEmpty
-    }
-
-    livenessVideoBytes = videoBytes
+    livenessVideoBytes = plan.videoBytes
     livenessUploadStarted = true
 
-    let plan = buildLivenessUploadPlan(from: videoBytes)
     try await uploadLivenessPlan(plan, via: webSocketService)
     try await completeLivenessPhase(plan: plan, via: webSocketService)
     livenessUploadComplete = true
@@ -862,10 +875,27 @@ final class VerificationSession: ObservableObject {
     }
   }
 
-  private func buildLivenessUploadPlan(from videoBytes: Data) -> LivenessUploadPlan {
-    LivenessUploadPlan(
-      chunks: chunkData(videoBytes, chunkSize: livenessChunkSize)
-    )
+  nonisolated private static func buildLivenessUploadPlan(
+    videoURL: URL,
+    chunkSize: Int
+  ) async throws -> LivenessUploadPlan {
+    try await Task.detached(priority: .userInitiated) {
+      let videoBytes: Data
+      do {
+        videoBytes = try Data(contentsOf: videoURL, options: .mappedIfSafe)
+      } catch {
+        throw LivenessError.videoReadFailed
+      }
+
+      guard !videoBytes.isEmpty else {
+        throw LivenessError.videoEmpty
+      }
+
+      return LivenessUploadPlan(
+        videoBytes: videoBytes,
+        chunks: Self.chunkData(videoBytes, chunkSize: chunkSize)
+      )
+    }.value
   }
 
   private func uploadLivenessPlan(
@@ -879,44 +909,89 @@ final class VerificationSession: ObservableObject {
 
     let clampedStartChunkIndex = max(0, min(startChunkIndex, plan.chunks.count - 1))
     var nextChunkIndex = clampedStartChunkIndex
+    var activeWindowSize = uploadWindowSize
     let chunkTotal = plan.chunks.count
 
-    while nextChunkIndex < chunkTotal {
+    uploadLoop: while nextChunkIndex < chunkTotal {
       if livenessUploadCancelled {
         throw LivenessError.uploadFailed
       }
 
       do {
-        let response = try await webSocketService.sendDataAwaitResponse(
-          kind: .livenessVideo,
-          raw: plan.chunks[nextChunkIndex],
-          index: 0,
-          total: 1,
-          chunkIndex: nextChunkIndex,
-          chunkTotal: chunkTotal
-        )
-
-        guard
-          isExpectedDataAck(
-            ackMessage: response.ackMessage,
-            kind: VerifyDataKind.livenessVideo.rawValue,
+        let windowEndIndex = min(nextChunkIndex + activeWindowSize, chunkTotal)
+        let requests = (nextChunkIndex..<windowEndIndex).map { chunkIndex in
+          VerifyDataUploadRequest(
+            kind: .livenessVideo,
+            raw: plan.chunks[chunkIndex],
             index: 0,
-            chunkIndex: nextChunkIndex,
+            total: 1,
+            chunkIndex: chunkIndex,
             chunkTotal: chunkTotal
           )
-        else {
-          throw VerifyWebSocketError.unexpectedServerResponse(
-            describeUnexpectedServerMessage(
-              response,
-              fallback: String(
-                localized:
-                  "Unexpected liveness upload response from the server."
+        }
+        let responses = try await webSocketService.sendDataWindowAwaitResponses(
+          requests
+        )
+
+        var acknowledgedChunkIndices = Set<Int>()
+        for response in responses {
+          if let code = response.errorCode {
+            let message = response.errorMessage ?? code
+            guard
+              let retryInstruction = parseChunkRetryInstruction(
+                errorCode: code,
+                errorMessage: message
+              ),
+              retryInstruction.kind == VerifyDataKind.livenessVideo.rawValue,
+              retryInstruction.index == 0,
+              retryInstruction.chunkIndex >= 0,
+              retryInstruction.chunkIndex < chunkTotal
+            else {
+              throw VerifyWebSocketError.serverError(
+                code: code,
+                message: message
               )
+            }
+
+            nextChunkIndex = retryInstruction.chunkIndex
+            activeWindowSize = 1
+            continue uploadLoop
+          }
+
+          guard
+            let matchingRequest = requests.first(where: { request in
+              isExpectedDataAck(
+                ackMessage: response.ackMessage,
+                kind: VerifyDataKind.livenessVideo.rawValue,
+                index: 0,
+                chunkIndex: request.chunkIndex,
+                chunkTotal: chunkTotal
+              )
+            })
+          else {
+            throw VerifyWebSocketError.unexpectedServerResponse(
+              describeUnexpectedServerMessage(
+                response,
+                fallback: String(
+                  localized:
+                    "Unexpected liveness upload response from the server."
+                )
+              )
+            )
+          }
+
+          acknowledgedChunkIndices.insert(matchingRequest.chunkIndex)
+        }
+
+        guard acknowledgedChunkIndices.count == requests.count else {
+          throw VerifyWebSocketError.unexpectedServerResponse(
+            String(
+              localized: "Unexpected liveness upload response from the server."
             )
           )
         }
 
-        nextChunkIndex += 1
+        nextChunkIndex = windowEndIndex
       } catch let socketError as VerifyWebSocketError {
         guard case .serverError(let code, let message) = socketError else {
           throw socketError
@@ -936,6 +1011,7 @@ final class VerificationSession: ObservableObject {
         }
 
         nextChunkIndex = retryInstruction.chunkIndex
+        activeWindowSize = 1
       }
     }
   }
@@ -1121,35 +1197,35 @@ final class VerificationSession: ObservableObject {
     }
 
     var plans: [NFCUploadPlan] = [
-      NFCUploadPlan(kind: .dg1, chunks: chunkData(dg1.data, chunkSize: nfcChunkSize)),
-      NFCUploadPlan(kind: .dg2, chunks: chunkData(dg2.data, chunkSize: nfcChunkSize)),
-      NFCUploadPlan(kind: .sod, chunks: chunkData(sod.data, chunkSize: nfcChunkSize)),
+      NFCUploadPlan(kind: .dg1, chunks: Self.chunkData(dg1.data, chunkSize: nfcChunkSize)),
+      NFCUploadPlan(kind: .dg2, chunks: Self.chunkData(dg2.data, chunkSize: nfcChunkSize)),
+      NFCUploadPlan(kind: .sod, chunks: Self.chunkData(sod.data, chunkSize: nfcChunkSize)),
     ]
 
     if let dg14 = result.dataGroups.first(where: { $0.id == 0x6E }) {
-      plans.append(NFCUploadPlan(kind: .dg14, chunks: chunkData(dg14.data, chunkSize: nfcChunkSize)))
+      plans.append(NFCUploadPlan(kind: .dg14, chunks: Self.chunkData(dg14.data, chunkSize: nfcChunkSize)))
     }
 
     if let dg15 = result.dataGroups.first(where: { $0.id == 0x6F }) {
-      plans.append(NFCUploadPlan(kind: .dg15, chunks: chunkData(dg15.data, chunkSize: nfcChunkSize)))
+      plans.append(NFCUploadPlan(kind: .dg15, chunks: Self.chunkData(dg15.data, chunkSize: nfcChunkSize)))
 
       if let challenge = result.activeAuthChallenge,
          let signature = result.activeAuthSignature {
         var aaPayload = Data()
         aaPayload.append(challenge)
         aaPayload.append(signature)
-        plans.append(NFCUploadPlan(kind: .activeAuth, chunks: chunkData(aaPayload, chunkSize: nfcChunkSize)))
+        plans.append(NFCUploadPlan(kind: .activeAuth, chunks: Self.chunkData(aaPayload, chunkSize: nfcChunkSize)))
       }
     }
 
     if let chipAuthTranscript = result.chipAuthTranscript {
-      plans.append(NFCUploadPlan(kind: .chipAuth, chunks: chunkData(chipAuthTranscript, chunkSize: nfcChunkSize)))
+      plans.append(NFCUploadPlan(kind: .chipAuth, chunks: Self.chunkData(chipAuthTranscript, chunkSize: nfcChunkSize)))
     }
 
     return plans
   }
 
-  private func chunkData(_ raw: Data, chunkSize: Int) -> [Data] {
+  nonisolated private static func chunkData(_ raw: Data, chunkSize: Int) -> [Data] {
     if raw.count <= chunkSize {
       return [raw]
     }
@@ -1178,43 +1254,89 @@ final class VerificationSession: ObservableObject {
 
     let clampedStartChunkIndex = max(0, min(startChunkIndex, plan.chunks.count - 1))
     var nextChunkIndex = clampedStartChunkIndex
+    var activeWindowSize = uploadWindowSize
     let chunkTotal = plan.chunks.count
 
-    while nextChunkIndex < chunkTotal {
-      let chunk = plan.chunks[nextChunkIndex]
-
+    uploadLoop: while nextChunkIndex < chunkTotal {
       do {
-        let response = try await webSocketService.sendDataAwaitResponse(
-          kind: plan.kind,
-          raw: chunk,
-          index: 0,
-          total: 1,
-          chunkIndex: nextChunkIndex,
-          chunkTotal: chunkTotal
-        )
-
-        guard
-          isExpectedDataAck(
-            ackMessage: response.ackMessage,
-            kind: plan.kind.rawValue,
+        let windowEndIndex = min(nextChunkIndex + activeWindowSize, chunkTotal)
+        let requests = (nextChunkIndex..<windowEndIndex).map { chunkIndex in
+          VerifyDataUploadRequest(
+            kind: plan.kind,
+            raw: plan.chunks[chunkIndex],
             index: 0,
-            chunkIndex: nextChunkIndex,
+            total: 1,
+            chunkIndex: chunkIndex,
             chunkTotal: chunkTotal
           )
-        else {
-          throw VerifyWebSocketError.unexpectedServerResponse(
-            describeUnexpectedServerMessage(
-              response,
-              fallback: String(
-                localized: "Unexpected NFC upload response from the server."
+        }
+        let responses = try await webSocketService.sendDataWindowAwaitResponses(
+          requests
+        )
+
+        var acknowledgedChunkIndices = Set<Int>()
+        for response in responses {
+          if let code = response.errorCode {
+            let message = response.errorMessage ?? code
+            guard
+              let retryInstruction = parseChunkRetryInstruction(
+                errorCode: code,
+                errorMessage: message
+              ),
+              retryInstruction.kind == plan.kind.rawValue,
+              retryInstruction.index == 0,
+              retryInstruction.chunkIndex >= 0,
+              retryInstruction.chunkIndex < chunkTotal
+            else {
+              throw VerifyWebSocketError.serverError(
+                code: code,
+                message: message
+              )
+            }
+
+            nextChunkIndex = retryInstruction.chunkIndex
+            activeWindowSize = 1
+            continue uploadLoop
+          }
+
+          guard
+            let matchingRequest = requests.first(where: { request in
+              isExpectedDataAck(
+                ackMessage: response.ackMessage,
+                kind: plan.kind.rawValue,
+                index: 0,
+                chunkIndex: request.chunkIndex,
+                chunkTotal: chunkTotal
+              )
+            })
+          else {
+            throw VerifyWebSocketError.unexpectedServerResponse(
+              describeUnexpectedServerMessage(
+                response,
+                fallback: String(
+                  localized: "Unexpected NFC upload response from the server."
+                )
               )
             )
+          }
+
+          let chunkKey = "\(plan.kind.rawValue)-0-\(matchingRequest.chunkIndex)"
+          onChunkAcknowledged?(
+            chunkKey,
+            matchingRequest.chunkIndex,
+            chunkTotal,
+            plan.kind
+          )
+          acknowledgedChunkIndices.insert(matchingRequest.chunkIndex)
+        }
+
+        guard acknowledgedChunkIndices.count == requests.count else {
+          throw VerifyWebSocketError.unexpectedServerResponse(
+            String(localized: "Unexpected NFC upload response from the server.")
           )
         }
 
-        let chunkKey = "\(plan.kind.rawValue)-0-\(nextChunkIndex)"
-        onChunkAcknowledged?(chunkKey, nextChunkIndex, chunkTotal, plan.kind)
-        nextChunkIndex += 1
+        nextChunkIndex = windowEndIndex
       } catch let socketError as VerifyWebSocketError {
         guard case .serverError(let code, let message) = socketError else {
           throw socketError
@@ -1234,6 +1356,7 @@ final class VerificationSession: ObservableObject {
         }
 
         nextChunkIndex = retryInstruction.chunkIndex
+        activeWindowSize = 1
       }
     }
   }

@@ -71,7 +71,7 @@ test("biometric verifier worker forwards liveness payload to the container", asy
       fetch: async (input, init) => {
         const request = new Request(input, init);
         capturedPathname = new URL(request.url).pathname;
-        capturedPayload = await request.json();
+        capturedPayload = await request.formData();
 
         return new Response(
           JSON.stringify({
@@ -118,16 +118,13 @@ test("biometric verifier worker forwards liveness payload to the container", asy
       `Expected container path to be /verify, got ${capturedPathname}`
     );
   }
-  expect(capturedPayload).toEqual(
-    expect.objectContaining({
-      dg2Image: expect.objectContaining({
-        bytesBase64: expect.any(String),
-        format: expect.any(String),
-      }),
-      videoBase64: expect.any(String),
-      faceMatchThreshold: 0.7853,
-    })
-  );
+  if (!(capturedPayload instanceof FormData)) {
+    throw new Error("Expected container payload to be multipart FormData");
+  }
+  expect(capturedPayload.get("dg2Format")).toBe("jpeg");
+  expect(capturedPayload.get("faceMatchThreshold")).toBe("0.7853");
+  expect(capturedPayload.get("dg2Image")).toBeInstanceOf(Blob);
+  expect(capturedPayload.get("video")).toBeInstanceOf(Blob);
   const payload = (await response.json()) as Record<string, unknown>;
   expect(payload).toEqual({
     livenessPassed: true,

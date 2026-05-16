@@ -1,9 +1,11 @@
+import { logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
 import { verification_sessions } from "@kayle-id/database/schema/core";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
+import { getRequestLogger } from "@/logging";
 import { sessionIdSchema } from "@/shared/validation";
 import {
 	cancelVerificationSession,
@@ -65,7 +67,16 @@ verify.post(
 	validator("param", sessionParamJsonValidator),
 	async (c) => {
 		const { id } = c.req.valid("param");
+		const startedAt = Date.now();
 		const handoff = await issueHandoffPayload(id, { env: c.env });
+		logEvent(getRequestLogger(c), {
+			details: {
+				duration_ms: Date.now() - startedAt,
+				session_id: id,
+				success: handoff.ok,
+			},
+			event: "verify.handoff.issued_timing",
+		});
 
 		if (!handoff.ok) {
 			const response = createVerifyJsonErrorResponse({

@@ -182,6 +182,72 @@ export async function consumeHelloAttempt({
 		.where(eq(verification_attempts.id, attemptId));
 }
 
+export async function persistFirstHelloState({
+	attemptId,
+	deviceIdHash,
+	appVersion,
+	mobileAttestKeyId,
+	session,
+}: {
+	attemptId: string;
+	deviceIdHash: string;
+	appVersion: string;
+	mobileAttestKeyId: string | null;
+	session: {
+		id: string;
+		status: string;
+	};
+}): Promise<boolean> {
+	const nextStatus = await db.transaction(async (tx) => {
+		let status = session.status;
+
+		if (status !== "in_progress") {
+			const [updated] = await tx
+				.update(verification_sessions)
+				.set({
+					status: "in_progress",
+				})
+				.where(
+					and(
+						eq(verification_sessions.id, session.id),
+						inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+					),
+				)
+				.returning({
+					status: verification_sessions.status,
+				});
+
+			if (!updated) {
+				return null;
+			}
+
+			status = updated.status;
+		}
+
+		const now = new Date();
+		await tx
+			.update(verification_attempts)
+			.set({
+				currentPhase: "mobile_connected",
+				mobileAttestKeyId,
+				mobileHelloAppVersion: appVersion || null,
+				mobileHelloDeviceIdHash: deviceIdHash,
+				mobileWriteTokenConsumedAt: now,
+				phaseUpdatedAt: now,
+			})
+			.where(eq(verification_attempts.id, attemptId));
+
+		return status;
+	});
+
+	if (!nextStatus) {
+		return false;
+	}
+
+	session.status = nextStatus;
+	return true;
+}
+
 export async function markSessionInProgress(session: {
 	id: string;
 	status: string;

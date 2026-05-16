@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-enum VerifyDataKind: Int {
+enum VerifyDataKind: Int, Sendable {
   case dg1 = 0
   case dg2 = 1
   case sod = 2
@@ -14,6 +14,15 @@ enum VerifyDataKind: Int {
   case activeAuth = 6
   case chipAuth = 7
   case livenessVideo = 8
+}
+
+struct VerifyDataUploadRequest: Sendable {
+  let kind: VerifyDataKind
+  let raw: Data
+  let index: Int
+  let total: Int
+  let chunkIndex: Int
+  let chunkTotal: Int
 }
 
 /// Server-issued liveness challenge: replay-defeating nonce + soft
@@ -87,6 +96,8 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private var pendingHelloContinuation: CheckedContinuation<Void, Error>?
   private var helloTimeoutTask: Task<Void, Never>?
   private var pendingServerResponseContinuation: CheckedContinuation<VerifyServerMessage, Error>?
+  private var pendingServerResponseAllowsErrorMessage = false
+  private var queuedServerResponses: [VerifyServerMessage] = []
   private var serverResponseTimeoutTask: Task<Void, Never>?
   private var expectedVerdictClose = false
   private var keepaliveTask: Task<Void, Never>?
@@ -304,6 +315,48 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  func sendDataWindowAwaitResponses(
+    _ requests: [VerifyDataUploadRequest]
+  ) async throws -> [VerifyServerMessage] {
+    guard !requests.isEmpty else {
+      return []
+    }
+
+    var payloads: [Data] = []
+    payloads.reserveCapacity(requests.count)
+
+    for request in requests {
+      guard let payload = codec.encodeData(
+        kind: request.kind,
+        raw: request.raw,
+        index: request.index,
+        total: request.total,
+        chunkIndex: request.chunkIndex,
+        chunkTotal: request.chunkTotal
+      ) else {
+        throw VerifyWebSocketError.sendFailed
+      }
+      payloads.append(payload)
+    }
+
+    for (request, payload) in zip(requests, payloads) {
+#if DEBUG
+      let details = "kind=\(request.kind) size=\(request.raw.count) index=\(request.index) total=\(request.total) chunk=\(request.chunkIndex)/\(request.chunkTotal)"
+      print("WS -> data \(details)")
+#endif
+      try await send(data: payload)
+    }
+
+    var responses: [VerifyServerMessage] = []
+    responses.reserveCapacity(requests.count)
+    for _ in requests {
+      responses.append(
+        try await waitForServerResponse(allowServerErrorMessage: true)
+      )
+    }
+    return responses
+  }
+
   func sendShareSelectionAwaitResponse(
     sessionId: String,
     selectedFieldKeys: [String]
@@ -491,11 +544,24 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func waitForServerResponse() async throws -> VerifyServerMessage {
+  private func waitForServerResponse(
+    allowServerErrorMessage: Bool = false
+  ) async throws -> VerifyServerMessage {
     try await withCheckedThrowingContinuation {
       (continuation: CheckedContinuation<VerifyServerMessage, Error>) in
+      var immediateResult: Result<VerifyServerMessage, VerifyWebSocketError>?
       stateQueue.sync {
+        if !queuedServerResponses.isEmpty {
+          let message = queuedServerResponses.removeFirst()
+          immediateResult = serverResponseResult(
+            for: message,
+            allowServerErrorMessage: allowServerErrorMessage
+          )
+          return
+        }
+
         pendingServerResponseContinuation = continuation
+        pendingServerResponseAllowsErrorMessage = allowServerErrorMessage
         serverResponseTimeoutTask?.cancel()
         serverResponseTimeoutTask = Task { [weak self] in
           guard let self else { return }
@@ -507,6 +573,15 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
           self.resolvePendingServerResponse(.failure(.serverResponseTimedOut))
         }
       }
+
+      if let immediateResult {
+        switch immediateResult {
+        case .success(let message):
+          continuation.resume(returning: message)
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+      }
     }
   }
 
@@ -516,8 +591,12 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     let continuation: CheckedContinuation<VerifyServerMessage, Error>? = stateQueue.sync {
       let pending = pendingServerResponseContinuation
       pendingServerResponseContinuation = nil
+      pendingServerResponseAllowsErrorMessage = false
       serverResponseTimeoutTask?.cancel()
       serverResponseTimeoutTask = nil
+      if case .failure = result {
+        queuedServerResponses.removeAll()
+      }
       return pending
     }
 
@@ -530,6 +609,55 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
       continuation.resume(returning: message)
     case .failure(let error):
       continuation.resume(throwing: error)
+    }
+  }
+
+  private func serverResponseResult(
+    for message: VerifyServerMessage,
+    allowServerErrorMessage: Bool
+  ) -> Result<VerifyServerMessage, VerifyWebSocketError> {
+    if let code = message.errorCode, !allowServerErrorMessage {
+      return .failure(
+        VerifyWebSocketError.serverError(
+          code: code,
+          message: message.errorMessage ?? code
+        )
+      )
+    }
+
+    return .success(message)
+  }
+
+  private func handleServerResponse(_ message: VerifyServerMessage) {
+    let resolution: (
+      continuation: CheckedContinuation<VerifyServerMessage, Error>,
+      result: Result<VerifyServerMessage, VerifyWebSocketError>
+    )? = stateQueue.sync {
+      guard let continuation = pendingServerResponseContinuation else {
+        queuedServerResponses.append(message)
+        return nil
+      }
+
+      let result = serverResponseResult(
+        for: message,
+        allowServerErrorMessage: pendingServerResponseAllowsErrorMessage
+      )
+      pendingServerResponseContinuation = nil
+      pendingServerResponseAllowsErrorMessage = false
+      serverResponseTimeoutTask?.cancel()
+      serverResponseTimeoutTask = nil
+      return (continuation, result)
+    }
+
+    guard let resolution else {
+      return
+    }
+
+    switch resolution.result {
+    case .success(let message):
+      resolution.continuation.resume(returning: message)
+    case .failure(let error):
+      resolution.continuation.resume(throwing: error)
     }
   }
 
@@ -842,12 +970,8 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
                 return
               }
 
-              if let code = serverMessage.errorCode {
-                let error = VerifyWebSocketError.serverError(
-                  code: code,
-                  message: serverMessage.errorMessage ?? code
-                )
-                self.resolvePendingServerResponse(.failure(error))
+              if serverMessage.errorCode != nil {
+                self.handleServerResponse(serverMessage)
                 self.receiveLoop(for: task)
                 return
               }
@@ -856,19 +980,19 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
                 if shouldSuppressReconnectAfterHandledVerdict(verdict) {
                   self.expectVerdictClose()
                 }
-                self.resolvePendingServerResponse(.success(serverMessage))
+                self.handleServerResponse(serverMessage)
                 self.receiveLoop(for: task)
                 return
               }
 
               if serverMessage.shareReady != nil {
-                self.resolvePendingServerResponse(.success(serverMessage))
+                self.handleServerResponse(serverMessage)
                 self.receiveLoop(for: task)
                 return
               }
 
               if serverMessage.ackMessage != nil {
-                self.resolvePendingServerResponse(.success(serverMessage))
+                self.handleServerResponse(serverMessage)
                 self.receiveLoop(for: task)
                 return
               }
@@ -876,6 +1000,17 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
             if let shareRequest = serverMessage.shareRequest {
               self.handleShareRequest(shareRequest)
+              self.receiveLoop(for: task)
+              return
+            }
+
+            if
+              serverMessage.errorCode != nil ||
+              serverMessage.verdict != nil ||
+              serverMessage.shareReady != nil ||
+              serverMessage.ackMessage != nil
+            {
+              self.handleServerResponse(serverMessage)
               self.receiveLoop(for: task)
               return
             }

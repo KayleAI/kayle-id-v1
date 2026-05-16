@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import UIKit
 
@@ -131,6 +132,10 @@ struct ContentView: View {
   @State private var hasStartedNFCScan = false
   @State private var isRetainingNFCUploadUI = false
   @State private var retainedNFCUploadProgress: Double = 0
+  private let performanceLogger = Logger(
+    subsystem: "id.kayle.ios",
+    category: "VerificationPerformance"
+  )
   private let qrInitializationTimeoutNs: UInt64 = 15_000_000_000
 
   @MainActor
@@ -186,6 +191,7 @@ struct ContentView: View {
     .tint(.primary)
     .onAppear {
       lastStep = session.step
+      AppAttestService.shared.prewarm(baseURL: APIService.baseURL(from: ""))
       syncIdleTimerState()
     }
     .onDisappear {
@@ -724,6 +730,7 @@ struct ContentView: View {
     }
 
     let resolutionID = UUID()
+    let startedAt = Date()
     activeQRCodeResolutionID = resolutionID
     isResolvingQRCode = true
     startQRCodeResolutionTimeout(for: resolutionID)
@@ -739,6 +746,8 @@ struct ContentView: View {
         guard activeQRCodeResolutionID == resolutionID else {
           return
         }
+        let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+        performanceLogger.info("qr_scan_to_hello_ack duration_ms=\(durationMs)")
         clearQRCodeResolutionState(for: resolutionID)
         activeCameraDrawer = nil
         session.moveToStep(.mrz)

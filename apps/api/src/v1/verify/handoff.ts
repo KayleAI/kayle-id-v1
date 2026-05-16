@@ -1,5 +1,6 @@
 import { env as configEnv } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
+import { auth_organizations } from "@kayle-id/database/schema/auth";
 import {
 	verification_attempts,
 	verification_sessions,
@@ -11,7 +12,6 @@ import {
 	deriveAttestHelloChallenge,
 	deriveAttestNfcChallenge,
 } from "./attest-challenges";
-import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { isTerminalSessionStatus } from "./status";
 import {
 	deriveMobileWriteToken,
@@ -74,27 +74,34 @@ export async function issueHandoffPayload(
 		now?: Date;
 	} = {},
 ): Promise<IssueHandoffResult> {
-	const [session] = await db
+	const [row] = await db
 		.select({
-			id: verification_sessions.id,
-			organizationId: verification_sessions.organizationId,
-			status: verification_sessions.status,
-			completedAt: verification_sessions.completedAt,
-			createdAt: verification_sessions.createdAt,
-			redirectUrl: verification_sessions.redirectUrl,
-			shareFields: verification_sessions.shareFields,
-			contractVersion: verification_sessions.contractVersion,
-			expiresAt: verification_sessions.expiresAt,
-			updatedAt: verification_sessions.updatedAt,
-			cancelTokenHash: verification_sessions.cancelTokenHash,
-			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
-			isAgeOnly: verification_sessions.isAgeOnly,
+			pendingDeletionAt: auth_organizations.pending_deletion_at,
+			session: {
+				cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+				cancelTokenHash: verification_sessions.cancelTokenHash,
+				completedAt: verification_sessions.completedAt,
+				contractVersion: verification_sessions.contractVersion,
+				createdAt: verification_sessions.createdAt,
+				expiresAt: verification_sessions.expiresAt,
+				id: verification_sessions.id,
+				isAgeOnly: verification_sessions.isAgeOnly,
+				organizationId: verification_sessions.organizationId,
+				redirectUrl: verification_sessions.redirectUrl,
+				shareFields: verification_sessions.shareFields,
+				status: verification_sessions.status,
+				updatedAt: verification_sessions.updatedAt,
+			},
 		})
 		.from(verification_sessions)
+		.leftJoin(
+			auth_organizations,
+			eq(auth_organizations.id, verification_sessions.organizationId),
+		)
 		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
-	if (!session) {
+	if (!row) {
 		return {
 			ok: false,
 			error: {
@@ -104,7 +111,7 @@ export async function issueHandoffPayload(
 		};
 	}
 
-	if (await isPublicVerifySessionHidden(session.organizationId)) {
+	if (row.pendingDeletionAt) {
 		return {
 			ok: false,
 			error: {
@@ -114,6 +121,7 @@ export async function issueHandoffPayload(
 		};
 	}
 
+	const session = row.session;
 	const normalizedSession = await expireVerificationSessionIfNeeded({
 		env,
 		now,

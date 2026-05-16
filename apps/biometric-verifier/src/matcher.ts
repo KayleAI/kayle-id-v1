@@ -8,15 +8,15 @@ import {
 } from "@kayle-id/config/dg2-face-image";
 
 interface ContainerLivenessRequestPayload {
-  challengeNonceBase64?: string;
+  challengeNonce?: Uint8Array;
   dg2Image: {
-    bytesBase64: string;
+    bytes: Uint8Array;
     format: Dg2FaceImage["imageFormat"];
   };
   faceMatchThreshold?: number;
   includeDebug?: boolean;
   skipFaceMatch?: boolean;
-  videoBase64: string;
+  video: Uint8Array;
 }
 
 type FetchLike = (
@@ -43,6 +43,30 @@ function createUnavailableResult(reason: string): LivenessContainerResult {
   };
 }
 
+function createContainerLivenessFormData(
+  payload: ContainerLivenessRequestPayload
+): FormData {
+  const formData = new FormData();
+  formData.set("dg2Image", new Blob([payload.dg2Image.bytes]));
+  formData.set("dg2Format", payload.dg2Image.format);
+  formData.set("video", new Blob([payload.video]));
+
+  if (payload.challengeNonce && payload.challengeNonce.byteLength > 0) {
+    formData.set("challengeNonce", new Blob([payload.challengeNonce]));
+  }
+  if (typeof payload.faceMatchThreshold === "number") {
+    formData.set("faceMatchThreshold", String(payload.faceMatchThreshold));
+  }
+  if (payload.includeDebug) {
+    formData.set("includeDebug", "true");
+  }
+  if (payload.skipFaceMatch) {
+    formData.set("skipFaceMatch", "true");
+  }
+
+  return formData;
+}
+
 async function requestContainerLiveness({
   container,
   payload,
@@ -52,10 +76,7 @@ async function requestContainerLiveness({
 }): Promise<LivenessContainerResult> {
   try {
     const response = await container.fetch("http://container/verify", {
-      body: JSON.stringify(payload),
-      headers: {
-        "content-type": "application/json",
-      },
+      body: createContainerLivenessFormData(payload),
       method: "POST",
     });
 
@@ -129,14 +150,11 @@ export function verifyLivenessWithContainer({
     container,
     payload: {
       dg2Image: {
-        bytesBase64: Buffer.from(dg2FaceImage.imageData).toString("base64"),
+        bytes: dg2FaceImage.imageData,
         format: dg2FaceImage.imageFormat,
       },
-      videoBase64: Buffer.from(video).toString("base64"),
-      challengeNonceBase64:
-        challengeNonce && challengeNonce.byteLength > 0
-          ? Buffer.from(challengeNonce).toString("base64")
-          : undefined,
+      video,
+      challengeNonce,
       faceMatchThreshold,
       includeDebug: includeDebug ? true : undefined,
       skipFaceMatch: skipFaceMatch ? true : undefined,

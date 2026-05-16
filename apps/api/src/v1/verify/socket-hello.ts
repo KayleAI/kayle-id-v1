@@ -8,13 +8,12 @@ import {
 	verifyHelloAttestation,
 } from "./attest-gate";
 import {
-	consumeHelloAttempt,
 	getAttemptForHello,
 	type HelloPayload,
 	isAttemptMissingOrTerminal,
-	markSessionInProgress,
 	type ParsedHelloPayload,
 	parseHelloPayload,
+	persistFirstHelloState,
 	resolveHelloAuthState,
 } from "./hello-auth";
 import { persistTrackedAttemptPhase } from "./phase-state";
@@ -64,6 +63,7 @@ export async function handleHelloMessage(
 	payload: HelloPayload,
 ): Promise<void> {
 	const { connectionOwnerId, log, session, state, transport } = context;
+	const helloStartedAt = Date.now();
 	const parsed = parseHelloPayload(payload);
 
 	transport.logDebug("recv_hello", {
@@ -100,24 +100,29 @@ export async function handleHelloMessage(
 		return;
 	}
 
+	const authStartedAt = Date.now();
 	const authState = await resolveHelloAuthState({
 		attempt,
 		mobileWriteToken: parsed.mobileWriteToken,
 		deviceId: parsed.deviceId,
 		nowMs: Date.now(),
 	});
+	const authDurationMs = Date.now() - authStartedAt;
 
 	if (authState.kind === "error") {
 		transport.sendAuthErrorAndClose(authState.code);
 		return;
 	}
 
+	const attestationStartedAt = Date.now();
 	const attestation = await runHelloAttestationGate(context, parsed);
+	const attestationDurationMs = Date.now() - attestationStartedAt;
 	if (!attestation.ok) {
 		transport.sendAuthErrorAndClose(attestation.code);
 		return;
 	}
 
+	const ownershipStartedAt = Date.now();
 	const ownership = await claimAttemptConnection({
 		attemptId: attempt.id,
 		ownerId: connectionOwnerId,
@@ -128,6 +133,7 @@ export async function handleHelloMessage(
 		// rejected with ATTEMPT_CONNECTION_ACTIVE.
 		allowTakeover: authState.kind === "resume",
 	});
+	const ownershipDurationMs = Date.now() - ownershipStartedAt;
 
 	if (!ownership.ok) {
 		transport.sendAuthErrorAndClose(ownership.code);
@@ -156,28 +162,50 @@ export async function handleHelloMessage(
 	}
 
 	if (authState.kind === "resume") {
+		const persistStartedAt = Date.now();
 		await persistConnectedPhaseIfMissing(context, attempt.id);
+		const persistDurationMs = Date.now() - persistStartedAt;
+		logHelloTiming({
+			attemptId: attempt.id,
+			authDurationMs,
+			attestationDurationMs,
+			helloStartedAt,
+			log,
+			ownershipDurationMs,
+			persistDurationMs,
+			resume: true,
+		});
 		transport.sendAck("hello_ok");
 		await sendActiveAuthChallenge(context, attempt.id);
 		return;
 	}
 
 	try {
-		if (!(await markSessionInProgress(session))) {
+		const persistStartedAt = Date.now();
+		if (
+			!(await persistFirstHelloState({
+				attemptId: attempt.id,
+				deviceIdHash: authState.deviceIdHash,
+				appVersion: parsed.appVersion,
+				mobileAttestKeyId: attestation.attestKeyId,
+				session,
+			}))
+		) {
 			transport.sendAuthErrorAndClose("SESSION_EXPIRED");
 			return;
 		}
-		await consumeHelloAttempt({
-			attemptId: attempt.id,
-			deviceIdHash: authState.deviceIdHash,
-			appVersion: parsed.appVersion,
-			mobileAttestKeyId: attestation.attestKeyId,
-		});
-		await persistTrackedAttemptPhase({
-			attemptId: attempt.id,
-			phase: "mobile_connected",
-		});
+		const persistDurationMs = Date.now() - persistStartedAt;
 		state.currentPhase = "mobile_connected";
+		logHelloTiming({
+			attemptId: attempt.id,
+			authDurationMs,
+			attestationDurationMs,
+			helloStartedAt,
+			log,
+			ownershipDurationMs,
+			persistDurationMs,
+			resume: false,
+		});
 	} catch (error) {
 		await resetAttemptState(context, attempt.id);
 		throw error;
@@ -185,6 +213,39 @@ export async function handleHelloMessage(
 
 	transport.sendAck("hello_ok");
 	await sendActiveAuthChallenge(context, attempt.id);
+}
+
+function logHelloTiming({
+	attemptId,
+	authDurationMs,
+	attestationDurationMs,
+	helloStartedAt,
+	log,
+	ownershipDurationMs,
+	persistDurationMs,
+	resume,
+}: {
+	attemptId: string;
+	authDurationMs: number;
+	attestationDurationMs: number;
+	helloStartedAt: number;
+	log: VerifySocketContext["log"];
+	ownershipDurationMs: number;
+	persistDurationMs: number;
+	resume: boolean;
+}): void {
+	logEvent(log, {
+		details: {
+			attempt_id: attemptId,
+			attestation_ms: attestationDurationMs,
+			auth_ms: authDurationMs,
+			ownership_ms: ownershipDurationMs,
+			persist_ms: persistDurationMs,
+			resume,
+			total_ms: Date.now() - helloStartedAt,
+		},
+		event: "verify.ws.hello_timing",
+	});
 }
 
 type HelloAttestationOutcome =

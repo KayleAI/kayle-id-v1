@@ -26,7 +26,7 @@ describe("biometric-verifier wrangler config", () => {
   // debug shortcut, rich debug responses) used to live behind three
   // separate env flags. They've all been collapsed into a single
   // NODE_ENV=development check that the container forwards to its
-  // Python runtime via `index.ts`'s `resolveNodeEnv`. The guardrail
+  // runtime via `index.ts`'s `resolveNodeEnv`. The guardrail
   // we still need is the same as before: production must NOT inherit
   // any dev-mode behaviour.
   test("dev env declares NODE_ENV=development", async () => {
@@ -50,7 +50,7 @@ describe("biometric-verifier wrangler config", () => {
 
     // These were folded into NODE_ENV. Re-introducing either as a vars
     // entry would create two sources of truth for dev-mode behaviour
-    // and silently desync wrangler from the Python runtime.
+    // and silently desync wrangler from the container runtime.
     expect(
       config.vars?.BIOMETRIC_VERIFIER_ALLOW_PIXEL_FALLBACK
     ).toBeUndefined();

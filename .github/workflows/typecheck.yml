@@ -12,47 +12,47 @@ permissions:
 
 jobs:
   typecheck:
-    name: Typecheck (${{ matrix.workspace }})
+    name: ${{ matrix.workspace }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - workspace: api
+          - workspace: API
             working-directory: apps/api
             generate-capnp: "true"
-          - workspace: platform
+          - workspace: Platform
             working-directory: apps/platform
             generate-capnp: "false"
-          - workspace: verify
+          - workspace: Verify
             working-directory: apps/verify
             generate-capnp: "true"
-          - workspace: biometric-verifier
+          - workspace: Biometric Verifier
             working-directory: apps/biometric-verifier
             generate-capnp: "false"
-          - workspace: auth
+          - workspace: Auth
             working-directory: packages/auth
             generate-capnp: "false"
-          - workspace: capnp
+          - workspace: Capnp
             working-directory: packages/capnp
             generate-capnp: "true"
-          - workspace: config
+          - workspace: Config
             working-directory: packages/config
             generate-capnp: "false"
-          - workspace: database
+          - workspace: Database
             working-directory: packages/database
             generate-capnp: "false"
-          - workspace: emails
+          - workspace: Emails
             working-directory: packages/emails
             generate-capnp: "false"
-          - workspace: translations
+          - workspace: Translations
             working-directory: packages/translations
             generate-capnp: "false"
-          - workspace: trust-store
+          - workspace: Trust Store
             working-directory: packages/trust-store
             generate-capnp: "false"
-          - workspace: ui
+          - workspace: UI
             working-directory: packages/ui
             generate-capnp: "false"
 

@@ -1,0 +1,7 @@
+/target/
+__pycache__/
+*.pyc
+.venv/
+# ONNX models — fetched by scripts/download-models.sh (SHA-pinned).
+# Do not commit; 265 MB total.
+/models/

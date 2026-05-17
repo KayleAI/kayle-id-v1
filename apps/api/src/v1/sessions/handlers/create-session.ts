@@ -86,10 +86,13 @@ export const createSessionHandler: RouteHandler<
 	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
 	const complianceGate = await checkRpComplianceProfileGate({ organizationId });
 	if (!complianceGate.ok) {
+		const termsAcceptanceRequired =
+			complianceGate.reason === "terms_not_accepted";
 		logEvent(log, {
 			details: {
 				organization_id: organizationId,
 				missing_fields: complianceGate.missingFields,
+				reason: complianceGate.reason,
 			},
 			event: "sessions.create.rp_compliance_profile_incomplete",
 			level: "warn",
@@ -99,10 +102,15 @@ export const createSessionHandler: RouteHandler<
 			{
 				data: null,
 				error: {
-					code: "RP_COMPLIANCE_PROFILE_INCOMPLETE",
-					message:
-						"Complete the relying-party compliance profile before creating production verification sessions.",
-					hint: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration.`,
+					code: termsAcceptanceRequired
+						? "RP_TERMS_ACCEPTANCE_REQUIRED"
+						: "RP_COMPLIANCE_PROFILE_INCOMPLETE",
+					message: termsAcceptanceRequired
+						? "Accept the current relying-party integration terms before creating production verification sessions."
+						: "Complete the relying-party compliance profile before creating production verification sessions.",
+					hint: termsAcceptanceRequired
+						? "An owner must accept the current RP integration terms in the organization settings."
+						: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration, and accept the current RP integration terms.`,
 					docs,
 				},
 			},

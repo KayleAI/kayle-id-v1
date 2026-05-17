@@ -6,7 +6,7 @@ import {
 } from "@/components/site/legal-document";
 import { PageHeading } from "@/components/site/page-heading";
 
-const LAST_UPDATED = "March 20, 2026";
+const LAST_UPDATED = "May 17, 2026";
 
 export const Route = createFileRoute("/_legal/privacy")({
 	component: PrivacyPage,
@@ -40,6 +40,15 @@ function PrivacyPage() {
 								platform also has its own privacy practices. In particular, that
 								platform decides which claims it requests from you and what it
 								does with the verification result it receives from Kayle ID.
+							</p>
+							<p>
+								Kayle Inc. and the relying party are separate controllers for
+								different processing purposes. Kayle is a controller for
+								Kayle-side verification processing, service security, fraud
+								prevention, records, and legal compliance. The relying party is
+								a controller for its own product relationship and for any
+								access, onboarding, eligibility, or account decision it makes
+								from the Kayle ID result.
 							</p>
 						</LegalSection>
 
@@ -118,6 +127,12 @@ function PrivacyPage() {
 								that payload only in encrypted form for delivery and retry
 								purposes.
 							</p>
+							<p>
+								Kayle ID provides the relying party with a verification signal
+								and selected claims. Kayle does not decide whether the relying
+								party gives you a service, account, onboarding approval, or
+								eligibility outcome.
+							</p>
 						</LegalSection>
 
 						<LegalSection title="What We Store and What We Do Not Store">
@@ -155,6 +170,7 @@ function PrivacyPage() {
 							<LegalList
 								items={[
 									"With the relying party that requested the verification, but only for the verification result and claims included in the session contract and selected by the user, except where a claim is marked required.",
+									"With the relying party as a separate controller that is responsible for its own notices, lawful basis, decision process, fallback verification path, and review or appeal safeguards where applicable.",
 									"With infrastructure and security providers that help us operate Kayle ID, such as hosted compute, storage, networking, database, and authentication providers.",
 									"With Google if a developer chooses Google sign-in for their Kayle ID account.",
 									"When required by law, legal process, or to protect the rights, safety, and security of Kayle ID, our users, or third parties.",
@@ -217,6 +233,14 @@ function PrivacyPage() {
 								. If your request concerns data that a relying party requested
 								or received, we may direct you to that party because it controls
 								how it uses the verification result on its side.
+							</p>
+							<p>
+								If a relying party uses a Kayle ID result for an access,
+								onboarding, eligibility, or similarly significant decision, the
+								relying party is responsible for any applicable Article 22, UK
+								GDPR, EU GDPR, or similar automated-decision safeguards,
+								including review, appeal, contestation, and alternative
+								verification routes.
 							</p>
 						</LegalSection>
 

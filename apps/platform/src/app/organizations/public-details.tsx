@@ -25,11 +25,14 @@ import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+	acceptRpIntegrationTerms,
 	type FullOrganization,
 	fetchFullOrganization,
+	fetchRpIntegrationTermsStatus,
 	listOrganizationDomains,
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
+	ORGANIZATION_RP_TERMS_QUERY_KEY,
 	type OrganizationRole,
 	updateOrganization,
 	uploadOrganizationLogo,
@@ -92,9 +95,11 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 function PublicDetailsForm({
+	canAcceptRpTerms,
 	canEdit,
 	organization,
 }: {
+	canAcceptRpTerms: boolean;
 	canEdit: boolean;
 	organization: FullOrganization;
 }) {
@@ -758,12 +763,100 @@ function PublicDetailsForm({
 				</CardContent>
 			</Card>
 
+			<RpIntegrationTermsCard canAccept={canAcceptRpTerms} />
+
 			<div className="flex justify-end">
 				<Button disabled={!canEdit || !isDirty || isSaving} type="submit">
 					{isSaving ? "Saving..." : "Save changes"}
 				</Button>
 			</div>
 		</form>
+	);
+}
+
+function RpIntegrationTermsCard({ canAccept }: { canAccept: boolean }) {
+	const queryClient = useQueryClient();
+	const { data, isError, isLoading } = useQuery({
+		queryFn: fetchRpIntegrationTermsStatus,
+		queryKey: ORGANIZATION_RP_TERMS_QUERY_KEY,
+		staleTime: 30_000,
+	});
+	const acceptMutation = useMutation({
+		mutationFn: acceptRpIntegrationTerms,
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: ORGANIZATION_RP_TERMS_QUERY_KEY,
+			});
+			toast.success("RP integration terms accepted");
+		},
+		onError: (err) => {
+			toast.error(
+				err instanceof Error
+					? err.message
+					: "Failed to accept RP integration terms",
+			);
+		},
+	});
+
+	const acceptedAt = data?.acceptance?.accepted_at
+		? new Date(data.acceptance.accepted_at).toLocaleString()
+		: null;
+	const isAccepted = data?.current_accepted === true;
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>RP integration terms</CardTitle>
+				<CardDescription>
+					Required before production sessions. These terms record the current
+					controller split, fallback IDV, and review safeguards for relying
+					parties.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{isError ? (
+					<Alert variant="destructive">
+						<AlertTitle>Failed to load terms status</AlertTitle>
+						<AlertDescription>
+							Refresh the page before accepting the current RP integration
+							terms.
+						</AlertDescription>
+					</Alert>
+				) : null}
+				<div className="space-y-1 text-sm">
+					<p className="font-medium text-foreground">
+						{isAccepted
+							? "Current terms accepted"
+							: "Current terms not accepted"}
+					</p>
+					<p className="text-muted-foreground">
+						Version {data?.current.terms_version ?? "loading"} ·{" "}
+						{data?.current.jurisdiction ?? "loading"}
+					</p>
+					{acceptedAt ? (
+						<p className="text-muted-foreground">Accepted {acceptedAt}</p>
+					) : null}
+				</div>
+				<Button
+					disabled={
+						isLoading ||
+						isAccepted ||
+						!canAccept ||
+						acceptMutation.isPending ||
+						isError
+					}
+					onClick={() => acceptMutation.mutate()}
+					type="button"
+				>
+					{acceptMutation.isPending ? "Accepting..." : "Accept current terms"}
+				</Button>
+				{canAccept ? null : (
+					<p className="text-muted-foreground text-xs">
+						Only owners can accept RP integration terms.
+					</p>
+				)}
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -838,7 +931,11 @@ export function OrganizationPublicDetailsPage() {
 			) : null}
 			{isLoading ? <PublicDetailsSkeleton /> : null}
 			{data && !isError ? (
-				<PublicDetailsForm canEdit={canEdit} organization={data} />
+				<PublicDetailsForm
+					canAcceptRpTerms={currentRole === "owner"}
+					canEdit={canEdit}
+					organization={data}
+				/>
 			) : null}
 		</OrganizationPageLayout>
 	);

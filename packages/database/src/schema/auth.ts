@@ -133,6 +133,36 @@ export const auth_organizations = pgTable(
 	],
 );
 
+export const auth_organization_rp_terms_acceptances = pgTable(
+	"auth_organization_rp_terms_acceptances",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		termsVersion: text("terms_version").notNull(),
+		termsHash: text("terms_hash").notNull(),
+		jurisdiction: text("jurisdiction").notNull(),
+		acceptedBy: uuid("accepted_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
+		acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex("auth_org_rp_terms_current_uidx").on(
+			table.organizationId,
+			table.termsVersion,
+			table.termsHash,
+			table.jurisdiction,
+		),
+		index("auth_org_rp_terms_org_accepted_at_idx").on(
+			table.organizationId,
+			table.acceptedAt,
+		),
+	],
+);
+
 export const auth_organization_members = pgTable(
 	"auth_organization_members",
 	{

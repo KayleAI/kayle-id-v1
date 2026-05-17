@@ -24,6 +24,7 @@ export const AUDIT_LOG_EVENTS = [
   "organization.public_details.updated",
   "organization.logo.updated",
   "organization.business_details.updated",
+  "organization.rp_terms.accepted",
   // Domain verification + redirect URIs
   "domain.challenge.started",
   "domain.verified",

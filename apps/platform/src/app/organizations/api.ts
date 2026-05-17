@@ -383,6 +383,10 @@ export const ORGANIZATION_REDIRECT_URIS_QUERY_KEY = [
 	"organization",
 	"redirect-uris",
 ] as const;
+export const ORGANIZATION_RP_TERMS_QUERY_KEY = [
+	"organization",
+	"rp-terms",
+] as const;
 
 export type DomainVerificationMethod = "dns_txt";
 
@@ -513,6 +517,40 @@ export async function removeRedirectUri(input: { id: string }): Promise<void> {
 		const body = await response.text();
 		throw new Error(body || "Failed to remove redirect URI.");
 	}
+}
+
+export interface RpIntegrationTermsStatus {
+	acceptance: {
+		accepted_at: string;
+		accepted_by: string | null;
+		jurisdiction: string;
+		terms_hash: string;
+		terms_version: string;
+	} | null;
+	current: {
+		jurisdiction: string;
+		terms_hash: string;
+		terms_version: string;
+	};
+	current_accepted: boolean;
+}
+
+export async function fetchRpIntegrationTermsStatus(): Promise<RpIntegrationTermsStatus> {
+	return await requestApiResource<RpIntegrationTermsStatus>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		method: "GET",
+		path: "/rp-terms",
+		unexpectedMessage: "Failed to load RP integration terms status.",
+	});
+}
+
+export async function acceptRpIntegrationTerms(): Promise<RpIntegrationTermsStatus> {
+	return await requestApiResource<RpIntegrationTermsStatus>({
+		basePath: ORG_DOMAINS_BASE_PATH,
+		method: "POST",
+		path: "/rp-terms",
+		unexpectedMessage: "Failed to accept RP integration terms.",
+	});
 }
 
 const ORG_AUDIT_LOGS_BASE_PATH = "/api/auth/orgs";

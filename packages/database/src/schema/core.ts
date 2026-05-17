@@ -294,6 +294,16 @@ export const verification_attempts = pgTable(
 		 */
 		riskScore: real("risk_score").default(0).notNull(),
 		/**
+		 * Final field keys the end user agreed to share for this attempt.
+		 *
+		 * This is deliberately separate from `verification_sessions.share_fields`,
+		 * which stores the RP-requested catalogue.
+		 */
+		selectedShareFieldKeys: jsonb("selected_share_field_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		/**
 		 * The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled).
 		 */
 		completedAt: timestamp("completed_at"),
@@ -327,6 +337,80 @@ export const verification_attempts = pgTable(
 		index("verif_attempts_status_idx").on(table.status),
 		// Lookup attempts by attesting key (riskMetric refresh feedback path).
 		index("verif_attempts_mobile_attest_key_idx").on(table.mobileAttestKeyId),
+	],
+);
+
+/**
+ * Browser consent captured before issuing mobile handoff credentials.
+ *
+ * Stores claim keys and versioned acknowledgements only; no document, biometric,
+ * MRZ, NFC, or claim values are persisted here.
+ */
+export const verification_consents = pgTable(
+	"verification_consents",
+	{
+		/**
+		 * The ID of the consent record.
+		 *
+		 * Always prefixed with `vc_...`
+		 */
+		id: text("id").primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		verificationSessionId: text("verification_session_id")
+			.notNull()
+			.references(() => verification_sessions.id, { onDelete: "cascade" }),
+		verificationAttemptId: text("verification_attempt_id").references(
+			() => verification_attempts.id,
+			{ onDelete: "set null" },
+		),
+		consentedAt: timestamp("consented_at").defaultNow().notNull(),
+		consentUiVersion: integer("consent_ui_version").notNull(),
+		termsVersion: text("terms_version").notNull(),
+		privacyNoticeVersion: text("privacy_notice_version").notNull(),
+		shareContractHash: text("share_contract_hash").notNull(),
+		requestedClaimKeys: jsonb("requested_claim_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		selectedClaimKeys: jsonb("selected_claim_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		requiredClaimKeys: jsonb("required_claim_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		documentProcessingConsent: boolean("document_processing_consent")
+			.default(false)
+			.notNull(),
+		biometricConsent: boolean("biometric_consent").default(false).notNull(),
+		shareClaimsConsent: boolean("share_claims_consent")
+			.default(false)
+			.notNull(),
+		termsAcknowledged: boolean("terms_acknowledged").default(false).notNull(),
+		privacyNoticeAcknowledged: boolean("privacy_notice_acknowledged")
+			.default(false)
+			.notNull(),
+		rpName: text("rp_name").notNull(),
+		controllerName: text("controller_name").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at")
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("verif_consents_session_created_idx").on(
+			table.verificationSessionId,
+			table.createdAt,
+		),
+		index("verif_consents_attempt_idx").on(table.verificationAttemptId),
+		index("verif_consents_org_created_idx").on(
+			table.organizationId,
+			table.createdAt,
+		),
 	],
 );
 

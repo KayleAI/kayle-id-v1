@@ -12,6 +12,7 @@ import type { SessionError, VerifySession } from "@/config/capnp";
 import {
 	requestVerifySessionDetails,
 	requestVerifySessionStatus,
+	type VerifySessionShareFields,
 	type VerifySessionStatusPayload,
 } from "@/config/handoff";
 import { buildCancelledSessionStatus } from "@/utils/cancel";
@@ -27,16 +28,20 @@ import {
 } from "./session-provider-helpers";
 
 type SessionContextType = {
+	sessionId: string;
 	isSessionDetailsReady: boolean;
 	organization: Organization;
 	isAgeOnly: boolean;
 	ageThreshold: number | null;
+	shareFields: VerifySessionShareFields;
 	sessionStatus: VerifySessionStatusPayload | null;
 	session: VerifySession | null;
 	error: SessionError | null;
 	onError: (callback: (sessionError: SessionError) => void) => () => void;
 	markSessionCancelled: () => void;
 };
+
+const EMPTY_SHARE_FIELDS: VerifySessionShareFields = {};
 
 const EMPTY_ORGANIZATION: Organization = {
 	name: null,
@@ -67,6 +72,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		useState<Organization>(EMPTY_ORGANIZATION);
 	const [isAgeOnly, setIsAgeOnly] = useState(false);
 	const [ageThreshold, setAgeThreshold] = useState<number | null>(null);
+	const [shareFields, setShareFields] =
+		useState<VerifySessionShareFields>(EMPTY_SHARE_FIELDS);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(null);
 	const [isSessionReady, setIsSessionReady] = useState(false);
@@ -121,6 +128,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		setOrganization(EMPTY_ORGANIZATION);
 		setIsAgeOnly(false);
 		setAgeThreshold(null);
+		setShareFields(EMPTY_SHARE_FIELDS);
 		setSessionStatus(null);
 
 		Promise.all([
@@ -149,6 +157,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				});
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);
+				setShareFields(details.share_fields);
 				setSessionStatus(nextSessionStatus);
 				const showUnverifiedWarning =
 					details.organization_verified_apex_domains.length === 0 &&
@@ -209,10 +218,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	// Memoize the context value, providing session from ref only when ready
 	const value: SessionContextType = useMemo(
 		() => ({
+			sessionId,
 			isSessionDetailsReady,
 			organization,
 			isAgeOnly,
 			ageThreshold,
+			shareFields,
 			sessionStatus,
 			session: isSessionReady ? sessionStubRef.current : null,
 			error,
@@ -220,10 +231,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			markSessionCancelled,
 		}),
 		[
+			sessionId,
 			isSessionDetailsReady,
 			organization,
 			isAgeOnly,
 			ageThreshold,
+			shareFields,
 			sessionStatus,
 			isSessionReady,
 			error,

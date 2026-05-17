@@ -84,8 +84,14 @@ function setNavigator({
 }
 
 function SessionStateProbe() {
-	const { error, isSessionDetailsReady, organization, sessionStatus, session } =
-		useSession();
+	const {
+		error,
+		isSessionDetailsReady,
+		organization,
+		sessionStatus,
+		session,
+		shareFields,
+	} = useSession();
 
 	return (
 		<div>
@@ -96,6 +102,9 @@ function SessionStateProbe() {
 			<div data-testid="session-status">{sessionStatus?.status ?? "none"}</div>
 			<div data-testid="session-state">{session ? "ready" : "idle"}</div>
 			<div data-testid="session-error">{error?.code ?? "none"}</div>
+			<div data-testid="share-field-count">
+				{Object.keys(shareFields).length}
+			</div>
 		</div>
 	);
 }
@@ -118,6 +127,13 @@ function createSessionDetails(
 		organization_description: null,
 		is_age_only: false,
 		age_threshold: null,
+		share_fields: {
+			kayle_document_id: {
+				required: true,
+				reason: "Document ID is required.",
+				source: "default",
+			},
+		},
 		session_id: sessionId,
 		...overrides,
 	};

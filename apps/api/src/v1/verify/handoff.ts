@@ -3,9 +3,10 @@ import { db } from "@kayle-id/database/drizzle";
 import { auth_organizations } from "@kayle-id/database/schema/auth";
 import {
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
 import {
@@ -27,7 +28,11 @@ function resolveAuthSecret(env: CloudflareBindings | undefined): string {
 }
 
 type HandoffError = {
-	code: "SESSION_NOT_FOUND" | "SESSION_EXPIRED" | "SESSION_IN_PROGRESS";
+	code:
+		| "CONSENT_REQUIRED"
+		| "SESSION_NOT_FOUND"
+		| "SESSION_EXPIRED"
+		| "SESSION_IN_PROGRESS";
 	status: 404 | 409 | 410;
 };
 
@@ -156,6 +161,30 @@ export async function issueHandoffPayload(
 			sql`SELECT pg_advisory_xact_lock(hashtextextended(${session.id}::text, 1))`,
 		);
 
+		const [latestConsent] = await tx
+			.select({
+				id: verification_consents.id,
+			})
+			.from(verification_consents)
+			.where(
+				and(
+					eq(verification_consents.verificationSessionId, session.id),
+					eq(verification_consents.organizationId, session.organizationId),
+				),
+			)
+			.orderBy(desc(verification_consents.createdAt))
+			.limit(1);
+
+		if (!latestConsent) {
+			return {
+				ok: false,
+				error: {
+					code: "CONSENT_REQUIRED",
+					status: 409,
+				},
+			} satisfies SelectedHandoffAttempt;
+		}
+
 		const [latestAttempt] = await tx
 			.select({
 				id: verification_attempts.id,
@@ -204,6 +233,13 @@ export async function issueHandoffPayload(
 			latestAttempt.mobileWriteTokenExpiresAt &&
 			latestAttempt.mobileWriteTokenSeed
 		) {
+			await tx
+				.update(verification_consents)
+				.set({
+					verificationAttemptId: latestAttempt.id,
+				})
+				.where(eq(verification_consents.id, latestConsent.id));
+
 			return {
 				ok: true,
 				attemptId: latestAttempt.id,
@@ -237,6 +273,13 @@ export async function issueHandoffPayload(
 			mobileWriteTokenExpiresAt: expiresAt,
 			mobileWriteTokenConsumedAt: null,
 		});
+
+		await tx
+			.update(verification_consents)
+			.set({
+				verificationAttemptId: attemptId,
+			})
+			.where(eq(verification_consents.id, latestConsent.id));
 
 		return {
 			ok: true,

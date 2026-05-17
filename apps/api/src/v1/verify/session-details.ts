@@ -12,6 +12,7 @@ import {
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
+import { resolvePublicShareFields } from "./public-share-fields";
 
 export type PublicVerifySessionDetails = {
 	organization_name: string;
@@ -43,6 +44,7 @@ export type PublicVerifySessionDetails = {
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
+	share_fields: ShareFields;
 };
 
 function extractAgeThreshold(shareFields: ShareFields): number | null {
@@ -118,6 +120,7 @@ export async function getPublicVerifySessionDetails({
 	);
 
 	const businessFieldsAllowed = verifiedApexDomains.length > 0;
+	const shareFields = resolvePublicShareFields(session.shareFields);
 
 	return {
 		organization_name: session.organizationName,
@@ -143,8 +146,7 @@ export async function getPublicVerifySessionDetails({
 		organization_description: metadata?.description ?? null,
 		session_id: session.sessionId,
 		is_age_only: session.isAgeOnly,
-		age_threshold: session.isAgeOnly
-			? extractAgeThreshold(session.shareFields as ShareFields)
-			: null,
+		age_threshold: session.isAgeOnly ? extractAgeThreshold(shareFields) : null,
+		share_fields: shareFields,
 	};
 }

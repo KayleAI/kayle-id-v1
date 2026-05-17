@@ -71,6 +71,7 @@ export async function handleShareSelectionMessage(
 		session,
 		attemptId: state.attemptId,
 		faceScore: state.acceptedFaceScore,
+		selectedFieldKeys: result.manifest.selectedFieldKeys,
 	});
 
 	if (!successResult.attemptSucceededEventId) {

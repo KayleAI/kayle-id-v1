@@ -165,6 +165,39 @@ export const VERIFY_HANDOFF_COPY = {
       bulletShareAgeOnlyMiddle: " whether I am {ageLabel} with ",
       bulletShareAgeOnlySuffix: " — no other details",
 
+      claimManifestTitle: "Details requested",
+      claimManifestDescription:
+        "Review what this organization is asking Kayle ID to check or share before anything is read from your document.",
+      requiredClaimsTitle: "Required details",
+      requiredClaimsDescription:
+        "These must stay selected for this check to continue.",
+      optionalClaimsTitle: "Optional details",
+      optionalClaimsDescription:
+        "You can choose whether to share these later in the Kayle ID app.",
+      securityClaimsTitle: "Security checks",
+      securityClaimsDescription:
+        "Kayle ID uses these to prevent duplicate or replayed document checks.",
+      ageOnlyClaimsTitle: "Age-only result",
+      ageOnlyClaimsDescription:
+        "Only a yes-or-no age answer is shared for this part of the check.",
+      requiredBadge: "Required",
+      optionalBadge: "Optional",
+
+      documentProcessingConsentFull:
+        "I consent to Kayle ID reading my document data for this check.",
+      documentProcessingConsentAgeOnly:
+        "I consent to Kayle ID reading my document data to check my age.",
+      biometricConsent:
+        "I consent to Kayle ID capturing and processing my selfie to confirm I am the document holder.",
+      shareClaimsConsentFull:
+        "I consent to Kayle ID sharing the selected result and details with {organization}.",
+      shareClaimsConsentAgeOnly:
+        "I consent to Kayle ID sharing only whether I am {ageLabel} with {organization}.",
+      termsAcknowledgementPrefix: "I agree to the ",
+      termsAcknowledgementSuffix: ".",
+      privacyAcknowledgementPrefix: "I have read the ",
+      privacyAcknowledgementSuffix: ".",
+
       agreementPrefix: "I agree to the ",
       agreementMiddle: " and ",
       agreementSuffix: " and consent to identity verification.",
@@ -173,7 +206,19 @@ export const VERIFY_HANDOFF_COPY = {
 
       startButtonFull: "Start verification",
       startButtonAgeOnly: "Confirm my age",
+      startButtonPending: "Starting...",
+      declineButton: "I do not consent",
       backButton: "Back",
+      submitError:
+        "We couldn’t record your consent. Check your connection and try again.",
+      refusalCancelError:
+        "We couldn’t cancel the session from this link, but no new Kayle ID processing will start from this page.",
+      refusalHeading: "Check stopped",
+      refusalDescription:
+        "Kayle ID will not continue this check. Contact {organization} to use another route or request review.",
+      refusalContactButton: "Contact {organization}",
+      refusalBackButton: "Review the notice again",
+      defaultRpName: "this organization",
     },
 
     notFound: {

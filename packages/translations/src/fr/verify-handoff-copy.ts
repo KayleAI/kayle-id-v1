@@ -177,6 +177,39 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       bulletShareAgeOnlyMiddle: " si j’ai {ageLabel} avec ",
       bulletShareAgeOnlySuffix: " — aucun autre détail",
 
+      claimManifestTitle: "Informations demandées",
+      claimManifestDescription:
+        "Vérifiez ce que cette organisation demande à Kayle ID de contrôler ou de partager avant toute lecture de votre document.",
+      requiredClaimsTitle: "Informations requises",
+      requiredClaimsDescription:
+        "Elles doivent rester sélectionnées pour continuer cette vérification.",
+      optionalClaimsTitle: "Informations facultatives",
+      optionalClaimsDescription:
+        "Vous pourrez choisir de les partager ou non plus tard dans l’application Kayle ID.",
+      securityClaimsTitle: "Contrôles de sécurité",
+      securityClaimsDescription:
+        "Kayle ID les utilise pour éviter les contrôles de document dupliqués ou rejoués.",
+      ageOnlyClaimsTitle: "Résultat d’âge uniquement",
+      ageOnlyClaimsDescription:
+        "Seule une réponse par oui ou par non sur l’âge est partagée pour cette partie de la vérification.",
+      requiredBadge: "Requis",
+      optionalBadge: "Facultatif",
+
+      documentProcessingConsentFull:
+        "Je consens à ce que Kayle ID lise les données de mon document pour cette vérification.",
+      documentProcessingConsentAgeOnly:
+        "Je consens à ce que Kayle ID lise les données de mon document pour vérifier mon âge.",
+      biometricConsent:
+        "Je consens à ce que Kayle ID capture et traite mon selfie pour confirmer que je suis bien le détenteur du document.",
+      shareClaimsConsentFull:
+        "Je consens à ce que Kayle ID partage le résultat et les informations sélectionnées avec {organization}.",
+      shareClaimsConsentAgeOnly:
+        "Je consens à ce que Kayle ID partage uniquement si j’ai {ageLabel} avec {organization}.",
+      termsAcknowledgementPrefix: "J’accepte les ",
+      termsAcknowledgementSuffix: ".",
+      privacyAcknowledgementPrefix: "J’ai lu l’",
+      privacyAcknowledgementSuffix: ".",
+
       agreementPrefix: "J’accepte les ",
       agreementMiddle: " et l’",
       agreementSuffix: " et je consens à la vérification d’identité.",
@@ -185,7 +218,19 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
 
       startButtonFull: "Démarrer la vérification",
       startButtonAgeOnly: "Confirmer mon âge",
+      startButtonPending: "Démarrage…",
+      declineButton: "Je ne consens pas",
       backButton: "Retour",
+      submitError:
+        "Nous n’avons pas pu enregistrer votre consentement. Vérifiez votre connexion et réessayez.",
+      refusalCancelError:
+        "Nous n’avons pas pu annuler la session depuis ce lien, mais aucun nouveau traitement Kayle ID ne démarrera depuis cette page.",
+      refusalHeading: "Vérification arrêtée",
+      refusalDescription:
+        "Kayle ID ne poursuivra pas cette vérification. Contactez {organization} pour utiliser une autre voie ou demander un examen.",
+      refusalContactButton: "Contacter {organization}",
+      refusalBackButton: "Relire l’avis",
+      defaultRpName: "cette organisation",
     },
 
     notFound: {

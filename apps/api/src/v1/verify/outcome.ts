@@ -3,6 +3,7 @@ import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { and, eq, inArray } from "drizzle-orm";
@@ -200,10 +201,12 @@ export async function markAttemptFailed({
 export async function markAttemptSucceeded({
 	session,
 	attemptId,
+	selectedFieldKeys = [],
 	...scoreInput
 }: {
 	session: SessionContext;
 	attemptId: string;
+	selectedFieldKeys?: string[];
 } & (
 	| {
 			faceScore: number;
@@ -258,9 +261,17 @@ export async function markAttemptSucceeded({
 				status: "succeeded",
 				failureCode: null,
 				riskScore,
+				selectedShareFieldKeys: selectedFieldKeys,
 				completedAt: now,
 			})
 			.where(eq(verification_attempts.id, attemptId));
+
+		await tx
+			.update(verification_consents)
+			.set({
+				selectedClaimKeys: selectedFieldKeys,
+			})
+			.where(eq(verification_consents.verificationAttemptId, attemptId));
 
 		const attemptSucceededEventId = generateId({
 			type: "evt",

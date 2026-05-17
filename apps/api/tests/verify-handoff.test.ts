@@ -3,6 +3,7 @@ import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { and, eq } from "drizzle-orm";
@@ -95,6 +96,21 @@ type VerifySessionDetailsResponse = {
 		session_id: string;
 		is_age_only: boolean;
 		age_threshold: number | null;
+		share_fields: Record<
+			string,
+			{ reason: string; required: boolean; source: "default" | "rc" }
+		>;
+	} | null;
+	error: {
+		code: string;
+		message: string;
+	} | null;
+};
+
+type ConsentResponse = {
+	data: {
+		consent_id: string;
+		consented_at: string;
 	} | null;
 	error: {
 		code: string;
@@ -151,6 +167,34 @@ async function createSessionWithCancelToken({
 		sessionId: payload.data.id,
 		cancelToken: payload.data.cancel_token,
 	};
+}
+
+async function recordConsent(sessionId: string): Promise<string> {
+	const response = await app.request(
+		`/v1/verify/session/${sessionId}/consent`,
+		{
+			body: JSON.stringify({
+				biometric_consent: true,
+				document_processing_consent: true,
+				privacy_notice_acknowledged: true,
+				share_claims_consent: true,
+				terms_acknowledged: true,
+			}),
+			headers: {
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		},
+	);
+
+	expect(response.status).toBe(200);
+	const payload = (await response.json()) as ConsentResponse;
+	expect(payload.error).toBeNull();
+	if (!payload.data?.consent_id) {
+		throw new Error("Expected consent response to include consent_id");
+	}
+
+	return payload.data.consent_id;
 }
 
 describe("/v1/verify/session/:id/handoff", () => {
@@ -226,12 +270,28 @@ describe("/v1/verify/session/:id/handoff", () => {
 		expect(payload.error?.code).toBe("SESSION_IN_PROGRESS");
 	});
 
+	test.serial("Returns 409 before browser consent is recorded", async () => {
+		const sessionId = await createSession();
+
+		const response = await app.request(
+			`/v1/verify/session/${sessionId}/handoff`,
+			{
+				method: "POST",
+			},
+		);
+
+		expect(response.status).toBe(409);
+		const payload = (await response.json()) as HandoffResponse;
+		expect(payload.error?.code).toBe("CONSENT_REQUIRED");
+	});
+
 	test.serial("Creates handoff payload and persists token hash", async () => {
 		if (!TEST_DATA) {
 			throw new Error("Test data not initialized");
 		}
 
 		const sessionId = await createSession();
+		const consentId = await recordConsent(sessionId);
 
 		const response = await app.request(
 			`/v1/verify/session/${sessionId}/handoff`,
@@ -299,12 +359,23 @@ describe("/v1/verify/session/:id/handoff", () => {
 			},
 		);
 		expect(attempt?.mobileWriteTokenHash).toBe(expectedHash);
+
+		const [consent] = await db
+			.select({
+				verificationAttemptId: verification_consents.verificationAttemptId,
+			})
+			.from(verification_consents)
+			.where(eq(verification_consents.id, consentId))
+			.limit(1);
+
+		expect(consent?.verificationAttemptId).toBe(payload.data.attempt_id);
 	});
 
 	test.serial(
 		"Reuses an unclaimed handoff until the token expires",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -352,6 +423,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 		"Issues a new attempt after the active handoff token expires",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -387,6 +459,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 		"Blocks new handoff issuance after a token is claimed",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -416,6 +489,57 @@ describe("/v1/verify/session/:id/handoff", () => {
 			expect(secondResponse.status).toBe(409);
 			const secondPayload = (await secondResponse.json()) as HandoffResponse;
 			expect(secondPayload.error?.code).toBe("SESSION_IN_PROGRESS");
+		},
+	);
+});
+
+describe("/v1/verify/session/:id/consent", () => {
+	test.serial("Persists browser consent before handoff", async () => {
+		const sessionId = await createSession();
+		const consentId = await recordConsent(sessionId);
+
+		const [consent] = await db
+			.select()
+			.from(verification_consents)
+			.where(eq(verification_consents.id, consentId))
+			.limit(1);
+
+		expect(consent).toBeDefined();
+		expect(consent?.verificationSessionId).toBe(sessionId);
+		expect(consent?.verificationAttemptId).toBeNull();
+		expect(consent?.documentProcessingConsent).toBe(true);
+		expect(consent?.biometricConsent).toBe(true);
+		expect(consent?.shareClaimsConsent).toBe(true);
+		expect(consent?.termsAcknowledged).toBe(true);
+		expect(consent?.privacyNoticeAcknowledged).toBe(true);
+		expect(consent?.rpName).toBe("Test Organization");
+		expect(consent?.requestedClaimKeys).toContain("kayle_document_id");
+		expect(consent?.requiredClaimKeys).toContain("kayle_document_id");
+		expect(consent?.selectedClaimKeys).toEqual(consent?.requestedClaimKeys);
+		expect(consent?.shareContractHash).toHaveLength(64);
+	});
+
+	test.serial(
+		"Rejects consent requests missing separate acknowledgements",
+		async () => {
+			const sessionId = await createSession();
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/consent`,
+				{
+					body: JSON.stringify({
+						document_processing_consent: true,
+					}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(400);
+			const payload = (await response.json()) as ConsentResponse;
+			expect(payload.error?.code).toBe("INVALID_REQUEST");
 		},
 	);
 });
@@ -453,7 +577,7 @@ describe("/v1/verify/session/:id/status", () => {
 			const payload = (await response.json()) as VerifySessionDetailsResponse;
 
 			expect(payload.error).toBeNull();
-			expect(payload.data).toEqual({
+			expect(payload.data).toMatchObject({
 				organization_name: "Test Organization",
 				organization_owner_id_check_completed: true,
 				organization_verified_apex_domains: [
@@ -471,6 +595,10 @@ describe("/v1/verify/session/:id/status", () => {
 				session_id: sessionId,
 				is_age_only: false,
 				age_threshold: null,
+			});
+			expect(payload.data?.share_fields.kayle_document_id).toMatchObject({
+				required: true,
+				source: "default",
 			});
 		},
 	);
@@ -506,6 +634,12 @@ describe("/v1/verify/session/:id/status", () => {
 		expect(payload.data).toMatchObject({
 			is_age_only: true,
 			age_threshold: 21,
+			share_fields: {
+				age_over_21: {
+					required: true,
+					source: "rc",
+				},
+			},
 		});
 	});
 

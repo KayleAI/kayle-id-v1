@@ -23,6 +23,14 @@ export type VerifySessionStatusPayload = {
 	status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 };
 
+export type VerifySessionShareField = {
+	required: boolean;
+	reason: string;
+	source: "default" | "rc";
+};
+
+export type VerifySessionShareFields = Record<string, VerifySessionShareField>;
+
 export type VerifySessionDetailsPayload = {
 	organization_name: string;
 	organization_owner_id_check_completed: boolean;
@@ -39,6 +47,20 @@ export type VerifySessionDetailsPayload = {
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
+	share_fields: VerifySessionShareFields;
+};
+
+export type RecordVerifyConsentInput = {
+	biometric_consent: true;
+	document_processing_consent: true;
+	privacy_notice_acknowledged: true;
+	share_claims_consent: true;
+	terms_acknowledged: true;
+};
+
+export type RecordVerifyConsentPayload = {
+	consent_id: string;
+	consented_at: string;
 };
 
 type VerifyApiError = {
@@ -63,6 +85,7 @@ const SESSION_DETAILS_ERROR_MESSAGE =
 	"Failed to fetch verification session details.";
 const CANCEL_SESSION_ERROR_MESSAGE =
 	"Failed to cancel the verification session.";
+const RECORD_CONSENT_ERROR_MESSAGE = "Failed to record verification consent.";
 
 function createVerifyRequestError(
 	code: string,
@@ -188,6 +211,31 @@ export async function requestVerifySessionDetails(
 		throw createVerifyRequestError(
 			payload.error?.code ?? UNKNOWN_ERROR_CODE,
 			payload.error?.message ?? SESSION_DETAILS_ERROR_MESSAGE,
+		);
+	}
+
+	return payload.data;
+}
+
+export async function requestRecordVerifyConsent(
+	sessionId: string,
+	input: RecordVerifyConsentInput,
+): Promise<RecordVerifyConsentPayload> {
+	const response = await fetch(`/v1/verify/session/${sessionId}/consent`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+
+	const payload = await readVerifyApiResponse<RecordVerifyConsentPayload>(
+		response,
+		RECORD_CONSENT_ERROR_MESSAGE,
+	);
+
+	if (!(response.ok && payload.data) || payload.error) {
+		throw createVerifyRequestError(
+			payload.error?.code ?? UNKNOWN_ERROR_CODE,
+			payload.error?.message ?? RECORD_CONSENT_ERROR_MESSAGE,
 		);
 	}
 

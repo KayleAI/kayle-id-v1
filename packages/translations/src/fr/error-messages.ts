@@ -97,6 +97,12 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "La requête est manquante ou mal formée.",
   },
 
+  CONSENT_REQUIRED: {
+    title: "Consentement requis",
+    description:
+      "Vérifiez et acceptez les étapes de consentement requises pour continuer.",
+  },
+
   ATTEMPT_CONNECTION_ACTIVE: {
     title: "Déjà ouverte",
     description:

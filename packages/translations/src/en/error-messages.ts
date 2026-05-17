@@ -92,6 +92,11 @@ export const ERROR_MESSAGES = {
     description: "The request payload was missing or malformed.",
   },
 
+  CONSENT_REQUIRED: {
+    title: "Consent required",
+    description: "Review and accept the required consent steps to continue.",
+  },
+
   ATTEMPT_CONNECTION_ACTIVE: {
     title: "Already open",
     description:

@@ -8,13 +8,12 @@ import {
 	parseAgeOverThreshold,
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
-import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
-import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
 	ageFromDateOfBirth,
 	type Dg1Claims,
 	parseDg1Claims,
 } from "./dg1-claims";
+import { resolvePublicShareFields } from "./public-share-fields";
 
 type ShareSelectionValidationCode =
 	| "INVALID_SESSION_ID"
@@ -30,16 +29,6 @@ export type VerifyShareManifest = {
 	selectedFieldKeys: string[];
 	sessionId: string;
 };
-
-const defaultNormalizedShareFields = (() => {
-	const normalized = normalizeShareFields(undefined);
-
-	if (!normalized.ok) {
-		throw new Error("Failed to initialize default share fields.");
-	}
-
-	return normalized.shareFields;
-})();
 
 function resolveErrorMessage(code: ShareSelectionValidationCode): string {
 	return ERROR_MESSAGES[code].description;
@@ -177,31 +166,6 @@ function normalizeSelectedFieldKeys({
 	};
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function removeBlockedShareFields(value: unknown): unknown {
-	if (!isRecord(value) || !("document_photo" in value)) {
-		return value;
-	}
-
-	const { document_photo: _documentPhoto, ...allowedFields } = value;
-	return allowedFields;
-}
-
-function resolveShareFields(shareFieldsInput: unknown): ShareFields {
-	const normalized = normalizeShareFields(
-		removeBlockedShareFields(shareFieldsInput),
-	);
-
-	if (!normalized.ok) {
-		return defaultNormalizedShareFields;
-	}
-
-	return normalized.shareFields;
-}
-
 export function createShareRequestPayload({
 	contractVersion,
 	sessionId,
@@ -211,7 +175,7 @@ export function createShareRequestPayload({
 	sessionId: string;
 	shareFieldsInput: unknown;
 }): VerifyShareRequest {
-	const shareFields = resolveShareFields(shareFieldsInput);
+	const shareFields = resolvePublicShareFields(shareFieldsInput);
 
 	return {
 		contractVersion,

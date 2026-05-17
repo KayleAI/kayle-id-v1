@@ -145,10 +145,9 @@ function PrivacyPage() {
 
 							<p>
 								Raw verification artifacts are processed in volatile session
-								state while the verification is active. If a developer requests
-								the <code>document_photo</code> claim and the user shares it,
-								the resulting document portrait is included in the encrypted
-								webhook payload delivered to that developer.
+								state while the verification is active. Kayle ID does not expose
+								the document portrait as a normal claim in relying-party webhook
+								payloads.
 							</p>
 						</LegalSection>
 

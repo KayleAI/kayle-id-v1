@@ -2,7 +2,6 @@ import type {
 	VerifyShareReady,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
-import { extractDg2FaceImage } from "@kayle-id/config/dg2-face-image";
 import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import {
 	isAgeOverClaim,
@@ -23,14 +22,7 @@ type ShareSelectionValidationCode =
 	| "SHARE_SELECTION_INVALID_FIELD"
 	| "SHARE_SELECTION_MISSING_REQUIRED";
 
-type ShareClaimImage = {
-	dataBase64: string;
-	format: "jpeg" | "jpeg2000";
-	height: number;
-	width: number;
-};
-
-export type VerifyShareClaimValue = boolean | string | ShareClaimImage | null;
+export type VerifyShareClaimValue = boolean | string | null;
 
 export type VerifyShareManifest = {
 	contractVersion: number;
@@ -53,28 +45,14 @@ function resolveErrorMessage(code: ShareSelectionValidationCode): string {
 	return ERROR_MESSAGES[code].description;
 }
 
-function encodeBase64(bytes: Uint8Array): string {
-	let output = "";
-	const chunkSize = 0x80_00;
-
-	for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-		const chunk = bytes.slice(offset, offset + chunkSize);
-		output += String.fromCharCode(...chunk);
-	}
-
-	return btoa(output);
-}
-
 async function buildShareClaimValue({
 	claimKey,
 	dg1Claims,
-	dg2,
 	now,
 	organizationId,
 }: {
 	claimKey: string;
 	dg1Claims: Dg1Claims;
-	dg2: Uint8Array;
 	now: Date;
 	organizationId: string;
 }): Promise<VerifyShareClaimValue> {
@@ -99,16 +77,6 @@ async function buildShareClaimValue({
 			return dg1Claims.expiryDateIso;
 		case "mrz_optional_data":
 			return dg1Claims.optionalData;
-		case "document_photo": {
-			const faceImage = extractDg2FaceImage(dg2);
-
-			return {
-				dataBase64: encodeBase64(faceImage.imageData),
-				format: faceImage.imageFormat,
-				height: faceImage.imageHeight,
-				width: faceImage.imageWidth,
-			};
-		}
 		case "kayle_document_id":
 			return await createKayleDocumentId({
 				organizationId,
@@ -209,8 +177,23 @@ function normalizeSelectedFieldKeys({
 	};
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function removeBlockedShareFields(value: unknown): unknown {
+	if (!isRecord(value) || !("document_photo" in value)) {
+		return value;
+	}
+
+	const { document_photo: _documentPhoto, ...allowedFields } = value;
+	return allowedFields;
+}
+
 function resolveShareFields(shareFieldsInput: unknown): ShareFields {
-	const normalized = normalizeShareFields(shareFieldsInput);
+	const normalized = normalizeShareFields(
+		removeBlockedShareFields(shareFieldsInput),
+	);
 
 	if (!normalized.ok) {
 		return defaultNormalizedShareFields;
@@ -244,7 +227,6 @@ export function createShareRequestPayload({
 export async function validateAndBuildShareManifest({
 	contractVersion,
 	dg1,
-	dg2,
 	now = new Date(),
 	organizationId,
 	selectedFieldKeysInput,
@@ -254,7 +236,6 @@ export async function validateAndBuildShareManifest({
 }: {
 	contractVersion: number;
 	dg1: Uint8Array;
-	dg2: Uint8Array;
 	now?: Date;
 	organizationId: string;
 	selectedFieldKeysInput: string[] | undefined;
@@ -307,7 +288,6 @@ export async function validateAndBuildShareManifest({
 						? await buildShareClaimValue({
 								claimKey: field.key,
 								dg1Claims,
-								dg2,
 								now,
 								organizationId,
 							})

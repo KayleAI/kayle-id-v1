@@ -51,7 +51,6 @@ export async function handleShareSelectionMessage(
 	const result = await validateAndBuildShareManifest({
 		contractVersion: session.contractVersion,
 		dg1,
-		dg2,
 		organizationId: session.organizationId,
 		selectedFieldKeysInput: payload.selectedFieldKeys,
 		sessionId: session.id,

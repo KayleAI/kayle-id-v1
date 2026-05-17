@@ -10,7 +10,7 @@ import {
 } from "../helpers/verify-artifacts";
 
 describe("verify share manifest", () => {
-	test("builds a canonical manifest from verified DG1 and DG2 sources", async () => {
+	test("builds a canonical manifest from verified DG1 sources", async () => {
 		const organizationId = "11111111-1111-4111-8111-111111111111";
 		const dg1 = createDg1Artifact(createTd3MrzText());
 		const artifacts = await createValidNfcArtifacts({
@@ -20,12 +20,10 @@ describe("verify share manifest", () => {
 		const result = await validateAndBuildShareManifest({
 			contractVersion: 1,
 			dg1: artifacts.dg1,
-			dg2: artifacts.dg2,
 			now: new Date("2026-03-09T12:00:00.000Z"),
 			organizationId,
 			selectedFieldKeysInput: [
 				"kayle_human_id",
-				"document_photo",
 				"nationality_code",
 				"age_over_18",
 				"kayle_document_id",
@@ -36,10 +34,6 @@ describe("verify share manifest", () => {
 				kayle_human_id: {
 					required: false,
 					reason: "Human ID is optional.",
-				},
-				document_photo: {
-					required: false,
-					reason: "Document photo is optional.",
 				},
 				nationality_code: {
 					required: false,
@@ -65,7 +59,6 @@ describe("verify share manifest", () => {
 			sessionId: "vs_123",
 			selectedFieldKeys: [
 				"age_over_18",
-				"document_photo",
 				"kayle_document_id",
 				"kayle_human_id",
 				"nationality_code",
@@ -83,11 +76,6 @@ describe("verify share manifest", () => {
 			}),
 		);
 		expect(result.manifest.claims.kayle_human_id).toBeNull();
-		expect(result.manifest.claims.document_photo).toMatchObject({
-			format: "jpeg",
-			height: 32,
-			width: 32,
-		});
 	});
 
 	test("returns null for requested optional claims that were not selected", async () => {
@@ -97,7 +85,6 @@ describe("verify share manifest", () => {
 		const result = await validateAndBuildShareManifest({
 			contractVersion: 1,
 			dg1: artifacts.dg1,
-			dg2: artifacts.dg2,
 			now: new Date("2026-03-09T12:00:00.000Z"),
 			organizationId,
 			selectedFieldKeysInput: ["kayle_document_id"],
@@ -141,12 +128,40 @@ describe("verify share manifest", () => {
 		const result = await validateAndBuildShareManifest({
 			contractVersion: 1,
 			dg1: artifacts.dg1,
-			dg2: artifacts.dg2,
 			organizationId: "11111111-1111-4111-8111-111111111111",
 			selectedFieldKeysInput: ["unknown_claim", "kayle_document_id"],
 			sessionId: "vs_123",
 			submittedSessionId: "vs_123",
 			shareFieldsInput: undefined,
+		});
+
+		expect(result).toEqual({
+			ok: false,
+			code: "SHARE_SELECTION_INVALID_FIELD",
+			message: ERROR_MESSAGES.SHARE_SELECTION_INVALID_FIELD.description,
+		});
+	});
+
+	test("rejects document photo selections from stale share contracts", async () => {
+		const artifacts = await createValidNfcArtifacts();
+
+		const result = await validateAndBuildShareManifest({
+			contractVersion: 1,
+			dg1: artifacts.dg1,
+			organizationId: "11111111-1111-4111-8111-111111111111",
+			selectedFieldKeysInput: ["document_photo", "kayle_document_id"],
+			sessionId: "vs_123",
+			submittedSessionId: "vs_123",
+			shareFieldsInput: {
+				document_photo: {
+					required: false,
+					reason: "Stale document photo request.",
+				},
+				kayle_document_id: {
+					required: true,
+					reason: "Document ID is required.",
+				},
+			},
 		});
 
 		expect(result).toEqual({
@@ -162,7 +177,6 @@ describe("verify share manifest", () => {
 		const result = await validateAndBuildShareManifest({
 			contractVersion: 1,
 			dg1: artifacts.dg1,
-			dg2: artifacts.dg2,
 			organizationId: "11111111-1111-4111-8111-111111111111",
 			selectedFieldKeysInput: ["nationality_code"],
 			sessionId: "vs_123",
@@ -194,7 +208,6 @@ describe("verify share manifest", () => {
 		const result = await validateAndBuildShareManifest({
 			contractVersion: 1,
 			dg1: artifacts.dg1,
-			dg2: artifacts.dg2,
 			now: new Date("2026-03-09T12:00:00.000Z"),
 			organizationId,
 			selectedFieldKeysInput: [

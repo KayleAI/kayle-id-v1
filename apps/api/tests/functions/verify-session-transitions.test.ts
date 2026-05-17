@@ -207,7 +207,6 @@ describe("verify session state transitions", () => {
 
 		expect(result).toEqual({
 			attemptSucceededEventId: null,
-			sessionCompletedEventId: null,
 		});
 
 		const [sessionAfter] = await db
@@ -237,6 +236,48 @@ describe("verify session state transitions", () => {
 				),
 			);
 		expect(successEvents.length).toBe(0);
+	});
+
+	test("markAttemptSucceeded emits only the attempt success event", async () => {
+		const { attemptId, session } = await seedActiveSessionWithAttempt();
+
+		const result = await markAttemptSucceeded({
+			session,
+			attemptId,
+			riskScore: 0.1,
+		});
+
+		expect(result.attemptSucceededEventId).toBeString();
+
+		const [sessionAfter] = await db
+			.select()
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, session.id))
+			.limit(1);
+		expect(sessionAfter?.status).toBe("completed");
+		expect(sessionAfter?.completedAt).toBeInstanceOf(Date);
+
+		const attemptEvents = await db
+			.select({ id: events.id })
+			.from(events)
+			.where(
+				and(
+					eq(events.triggerId, attemptId),
+					eq(events.type, "verification.attempt.succeeded"),
+				),
+			);
+		expect(attemptEvents).toHaveLength(1);
+
+		const sessionEvents = await db
+			.select({ id: events.id })
+			.from(events)
+			.where(
+				and(
+					eq(events.triggerId, session.id),
+					eq(events.type, "verification.session.completed"),
+				),
+			);
+		expect(sessionEvents).toHaveLength(0);
 	});
 
 	test("markAttemptFailed rolls back when the session is no longer active", async () => {
@@ -281,5 +322,68 @@ describe("verify session state transitions", () => {
 				),
 			);
 		expect(failureEvents.length).toBe(0);
+	});
+
+	test("markAttemptFailed terminalizes without session completed events", async () => {
+		const { attemptId, session } = await seedActiveSessionWithAttempt();
+
+		await db.insert(verification_attempts).values([
+			{
+				id: generateId({ type: "va" }),
+				verificationSessionId: session.id,
+				status: "failed",
+				failureCode: "selfie_face_mismatch",
+				riskScore: 0.4,
+				completedAt: new Date("2026-01-01T00:00:00.000Z"),
+			},
+			{
+				id: generateId({ type: "va" }),
+				verificationSessionId: session.id,
+				status: "failed",
+				failureCode: "selfie_face_mismatch",
+				riskScore: 0.5,
+				completedAt: new Date("2026-01-02T00:00:00.000Z"),
+			},
+		]);
+
+		const result = await markAttemptFailed({
+			session,
+			attemptId,
+			failureCode: "selfie_face_mismatch",
+			riskScore: 0.6,
+		});
+
+		expect(result.failedAttempts).toBe(MAX_FAILED_ATTEMPTS);
+		expect(result.terminalized).toBe(true);
+
+		const [sessionAfter] = await db
+			.select()
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, session.id))
+			.limit(1);
+		expect(sessionAfter?.status).toBe("completed");
+		expect(sessionAfter?.completedAt).toBeInstanceOf(Date);
+
+		const failureEvents = await db
+			.select({ id: events.id })
+			.from(events)
+			.where(
+				and(
+					eq(events.triggerId, attemptId),
+					eq(events.type, "verification.attempt.failed"),
+				),
+			);
+		expect(failureEvents).toHaveLength(1);
+
+		const sessionEvents = await db
+			.select({ id: events.id })
+			.from(events)
+			.where(
+				and(
+					eq(events.triggerId, session.id),
+					eq(events.type, "verification.session.completed"),
+				),
+			);
+		expect(sessionEvents).toHaveLength(0);
 	});
 });

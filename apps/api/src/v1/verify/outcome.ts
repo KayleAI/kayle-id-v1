@@ -115,9 +115,9 @@ export async function markAttemptFailed({
 			const exhaustedRetryLimit = failedAttempts.length >= MAX_FAILED_ATTEMPTS;
 
 			if (exhaustedRetryLimit) {
-				// Session-level terminal failure — the retry budget is exhausted and
-				// no attempt succeeded. Emitted in addition to the per-attempt row
-				// above so admins can filter on session-level outcomes alone.
+				// Session-level terminal failure: the retry budget is exhausted and
+				// no attempt succeeded. Webhooks are still keyed to the failed
+				// attempt; the session outcome is retained as an audit log.
 				await recordAuditLog(
 					{
 						actorType: "system",
@@ -155,16 +155,6 @@ export async function markAttemptFailed({
 			const sessionStillActive = Boolean(updatedSession);
 			if (!sessionStillActive) {
 				throw new SessionTransitionSkippedError();
-			}
-
-			if (exhaustedRetryLimit) {
-				await tx.insert(events).values({
-					id: generateId({ type: "evt" }),
-					organizationId: session.organizationId,
-					type: "verification.session.completed",
-					triggerId: session.id,
-					triggerType: "verification_session",
-				});
 			}
 
 			if (updatedSession) {
@@ -226,11 +216,9 @@ export async function markAttemptSucceeded({
 )): Promise<
 	| {
 			attemptSucceededEventId: string;
-			sessionCompletedEventId: string;
 	  }
 	| {
 			attemptSucceededEventId: null;
-			sessionCompletedEventId: null;
 	  }
 > {
 	const now = new Date();
@@ -261,7 +249,6 @@ export async function markAttemptSucceeded({
 		if (!completedSession) {
 			return {
 				attemptSucceededEventId: null,
-				sessionCompletedEventId: null,
 			};
 		}
 
@@ -287,18 +274,6 @@ export async function markAttemptSucceeded({
 			triggerType: "verification_attempt",
 		});
 
-		const sessionCompletedEventId = generateId({
-			type: "evt",
-		});
-
-		await tx.insert(events).values({
-			id: sessionCompletedEventId,
-			organizationId: session.organizationId,
-			type: "verification.session.completed",
-			triggerId: session.id,
-			triggerType: "verification_session",
-		});
-
 		await recordAuditLog(
 			{
 				actorType: "system",
@@ -313,7 +288,6 @@ export async function markAttemptSucceeded({
 
 		return {
 			attemptSucceededEventId,
-			sessionCompletedEventId,
 		};
 	});
 

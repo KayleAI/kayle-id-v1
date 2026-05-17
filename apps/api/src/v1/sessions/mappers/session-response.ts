@@ -24,7 +24,6 @@ export function mapAttemptRowToResponse(
 		session_id: attempt.verificationSessionId,
 		status: attempt.status,
 		failure_code: attempt.failureCode ?? null,
-		risk_score: attempt.riskScore,
 		completed_at: attempt.completedAt
 			? attempt.completedAt.toISOString()
 			: null,

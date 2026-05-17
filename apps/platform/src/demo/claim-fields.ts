@@ -52,14 +52,13 @@ export const demoClaimSections: DemoClaimSection[] = [
 	{
 		title: "Document",
 		description:
-			"Document metadata like issuing country code, document number, expiry date, and chip portrait.",
+			"Document metadata like issuing country code, document number, expiry date, and optional MRZ data.",
 		claims: [
 			"document_type_code",
 			"issuing_country_code",
 			"document_number",
 			"document_expiry_date",
 			"mrz_optional_data",
-			"document_photo",
 		],
 	},
 	{
@@ -85,8 +84,6 @@ const claimDescriptions: Record<string, string> = {
 	document_expiry_date: "Document expiry date, for example `2032-04-16`.",
 	mrz_optional_data:
 		"Additional MRZ data when present, such as a personal number.",
-	document_photo:
-		"Portrait securely read from the chip for document-bound face matching.",
 	kayle_document_id:
 		"Receiver-scoped identifier for this exact document, not a global passport number.",
 	kayle_human_id:

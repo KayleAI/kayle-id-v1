@@ -19,7 +19,6 @@ export function SessionApp() {
 		organization,
 		session,
 		sessionId,
-		shareFields,
 	} = useSession();
 	const step = useVerificationStore((state) => state.step);
 
@@ -54,7 +53,6 @@ export function SessionApp() {
 					onSessionCancelled={markSessionCancelled}
 					organization={organization}
 					sessionId={sessionId}
-					shareFields={shareFields}
 				/>
 			);
 		case "handoff":

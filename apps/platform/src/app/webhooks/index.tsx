@@ -184,7 +184,10 @@ export function WebhooksPage({
 				onValueChange={(value) => handleActiveTabChange(value as WebhooksTab)}
 				value={activeTab}
 			>
-				<WebhooksToolbar />
+				<WebhooksToolbar
+					activeTab={activeTab}
+					onActiveTabChange={handleActiveTabChange}
+				/>
 
 				<TabsContent value="endpoints">
 					<EndpointsTabContent

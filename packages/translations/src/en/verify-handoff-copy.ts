@@ -11,6 +11,7 @@ export const VERIFY_HANDOFF_COPY = {
 
   actions: {
     cancel: "Cancel",
+    cancelOrWithdrawConsent: "Cancel or withdraw consent",
     closeThisPage: "Close this page",
     continueNow: "Continue",
     openKayleIdApp: "Open Kayle ID",
@@ -18,9 +19,10 @@ export const VERIFY_HANDOFF_COPY = {
   },
 
   cancelDialog: {
-    title: "Cancel this check?",
-    description: "This will stop the check. You can start a new one later.",
-    confirm: "Yes, cancel",
+    title: "Cancel or withdraw consent?",
+    description:
+      "This will stop this check and withdraw consent for Kayle ID processing.",
+    confirm: "Yes, stop this check",
     dismiss: "Keep going",
   },
 
@@ -44,48 +46,49 @@ export const VERIFY_HANDOFF_COPY = {
 
   privacyRequest: {
     head: {
-      pageTitle: "Kayle ID Privacy Requests",
-      pageDescription:
-        "Withdraw consent or request data access and deletion for a Kayle ID check",
+      pageTitle: "Kayle ID Privacy Options",
+      pageDescription: "Withdraw consent for a Kayle ID check",
     },
-    linkLabel: "Withdraw this check",
-    heading: "Privacy requests for this check",
-    description:
-      "Kayle can stop Kayle-side processing for this check. For data already received by the organization, contact the organization directly. You do not need a Kayle account.",
-    scopeTitle: "Reference for this request",
-    scopeDescription:
-      "Include this reference so Kayle ID can find the session without asking you to create an account.",
-    sessionIdLabel: "Session ID",
-    attemptIdLabel: "Latest attempt ID",
-    attemptUnavailable: "Not available yet",
-    organizationLabel: "Organization",
-    withdrawTitle: "Withdraw this check",
-    withdrawDescriptionWithToken:
-      "This link includes the session cancellation token, so Kayle can stop pending processing and scrub undelivered payloads where possible.",
-    withdrawDescriptionWithoutToken:
-      "This link does not include a cancellation token. You can still send a privacy request using the session reference below.",
-    cancelButton: "Withdraw this check",
-    cancelPendingButton: "Withdrawing...",
-    cancelSuccess:
-      "Kayle has recorded this request and stopped Kayle-side processing where possible.",
+    linkLabel: "My privacy options",
+    heading: "Privacy Options",
+    statusHeading: "About this ID check",
+    terminalHeading: "This check is finished",
+    activeDescription:
+      "Kayle ID only holds the temporary document and selfie data needed to run this check. Withdrawing consent stops processing and deletes anything still held for it.",
+    unavailableActiveDescription:
+      "Kayle ID cannot load this check’s organization. Because the check is not finished, Kayle ID may still hold temporary data for it.",
+    terminalNoDataDescription:
+      "This check is already finished. Kayle ID no longer has your document, selfie, or personal details for it.",
+    terminalUndeliveredDescription:
+      "This check is already finished. Kayle ID no longer has your document, selfie, or personal details. {organization} has not received the result, and withdrawal can delete the undelivered encrypted result now.",
+    terminalDeliveredDescription:
+      "This check is already finished. Kayle ID no longer has your document, selfie, or personal details. {organization} has already received your data.",
+    notFoundHeading: "We can’t find this ID check",
+    notFoundDescription:
+      "If this is the check you used, Kayle ID no longer has your document, selfie, or personal details for it.",
+    withdrawTitle: "Withdraw consent",
+    withdrawDescriptionActive:
+      "Kayle ID will stop processing this check and delete anything still held for it.",
+    withdrawDescriptionTerminal:
+      "Kayle ID will record the withdrawal of your consent and delete any encrypted results we hold for this check.",
+    cancelButton: "Withdraw consent",
+    cancelPendingButton: "Withdrawing consent...",
+    cancelSuccess: "Consent withdrawn",
     cancelError: "We could not withdraw this check from this link.",
-    requestTitle: "Request deletion or data access",
-    requestDescription:
-      "Use these prefilled email links for deletion, withdrawal, or data access requests. The message includes the session reference.",
-    kayleEmailButton: "Email Kayle privacy team",
+    organizationRequestTitle: "Your data was already sent to {organization}",
+    organizationRequestDescription:
+      "{organization} controls the data they received. Please contact them for access or deletion there.",
     rpEmailButton: "Email {organization}",
-    loading: "Loading session reference...",
-    loadError:
-      "We could not load the full session reference, but the session ID in the URL can still be used for a request.",
+    learnMoreLink: "Learn more about Kayle ID",
+    defaultOrganizationName: "this organization",
   },
 
   screens: {
     connected: {
       headerTitle: "Continue on your phone",
       headerDescription: "Your phone is now connected.",
-      messageTitle: "In progress",
-      messageDescription:
-        "Finish the steps in the Kayle ID app. This page will update automatically.",
+      messageTitle: "ID Check in progress",
+      messageDescription: "Continue the check in the Kayle ID app.",
     },
 
     initial: {
@@ -115,8 +118,10 @@ export const VERIFY_HANDOFF_COPY = {
 
     terminal: {
       cancelled: {
-        title: "Cancelled",
-        description: "This check was cancelled before it finished.",
+        title: "Check cancelled",
+        headerDescription: "Kayle ID will not continue this check.",
+        messageTitle: "No further action needed",
+        description: "This check was stopped.",
       },
 
       expired: {
@@ -152,11 +157,12 @@ export const VERIFY_HANDOFF_COPY = {
       },
 
       success: {
-        title: "Kayle check complete",
-        description: "The Kayle check completed on your phone.",
+        title: "ID Check Complete",
+        description: "The ID Check was successfully completed on your phone.",
       },
 
-      finishedHeaderDescription: "This check is complete.",
+      finishedHeaderDescription: "This ID Check is complete.",
+      unfinishedHeaderDescription: "This ID Check did not complete.",
       outcomeMessageTitle: "Result",
       redirectHeaderDescription: "Continue now or wait to be redirected.",
       successMessageTitle: "Finished on your phone",
@@ -171,7 +177,7 @@ export const VERIFY_HANDOFF_COPY = {
       processBulletAuthentic: "Checks whether your document is genuine",
       processBulletHolder: "Checks whether you are the document holder",
       processBulletSharingPrefix:
-        "Shares only the Kayle check result and details you choose to share with ",
+        "Shares only the Kayle ID check result and details you choose to share with ",
       processBulletSharingSuffix: "",
       processBulletDecisionPrefix: "Sends an identity-assurance signal to ",
       processBulletDecisionSuffix:
@@ -214,49 +220,16 @@ export const VERIFY_HANDOFF_COPY = {
       bulletSelfie:
         "I allow Kayle ID to capture a selfie to confirm I am the document holder",
       bulletShareFullPrefix:
-        "I allow Kayle ID to share the Kayle check result and details I choose to share with ",
+        "I allow Kayle ID to share the verification result and details I choose to share with ",
       bulletShareFullSuffix: "",
       bulletShareAgeOnlyPrefix: "I allow Kayle ID to share ",
       bulletShareAgeOnlyEmphasis: "only",
       bulletShareAgeOnlyMiddle: " whether I am {ageLabel} with ",
       bulletShareAgeOnlySuffix: " — no other details",
 
-      claimManifestTitle: "Details requested",
-      claimManifestDescription:
-        "Review what this organization is asking Kayle ID to check or share before anything is read from your document.",
-      requiredClaimsTitle: "Required details",
-      requiredClaimsDescription:
-        "These must stay selected for this check to continue.",
-      optionalClaimsTitle: "Optional details",
-      optionalClaimsDescription:
-        "You can choose whether to share these later in the Kayle ID app.",
-      securityClaimsTitle: "Security checks",
-      securityClaimsDescription:
-        "Kayle ID uses these to prevent duplicate or replayed document checks.",
-      ageOnlyClaimsTitle: "Age-only result",
-      ageOnlyClaimsDescription:
-        "Only a yes-or-no age answer is shared for this part of the check.",
-      requiredBadge: "Required",
-      optionalBadge: "Optional",
-
-      documentProcessingConsentFull:
-        "I consent to Kayle ID reading my document data for this check.",
-      documentProcessingConsentAgeOnly:
-        "I consent to Kayle ID reading my document data to check my age.",
-      biometricConsent:
-        "I consent to Kayle ID capturing and processing my selfie to confirm I am the document holder.",
-      shareClaimsConsentFull:
-        "I consent to Kayle ID sharing the selected check result and details with {organization}.",
-      shareClaimsConsentAgeOnly:
-        "I consent to Kayle ID sharing only whether I am {ageLabel} with {organization}.",
-      termsAcknowledgementPrefix: "I agree to the ",
-      termsAcknowledgementSuffix: ".",
-      privacyAcknowledgementPrefix: "I have read the ",
-      privacyAcknowledgementSuffix: ".",
-
       agreementPrefix: "I agree to the ",
       agreementMiddle: " and ",
-      agreementSuffix: " and consent to identity verification.",
+      agreementSuffix: " and consent to this verification.",
       termsOfServiceLink: "Terms of Service",
       privacyNoticeLink: "Privacy Notice",
 
@@ -264,17 +237,14 @@ export const VERIFY_HANDOFF_COPY = {
       startButtonAgeOnly: "Confirm my age",
       startButtonPending: "Starting...",
       declineButton: "I do not consent",
-      backButton: "Back",
       submitError:
         "We couldn’t record your consent. Check your connection and try again.",
-      refusalCancelError:
-        "We couldn’t cancel the session from this link, but no new Kayle ID processing will start from this page.",
-      refusalHeading: "Check stopped",
-      refusalDescription:
-        "Kayle ID will not continue this check. Contact {organization} to use another route or request review.",
-      refusalContactButton: "Contact {organization}",
-      refusalBackButton: "Review the notice again",
-      defaultRpName: "this organization",
+      refusalDialogTitle: "Do not consent?",
+      refusalDialogDescriptionPrefix: "This will stop this check. Contact ",
+      refusalDialogDescriptionSuffix:
+        " to use another route or request review.",
+      refusalDialogConfirm: "Yes, stop this check",
+      refusalDialogDismiss: "Go back",
     },
 
     notFound: {

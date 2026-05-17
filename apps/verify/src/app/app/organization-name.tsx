@@ -227,10 +227,20 @@ function VerifiedDomainBadge({ apexDomains }: { apexDomains: string[] }) {
 						? orgCopy.verifiedDomainTitlePlural
 						: orgCopy.verifiedDomainTitleSingular}
 				</p>
-				<p className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
-					{apexDomains.join(", ")}
-				</p>
-				<p className="mt-1 text-emerald-700 text-xs dark:text-emerald-300">
+				{apexDomains.length > 1 ? (
+					<ul className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
+						{apexDomains.map((domain) => (
+							<li key={domain} className="list-disc list-inside">
+								{domain}
+							</li>
+						))}
+					</ul>
+				) : (
+					<p className="mt-1 break-all font-mono text-emerald-700 text-sm dark:text-emerald-300">
+						{apexDomains[0]}
+					</p>
+				)}
+				<p className="mt-1 text-emerald-700 text-sm dark:text-emerald-300">
 					{isPlural
 						? orgCopy.verifiedDomainDescriptionPlural
 						: orgCopy.verifiedDomainDescriptionSingular}

@@ -7,13 +7,13 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
 	requestCancelVerifySession,
 	requestRecordVerifyConsent,
-	type VerifySessionShareFields,
 } from "@/config/handoff";
 import { useVerificationStore } from "../../stores/session";
 
@@ -85,6 +85,82 @@ vi.mock("@kayleai/ui/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
+vi.mock("@kayleai/ui/alert-dialog", async () => {
+	const react = await import("react");
+	const DialogContext = react.createContext<{
+		onOpenChange: (open: boolean) => void;
+	}>({
+		onOpenChange: () => {},
+	});
+
+	return {
+		AlertDialog: ({
+			children,
+			onOpenChange,
+			open,
+		}: {
+			children: React.ReactNode;
+			onOpenChange?: (open: boolean) => void;
+			open?: boolean;
+		}) =>
+			open ? (
+				<DialogContext.Provider
+					value={{ onOpenChange: onOpenChange ?? (() => {}) }}
+				>
+					<div data-testid="refusal-dialog" role="alertdialog">
+						{children}
+					</div>
+				</DialogContext.Provider>
+			) : null,
+		AlertDialogContent: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogHeader: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogFooter: ({ children }: { children: React.ReactNode }) => (
+			<div>{children}</div>
+		),
+		AlertDialogTitle: ({ children }: { children: React.ReactNode }) => (
+			<h2>{children}</h2>
+		),
+		AlertDialogDescription: ({ children }: { children: React.ReactNode }) => (
+			<p>{children}</p>
+		),
+		AlertDialogAction: ({
+			children,
+			disabled,
+			onClick,
+		}: {
+			children: React.ReactNode;
+			disabled?: boolean;
+			onClick?: () => void;
+		}) => (
+			<button disabled={disabled} onClick={onClick} type="button">
+				{children}
+			</button>
+		),
+		AlertDialogCancel: ({
+			children,
+			disabled,
+		}: {
+			children: React.ReactNode;
+			disabled?: boolean;
+		}) => {
+			const { onOpenChange } = react.useContext(DialogContext);
+			return (
+				<button
+					disabled={disabled}
+					onClick={() => onOpenChange(false)}
+					type="button"
+				>
+					{children}
+				</button>
+			);
+		},
+	};
+});
+
 vi.mock("@kayleai/ui/dialog", () => ({
 	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	DialogTrigger: ({
@@ -137,42 +213,24 @@ function createOrganization(
 	};
 }
 
-const defaultShareFields: VerifySessionShareFields = {
-	family_name: {
-		required: true,
-		reason: "Name is required.",
-		source: "rc",
-	},
-	kayle_document_id: {
-		required: true,
-		reason: "Document ID is required.",
-		source: "default",
-	},
-	nationality_code: {
-		required: false,
-		reason: "Nationality is optional.",
-		source: "rc",
-	},
-};
-
 function renderConsent({
 	ageThreshold,
 	isAgeOnly,
+	onSessionCancelled,
 	organization = createOrganization(),
-	shareFields = defaultShareFields,
 }: {
 	ageThreshold?: number | null;
 	isAgeOnly?: boolean;
+	onSessionCancelled?: () => void;
 	organization?: Organization;
-	shareFields?: VerifySessionShareFields;
 } = {}) {
 	return render(
 		<SessionConsent
 			ageThreshold={ageThreshold}
 			isAgeOnly={isAgeOnly}
+			onSessionCancelled={onSessionCancelled}
 			organization={organization}
 			sessionId={sessionId}
-			shareFields={shareFields}
 		/>,
 	);
 }
@@ -201,9 +259,9 @@ describe("SessionConsent", () => {
 		}) as HTMLButtonElement;
 		expect(startButton.disabled).toBe(true);
 
-		for (const checkbox of screen.getAllByRole("checkbox")) {
-			fireEvent.click(checkbox);
-		}
+		const checkboxes = screen.getAllByRole("checkbox");
+		expect(checkboxes).toHaveLength(1);
+		fireEvent.click(checkboxes[0] as HTMLInputElement);
 		expect(startButton.disabled).toBe(false);
 		fireEvent.click(startButton);
 
@@ -222,7 +280,9 @@ describe("SessionConsent", () => {
 	test("renders the organization name in the consent copy", () => {
 		renderConsent();
 
-		expect(screen.getByText("Test Organization")).not.toBeNull();
+		expect(
+			screen.getByRole("button", { name: "Test Organization" }),
+		).not.toBeNull();
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
 
@@ -235,36 +295,24 @@ describe("SessionConsent", () => {
 		expect(
 			screen.getByRole("button", { name: "Start verification" }),
 		).not.toBeNull();
+		expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
 	});
 
-	test("renders the requested claim manifest before handoff", () => {
+	test("renders concise consent bullets without the requested claim manifest", () => {
 		renderConsent();
 
-		expect(screen.getByText("Details requested")).not.toBeNull();
-		expect(screen.getByText("Required details")).not.toBeNull();
-		expect(screen.getByText("Optional details")).not.toBeNull();
-		expect(screen.getByText("Security checks")).not.toBeNull();
-		expect(screen.getByText("Family Name")).not.toBeNull();
-		expect(screen.getByText("Nationality Code")).not.toBeNull();
-		expect(screen.getByText("Kayle Document ID")).not.toBeNull();
+		expect(
+			screen.getByText("I allow Kayle ID to read data from my document"),
+		).not.toBeNull();
+		expect(screen.queryByText("Details requested")).toBeNull();
+		expect(screen.queryByText("Required details")).toBeNull();
+		expect(screen.queryByText("Security checks")).toBeNull();
 	});
 
 	test("renders the age-only consent copy when isAgeOnly is true", () => {
 		renderConsent({
 			ageThreshold: 18,
 			isAgeOnly: true,
-			shareFields: {
-				age_over_18: {
-					required: true,
-					reason: "Age gate is required.",
-					source: "rc",
-				},
-				kayle_document_id: {
-					required: true,
-					reason: "Document ID is required.",
-					source: "default",
-				},
-			},
 		});
 
 		expect(
@@ -273,11 +321,12 @@ describe("SessionConsent", () => {
 		expect(
 			screen.getByRole("button", { name: "Confirm my age" }),
 		).not.toBeNull();
-		expect(screen.getAllByText(/check my age/i).length).toBeGreaterThan(0);
-		expect(screen.getAllByText(/whether I am over 18/i).length).toBeGreaterThan(
-			0,
-		);
-		expect(screen.getByText("Age-only result")).not.toBeNull();
+		expect(
+			screen.getByText("To prove your age, you must agree to the following:"),
+		).not.toBeNull();
+		expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+		expect(screen.getByText(/whether I am over 18 with/)).not.toBeNull();
+		expect(screen.queryByText("Age-only result")).toBeNull();
 	});
 
 	test("falls back to generic age wording when no age threshold is supplied", () => {
@@ -287,13 +336,17 @@ describe("SessionConsent", () => {
 		});
 
 		expect(
-			screen.getAllByText(/whether I am old enough/i).length,
-		).toBeGreaterThan(0);
+			screen.getByRole("button", { name: "Confirm my age" }),
+		).not.toBeNull();
+		expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+		expect(screen.getByText(/whether I am old enough with/)).not.toBeNull();
 	});
 
-	test("cancels and shows an RP path when the user refuses consent", async () => {
+	test("confirms before cancelling when the user refuses consent", async () => {
 		window.history.pushState({}, "", `/?cancel_token=${"a".repeat(48)}`);
+		const onSessionCancelled = vi.fn();
 		renderConsent({
+			onSessionCancelled,
 			organization: createOrganization({
 				website: "https://test.example/help",
 			}),
@@ -301,15 +354,42 @@ describe("SessionConsent", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "I do not consent" }));
 
+		const refusalDialog = screen.getByRole("alertdialog");
+		expect(refusalDialog).not.toBeNull();
+		expect(screen.getByText("Do not consent?")).not.toBeNull();
+		expect(
+			within(refusalDialog).getByRole("button", {
+				name: "Test Organization",
+			}),
+		).not.toBeNull();
+		expect(requestCancelVerifySession).not.toHaveBeenCalled();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "Yes, stop this check" }),
+		);
+
 		await waitFor(() => {
 			expect(requestCancelVerifySession).toHaveBeenCalledWith(
 				sessionId,
 				"a".repeat(48),
 			);
-			expect(screen.getByText("Check stopped")).not.toBeNull();
-			expect(
-				screen.getByRole("link", { name: "Contact Test Organization" }),
-			).not.toBeNull();
+			expect(onSessionCancelled).toHaveBeenCalledTimes(1);
+			expect(useVerificationStore.getState().step).toBe("handoff");
+			expect(screen.queryByText("Check stopped")).toBeNull();
 		});
+	});
+
+	test("dismisses the refusal dialog without cancelling", () => {
+		window.history.pushState({}, "", `/?cancel_token=${"a".repeat(48)}`);
+		renderConsent();
+
+		fireEvent.click(screen.getByRole("button", { name: "I do not consent" }));
+		fireEvent.click(screen.getByRole("button", { name: "Go back" }));
+
+		expect(screen.queryByRole("alertdialog")).toBeNull();
+		expect(requestCancelVerifySession).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole("button", { name: "Start verification" }),
+		).not.toBeNull();
 	});
 });

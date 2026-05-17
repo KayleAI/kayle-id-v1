@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as V1SplatRouteImport } from './routes/v1/$'
-import { Route as PrivacySessionIdRouteImport } from './routes/privacy.$sessionId'
+import { Route as SessionIdPrivacyRouteImport } from './routes/$sessionId.privacy'
 
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
@@ -23,39 +23,39 @@ const V1SplatRoute = V1SplatRouteImport.update({
   path: '/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrivacySessionIdRoute = PrivacySessionIdRouteImport.update({
-  id: '/privacy/$sessionId',
-  path: '/privacy/$sessionId',
+const SessionIdPrivacyRoute = SessionIdPrivacyRouteImport.update({
+  id: '/$sessionId/privacy',
+  path: '/$sessionId/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
-  '/privacy/$sessionId': typeof PrivacySessionIdRoute
+  '/$sessionId/privacy': typeof SessionIdPrivacyRoute
   '/v1/$': typeof V1SplatRoute
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
-  '/privacy/$sessionId': typeof PrivacySessionIdRoute
+  '/$sessionId/privacy': typeof SessionIdPrivacyRoute
   '/v1/$': typeof V1SplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/$': typeof SplatRoute
-  '/privacy/$sessionId': typeof PrivacySessionIdRoute
+  '/$sessionId/privacy': typeof SessionIdPrivacyRoute
   '/v1/$': typeof V1SplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/$' | '/privacy/$sessionId' | '/v1/$'
+  fullPaths: '/$' | '/$sessionId/privacy' | '/v1/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/$' | '/privacy/$sessionId' | '/v1/$'
-  id: '__root__' | '/$' | '/privacy/$sessionId' | '/v1/$'
+  to: '/$' | '/$sessionId/privacy' | '/v1/$'
+  id: '__root__' | '/$' | '/$sessionId/privacy' | '/v1/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
-  PrivacySessionIdRoute: typeof PrivacySessionIdRoute
+  SessionIdPrivacyRoute: typeof SessionIdPrivacyRoute
   V1SplatRoute: typeof V1SplatRoute
 }
 
@@ -75,11 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/privacy/$sessionId': {
-      id: '/privacy/$sessionId'
-      path: '/privacy/$sessionId'
-      fullPath: '/privacy/$sessionId'
-      preLoaderRoute: typeof PrivacySessionIdRouteImport
+    '/$sessionId/privacy': {
+      id: '/$sessionId/privacy'
+      path: '/$sessionId/privacy'
+      fullPath: '/$sessionId/privacy'
+      preLoaderRoute: typeof SessionIdPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -87,7 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
-  PrivacySessionIdRoute: PrivacySessionIdRoute,
+  SessionIdPrivacyRoute: SessionIdPrivacyRoute,
   V1SplatRoute: V1SplatRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,7 +1,11 @@
 import { afterAll, afterEach, beforeAll, expect, mock, test } from "bun:test";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
-import { events, verification_sessions } from "@kayle-id/database/schema/core";
+import {
+	events,
+	verification_attempts,
+	verification_sessions,
+} from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
 	webhook_encryption_keys,
@@ -553,6 +557,87 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 	expect(updatedDelivery?.payloadRetentionReason).toBe("delivered");
 	expect(updatedDelivery?.payloadScrubbedAt).toBeInstanceOf(Date);
 	expect(updatedDelivery?.webhookEncryptionKeyId).toBe("whk_delivery_send");
+});
+
+test("attemptWebhookDelivery cancels queued claims delivery after privacy withdrawal before fetch", async () => {
+	const sessionId = `vs_delivery_withdrawn_${crypto.randomUUID()}`;
+	const attemptId = `va_delivery_withdrawn_${crypto.randomUUID()}`;
+	const endpointId = `whe_delivery_withdrawn_${crypto.randomUUID()}`;
+	const eventId = `evt_delivery_withdrawn_${crypto.randomUUID()}`;
+	const deliveryId = `whd_delivery_withdrawn_${crypto.randomUUID()}`;
+	const completedAt = new Date("2099-01-01T00:00:00.000Z");
+	const signingSecretCiphertext = await encryptWebhookSigningSecret({
+		plaintext: "whsec_delivery_withdrawn",
+		secret: env.AUTH_SECRET,
+	});
+
+	await db.insert(verification_sessions).values({
+		id: sessionId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		cancelTokenConsumedAt: completedAt,
+		completedAt,
+		shareFields: {},
+		status: "completed",
+	});
+	await db.insert(verification_attempts).values({
+		id: attemptId,
+		verificationSessionId: sessionId,
+		completedAt,
+		selectedShareFieldKeys: ["family_name"],
+		status: "succeeded",
+	});
+	await db.insert(webhook_endpoints).values({
+		id: endpointId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		signingSecretCiphertext,
+		subscribedEventTypes: ["verification.attempt.succeeded"],
+		url: "https://example.com/webhooks/withdrawn",
+	});
+	await db.insert(events).values({
+		id: eventId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		triggerId: attemptId,
+		triggerType: "verification_attempt",
+		type: "verification.attempt.succeeded",
+	});
+	await db.insert(webhook_deliveries).values({
+		eventId,
+		id: deliveryId,
+		payload: "encrypted-claims-payload",
+		payloadExpiresAt: new Date("2099-01-02T00:00:00.000Z"),
+		payloadRetentionReason: "pending_delivery",
+		status: "pending",
+		webhookEndpointId: endpointId,
+		webhookEncryptionKeyId: null,
+	});
+
+	let fetchCount = 0;
+	globalThis.fetch = createMockFetch(() => {
+		fetchCount += 1;
+		throw new Error("withdrawn_delivery_should_not_fetch");
+	});
+
+	const result = await attemptWebhookDelivery({
+		authSecret: env.AUTH_SECRET,
+		deliveryId,
+	});
+
+	expect(fetchCount).toBe(0);
+	expect(result?.status).toBe("failed");
+	expect(result?.attempt_count).toBe(0);
+	expect(result?.payload_retention_reason).toBe("privacy_request");
+	expect(result?.payload_scrubbed_at).toBeString();
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	expect(updatedDelivery?.payload).toBeNull();
+	expect(updatedDelivery?.payloadExpiresAt).toBeNull();
+	expect(updatedDelivery?.payloadRetentionReason).toBe("privacy_request");
+	expect(updatedDelivery?.status).toBe("failed");
 });
 
 test("finalizeWebhookDeliveryFailure retains failed payloads for the endpoint replay window", async () => {

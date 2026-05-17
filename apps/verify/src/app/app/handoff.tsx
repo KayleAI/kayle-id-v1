@@ -27,6 +27,7 @@ import {
 	shouldCloseBrowserOnly,
 	shouldShowHandoff,
 } from "@/app/app/handoff-content";
+import { buildPrivacyRequestPath } from "@/app/privacy-request";
 import { HandoffState } from "@/components/handoff-state";
 import type {
 	HandoffPayload,
@@ -52,6 +53,10 @@ import { getPlatformNameLabel } from "./platform-name";
 const REDIRECT_COUNTDOWN_SECONDS = 3;
 const HANDOFF_REFRESH_INTERVAL_MS = 60_000;
 const STATUS_POLL_INTERVAL_MS = 2000;
+
+type HandoffButtonAction = {
+	label: string;
+} & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
 
 function buildRedirectTargetUrl({
 	redirectUrl,
@@ -85,6 +90,16 @@ function closeBrowserPage(): void {
 
 function buildMailtoHref(email: string): string {
 	return `mailto:${email}`;
+}
+
+function hasRpFallbackActions(organization: Organization): boolean {
+	const { rpFallback } = organization;
+	return Boolean(
+		rpFallback.fallbackIdvUrl ||
+			rpFallback.appealUrl ||
+			rpFallback.supportEmail ||
+			rpFallback.complaintsUrl,
+	);
 }
 
 function RpFallbackActions({ organization }: { organization: Organization }) {
@@ -187,6 +202,14 @@ export function Handoff() {
 				? buildHandoffUrl(handoffPayload, cancelTokenFromLocation ?? undefined)
 				: null,
 		[handoffPayload, cancelTokenFromLocation],
+	);
+	const privacyRequestPath = useMemo(
+		() =>
+			buildPrivacyRequestPath({
+				cancelToken: cancelTokenFromLocation,
+				sessionId,
+			}),
+		[cancelTokenFromLocation, sessionId],
 	);
 
 	const redirectTargetUrl = useMemo(() => {
@@ -334,6 +357,7 @@ export function Handoff() {
 	const shouldDismissLocally = shouldCloseBrowserOnly(sessionStatus);
 	const shouldShowRpFallback =
 		!handoffError &&
+		hasRpFallbackActions(organization) &&
 		(isRetryableFailure || (isTerminal && terminalContent?.colour === "red"));
 	const screenContent = useMemo(() => {
 		if (isTerminal && terminalContent) {
@@ -480,14 +504,8 @@ export function Handoff() {
 	let stateContent: ReactNode = null;
 	let buttons:
 		| {
-				primary?: {
-					label: string;
-					onClick: () => void;
-				};
-				secondary?: {
-					label: string;
-					onClick: () => void;
-				};
+				primary?: HandoffButtonAction;
+				secondary?: HandoffButtonAction;
 		  }
 		| undefined;
 
@@ -516,6 +534,10 @@ export function Handoff() {
 					redirectToUrl(redirectTargetUrl);
 				},
 			},
+			secondary: {
+				href: privacyRequestPath,
+				label: copy.privacyRequest.linkLabel,
+			},
 		};
 	} else if (isTerminal) {
 		buttons = {
@@ -524,6 +546,10 @@ export function Handoff() {
 				onClick: () => {
 					closeBrowserPage();
 				},
+			},
+			secondary: {
+				href: privacyRequestPath,
+				label: copy.privacyRequest.linkLabel,
 			},
 		};
 	} else if (shouldDismissLocally) {
@@ -542,7 +568,7 @@ export function Handoff() {
 				onClick: handleRetry,
 			},
 			secondary: {
-				label: copy.actions.cancel,
+				label: copy.actions.cancelOrWithdrawConsent,
 				onClick: () => {
 					setIsCancelDialogOpen(true);
 				},
@@ -551,13 +577,23 @@ export function Handoff() {
 	} else {
 		buttons = {
 			secondary: {
-				label: copy.actions.cancel,
+				label: copy.actions.cancelOrWithdrawConsent,
 				onClick: () => {
 					setIsCancelDialogOpen(true);
 				},
 			},
 		};
 	}
+
+	const infoCardChildren =
+		stateContent !== null || shouldShowRpFallback ? (
+			<>
+				{stateContent}
+				{shouldShowRpFallback ? (
+					<RpFallbackActions organization={organization} />
+				) : null}
+			</>
+		) : undefined;
 
 	return (
 		<>
@@ -581,10 +617,7 @@ export function Handoff() {
 							}
 				}
 			>
-				{stateContent}
-				{shouldShowRpFallback ? (
-					<RpFallbackActions organization={organization} />
-				) : null}
+				{infoCardChildren}
 			</InfoCard>
 			<AlertDialog
 				onOpenChange={(open) => {

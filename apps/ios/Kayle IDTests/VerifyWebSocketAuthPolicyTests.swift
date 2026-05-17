@@ -321,12 +321,12 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
-          reason: "Kayle document identifier.",
+          reason: "Kayle ID document identifier.",
           required: true
         ),
         VerifyShareRequestField(
           key: "kayle_human_id",
-          reason: "Kayle human identifier.",
+          reason: "Kayle ID human identifier.",
           required: true
         ),
         VerifyShareRequestField(
@@ -363,12 +363,12 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
-          reason: "Kayle document identifier.",
+          reason: "Kayle ID document identifier.",
           required: true
         ),
         VerifyShareRequestField(
           key: "kayle_human_id",
-          reason: "Kayle human identifier.",
+          reason: "Kayle ID human identifier.",
           required: true
         ),
       ]

@@ -1,9 +1,5 @@
 import { Layout } from "@kayleai/ui/layout";
 import { useLoaderData } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { buildPrivacyRequestPath } from "@/app/privacy-request";
-import { useVerifyHandoffCopy } from "@/i18n/provider";
-import { readCancelTokenFromLocation } from "@/utils/cancel";
 import { SessionApp } from "./app";
 import { SessionError } from "./error";
 import { SessionLoader } from "./loader";
@@ -23,25 +19,7 @@ export function VerificationApp() {
 				<SessionApp />
 				<SessionError />
 				<SessionLoader />
-				<PrivacyRequestLink sessionId={sessionId} />
 			</SessionProvider>
 		</Layout>
-	);
-}
-
-function PrivacyRequestLink({ sessionId }: { sessionId: string }) {
-	const copy = useVerifyHandoffCopy();
-	const cancelToken = useMemo(readCancelTokenFromLocation, []);
-	const href = buildPrivacyRequestPath({ cancelToken, sessionId });
-
-	return (
-		<p className="mt-6 text-center text-muted-foreground text-xs">
-			<a
-				className="font-medium text-foreground underline underline-offset-4"
-				href={href}
-			>
-				{copy.privacyRequest.linkLabel}
-			</a>
-		</p>
 	);
 }

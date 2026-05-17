@@ -48,7 +48,7 @@ struct CompletionView: View {
 
       if let privacyRequestURL {
         Link(destination: privacyRequestURL) {
-          Text("Privacy request")
+          Text("Privacy Options")
             .font(.system(.body, weight: .medium))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)

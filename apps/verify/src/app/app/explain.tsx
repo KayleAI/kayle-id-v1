@@ -1,23 +1,8 @@
 import { interpolate } from "@kayle-id/translations/i18n";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
 import { Button } from "@kayleai/ui/button";
 import { Logo } from "@kayleai/ui/logo";
-import { useLoaderData } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
-import { requestCancelVerifySession } from "@/config/handoff";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
-import { readCancelTokenFromLocation } from "@/utils/cancel";
 import { useVerificationStore } from "../../stores/session";
-import { useSession } from "../session-provider";
 import { type Organization, OrganizationName } from "./organization-name";
 
 type SessionExplainProps = {
@@ -106,7 +91,6 @@ export function SessionExplain({
 					<Button onClick={goToConsent} type="button">
 						{explainCopy.continueButton}
 					</Button>
-					<CancelExplainAction />
 				</div>
 			</div>
 		</div>
@@ -194,93 +178,8 @@ function AgeOnlyExplain({
 					<Button onClick={goToConsent} type="button">
 						{explainCopy.continueButton}
 					</Button>
-					<CancelExplainAction />
 				</div>
 			</div>
 		</div>
-	);
-}
-
-function CancelExplainAction() {
-	const copy = useVerifyHandoffCopy();
-	const { sessionId } = useLoaderData({ from: "/$" });
-	const { markSessionCancelled } = useSession();
-	const goToHandoff = useVerificationStore((state) => state.goToHandoff);
-	const [isDialogOpen, setIsDialogOpen] = useState(false);
-	const [isCancelInFlight, setIsCancelInFlight] = useState(false);
-	const [cancelError, setCancelError] = useState<string | null>(null);
-
-	const handleConfirmCancel = useCallback(async () => {
-		const cancelToken = readCancelTokenFromLocation();
-		if (!cancelToken) {
-			setIsDialogOpen(false);
-			setCancelError(copy.handoff.cancelError);
-			return;
-		}
-
-		setIsCancelInFlight(true);
-		try {
-			await requestCancelVerifySession(sessionId, cancelToken);
-			markSessionCancelled();
-			setIsDialogOpen(false);
-			setCancelError(null);
-			goToHandoff();
-		} catch {
-			setIsDialogOpen(false);
-			setCancelError(copy.handoff.cancelError);
-		} finally {
-			setIsCancelInFlight(false);
-		}
-	}, [copy.handoff.cancelError, goToHandoff, markSessionCancelled, sessionId]);
-
-	return (
-		<>
-			<Button
-				onClick={() => setIsDialogOpen(true)}
-				type="button"
-				variant="outline"
-			>
-				{copy.actions.cancel}
-			</Button>
-			{cancelError ? (
-				<p className="text-center text-destructive text-sm" role="alert">
-					{cancelError}
-				</p>
-			) : null}
-			<AlertDialog
-				onOpenChange={(open) => {
-					if (isCancelInFlight) {
-						return;
-					}
-					setIsDialogOpen(open);
-				}}
-				open={isDialogOpen}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>{copy.cancelDialog.title}</AlertDialogTitle>
-						<AlertDialogDescription>
-							{copy.cancelDialog.description}
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isCancelInFlight}>
-							{copy.cancelDialog.dismiss}
-						</AlertDialogCancel>
-						<AlertDialogAction
-							disabled={isCancelInFlight}
-							onClick={() => {
-								handleConfirmCancel().catch(() => {
-									// handleConfirmCancel already stores the error state that the UI renders.
-								});
-							}}
-							variant="destructive"
-						>
-							{copy.cancelDialog.confirm}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-		</>
 	);
 }

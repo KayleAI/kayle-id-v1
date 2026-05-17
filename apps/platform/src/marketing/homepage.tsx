@@ -35,7 +35,7 @@ const documentCoverage: ReadonlyArray<{
 		Icon: IconLockPassword,
 		title: "Chip authentication",
 		description:
-			"Kayle performs Passive, Active, and Chip Authentication during the read — clones and replays are not confirmed.",
+			"Kayle performs Passive, Active, and Chip Authentication during the read — clones and replays do not pass.",
 	},
 ];
 
@@ -67,11 +67,11 @@ export function Homepage() {
 			{/* === Hero === */}
 			<section className="mb-16 sm:mb-24">
 				<h1 className="mx-auto mt-8 max-w-[20ch] text-balance text-center font-light text-6xl text-foreground tracking-tighter sm:text-7xl">
-					Identity-assurance signals for high-trust products.
+					Identity verification for high-trust products.
 				</h1>
 				<p className="mx-auto mt-6 max-w-[48ch] text-balance text-center font-medium text-lg text-muted-foreground sm:mt-8 sm:text-xl">
-					Collect a Kayle check for identity or age with one coherent flow —
-					with only the details you need, end-to-end encrypted.
+					Verify your users' identity or confirm their age with one coherent
+					flow — with only the details you need, end-to-end-encrypted.
 				</p>
 				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
 					<Button
@@ -151,8 +151,8 @@ export function Homepage() {
 			{/* === Closing CTA === */}
 			<section className="mt-24 border-border/70 border-t pt-24">
 				<h2 className="mx-auto mt-8 max-w-[28ch] text-balance text-center font-light text-4xl text-foreground tracking-tighter sm:text-5xl">
-					Bring Kayle's calmer, more legible design language into your
-					identity-assurance flows.
+					Bring Kayle's calmer, more legible design language into your identity
+					flows.
 				</h2>
 				<p className="mx-auto mt-6 max-w-[48ch] text-balance text-center text-lg text-muted-foreground">
 					Explore the live demo, then connect Kayle ID to your own onboarding or

@@ -4,7 +4,7 @@ import type {
 	VerifySessionStatusPayload,
 } from "@/config/handoff";
 
-export type CardTone = "blue" | "emerald" | "red";
+export type CardTone = "amber" | "blue" | "emerald" | "red";
 
 export type ScreenContent = {
 	colour: CardTone;
@@ -17,6 +17,8 @@ export type ScreenContent = {
 type TerminalContent = {
 	colour: CardTone;
 	description: string;
+	headerDescription?: string;
+	messageTitle?: string;
 	title: string;
 };
 
@@ -47,7 +49,7 @@ export function buildTerminalContent(
 ): TerminalContent {
 	if (sessionStatus.status === "cancelled") {
 		return {
-			colour: "red",
+			colour: "amber",
 			...copy.screens.terminal.cancelled,
 		};
 	}
@@ -165,7 +167,10 @@ export function buildTerminalScreenContent({
 		colour: terminalContent.colour,
 		headerDescription: redirectTargetUrl
 			? copy.screens.terminal.redirectHeaderDescription
-			: copy.screens.terminal.finishedHeaderDescription,
+			: (terminalContent.headerDescription ??
+				(terminalContent.colour === "emerald"
+					? copy.screens.terminal.finishedHeaderDescription
+					: copy.screens.terminal.unfinishedHeaderDescription)),
 		headerTitle: terminalContent.title,
 		messageDescription: redirectTargetUrl
 			? `${terminalContent.description} Redirecting in ${
@@ -175,9 +180,10 @@ export function buildTerminalScreenContent({
 					copy.screens.terminal.youCanCloseDescription
 				}`,
 		messageTitle:
-			terminalContent.colour === "emerald"
+			terminalContent.messageTitle ??
+			(terminalContent.colour === "emerald"
 				? copy.screens.terminal.successMessageTitle
-				: copy.screens.terminal.outcomeMessageTitle,
+				: copy.screens.terminal.outcomeMessageTitle),
 	};
 }
 

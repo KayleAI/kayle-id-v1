@@ -40,16 +40,16 @@ export const METRIC_CONFIG: Record<DisplayMetricKey, MetricConfig> = {
 	success: {
 		description: "Sessions where Kayle confirmed at least one attempt.",
 		dotClassName: "bg-[#10b981]",
-		label: "Positive",
+		label: "Successful",
 		stroke: "#10b981",
-		title: "Positive Kayle checks",
+		title: "Successful Kayle checks",
 	},
 	failure: {
 		description: "Completed sessions with no Kayle-confirmed attempts.",
 		dotClassName: "bg-[#f43f5e]",
-		label: "Not confirmed",
+		label: "Failed",
 		stroke: "#f43f5e",
-		title: "Checks not confirmed",
+		title: "Failed checks",
 	},
 	expired: {
 		description: "Sessions that aged out before Kayle confirmed an attempt.",

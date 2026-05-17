@@ -14,7 +14,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@kayleai/ui/table";
-import { TabsList, TabsTrigger } from "@kayleai/ui/tabs";
+import { cn } from "@kayleai/ui/utils/cn";
 import { Link } from "@tanstack/react-router";
 import {
 	EllipsisVerticalIcon,
@@ -32,6 +32,7 @@ import {
 	getEndpointSecondaryLabel,
 	getEventSubscriptionSummary,
 	TAB_OPTIONS,
+	type WebhooksTab,
 } from "@/app/webhooks/utils";
 import { RelativeTime } from "@/components/relative-time";
 import {
@@ -41,24 +42,34 @@ import {
 	StatusBadge,
 } from "../shared";
 
-export function WebhooksToolbar() {
+export function WebhooksToolbar({
+	activeTab,
+	onActiveTabChange,
+}: {
+	activeTab: WebhooksTab;
+	onActiveTabChange: (tab: WebhooksTab) => void;
+}) {
 	return (
-		<div className="flex flex-col gap-4 border-border/70 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
-			<TabsList
-				className="h-auto w-full justify-start gap-5 rounded-none bg-transparent p-0"
-				variant="line"
-			>
+		<nav aria-label="Webhook sections" className="border-b border-border/70">
+			<ul className="-mb-px flex flex-wrap gap-x-6">
 				{TAB_OPTIONS.map((tab) => (
-					<TabsTrigger
-						className="h-10 flex-none rounded-none px-0 pb-2 data-active:bg-transparent"
-						key={tab.value}
-						value={tab.value}
-					>
-						{tab.label}
-					</TabsTrigger>
+					<li key={tab.value}>
+						<button
+							className={cn(
+								"inline-flex items-center border-b-2 px-1 py-3 font-medium text-sm transition-colors",
+								activeTab === tab.value
+									? "border-foreground text-foreground"
+									: "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+							)}
+							onClick={() => onActiveTabChange(tab.value)}
+							type="button"
+						>
+							{tab.label}
+						</button>
+					</li>
 				))}
-			</TabsList>
-		</div>
+			</ul>
+		</nav>
 	);
 }
 

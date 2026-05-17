@@ -24,7 +24,17 @@ import {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { and, asc, eq, inArray, isNotNull, lte, ne } from "drizzle-orm";
+import {
+	and,
+	asc,
+	eq,
+	inArray,
+	isNotNull,
+	isNull,
+	lte,
+	ne,
+	or,
+} from "drizzle-orm";
 import { config } from "@/config";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
@@ -147,7 +157,11 @@ async function getMappedWebhookDelivery(
 type DeliveryAttemptContext = {
 	delivery: typeof webhook_deliveries.$inferSelect;
 	endpoint: typeof webhook_endpoints.$inferSelect;
-	eventType: SupportedWebhookEventType;
+	event: {
+		triggerId: string;
+		triggerType: string;
+		type: SupportedWebhookEventType;
+	};
 };
 
 async function getDeliveryAttemptContext(
@@ -157,6 +171,8 @@ async function getDeliveryAttemptContext(
 		.select({
 			delivery: webhook_deliveries,
 			endpoint: webhook_endpoints,
+			eventTriggerId: events.triggerId,
+			eventTriggerType: events.triggerType,
 			eventType: events.type,
 		})
 		.from(webhook_deliveries)
@@ -172,9 +188,95 @@ async function getDeliveryAttemptContext(
 		? {
 				delivery: row.delivery,
 				endpoint: row.endpoint,
-				eventType: row.eventType as SupportedWebhookEventType,
+				event: {
+					triggerId: row.eventTriggerId,
+					triggerType: row.eventTriggerType,
+					type: row.eventType as SupportedWebhookEventType,
+				},
 			}
 		: null;
+}
+
+async function getSessionPrivacyStateForDeliveryEvent({
+	triggerId,
+	triggerType,
+}: DeliveryAttemptContext["event"]): Promise<{
+	cancelTokenConsumedAt: Date | null;
+	status: string;
+} | null> {
+	if (triggerType === "verification_session") {
+		const [row] = await db
+			.select({
+				cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+				status: verification_sessions.status,
+			})
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, triggerId))
+			.limit(1);
+
+		return row ?? null;
+	}
+
+	if (triggerType !== "verification_attempt") {
+		return null;
+	}
+
+	const [row] = await db
+		.select({
+			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+			status: verification_sessions.status,
+		})
+		.from(verification_attempts)
+		.innerJoin(
+			verification_sessions,
+			eq(verification_sessions.id, verification_attempts.verificationSessionId),
+		)
+		.where(eq(verification_attempts.id, triggerId))
+		.limit(1);
+
+	return row ?? null;
+}
+
+async function cancelWebhookDeliveryAfterPrivacyWithdrawal({
+	deliveryId,
+	event,
+	now = new Date(),
+}: {
+	deliveryId: string;
+	event: DeliveryAttemptContext["event"];
+	now?: Date;
+}): Promise<boolean> {
+	if (event.type === "verification.session.cancelled") {
+		return false;
+	}
+
+	const session = await getSessionPrivacyStateForDeliveryEvent(event);
+	const isWithdrawn = Boolean(
+		session?.cancelTokenConsumedAt || session?.status === "cancelled",
+	);
+
+	if (!isWithdrawn) {
+		return false;
+	}
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			nextAttemptAt: null,
+			payload: null,
+			payloadExpiresAt: null,
+			payloadRetentionReason: "privacy_request",
+			payloadScrubbedAt: now,
+			status: "failed",
+		})
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				ne(webhook_deliveries.status, "succeeded"),
+			),
+		);
+
+	return true;
 }
 
 async function claimPendingWebhookDelivery(
@@ -189,6 +291,11 @@ async function claimPendingWebhookDelivery(
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				eq(webhook_deliveries.status, "pending"),
+				isNotNull(webhook_deliveries.payload),
+				or(
+					isNull(webhook_deliveries.payloadRetentionReason),
+					ne(webhook_deliveries.payloadRetentionReason, "privacy_request"),
+				),
 			),
 		)
 		.returning();
@@ -709,9 +816,25 @@ export async function runWebhookDeliveryAttempt({
 		return;
 	}
 
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
 	const claimedDelivery = await claimPendingWebhookDelivery(deliveryId);
 	if (!claimedDelivery) {
 		const currentDelivery = await getWebhookDeliveryById(deliveryId);
+		if (
+			!currentDelivery?.payload ||
+			currentDelivery.payloadRetentionReason === "privacy_request"
+		) {
+			return;
+		}
+
 		if (
 			currentDelivery?.status === "pending" ||
 			currentDelivery?.status === "delivering"
@@ -726,7 +849,25 @@ export async function runWebhookDeliveryAttempt({
 		return;
 	}
 
-	if (!(context.endpoint.enabled && claimedDelivery.payload)) {
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
+	const latestClaimedDelivery = await getWebhookDeliveryById(deliveryId);
+	if (
+		latestClaimedDelivery?.status !== "delivering" ||
+		!latestClaimedDelivery.payload ||
+		latestClaimedDelivery.payloadRetentionReason === "privacy_request"
+	) {
+		return;
+	}
+
+	if (!context.endpoint.enabled) {
 		await recordPreflightFailure({ deliveryId });
 		throw new WebhookDeliveryAttemptError(
 			"webhook_delivery_endpoint_disabled_or_payload_missing",
@@ -747,14 +888,32 @@ export async function runWebhookDeliveryAttempt({
 		);
 	}
 
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
+	const deliveryBeforeSend = await getWebhookDeliveryById(deliveryId);
+	if (
+		deliveryBeforeSend?.status !== "delivering" ||
+		!deliveryBeforeSend.payload ||
+		deliveryBeforeSend.payloadRetentionReason === "privacy_request"
+	) {
+		return;
+	}
+
 	const now = new Date();
 
 	let response: Response;
 	try {
 		response = await sendWebhookDeliveryRequest({
-			delivery: claimedDelivery,
+			delivery: deliveryBeforeSend,
 			endpoint: context.endpoint,
-			eventType: context.eventType,
+			eventType: context.event.type,
 			signingSecret,
 		});
 	} catch (error) {
@@ -787,7 +946,7 @@ export async function runWebhookDeliveryAttempt({
 
 	await persistWebhookDeliveryAttemptResult({
 		attemptedAt: now,
-		delivery: claimedDelivery,
+		delivery: deliveryBeforeSend,
 		response,
 	});
 

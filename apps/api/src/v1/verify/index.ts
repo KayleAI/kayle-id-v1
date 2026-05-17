@@ -18,6 +18,7 @@ import {
 } from "./consent-records";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
+import { getPublicVerifySessionPrivacyContext } from "./privacy-context";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { checkRedirectPermitted } from "./redirect-permitted";
 import { loadActiveVerifySession } from "./session-context";
@@ -271,6 +272,41 @@ verify.get(
 		return c.json(
 			{
 				data: status,
+				error: null,
+			},
+			200,
+		);
+	},
+);
+
+verify.get(
+	"/session/:id/privacy-context",
+	validator("param", sessionParamJsonValidator),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const context = await getPublicVerifySessionPrivacyContext({
+			env: c.env,
+			sessionId: id,
+		});
+
+		if (!context) {
+			const response = createVerifyJsonErrorResponse({
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		return c.json(
+			{
+				data: context,
 				error: null,
 			},
 			200,

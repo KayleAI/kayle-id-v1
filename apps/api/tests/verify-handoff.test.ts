@@ -87,7 +87,7 @@ type VerifySessionStatusResponse = {
 
 type VerifySessionDetailsResponse = {
 	data: {
-		organization_name: string;
+		organization_name: string | null;
 		organization_owner_id_check_completed: boolean;
 		organization_verified_apex_domains: string[];
 		organization_logo: string | null;
@@ -106,6 +106,43 @@ type VerifySessionDetailsResponse = {
 			string,
 			{ reason: string; required: boolean; source: "default" | "rc" }
 		>;
+	} | null;
+	error: {
+		code: string;
+		message: string;
+	} | null;
+};
+
+type VerifySessionPrivacyContextResponse = {
+	data: {
+		session_id: string;
+		status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+		is_terminal: boolean;
+		has_withdrawn_consent: boolean;
+		organization_name: string;
+		organization_owner_id_check_completed: boolean;
+		organization_verified_apex_domains: string[];
+		organization_logo: string | null;
+		organization_business_type: "sole" | "business" | null;
+		organization_business_name: string | null;
+		organization_business_jurisdiction: string | null;
+		organization_business_registration_number: string | null;
+		organization_privacy_policy_url: string | null;
+		organization_terms_of_service_url: string | null;
+		organization_website: string | null;
+		organization_description: string | null;
+		rp_fallback: {
+			appeal_url: string | null;
+			complaints_url: string | null;
+			fallback_idv_url: string | null;
+			support_email: string | null;
+		};
+		latest_attempt_id: string | null;
+		result_webhook_deliveries: {
+			total_count: number;
+			succeeded_count: number;
+			undelivered_count: number;
+		};
 	} | null;
 	error: {
 		code: string;
@@ -1238,6 +1275,147 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(attempt?.status).toBe("failed");
 			expect(attempt?.failureCode).toBe("session_expired");
 			expect(attempt?.completedAt).not.toBeNull();
+		},
+	);
+});
+
+describe("/v1/verify/session/:id/privacy-context", () => {
+	test.serial("Returns 404 for unknown privacy context sessions", async () => {
+		const response = await app.request(
+			"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/privacy-context",
+		);
+
+		expect(response.status).toBe(404);
+		const payload =
+			(await response.json()) as VerifySessionPrivacyContextResponse;
+		expect(payload.error?.code).toBe("SESSION_NOT_FOUND");
+	});
+
+	test.serial(
+		"Returns active privacy context without result deliveries",
+		async () => {
+			const sessionId = await createSession();
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/privacy-context`,
+			);
+
+			expect(response.status).toBe(200);
+			const payload =
+				(await response.json()) as VerifySessionPrivacyContextResponse;
+			expect(payload.error).toBeNull();
+			expect(payload.data).toMatchObject({
+				session_id: sessionId,
+				status: "created",
+				is_terminal: false,
+				has_withdrawn_consent: false,
+				organization_name: "Test Organization",
+				organization_owner_id_check_completed: true,
+				organization_verified_apex_domains: [
+					...(TEST_DATA?.verifiedApexDomains ?? []),
+				].sort(),
+				organization_logo: null,
+				organization_business_name: null,
+				organization_business_jurisdiction: null,
+				organization_business_registration_number: null,
+				organization_business_type: null,
+				organization_privacy_policy_url: null,
+				organization_terms_of_service_url: null,
+				organization_website: null,
+				organization_description: null,
+				rp_fallback: {
+					appeal_url: null,
+					complaints_url: null,
+					fallback_idv_url: null,
+					support_email: null,
+				},
+				result_webhook_deliveries: {
+					total_count: 0,
+					succeeded_count: 0,
+					undelivered_count: 0,
+				},
+			});
+		},
+	);
+
+	test.serial(
+		"Returns terminal privacy context with result webhook summary",
+		async () => {
+			const sessionId = await createSession();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = `va_privacy_context_${crypto.randomUUID()}`;
+			const eventId = `evt_privacy_context_${crypto.randomUUID()}`;
+			const endpointId = `whe_privacy_context_${crypto.randomUUID()}`;
+			const pendingDeliveryId = `whd_privacy_context_pending_${crypto.randomUUID()}`;
+			const succeededDeliveryId = `whd_privacy_context_succeeded_${crypto.randomUUID()}`;
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-context",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values([
+				{
+					eventId,
+					id: pendingDeliveryId,
+					payload: "encrypted-claims-payload",
+					payloadRetentionReason: "pending_delivery",
+					status: "pending",
+					webhookEndpointId: endpointId,
+					webhookEncryptionKeyId: null,
+				},
+				{
+					eventId,
+					id: succeededDeliveryId,
+					payload: null,
+					payloadRetentionReason: "delivered",
+					payloadScrubbedAt: completedAt,
+					status: "succeeded",
+					webhookEndpointId: endpointId,
+					webhookEncryptionKeyId: null,
+				},
+			]);
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/privacy-context`,
+			);
+
+			expect(response.status).toBe(200);
+			const payload =
+				(await response.json()) as VerifySessionPrivacyContextResponse;
+			expect(payload.error).toBeNull();
+			expect(payload.data).toMatchObject({
+				session_id: sessionId,
+				status: "completed",
+				is_terminal: true,
+				latest_attempt_id: attemptId,
+				result_webhook_deliveries: {
+					total_count: 2,
+					succeeded_count: 1,
+					undelivered_count: 1,
+				},
+			});
 		},
 	);
 });

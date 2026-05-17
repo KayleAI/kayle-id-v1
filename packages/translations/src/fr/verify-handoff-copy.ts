@@ -34,6 +34,16 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     errorMessageDescription: "Vérifiez votre connexion internet et réessayez.",
   },
 
+  rpFallback: {
+    title: "Besoin d’une autre voie ?",
+    description:
+      "Utilisez l’une des options de secours de cette organisation si Kayle ID n’est pas la bonne méthode pour terminer cette vérification.",
+    fallbackIdvLabel: "Utiliser une autre méthode de vérification",
+    appealLabel: "Demander un examen",
+    contactLabel: "Contacter {organization}",
+    complaintsLabel: "Réclamations",
+  },
+
   screens: {
     connected: {
       headerTitle: "Continuez sur votre téléphone",

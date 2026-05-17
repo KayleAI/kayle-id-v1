@@ -8,6 +8,7 @@ import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normal
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
 import { validateRedirectUrlForOrg } from "@/v1/sessions/redirect-uri-validator";
 import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
+import { checkRpComplianceProfileGate } from "@/v1/sessions/rp-compliance-profile";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 import { isAgeOnlyShareFields } from "@/v1/sessions/unverified-org-limit";
 
@@ -83,6 +84,31 @@ export const createSessionHandler: RouteHandler<
 	}
 
 	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
+	const complianceGate = await checkRpComplianceProfileGate({ organizationId });
+	if (!complianceGate.ok) {
+		logEvent(log, {
+			details: {
+				organization_id: organizationId,
+				missing_fields: complianceGate.missingFields,
+			},
+			event: "sessions.create.rp_compliance_profile_incomplete",
+			level: "warn",
+		});
+
+		return c.json(
+			{
+				data: null,
+				error: {
+					code: "RP_COMPLIANCE_PROFILE_INCOMPLETE",
+					message:
+						"Complete the relying-party compliance profile before creating production verification sessions.",
+					hint: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration.`,
+					docs,
+				},
+			},
+			400,
+		);
+	}
 
 	const id = generateId({ type: "vs" });
 	const result = await createVerificationSessionWithUnverifiedOrgLimit({

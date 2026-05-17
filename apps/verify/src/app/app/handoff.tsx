@@ -1,3 +1,4 @@
+import { interpolate } from "@kayle-id/translations/i18n";
 import { InfoCard } from "@kayle-id/ui/info-card";
 import {
 	AlertDialog,
@@ -45,6 +46,8 @@ import {
 import { redirectToUrl } from "@/utils/navigation";
 import { useDevice } from "@/utils/use-device";
 import { useSession } from "../session-provider";
+import type { Organization } from "./organization-name";
+import { getPlatformNameLabel } from "./platform-name";
 
 const REDIRECT_COUNTDOWN_SECONDS = 3;
 const HANDOFF_REFRESH_INTERVAL_MS = 60_000;
@@ -80,10 +83,81 @@ function closeBrowserPage(): void {
 	window.close();
 }
 
+function buildMailtoHref(email: string): string {
+	return `mailto:${email}`;
+}
+
+function RpFallbackActions({ organization }: { organization: Organization }) {
+	const copy = useVerifyHandoffCopy();
+	const fallbackCopy = copy.rpFallback;
+	const organizationLabel = getPlatformNameLabel(organization.name);
+	const links: Array<{ href: string; label: string }> = [];
+	const { rpFallback } = organization;
+
+	if (rpFallback.fallbackIdvUrl) {
+		links.push({
+			href: rpFallback.fallbackIdvUrl,
+			label: fallbackCopy.fallbackIdvLabel,
+		});
+	}
+	if (rpFallback.appealUrl) {
+		links.push({
+			href: rpFallback.appealUrl,
+			label: fallbackCopy.appealLabel,
+		});
+	}
+	if (rpFallback.supportEmail) {
+		links.push({
+			href: buildMailtoHref(rpFallback.supportEmail),
+			label: interpolate(fallbackCopy.contactLabel, {
+				organization: organizationLabel,
+			}),
+		});
+	}
+	if (rpFallback.complaintsUrl) {
+		links.push({
+			href: rpFallback.complaintsUrl,
+			label: fallbackCopy.complaintsLabel,
+		});
+	}
+
+	if (links.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="mt-6 rounded-xl border border-border bg-muted/40 p-4">
+			<p className="font-medium text-foreground text-sm">
+				{fallbackCopy.title}
+			</p>
+			<p className="mt-1 text-muted-foreground text-sm">
+				{fallbackCopy.description}
+			</p>
+			<div className="mt-3 flex flex-col gap-2">
+				{links.map((link) => (
+					<a
+						className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
+						href={link.href}
+						key={`${link.label}:${link.href}`}
+						rel={
+							link.href.startsWith("mailto:")
+								? undefined
+								: "noopener noreferrer"
+						}
+						target={link.href.startsWith("mailto:") ? undefined : "_blank"}
+					>
+						{link.label}
+					</a>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export function Handoff() {
 	const copy = useVerifyHandoffCopy();
 	const { os } = useDevice();
-	const { sessionStatus: prefetchedSessionStatus } = useSession();
+	const { organization, sessionStatus: prefetchedSessionStatus } = useSession();
 	const { sessionId } = useLoaderData({
 		from: "/$",
 	});
@@ -258,6 +332,9 @@ export function Handoff() {
 	const isSameDeviceOnly = requiresSameDeviceOnly(sessionStatus);
 	const isRetryableFailure = isRetryableFailureState(sessionStatus);
 	const shouldDismissLocally = shouldCloseBrowserOnly(sessionStatus);
+	const shouldShowRpFallback =
+		!handoffError &&
+		(isRetryableFailure || (isTerminal && terminalContent?.colour === "red"));
 	const screenContent = useMemo(() => {
 		if (isTerminal && terminalContent) {
 			return buildTerminalScreenContent({
@@ -505,6 +582,9 @@ export function Handoff() {
 				}
 			>
 				{stateContent}
+				{shouldShowRpFallback ? (
+					<RpFallbackActions organization={organization} />
+				) : null}
 			</InfoCard>
 			<AlertDialog
 				onOpenChange={(open) => {

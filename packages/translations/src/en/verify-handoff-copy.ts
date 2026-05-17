@@ -32,6 +32,16 @@ export const VERIFY_HANDOFF_COPY = {
     errorMessageDescription: "Check your internet connection and try again.",
   },
 
+  rpFallback: {
+    title: "Need another route?",
+    description:
+      "Use one of this organization's fallback options if Kayle ID is not the right way to complete this check.",
+    fallbackIdvLabel: "Use another verification method",
+    appealLabel: "Request review",
+    contactLabel: "Contact {organization}",
+    complaintsLabel: "Complaints",
+  },
+
   screens: {
     connected: {
       headerTitle: "Continue on your phone",

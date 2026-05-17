@@ -11,6 +11,7 @@ import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,
 } from "@/config/handoff";
+import type { Organization } from "./organization-name";
 
 if (typeof document === "undefined") {
 	const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -281,6 +282,32 @@ function createSessionStatus(
 	};
 }
 
+function createOrganization(
+	overrides: Partial<Organization> = {},
+): Organization {
+	return {
+		name: "Test Organization",
+		ownerIdCheckCompleted: true,
+		verifiedApexDomains: ["test.example"],
+		logo: null,
+		businessType: null,
+		businessName: null,
+		businessJurisdiction: null,
+		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
+		rpFallback: {
+			appealUrl: null,
+			complaintsUrl: null,
+			fallbackIdvUrl: null,
+			supportEmail: null,
+		},
+		...overrides,
+	};
+}
+
 function createVerifyRequestError(
 	code: string,
 	message: string,
@@ -314,6 +341,7 @@ beforeEach(() => {
 		redirect_url: null,
 	});
 	mockedUseSession.mockReturnValue({
+		organization: createOrganization(),
 		sessionStatus: null,
 	});
 	Object.defineProperty(window, "close", {
@@ -376,6 +404,7 @@ describe("Handoff", () => {
 			os: "unknown",
 		});
 		mockedUseSession.mockReturnValue({
+			organization: createOrganization(),
 			sessionStatus: createSessionStatus({
 				completed_at: "2099-01-01T00:00:00.000Z",
 				is_terminal: true,
@@ -800,5 +829,75 @@ describe("Handoff", () => {
 		expect(view.getByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
 		expect(assignLocationSpy).not.toHaveBeenCalled();
 		expect(view.queryByTestId("qr-code")).toBeNull();
+	});
+
+	test("renders configured RP fallback CTAs on terminal failure", async () => {
+		mockedUseDevice.mockReturnValue({
+			supported: false,
+			os: "unknown",
+		});
+		mockedUseSession.mockReturnValue({
+			organization: createOrganization({
+				name: "Acme",
+				rpFallback: {
+					appealUrl: "https://acme.example/review",
+					complaintsUrl: "https://acme.example/complaints",
+					fallbackIdvUrl: "https://acme.example/manual-idv",
+					supportEmail: "support@acme.example",
+				},
+			}),
+			sessionStatus: null,
+		});
+
+		requestHandoffPayloadMock.mockRejectedValue(
+			createVerifyRequestError(
+				"SESSION_EXPIRED",
+				"The verification session has already finished.",
+			),
+		);
+		requestVerifySessionStatusMock.mockResolvedValue(
+			createSessionStatus({
+				completed_at: "2099-01-01T00:00:00.000Z",
+				is_terminal: true,
+				latest_attempt: {
+					completed_at: "2099-01-01T00:00:00.000Z",
+					failure_code: "selfie_face_mismatch",
+					handoff_claimed: true,
+					id: "va_attempt123",
+					retry_allowed: false,
+					status: "failed",
+				},
+				redirect_url: null,
+				same_device_only: true,
+				status: "completed",
+			}),
+		);
+
+		const view = render(<Handoff />);
+
+		expect(
+			(
+				await view.findByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.fallbackIdvLabel,
+				})
+			).getAttribute("href"),
+		).toBe("https://acme.example/manual-idv");
+		expect(
+			view
+				.getByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.appealLabel,
+				})
+				.getAttribute("href"),
+		).toBe("https://acme.example/review");
+		expect(
+			view.getByRole("link", { name: "Contact Acme" }).getAttribute("href"),
+		).toBe("mailto:support@acme.example");
+		expect(
+			view
+				.getByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.complaintsLabel,
+				})
+				.getAttribute("href"),
+		).toBe("https://acme.example/complaints");
 	});
 });

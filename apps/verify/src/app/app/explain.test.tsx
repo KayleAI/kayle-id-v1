@@ -170,6 +170,12 @@ function createOrganization(
 		termsOfServiceUrl: null,
 		website: null,
 		description: null,
+		rpFallback: {
+			appealUrl: null,
+			complaintsUrl: null,
+			fallbackIdvUrl: null,
+			supportEmail: null,
+		},
 		...overrides,
 	};
 }

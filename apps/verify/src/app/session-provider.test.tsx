@@ -125,6 +125,12 @@ function createSessionDetails(
 		organization_terms_of_service_url: null,
 		organization_website: null,
 		organization_description: null,
+		rp_fallback: {
+			appeal_url: null,
+			complaints_url: null,
+			fallback_idv_url: null,
+			support_email: null,
+		},
 		is_age_only: false,
 		age_threshold: null,
 		share_fields: {

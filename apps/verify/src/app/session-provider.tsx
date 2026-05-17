@@ -56,6 +56,12 @@ const EMPTY_ORGANIZATION: Organization = {
 	termsOfServiceUrl: null,
 	website: null,
 	description: null,
+	rpFallback: {
+		appealUrl: null,
+		complaintsUrl: null,
+		fallbackIdvUrl: null,
+		supportEmail: null,
+	},
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -154,6 +160,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 					termsOfServiceUrl: details.organization_terms_of_service_url,
 					website: details.organization_website,
 					description: details.organization_description,
+					rpFallback: {
+						appealUrl: details.rp_fallback.appeal_url,
+						complaintsUrl: details.rp_fallback.complaints_url,
+						fallbackIdvUrl: details.rp_fallback.fallback_idv_url,
+						supportEmail: details.rp_fallback.support_email,
+					},
 				});
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);

@@ -10,6 +10,13 @@ import {
 } from "@kayleai/ui/card";
 import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@kayleai/ui/select";
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { Textarea } from "@kayleai/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,12 +36,41 @@ import {
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
 import {
+	parsePublicAppealUrl,
+	parsePublicComplaintsUrl,
+	parsePublicFallbackIdvUrl,
 	parsePublicPrivacyPolicyUrl,
+	parsePublicSupportEmail,
 	parsePublicTermsOfServiceUrl,
 	parsePublicWebsiteUrl,
 } from "./website-url";
 
 const MAX_LOGO_BYTES = 1024 * 1024;
+type ConsequentialUseValue = "no" | "unset" | "yes";
+
+function toConsequentialUseValue(
+	value: boolean | null | undefined,
+): ConsequentialUseValue {
+	if (value === true) {
+		return "yes";
+	}
+	if (value === false) {
+		return "no";
+	}
+	return "unset";
+}
+
+function fromConsequentialUseValue(
+	value: ConsequentialUseValue,
+): boolean | null {
+	if (value === "yes") {
+		return true;
+	}
+	if (value === "no") {
+		return false;
+	}
+	return null;
+}
 
 function PublicDetailsSkeleton() {
 	return (
@@ -77,6 +113,38 @@ function PublicDetailsForm({
 	const [termsOfServiceUrl, setTermsOfServiceUrl] = useState(
 		organization.metadata?.termsOfServiceUrl ?? "",
 	);
+	const [legalControllerName, setLegalControllerName] = useState(
+		organization.metadata?.legalControllerName ?? "",
+	);
+	const [controllerJurisdiction, setControllerJurisdiction] = useState(
+		organization.metadata?.controllerJurisdiction ?? "",
+	);
+	const [supportEmail, setSupportEmail] = useState(
+		organization.metadata?.supportEmail ?? "",
+	);
+	const [fallbackIdvUrl, setFallbackIdvUrl] = useState(
+		organization.metadata?.fallbackIdvUrl ?? "",
+	);
+	const [appealUrl, setAppealUrl] = useState(
+		organization.metadata?.appealUrl ?? "",
+	);
+	const [complaintsUrl, setComplaintsUrl] = useState(
+		organization.metadata?.complaintsUrl ?? "",
+	);
+	const [article6Basis, setArticle6Basis] = useState(
+		organization.metadata?.article6Basis ?? "",
+	);
+	const [article9Condition, setArticle9Condition] = useState(
+		organization.metadata?.article9Condition ?? "",
+	);
+	const [
+		usesKayleForConsequentialDecisions,
+		setUsesKayleForConsequentialDecisions,
+	] = useState<ConsequentialUseValue>(
+		toConsequentialUseValue(
+			organization.metadata?.usesKayleForConsequentialDecisions,
+		),
+	);
 	const [logoPreview, setLogoPreview] = useState<string | null>(
 		organization.logo ?? null,
 	);
@@ -91,6 +159,21 @@ function PublicDetailsForm({
 		setWebsite(organization.metadata?.website ?? "");
 		setPrivacyPolicyUrl(organization.metadata?.privacyPolicyUrl ?? "");
 		setTermsOfServiceUrl(organization.metadata?.termsOfServiceUrl ?? "");
+		setLegalControllerName(organization.metadata?.legalControllerName ?? "");
+		setControllerJurisdiction(
+			organization.metadata?.controllerJurisdiction ?? "",
+		);
+		setSupportEmail(organization.metadata?.supportEmail ?? "");
+		setFallbackIdvUrl(organization.metadata?.fallbackIdvUrl ?? "");
+		setAppealUrl(organization.metadata?.appealUrl ?? "");
+		setComplaintsUrl(organization.metadata?.complaintsUrl ?? "");
+		setArticle6Basis(organization.metadata?.article6Basis ?? "");
+		setArticle9Condition(organization.metadata?.article9Condition ?? "");
+		setUsesKayleForConsequentialDecisions(
+			toConsequentialUseValue(
+				organization.metadata?.usesKayleForConsequentialDecisions,
+			),
+		);
 		setLogoPreview(organization.logo ?? null);
 		setPendingLogo(undefined);
 		setErrorMessage("");
@@ -101,6 +184,15 @@ function PublicDetailsForm({
 		organization.metadata?.website,
 		organization.metadata?.privacyPolicyUrl,
 		organization.metadata?.termsOfServiceUrl,
+		organization.metadata?.legalControllerName,
+		organization.metadata?.controllerJurisdiction,
+		organization.metadata?.supportEmail,
+		organization.metadata?.fallbackIdvUrl,
+		organization.metadata?.appealUrl,
+		organization.metadata?.complaintsUrl,
+		organization.metadata?.article6Basis,
+		organization.metadata?.article9Condition,
+		organization.metadata?.usesKayleForConsequentialDecisions,
 	]);
 
 	const saveMutation = useMutation({
@@ -110,6 +202,14 @@ function PublicDetailsForm({
 			const trimmedDescription = description.trim();
 			const trimmedPrivacyPolicyUrl = privacyPolicyUrl.trim();
 			const trimmedTermsOfServiceUrl = termsOfServiceUrl.trim();
+			const trimmedLegalControllerName = legalControllerName.trim();
+			const trimmedControllerJurisdiction = controllerJurisdiction.trim();
+			const trimmedSupportEmail = supportEmail.trim();
+			const trimmedFallbackIdvUrl = fallbackIdvUrl.trim();
+			const trimmedAppealUrl = appealUrl.trim();
+			const trimmedComplaintsUrl = complaintsUrl.trim();
+			const trimmedArticle6Basis = article6Basis.trim();
+			const trimmedArticle9Condition = article9Condition.trim();
 			const parsedWebsite = parsePublicWebsiteUrl(trimmedWebsite);
 			const parsedPrivacyPolicyUrl = parsePublicPrivacyPolicyUrl(
 				trimmedPrivacyPolicyUrl,
@@ -117,6 +217,13 @@ function PublicDetailsForm({
 			const parsedTermsOfServiceUrl = parsePublicTermsOfServiceUrl(
 				trimmedTermsOfServiceUrl,
 			);
+			const parsedSupportEmail = parsePublicSupportEmail(trimmedSupportEmail);
+			const parsedFallbackIdvUrl = parsePublicFallbackIdvUrl(
+				trimmedFallbackIdvUrl,
+			);
+			const parsedAppealUrl = parsePublicAppealUrl(trimmedAppealUrl);
+			const parsedComplaintsUrl =
+				parsePublicComplaintsUrl(trimmedComplaintsUrl);
 
 			let logoPayload: string | undefined;
 			if (pendingLogo === null) {
@@ -138,6 +245,17 @@ function PublicDetailsForm({
 					website: parsedWebsite?.href ?? null,
 					privacyPolicyUrl: parsedPrivacyPolicyUrl?.href ?? null,
 					termsOfServiceUrl: parsedTermsOfServiceUrl?.href ?? null,
+					legalControllerName: trimmedLegalControllerName || null,
+					controllerJurisdiction: trimmedControllerJurisdiction || null,
+					supportEmail: parsedSupportEmail,
+					fallbackIdvUrl: parsedFallbackIdvUrl?.href ?? null,
+					appealUrl: parsedAppealUrl?.href ?? null,
+					complaintsUrl: parsedComplaintsUrl?.href ?? null,
+					article6Basis: trimmedArticle6Basis || null,
+					article9Condition: trimmedArticle9Condition || null,
+					usesKayleForConsequentialDecisions: fromConsequentialUseValue(
+						usesKayleForConsequentialDecisions,
+					),
 				},
 				...(logoPayload === undefined ? {} : { logo: logoPayload }),
 			});
@@ -202,6 +320,14 @@ function PublicDetailsForm({
 	const trimmedDescription = description.trim();
 	const trimmedPrivacyPolicyUrl = privacyPolicyUrl.trim();
 	const trimmedTermsOfServiceUrl = termsOfServiceUrl.trim();
+	const trimmedLegalControllerName = legalControllerName.trim();
+	const trimmedControllerJurisdiction = controllerJurisdiction.trim();
+	const trimmedSupportEmail = supportEmail.trim();
+	const trimmedFallbackIdvUrl = fallbackIdvUrl.trim();
+	const trimmedAppealUrl = appealUrl.trim();
+	const trimmedComplaintsUrl = complaintsUrl.trim();
+	const trimmedArticle6Basis = article6Basis.trim();
+	const trimmedArticle9Condition = article9Condition.trim();
 	const isDirty =
 		trimmedName !== organization.name ||
 		trimmedDescription !== (organization.metadata?.description ?? "") ||
@@ -210,6 +336,21 @@ function PublicDetailsForm({
 			(organization.metadata?.privacyPolicyUrl ?? "") ||
 		trimmedTermsOfServiceUrl !==
 			(organization.metadata?.termsOfServiceUrl ?? "") ||
+		trimmedLegalControllerName !==
+			(organization.metadata?.legalControllerName ?? "") ||
+		trimmedControllerJurisdiction !==
+			(organization.metadata?.controllerJurisdiction ?? "") ||
+		trimmedSupportEmail !== (organization.metadata?.supportEmail ?? "") ||
+		trimmedFallbackIdvUrl !== (organization.metadata?.fallbackIdvUrl ?? "") ||
+		trimmedAppealUrl !== (organization.metadata?.appealUrl ?? "") ||
+		trimmedComplaintsUrl !== (organization.metadata?.complaintsUrl ?? "") ||
+		trimmedArticle6Basis !== (organization.metadata?.article6Basis ?? "") ||
+		trimmedArticle9Condition !==
+			(organization.metadata?.article9Condition ?? "") ||
+		usesKayleForConsequentialDecisions !==
+			toConsequentialUseValue(
+				organization.metadata?.usesKayleForConsequentialDecisions,
+			) ||
 		pendingLogo !== undefined;
 
 	const isSaving = saveMutation.isPending;
@@ -244,6 +385,34 @@ function PublicDetailsForm({
 		) {
 			setErrorMessage(
 				"Terms of service link must be a valid http:// or https:// URL without embedded credentials.",
+			);
+			return;
+		}
+		if (trimmedSupportEmail && !parsePublicSupportEmail(trimmedSupportEmail)) {
+			setErrorMessage("Support email must be a valid email address.");
+			return;
+		}
+		if (
+			trimmedFallbackIdvUrl &&
+			!parsePublicFallbackIdvUrl(trimmedFallbackIdvUrl)
+		) {
+			setErrorMessage(
+				"Fallback IDV link must be a valid http:// or https:// URL without embedded credentials.",
+			);
+			return;
+		}
+		if (trimmedAppealUrl && !parsePublicAppealUrl(trimmedAppealUrl)) {
+			setErrorMessage(
+				"Appeal or human review link must be a valid http:// or https:// URL without embedded credentials.",
+			);
+			return;
+		}
+		if (
+			trimmedComplaintsUrl &&
+			!parsePublicComplaintsUrl(trimmedComplaintsUrl)
+		) {
+			setErrorMessage(
+				"Complaints link must be a valid http:// or https:// URL without embedded credentials.",
 			);
 			return;
 		}
@@ -420,6 +589,171 @@ function PublicDetailsForm({
 							type="url"
 							value={termsOfServiceUrl}
 						/>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Compliance profile</CardTitle>
+					<CardDescription>
+						Required before production identity checks. Used to show users who
+						controls the request and where they can go if Kayle ID is not the
+						right route.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="public-controller-name">
+								Legal controller name
+							</Label>
+							<Input
+								disabled={!canEdit || isSaving}
+								id="public-controller-name"
+								name="legalControllerName"
+								onChange={(event) => setLegalControllerName(event.target.value)}
+								placeholder="Acme Ltd"
+								value={legalControllerName}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="public-controller-jurisdiction">
+								Controller country or jurisdiction
+							</Label>
+							<Input
+								disabled={!canEdit || isSaving}
+								id="public-controller-jurisdiction"
+								name="controllerJurisdiction"
+								onChange={(event) =>
+									setControllerJurisdiction(event.target.value)
+								}
+								placeholder="United Kingdom"
+								value={controllerJurisdiction}
+							/>
+						</div>
+					</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="public-support-email">Support email</Label>
+							<Input
+								autoComplete="email"
+								disabled={!canEdit || isSaving}
+								id="public-support-email"
+								inputMode="email"
+								name="supportEmail"
+								onChange={(event) => setSupportEmail(event.target.value)}
+								placeholder="support@acme.example"
+								type="email"
+								value={supportEmail}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="public-complaints-url">
+								Complaints URL or contact page
+							</Label>
+							<Input
+								autoComplete="url"
+								disabled={!canEdit || isSaving}
+								id="public-complaints-url"
+								inputMode="url"
+								name="complaintsUrl"
+								onChange={(event) => setComplaintsUrl(event.target.value)}
+								placeholder="https://acme.example/complaints"
+								type="url"
+								value={complaintsUrl}
+							/>
+						</div>
+					</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="public-article-6-basis">
+								Declared Article 6 basis
+							</Label>
+							<Input
+								disabled={!canEdit || isSaving}
+								id="public-article-6-basis"
+								name="article6Basis"
+								onChange={(event) => setArticle6Basis(event.target.value)}
+								placeholder="Legitimate interests"
+								value={article6Basis}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="public-article-9-condition">
+								Declared Article 9 condition
+							</Label>
+							<Input
+								disabled={!canEdit || isSaving}
+								id="public-article-9-condition"
+								name="article9Condition"
+								onChange={(event) => setArticle9Condition(event.target.value)}
+								placeholder="Explicit consent"
+								value={article9Condition}
+							/>
+						</div>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="public-consequential-use">
+							Decision purpose declaration
+						</Label>
+						<Select
+							disabled={!canEdit || isSaving}
+							onValueChange={(value) =>
+								setUsesKayleForConsequentialDecisions(
+									value as ConsequentialUseValue,
+								)
+							}
+							value={usesKayleForConsequentialDecisions}
+						>
+							<SelectTrigger id="public-consequential-use">
+								<SelectValue placeholder="Select how Kayle results are used" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="unset">Not declared</SelectItem>
+								<SelectItem value="yes">
+									Used for access, onboarding, eligibility, or another
+									consequential decision
+								</SelectItem>
+								<SelectItem value="no">
+									Not used for a significant automated decision
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="public-fallback-idv-url">
+								Fallback verification URL
+							</Label>
+							<Input
+								autoComplete="url"
+								disabled={!canEdit || isSaving}
+								id="public-fallback-idv-url"
+								inputMode="url"
+								name="fallbackIdvUrl"
+								onChange={(event) => setFallbackIdvUrl(event.target.value)}
+								placeholder="https://acme.example/manual-idv"
+								type="url"
+								value={fallbackIdvUrl}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="public-appeal-url">
+								Appeal or human review URL
+							</Label>
+							<Input
+								autoComplete="url"
+								disabled={!canEdit || isSaving}
+								id="public-appeal-url"
+								inputMode="url"
+								name="appealUrl"
+								onChange={(event) => setAppealUrl(event.target.value)}
+								placeholder="https://acme.example/review"
+								type="url"
+								value={appealUrl}
+							/>
+						</div>
 					</div>
 				</CardContent>
 			</Card>

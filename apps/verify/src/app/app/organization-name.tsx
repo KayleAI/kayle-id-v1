@@ -38,6 +38,12 @@ export type Organization = {
 	termsOfServiceUrl: string | null;
 	website: string | null;
 	description: string | null;
+	rpFallback: {
+		appealUrl: string | null;
+		complaintsUrl: string | null;
+		fallbackIdvUrl: string | null;
+		supportEmail: string | null;
+	};
 };
 
 /**

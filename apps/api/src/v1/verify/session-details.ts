@@ -41,6 +41,12 @@ export type PublicVerifySessionDetails = {
 	organization_terms_of_service_url: string | null;
 	organization_website: string | null;
 	organization_description: string | null;
+	rp_fallback: {
+		appeal_url: string | null;
+		complaints_url: string | null;
+		fallback_idv_url: string | null;
+		support_email: string | null;
+	};
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
@@ -144,6 +150,12 @@ export async function getPublicVerifySessionDetails({
 		organization_terms_of_service_url: metadata?.termsOfServiceUrl ?? null,
 		organization_website: metadata?.website ?? null,
 		organization_description: metadata?.description ?? null,
+		rp_fallback: {
+			appeal_url: metadata?.appealUrl ?? null,
+			complaints_url: metadata?.complaintsUrl ?? null,
+			fallback_idv_url: metadata?.fallbackIdvUrl ?? null,
+			support_email: metadata?.supportEmail ?? null,
+		},
 		session_id: session.sessionId,
 		is_age_only: session.isAgeOnly,
 		age_threshold: session.isAgeOnly ? extractAgeThreshold(shareFields) : null,

@@ -44,6 +44,12 @@ export type VerifySessionDetailsPayload = {
 	organization_terms_of_service_url: string | null;
 	organization_website: string | null;
 	organization_description: string | null;
+	rp_fallback: {
+		appeal_url: string | null;
+		complaints_url: string | null;
+		fallback_idv_url: string | null;
+		support_email: string | null;
+	};
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;

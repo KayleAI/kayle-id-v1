@@ -275,7 +275,11 @@ export function SessionConsent({
 		? consentCopy.startButtonAgeOnly
 		: consentCopy.startButtonFull;
 	const organizationLabel = organization.name ?? consentCopy.defaultRpName;
-	const fallbackUrl = organization.website;
+	const fallbackUrl =
+		organization.rpFallback.fallbackIdvUrl ??
+		(organization.rpFallback.supportEmail
+			? `mailto:${organization.rpFallback.supportEmail}`
+			: organization.website);
 
 	if (hasRefused) {
 		return (

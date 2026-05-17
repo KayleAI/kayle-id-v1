@@ -408,6 +408,8 @@ export const mobile_attest_keys = pgTable(
 		),
 		// Filter by provider (e.g. when the Android path lands).
 		index("mobile_attest_keys_provider_idx").on(table.provider),
+		// Retention sweeper scans by last use before deleting stale attestation keys.
+		index("mobile_attest_keys_last_used_idx").on(table.lastUsedAt),
 	],
 );
 

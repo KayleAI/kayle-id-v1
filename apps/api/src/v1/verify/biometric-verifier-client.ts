@@ -341,7 +341,6 @@ async function requestBiometricVerifier({
 			workerName: WORKER_NAME,
 			environment: config.environment ?? "unknown",
 			version: config.version,
-			attemptId,
 		});
 	}
 }

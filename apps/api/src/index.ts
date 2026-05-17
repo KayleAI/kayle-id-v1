@@ -15,6 +15,10 @@ import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import { runStorageAtRestCron } from "@/scheduled/storage-at-rest";
+import {
+	runVerificationRetentionSweep,
+	shouldRunVerificationRetentionSweep,
+} from "@/scheduled/verification-retention";
 import v1 from "@/v1";
 import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
@@ -182,6 +186,12 @@ const worker = Object.assign(app, {
 		if (shouldRunReceiptRefresh(controller.scheduledTime)) {
 			await refreshAppAttestReceipts({
 				env: env as Parameters<typeof refreshAppAttestReceipts>[0]["env"],
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
+		if (shouldRunVerificationRetentionSweep(controller.scheduledTime)) {
+			await runVerificationRetentionSweep({
 				now: new Date(controller.scheduledTime),
 			});
 		}

@@ -97,7 +97,7 @@ describe("emitCostEvent", () => {
       "container_active",
       "kayle-id-biometric-verifier",
       "ms",
-      "attempt-abc",
+      "",
       "production",
       "1.3.6",
     ]);
@@ -271,7 +271,7 @@ describe("blob-slot mapping", () => {
     expect(blobs[slotIndex(COST_EVENT_BLOB.resource)]).toBe("container_active");
     expect(blobs[slotIndex(COST_EVENT_BLOB.workerName)]).toBe("kayle-id-test");
     expect(blobs[slotIndex(COST_EVENT_BLOB.unit)]).toBe("ms");
-    expect(blobs[slotIndex(COST_EVENT_BLOB.attemptId)]).toBe("attempt-slot");
+    expect(blobs[slotIndex(COST_EVENT_BLOB.attemptId)]).toBe("");
     expect(blobs[slotIndex(COST_EVENT_BLOB.environment)]).toBe("production");
     expect(blobs[slotIndex(COST_EVENT_BLOB.version)]).toBe("9.9.9");
 

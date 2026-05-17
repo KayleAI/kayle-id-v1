@@ -24,6 +24,7 @@ let package = Package(
         "Models/VerificationStep.swift",
         "Models/VerifyWebSocketAuthPolicy.swift",
         "Services/LivenessNonceStamp.swift",
+        "Utilities/LivenessTempFileStore.swift",
         "Utilities/MRZParser.swift",
       ]
     ),
@@ -34,6 +35,7 @@ let package = Package(
       sources: [
         "AttemptScopeTests.swift",
         "LivenessNonceStampTests.swift",
+        "LivenessTempFileStoreTests.swift",
         "MRZParserTests.swift",
         "QRCodePayloadTests.swift",
         "VerificationStepReconnectTests.swift",

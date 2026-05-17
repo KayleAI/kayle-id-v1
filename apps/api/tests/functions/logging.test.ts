@@ -117,6 +117,8 @@ test("createSafeRequestLogger accepts a Request instance", () => {
 test("buildSafeErrorContext uses explicit safe messages", () => {
 	const unsafeError = new Error("token=secret-value");
 	unsafeError.name = "SyntaxError";
+	unsafeError.stack =
+		"Error: token=secret-value\n    at SELECT secret FROM users";
 
 	expect(
 		buildSafeErrorContext({
@@ -129,6 +131,15 @@ test("buildSafeErrorContext uses explicit safe messages", () => {
 		error_message: "Biometric verifier returned invalid JSON.",
 		error_name: "SyntaxError",
 	});
+	expect(
+		Object.values(
+			buildSafeErrorContext({
+				code: "biometric_verifier_invalid_json",
+				error: unsafeError,
+				message: "Biometric verifier returned invalid JSON.",
+			}),
+		).join(" "),
+	).not.toContain("secret-value");
 });
 
 test("logEvent includes the event in info log context", () => {

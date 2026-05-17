@@ -17,6 +17,18 @@ The Postgres database holds the metadata required to drive the lifecycle and aud
 
 Tokens are hashed before storage. The plaintext is shown once at creation and never persisted.
 
+## Retention windows
+
+Verification metadata is retained only while it has an operational or compliance purpose:
+
+- Completed, expired, and cancelled verification sessions are purged after 30 days.
+- Verification attempts are minimised after 7 days. Kayle keeps lifecycle status and timestamps, but clears failure details, mobile handoff hashes, device/app metadata, phase state, risk score, connection claims, and the mobile attestation key reference.
+- Verification events and webhook delivery attempt history are purged after 30 days once no retained webhook payload remains.
+- Verification audit log rows are purged after 365 days.
+- Mobile App Attest key rows are deleted after 90 days of no use once no retained attempt still references them.
+
+Webhook payload retention is controlled separately per endpoint. Delivered payloads are scrubbed immediately; terminally failed payloads follow the endpoint's `undelivered_payload_retention_hours` setting. See [Webhook deliveries](/webhooks/deliveries#payload-retention).
+
 ## What gets discarded
 
 Every byte of document and biometric data is processed in memory inside the API's verification pipeline and is gone when the WebSocket closes:
@@ -33,6 +45,12 @@ Every byte of document and biometric data is processed in memory inside the API'
 - CRL responses
 
 None of these touch the database. None of these are visible in the dashboard. None of these are recoverable after the fact.
+
+## Logs
+
+Runtime logs use the shared `evlog` wrapper in `@kayle-id/config/logging`. Request logs strip query strings and only keep the method, path, status, request ID, and explicit safe event fields. Error logs use caller-provided safe messages and error names instead of serialising `Error.message`, `Error.stack`, SQL parameters, request bodies, MRZ data, chip data, selfie frames, liveness videos, or biometric verifier responses.
+
+Production log sinks must keep Cloudflare Workers Logs or Logpush retention bounded to 30 days or less. Kayle's application logs are diagnostic only; verification state is audited in Postgres with the retention windows above.
 
 ## What reaches your webhook
 

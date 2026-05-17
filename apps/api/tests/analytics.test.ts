@@ -326,7 +326,7 @@ describe("/v1/analytics/sessions/overview", () => {
 describe("normalizeExpiredVerificationSessions", () => {
 	test.serial("expires only due non-terminal sessions", async () => {
 		const organizationId = TEST_DATA?.organizationId ?? "";
-		const now = getUtcDateOffset(0, 12);
+		const now = new Date(Date.UTC(2000, 0, 10, 12, 0, 0, 0));
 
 		await db.insert(verification_sessions).values([
 			{
@@ -335,7 +335,7 @@ describe("normalizeExpiredVerificationSessions", () => {
 				status: "created",
 				contractVersion: 1,
 				shareFields: {},
-				expiresAt: getUtcDateOffset(-1, 12),
+				expiresAt: new Date(Date.UTC(2000, 0, 9, 12, 0, 0, 0)),
 			},
 			{
 				id: "vs_normalize_due_two",
@@ -343,7 +343,7 @@ describe("normalizeExpiredVerificationSessions", () => {
 				status: "in_progress",
 				contractVersion: 1,
 				shareFields: {},
-				expiresAt: getUtcDateOffset(-2, 12),
+				expiresAt: new Date(Date.UTC(2000, 0, 8, 12, 0, 0, 0)),
 			},
 			{
 				id: "vs_normalize_future",
@@ -351,7 +351,7 @@ describe("normalizeExpiredVerificationSessions", () => {
 				status: "created",
 				contractVersion: 1,
 				shareFields: {},
-				expiresAt: getUtcDateOffset(1, 12),
+				expiresAt: new Date(Date.UTC(2000, 0, 11, 12, 0, 0, 0)),
 			},
 			{
 				id: "vs_normalize_done",
@@ -359,8 +359,8 @@ describe("normalizeExpiredVerificationSessions", () => {
 				status: "completed",
 				contractVersion: 1,
 				shareFields: {},
-				completedAt: getUtcDateOffset(-1, 10),
-				expiresAt: getUtcDateOffset(-1, 12),
+				completedAt: new Date(Date.UTC(2000, 0, 9, 10, 0, 0, 0)),
+				expiresAt: new Date(Date.UTC(2000, 0, 9, 12, 0, 0, 0)),
 			},
 		]);
 

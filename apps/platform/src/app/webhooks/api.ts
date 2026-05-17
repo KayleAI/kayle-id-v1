@@ -57,11 +57,13 @@ export function createWebhookEndpoint({
 	enabled,
 	name,
 	subscribedEventTypes,
+	undeliveredPayloadRetentionHours,
 	url,
 }: {
 	enabled: boolean;
 	name?: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }): Promise<WebhookEndpointCreateResult> {
 	return requestApiResource<WebhookEndpointCreateResult>({
@@ -73,6 +75,7 @@ export function createWebhookEndpoint({
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
+			undelivered_payload_retention_hours: undeliveredPayloadRetentionHours,
 		},
 		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
@@ -83,12 +86,14 @@ export function updateWebhookEndpoint({
 	enabled,
 	name,
 	subscribedEventTypes,
+	undeliveredPayloadRetentionHours,
 	url,
 }: {
 	endpointId: string;
 	enabled: boolean;
 	name?: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }): Promise<WebhookEndpoint> {
 	return requestApiResource<WebhookEndpoint>({
@@ -100,6 +105,7 @@ export function updateWebhookEndpoint({
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
+			undelivered_payload_retention_hours: undeliveredPayloadRetentionHours,
 		},
 		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});

@@ -76,6 +76,8 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 	const body = c.req.valid("json");
 
 	const enabled = body.enabled ?? true;
+	const undeliveredPayloadRetentionHours =
+		body.undelivered_payload_retention_hours;
 	const subscribedEventTypes = body.subscribed_event_types ?? [
 		...SUPPORTED_WEBHOOK_EVENT_TYPES,
 	];
@@ -97,6 +99,7 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 			url: body.url,
 			enabled,
 			subscribedEventTypes,
+			undeliveredPayloadRetentionHours,
 			signingSecretCiphertext,
 			disabledAt: enabled ? null : new Date(),
 		})

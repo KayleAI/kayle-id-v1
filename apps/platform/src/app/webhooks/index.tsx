@@ -105,6 +105,7 @@ export function WebhooksPage({
 			enabled: input.enabled,
 			name: input.name,
 			subscribedEventTypes: input.subscribedEventTypes,
+			undeliveredPayloadRetentionHours: input.undeliveredPayloadRetentionHours,
 			url: input.url,
 		});
 
@@ -144,6 +145,8 @@ export function WebhooksPage({
 			enabled: !endpoint.enabled,
 			name: endpoint.name,
 			subscribedEventTypes: endpoint.subscribed_event_types,
+			undeliveredPayloadRetentionHours:
+				endpoint.undelivered_payload_retention_hours,
 			url: endpoint.url,
 		});
 

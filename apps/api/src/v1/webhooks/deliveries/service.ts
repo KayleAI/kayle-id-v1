@@ -6,10 +6,12 @@ import {
 import { indexBy } from "@kayle-id/config/collections";
 import {
 	createSafeRequestLogger,
+	logEvent,
 	logSafeError,
 } from "@kayle-id/config/logging";
 import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
+import { MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
 import {
@@ -18,7 +20,7 @@ import {
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lte, ne } from "drizzle-orm";
 import { config } from "@/config";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
@@ -38,6 +40,13 @@ import type {
 	VerificationAttemptFailedCode,
 	WebhookPayload,
 } from "./types";
+import {
+	WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS,
+	WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE,
+} from "./types";
+
+const HOUR_MS = 60 * 60_000;
+const WEBHOOK_PAYLOAD_RETENTION_SWEEP_BATCH_SIZE = 500;
 
 function isSubscribedToEventType(
 	subscribedEventTypes: unknown,
@@ -60,11 +69,36 @@ function mapWebhookDeliveryRowToResponse(
 		last_attempt_at: row.lastAttemptAt?.toISOString() ?? null,
 		last_status_code: row.lastStatusCode,
 		next_attempt_at: row.nextAttemptAt?.toISOString() ?? null,
+		payload_expires_at: row.payloadExpiresAt?.toISOString() ?? null,
+		payload_retention_reason: row.payloadRetentionReason,
+		payload_scrubbed_at: row.payloadScrubbedAt?.toISOString() ?? null,
 		status: row.status,
 		updated_at: row.updatedAt.toISOString(),
 		webhook_encryption_key_id: row.webhookEncryptionKeyId,
 		webhook_endpoint_id: row.webhookEndpointId,
 	};
+}
+
+function addHours(date: Date, hours: number): Date {
+	return new Date(date.getTime() + hours * HOUR_MS);
+}
+
+function getPendingPayloadExpiry({
+	retentionHours,
+	now,
+}: {
+	retentionHours: number;
+	now: Date;
+}): Date {
+	const boundedRetentionHours = Math.min(
+		Math.max(retentionHours, 0),
+		MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	);
+	return new Date(
+		now.getTime() +
+			WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS +
+			boundedRetentionHours * HOUR_MS,
+	);
 }
 
 async function insertAttempt({
@@ -281,6 +315,10 @@ async function persistWebhookDeliveryAttemptResult({
 			// Cloudflare Workflows owns retry scheduling now; keep this field
 			// nulled out so nothing else interprets it as a queue cursor.
 			nextAttemptAt: null,
+			payload: response.ok ? null : delivery.payload,
+			payloadExpiresAt: response.ok ? null : delivery.payloadExpiresAt,
+			payloadRetentionReason: response.ok ? "delivered" : "pending_delivery",
+			payloadScrubbedAt: response.ok ? attemptedAt : delivery.payloadScrubbedAt,
 			status: response.ok ? "succeeded" : "pending",
 		})
 		.where(eq(webhook_deliveries.id, delivery.id));
@@ -369,15 +407,22 @@ async function createWebhookDeliveriesForEvent({
 			type: "whd",
 		});
 		createdDeliveryIds.push(deliveryId);
+		const now = new Date();
+		const payloadExpiresAt = getPendingPayloadExpiry({
+			now,
+			retentionHours: endpoint.undeliveredPayloadRetentionHours,
+		});
 
 		if (!key) {
 			await db.insert(webhook_deliveries).values({
 				id: deliveryId,
 				attemptCount: 1,
 				eventId,
-				lastAttemptAt: new Date(),
+				lastAttemptAt: now,
 				nextAttemptAt: null,
 				payload: null,
+				payloadRetentionReason: "no_active_key",
+				payloadScrubbedAt: now,
 				status: "failed",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: null,
@@ -401,6 +446,8 @@ async function createWebhookDeliveriesForEvent({
 				eventId,
 				id: deliveryId,
 				payload: encryptedPayload,
+				payloadExpiresAt,
+				payloadRetentionReason: "pending_delivery",
 				status: "pending",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: key.id,
@@ -410,9 +457,11 @@ async function createWebhookDeliveriesForEvent({
 				id: deliveryId,
 				attemptCount: 1,
 				eventId,
-				lastAttemptAt: new Date(),
+				lastAttemptAt: now,
 				nextAttemptAt: null,
 				payload: null,
+				payloadRetentionReason: "jwe_creation_failed",
+				payloadScrubbedAt: now,
 				status: "failed",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: key.id,
@@ -654,7 +703,9 @@ export async function finalizeWebhookDeliveryFailure({
 }: {
 	deliveryId: string;
 }): Promise<void> {
-	const delivery = await getWebhookDeliveryById(deliveryId);
+	const context = await getDeliveryAttemptContext(deliveryId);
+	const delivery =
+		context?.delivery ?? (await getWebhookDeliveryById(deliveryId));
 
 	if (!delivery) {
 		return;
@@ -664,11 +715,25 @@ export async function finalizeWebhookDeliveryFailure({
 		return;
 	}
 
+	const terminalFailureAt = new Date();
+	const retentionHours =
+		context?.endpoint.undeliveredPayloadRetentionHours ??
+		MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS;
+	const payloadExpiresAt = addHours(terminalFailureAt, retentionHours);
+	const shouldScrubImmediately =
+		delivery.payload === null || retentionHours === 0;
+
 	await db
 		.update(webhook_deliveries)
 		.set({
-			status: "failed",
 			nextAttemptAt: null,
+			payload: shouldScrubImmediately ? null : delivery.payload,
+			payloadExpiresAt: shouldScrubImmediately ? null : payloadExpiresAt,
+			payloadRetentionReason: shouldScrubImmediately
+				? "expired"
+				: "terminal_failure_retention",
+			payloadScrubbedAt: shouldScrubImmediately ? terminalFailureAt : null,
+			status: "failed",
 		})
 		.where(eq(webhook_deliveries.id, deliveryId));
 }
@@ -764,11 +829,50 @@ export async function getWebhookDeliveryForOrganization({
 	return row?.delivery ?? null;
 }
 
+export type WebhookDeliveryRetryBlockReason =
+	| "delivering"
+	| "payload_expired"
+	| "payload_scrubbed";
+
+export function getWebhookDeliveryRetryBlockReason(
+	delivery: typeof webhook_deliveries.$inferSelect,
+	now = new Date(),
+): WebhookDeliveryRetryBlockReason | null {
+	if (delivery.status === "delivering") {
+		return "delivering";
+	}
+
+	if (!delivery.payload) {
+		return "payload_scrubbed";
+	}
+
+	if (!delivery.payloadExpiresAt || delivery.payloadExpiresAt <= now) {
+		return "payload_expired";
+	}
+
+	return null;
+}
+
+export function getWebhookPayloadExpiredErrorResponse() {
+	return {
+		code: WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE,
+		message: "Webhook payload is no longer retained.",
+		hint: "Payload expired; create a new verification session or handle the event manually.",
+		docs: "https://kayle.id/docs/api/webhooks/deliveries#payload-retention",
+	};
+}
+
 export async function requeueWebhookDelivery({
 	deliveryId,
 }: {
 	deliveryId: string;
 }): Promise<typeof webhook_deliveries.$inferSelect | null> {
+	const delivery = await getWebhookDeliveryById(deliveryId);
+
+	if (!delivery || getWebhookDeliveryRetryBlockReason(delivery) !== null) {
+		return null;
+	}
+
 	const [updated] = await db
 		.update(webhook_deliveries)
 		.set({
@@ -782,6 +886,7 @@ export async function requeueWebhookDelivery({
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				ne(webhook_deliveries.status, "delivering"),
+				isNotNull(webhook_deliveries.payload),
 			),
 		)
 		.returning();
@@ -812,6 +917,141 @@ export async function requeueWebhookDeliveriesForEvent({
 	}
 
 	return requeued;
+}
+
+export type WebhookPayloadRetentionSweepResult = {
+	failed: boolean;
+	orgCount: number;
+	scrubbedCount: number;
+};
+
+function getWebhookPayloadSweepAgeBucket({
+	expiresAt,
+	now,
+}: {
+	expiresAt: Date;
+	now: Date;
+}): "lt_1h" | "lt_24h" | "gte_24h" {
+	const overdueMs = Math.max(now.getTime() - expiresAt.getTime(), 0);
+
+	if (overdueMs < HOUR_MS) {
+		return "lt_1h";
+	}
+
+	if (overdueMs < 24 * HOUR_MS) {
+		return "lt_24h";
+	}
+
+	return "gte_24h";
+}
+
+export async function runWebhookPayloadRetentionSweep({
+	batchSize = WEBHOOK_PAYLOAD_RETENTION_SWEEP_BATCH_SIZE,
+	now,
+}: {
+	batchSize?: number;
+	now: Date;
+}): Promise<WebhookPayloadRetentionSweepResult> {
+	const logger = createSafeRequestLogger({
+		headers: new Headers(),
+		method: "SCHEDULED",
+		path: "/internal/webhook-payload-retention-sweep",
+	});
+
+	try {
+		const expiredRows = await db
+			.select({
+				deliveryId: webhook_deliveries.id,
+				expiresAt: webhook_deliveries.payloadExpiresAt,
+				organizationId: events.organizationId,
+			})
+			.from(webhook_deliveries)
+			.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
+			.where(
+				and(
+					isNotNull(webhook_deliveries.payload),
+					isNotNull(webhook_deliveries.payloadExpiresAt),
+					lte(webhook_deliveries.payloadExpiresAt, now),
+				),
+			)
+			.orderBy(asc(webhook_deliveries.payloadExpiresAt))
+			.limit(batchSize);
+
+		if (expiredRows.length === 0) {
+			logEvent(logger, {
+				details: {
+					age_bucket_gte_24h: 0,
+					age_bucket_lt_1h: 0,
+					age_bucket_lt_24h: 0,
+					org_count: 0,
+					scrubbed_count: 0,
+				},
+				event: "webhooks.payload_retention_sweep.completed",
+			});
+			logger.emit({ _forceKeep: false });
+			return { failed: false, orgCount: 0, scrubbedCount: 0 };
+		}
+
+		const ageBuckets = {
+			lt_1h: 0,
+			lt_24h: 0,
+			gte_24h: 0,
+		};
+		const organizationIds = new Set<string>();
+		const deliveryIds: string[] = [];
+
+		for (const row of expiredRows) {
+			if (!row.expiresAt) {
+				continue;
+			}
+
+			deliveryIds.push(row.deliveryId);
+			organizationIds.add(row.organizationId);
+			ageBuckets[
+				getWebhookPayloadSweepAgeBucket({ expiresAt: row.expiresAt, now })
+			] += 1;
+		}
+
+		if (deliveryIds.length > 0) {
+			await db
+				.update(webhook_deliveries)
+				.set({
+					payload: null,
+					payloadExpiresAt: null,
+					payloadRetentionReason: "expired",
+					payloadScrubbedAt: now,
+				})
+				.where(inArray(webhook_deliveries.id, deliveryIds));
+		}
+
+		logEvent(logger, {
+			details: {
+				age_bucket_gte_24h: ageBuckets.gte_24h,
+				age_bucket_lt_1h: ageBuckets.lt_1h,
+				age_bucket_lt_24h: ageBuckets.lt_24h,
+				org_count: organizationIds.size,
+				scrubbed_count: deliveryIds.length,
+			},
+			event: "webhooks.payload_retention_sweep.completed",
+		});
+		logger.emit({ _forceKeep: deliveryIds.length > 0 });
+
+		return {
+			failed: false,
+			orgCount: organizationIds.size,
+			scrubbedCount: deliveryIds.length,
+		};
+	} catch (error) {
+		logSafeError(logger, {
+			code: "webhook_payload_retention_sweep_failed",
+			error,
+			event: "webhooks.payload_retention_sweep.failed",
+			message: "Webhook payload retention sweep failed.",
+		});
+		logger.emit({ _forceKeep: true });
+
+		return { failed: true, orgCount: 0, scrubbedCount: 0 };
+	}
 }
 
 export { mapWebhookDeliveryRowToResponse };

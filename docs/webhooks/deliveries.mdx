@@ -17,15 +17,20 @@ Each event triggers one delivery row per subscribed endpoint. The delivery row t
 
 ## Retry schedule
 
-A failed delivery is retried up to two times after the initial attempt — three total. Backoff is exponential with a 60-second base:
+A failed delivery is retried up to seven times after the initial attempt, for eight total attempts. The Workflow-backed retry schedule is:
 
 | Attempt | Delay before this attempt |
 |---|---|
 | 1 | 0 (immediate) |
-| 2 | 60 seconds |
-| 3 | 120 seconds |
+| 2 | 5 seconds |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
+| 6 | 5 hours |
+| 7 | 10 hours |
+| 8 | 10 hours |
 
-A delivery that finishes attempt 3 with a non-`2xx` response is marked `failed` and stops retrying. The whole envelope from first attempt to terminal `failed` is therefore around three minutes in the worst case.
+A delivery that finishes attempt 8 with a non-`2xx` response is marked `failed` and stops retrying. The automatic retry window is about 32 hours and 35 minutes after the first attempt.
 
 A delivery is treated as failed if:
 
@@ -55,6 +60,9 @@ Filter by `status`, `endpoint_id`, or `event_id`. The response is the standard c
       "status": "failed",
       "attempt_count": 3,
       "next_attempt_at": null,
+      "payload_expires_at": "2026-05-08T11:03:30Z",
+      "payload_scrubbed_at": null,
+      "payload_retention_reason": "terminal_failure_retention",
       "last_status_code": 502,
       "last_attempt_at": "2026-05-05T11:03:30Z",
       "created_at": "2026-05-05T11:00:00Z",
@@ -66,6 +74,16 @@ Filter by `status`, `endpoint_id`, or `event_id`. The response is the standard c
 }
 ```
 
+## Payload retention
+
+Webhook payloads are JWE-encrypted, but they can still contain personal data once your endpoint decrypts them. Kayle keeps the encrypted body only while it is needed for automatic delivery and manual recovery.
+
+- `succeeded` deliveries have `payload_scrubbed_at` set and the encrypted payload removed immediately after the first `2xx` response.
+- `failed` deliveries keep the encrypted payload for the endpoint's undelivered payload retention window after the final automatic attempt.
+- Expired, missing-key, and JWE-creation failures cannot be retried because there is no retained encrypted payload to send.
+
+The endpoint setting `undelivered_payload_retention_hours` controls the manual retry/replay window after terminal failure. Supported values are `0`, `24`, `72`, and `168`; new endpoints default to `72`.
+
 ## Manual retry
 
 Replay a single failed delivery:
@@ -75,7 +93,9 @@ curl -X POST https://api.kayle.id/v1/webhooks/deliveries/whd_.../retry \
   -H "Authorization: Bearer kk_..."
 ```
 
-The delivery moves back to `pending` and runs through up to three fresh attempts. The signature is regenerated, so don't expect the captured headers from the previous attempts to match.
+The delivery moves back to `pending` and runs through the automatic retry schedule again. The signature is regenerated, so don't expect the captured headers from the previous attempts to match.
+
+Manual retry is only available while the delivery still has a retained encrypted payload. Once `payload_expires_at` passes, or once `payload_scrubbed_at` is set, the API returns `409 WEBHOOK_PAYLOAD_EXPIRED`.
 
 ## Replaying an event
 
@@ -86,7 +106,7 @@ curl -X POST https://api.kayle.id/v1/webhooks/events/evt_.../replay \
   -H "Authorization: Bearer kk_..."
 ```
 
-Replay creates a new pending delivery for every endpoint subscribed to the event type at replay time — including endpoints that were created or enabled after the original event fired. Use this to backfill a new endpoint with recent events without re-running verifications.
+Replay requeues the existing deliveries for that event while their encrypted payloads are still retained. It does not create deliveries for endpoints that were added after the event fired. If every delivery for the event has been scrubbed or expired, the API returns `409 WEBHOOK_PAYLOAD_EXPIRED`.
 
 ## Listing events
 

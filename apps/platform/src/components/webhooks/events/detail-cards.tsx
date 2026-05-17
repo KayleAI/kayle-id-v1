@@ -17,6 +17,7 @@ import {
 	getEndpointDisplayName,
 	getEndpointSecondaryLabel,
 	getEventTriggerLabel,
+	getWebhookDeliveryPayloadLabel,
 	getWebhookEventReplayDisabledReason,
 } from "@/app/webhooks/utils";
 import { RelativeTime } from "@/components/relative-time";
@@ -56,6 +57,7 @@ export function EventAttachedEndpointsCard({
 							<TableHead>Status</TableHead>
 							<TableHead>Attempts</TableHead>
 							<TableHead>Response</TableHead>
+							<TableHead>Payload</TableHead>
 							<TableHead>Last attempt</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -98,6 +100,17 @@ export function EventAttachedEndpointsCard({
 									</TableCell>
 									<TableCell>
 										<ResponseCodeBadge statusCode={delivery.last_status_code} />
+									</TableCell>
+									<TableCell className="min-w-[12rem]">
+										<div className="space-y-1 text-sm">
+											<div>{getWebhookDeliveryPayloadLabel(delivery)}</div>
+											{delivery.payload_expires_at ? (
+												<div className="text-muted-foreground text-xs">
+													Expires{" "}
+													<RelativeTime iso={delivery.payload_expires_at} />
+												</div>
+											) : null}
+										</div>
 									</TableCell>
 									<TableCell className="text-muted-foreground text-sm tabular-nums">
 										{delivery.last_attempt_at ? (

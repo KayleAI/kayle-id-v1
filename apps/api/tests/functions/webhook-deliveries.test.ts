@@ -8,14 +8,16 @@ import {
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
 import { file } from "bun";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { compactDecrypt, exportJWK, importPKCS8, importSPKI } from "jose";
 import {
 	attemptWebhookDelivery,
 	createWebhookDeliveriesForVerificationAttemptFailed,
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSucceeded,
+	finalizeWebhookDeliveryFailure,
 	getWebhookEndpointLogTarget,
+	runWebhookPayloadRetentionSweep,
 } from "@/v1/webhooks/deliveries/service";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
 import { createMockFetch } from "../helpers/mock-fetch";
@@ -517,7 +519,132 @@ test("attemptWebhookDelivery signs and delivers the encrypted payload with the m
 
 	expect(updatedDelivery?.status).toBe("succeeded");
 	expect(updatedDelivery?.lastStatusCode).toBe(202);
+	expect(updatedDelivery?.payload).toBeNull();
+	expect(updatedDelivery?.payloadExpiresAt).toBeNull();
+	expect(updatedDelivery?.payloadRetentionReason).toBe("delivered");
+	expect(updatedDelivery?.payloadScrubbedAt).toBeInstanceOf(Date);
 	expect(updatedDelivery?.webhookEncryptionKeyId).toBe("whk_delivery_send");
+});
+
+test("finalizeWebhookDeliveryFailure retains failed payloads for the endpoint replay window", async () => {
+	const deliveryId = await seedPendingWebhookDelivery({
+		context: "failed_retention",
+		url: "https://example.com/webhooks/failed-retention",
+	});
+	const [delivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	await db
+		.update(webhook_endpoints)
+		.set({
+			undeliveredPayloadRetentionHours: 24,
+		})
+		.where(eq(webhook_endpoints.id, delivery?.webhookEndpointId ?? ""));
+
+	const before = Date.now();
+	await finalizeWebhookDeliveryFailure({ deliveryId });
+	const after = Date.now();
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	expect(updatedDelivery?.status).toBe("failed");
+	expect(updatedDelivery?.payload).toBe("{}");
+	expect(updatedDelivery?.payloadRetentionReason).toBe(
+		"terminal_failure_retention",
+	);
+	expect(updatedDelivery?.payloadScrubbedAt).toBeNull();
+	expect(updatedDelivery?.payloadExpiresAt?.getTime()).toBeGreaterThanOrEqual(
+		before + 24 * 60 * 60_000,
+	);
+	expect(updatedDelivery?.payloadExpiresAt?.getTime()).toBeLessThanOrEqual(
+		after + 24 * 60 * 60_000,
+	);
+});
+
+test("finalizeWebhookDeliveryFailure scrubs failed payloads immediately for zero-hour retention", async () => {
+	const deliveryId = await seedPendingWebhookDelivery({
+		context: "failed_zero_retention",
+		url: "https://example.com/webhooks/failed-zero-retention",
+	});
+	const [delivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	await db
+		.update(webhook_endpoints)
+		.set({
+			undeliveredPayloadRetentionHours: 0,
+		})
+		.where(eq(webhook_endpoints.id, delivery?.webhookEndpointId ?? ""));
+
+	await finalizeWebhookDeliveryFailure({ deliveryId });
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	expect(updatedDelivery?.status).toBe("failed");
+	expect(updatedDelivery?.payload).toBeNull();
+	expect(updatedDelivery?.payloadExpiresAt).toBeNull();
+	expect(updatedDelivery?.payloadRetentionReason).toBe("expired");
+	expect(updatedDelivery?.payloadScrubbedAt).toBeInstanceOf(Date);
+});
+
+test("runWebhookPayloadRetentionSweep scrubs expired retained payloads without touching metadata", async () => {
+	const deliveryId = await seedPendingWebhookDelivery({
+		context: "retention_sweep",
+		url: "https://example.com/webhooks/retention-sweep",
+	});
+	const now = new Date("2099-01-02T00:00:00.000Z");
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			payloadExpiresAt: new Date("2100-01-01T00:00:00.000Z"),
+		})
+		.where(isNotNull(webhook_deliveries.payload));
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			payloadExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+			payloadRetentionReason: "terminal_failure_retention",
+			status: "failed",
+		})
+		.where(eq(webhook_deliveries.id, deliveryId));
+
+	const result = await runWebhookPayloadRetentionSweep({ now });
+
+	expect(result).toEqual({
+		failed: false,
+		orgCount: 1,
+		scrubbedCount: 1,
+	});
+
+	const [updatedDelivery] = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(eq(webhook_deliveries.id, deliveryId))
+		.limit(1);
+
+	expect(updatedDelivery?.payload).toBeNull();
+	expect(updatedDelivery?.payloadExpiresAt).toBeNull();
+	expect(updatedDelivery?.payloadRetentionReason).toBe("expired");
+	expect(updatedDelivery?.payloadScrubbedAt?.toISOString()).toBe(
+		now.toISOString(),
+	);
+	expect(updatedDelivery?.status).toBe("failed");
 });
 
 test("attemptWebhookDelivery does not resend deliveries that already succeeded", async () => {

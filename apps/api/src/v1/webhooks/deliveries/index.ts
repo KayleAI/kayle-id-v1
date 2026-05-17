@@ -8,6 +8,8 @@ import { retryWebhookDelivery } from "@/openapi/v1/webhooks/deliveries/retry";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import {
 	getWebhookDeliveryForOrganization,
+	getWebhookDeliveryRetryBlockReason,
+	getWebhookPayloadExpiredErrorResponse,
 	mapWebhookDeliveryRowToResponse,
 	requeueWebhookDelivery,
 	triggerWebhookDeliveryWorkflows,
@@ -94,7 +96,8 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 		);
 	}
 
-	if (delivery.status === "delivering") {
+	const retryBlockReason = getWebhookDeliveryRetryBlockReason(delivery);
+	if (retryBlockReason === "delivering") {
 		return c.json(
 			{
 				data: null,
@@ -104,6 +107,19 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 					hint: "The webhook delivery is already in progress.",
 					docs: "https://kayle.id/docs/api/webhooks/deliveries#retry",
 				},
+			},
+			409,
+		);
+	}
+
+	if (
+		retryBlockReason === "payload_expired" ||
+		retryBlockReason === "payload_scrubbed"
+	) {
+		return c.json(
+			{
+				data: null,
+				error: getWebhookPayloadExpiredErrorResponse(),
 			},
 			409,
 		);

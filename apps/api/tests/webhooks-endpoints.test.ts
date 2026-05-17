@@ -58,6 +58,7 @@ describe("/v1/webhooks/endpoints", () => {
 					id: string;
 					name: string | null;
 					subscribed_event_types: string[];
+					undelivered_payload_retention_hours: number;
 				};
 				signing_secret: string;
 			};
@@ -69,6 +70,7 @@ describe("/v1/webhooks/endpoints", () => {
 		expect(payload.data.endpoint.subscribed_event_types).toEqual([
 			...SUPPORTED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(payload.data.endpoint.undelivered_payload_retention_hours).toBe(72);
 		expect(payload.data.signing_secret.startsWith("whsec_")).toBeTrue();
 		expect(payload.data.signing_secret).toHaveLength(38);
 
@@ -89,6 +91,7 @@ describe("/v1/webhooks/endpoints", () => {
 				name: string | null;
 				signing_secret?: string;
 				subscribed_event_types: string[];
+				undelivered_payload_retention_hours: number;
 			};
 			error: null;
 		};
@@ -98,6 +101,7 @@ describe("/v1/webhooks/endpoints", () => {
 		expect(getPayload.data.subscribed_event_types).toEqual([
 			...SUPPORTED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(getPayload.data.undelivered_payload_retention_hours).toBe(72);
 		expect("signing_secret" in getPayload.data).toBeFalse();
 	});
 
@@ -272,6 +276,7 @@ describe("/v1/webhooks/endpoints", () => {
 					url: "https://example.com/webhooks/kayle/update-after",
 					enabled: false,
 					subscribed_event_types: UPDATED_WEBHOOK_EVENT_TYPES,
+					undelivered_payload_retention_hours: 24,
 				}),
 				headers: {
 					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
@@ -289,6 +294,7 @@ describe("/v1/webhooks/endpoints", () => {
 				enabled: boolean;
 				name: string | null;
 				subscribed_event_types: string[];
+				undelivered_payload_retention_hours: number;
 				url: string;
 			};
 			error: null;
@@ -304,6 +310,7 @@ describe("/v1/webhooks/endpoints", () => {
 		expect(updatePayload.data.subscribed_event_types).toEqual([
 			...UPDATED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(updatePayload.data.undelivered_payload_retention_hours).toBe(24);
 
 		const listResponse = await app.request(
 			"/v1/webhooks/endpoints?enabled=false&limit=10",

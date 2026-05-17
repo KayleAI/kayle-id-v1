@@ -1,4 +1,7 @@
-import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	SUPPORTED_WEBHOOK_EVENT_TYPES,
+} from "@kayle-id/config/webhook-events";
 import { sql } from "drizzle-orm";
 import {
 	boolean,
@@ -36,6 +39,11 @@ export const webhook_endpoints = pgTable(
 		enabled: boolean("enabled").default(true).notNull(),
 		subscribedEventTypes: jsonb("subscribed_event_types")
 			.default([...SUPPORTED_WEBHOOK_EVENT_TYPES])
+			.notNull(),
+		undeliveredPayloadRetentionHours: integer(
+			"undelivered_payload_retention_hours",
+		)
+			.default(DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS)
 			.notNull(),
 		signingSecretCiphertext: text("signing_secret_ciphertext"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -167,6 +175,18 @@ export const webhook_deliveries = pgTable(
 		 * the platform's public key. Kayle ID cannot decrypt it.
 		 */
 		payload: text("payload"),
+		payloadExpiresAt: timestamp("payload_expires_at"),
+		payloadScrubbedAt: timestamp("payload_scrubbed_at"),
+		payloadRetentionReason: text("payload_retention_reason", {
+			enum: [
+				"pending_delivery",
+				"delivered",
+				"terminal_failure_retention",
+				"expired",
+				"no_active_key",
+				"jwe_creation_failed",
+			],
+		}),
 
 		/**
 		 * When the last delivery attempt was made, if any.
@@ -189,6 +209,11 @@ export const webhook_deliveries = pgTable(
 		index("wh_deliveries_event_id_idx").on(table.eventId),
 		// Look up deliveries for a given endpoint
 		index("wh_deliveries_endpoint_id_idx").on(table.webhookEndpointId),
+		index("wh_deliveries_payload_expires_at_idx")
+			.on(table.payloadExpiresAt)
+			.where(
+				sql`${table.payload} IS NOT NULL AND ${table.payloadExpiresAt} IS NOT NULL`,
+			),
 	],
 );
 

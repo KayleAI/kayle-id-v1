@@ -180,4 +180,40 @@ describe("/v1/webhooks/deliveries", () => {
 		expect(retryPayload.data.last_status_code).toBeNull();
 		expect(retryPayload.data.next_attempt_at).toBeNull();
 	});
+
+	test("rejects retry after the encrypted payload has expired", async () => {
+		const deliveryId = await seedDelivery();
+
+		await db
+			.update(webhook_deliveries)
+			.set({
+				payloadExpiresAt: new Date("2000-01-01T00:00:00.000Z"),
+				payloadRetentionReason: "expired",
+				status: "failed",
+			})
+			.where(eq(webhook_deliveries.id, deliveryId));
+
+		const retryResponse = await app.request(
+			`/v1/webhooks/deliveries/${deliveryId}/retry`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "POST",
+			},
+		);
+
+		expect(retryResponse.status).toBe(409);
+
+		const retryPayload = (await retryResponse.json()) as {
+			data: null;
+			error: {
+				code: string;
+				hint: string;
+			};
+		};
+
+		expect(retryPayload.error.code).toBe("WEBHOOK_PAYLOAD_EXPIRED");
+		expect(retryPayload.error.hint).toContain("Payload expired");
+	});
 });

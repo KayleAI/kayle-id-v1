@@ -1,7 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 	webhookEventTypeSchema,
+	webhookPayloadRetentionHoursSchema,
 } from "@kayle-id/config/webhook-events";
 
 const WEBHOOK_RESOURCE_ID_MAX_LENGTH = 128;
@@ -38,6 +40,27 @@ export const WebhookDelivery = z
 			.describe(
 				"The next time this delivery should be attempted, or null if ready to send.",
 			),
+		payload_expires_at: z
+			.string()
+			.nullable()
+			.describe("When the encrypted payload expires for manual retry/replay."),
+		payload_scrubbed_at: z
+			.string()
+			.nullable()
+			.describe(
+				"When the encrypted payload was scrubbed, if no longer stored.",
+			),
+		payload_retention_reason: z
+			.enum([
+				"pending_delivery",
+				"delivered",
+				"terminal_failure_retention",
+				"expired",
+				"no_active_key",
+				"jwe_creation_failed",
+			])
+			.nullable()
+			.describe("Why the payload is retained or why it was scrubbed."),
 		last_status_code: z
 			.number()
 			.nullable()
@@ -71,6 +94,11 @@ export const WebhookEndpoint = z
 				`The event types this endpoint is subscribed to. Supported values: ${SUPPORTED_WEBHOOK_EVENT_TYPES.join(
 					", ",
 				)}.`,
+			),
+		undelivered_payload_retention_hours: webhookPayloadRetentionHoursSchema
+			.default(DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS)
+			.describe(
+				"How long Kayle retains encrypted payloads after terminal delivery failure.",
 			),
 		created_at: z
 			.string()
@@ -159,6 +187,25 @@ export const WebhookEventDelivery = z.object({
 		.string()
 		.nullable()
 		.describe("The time the last delivery attempt was made, if any."),
+	payload_expires_at: z
+		.string()
+		.nullable()
+		.describe("When the encrypted payload expires for manual retry/replay."),
+	payload_scrubbed_at: z
+		.string()
+		.nullable()
+		.describe("When the encrypted payload was scrubbed, if no longer stored."),
+	payload_retention_reason: z
+		.enum([
+			"pending_delivery",
+			"delivered",
+			"terminal_failure_retention",
+			"expired",
+			"no_active_key",
+			"jwe_creation_failed",
+		])
+		.nullable()
+		.describe("Why the payload is retained or why it was scrubbed."),
 });
 
 export const WebhookEvent = z

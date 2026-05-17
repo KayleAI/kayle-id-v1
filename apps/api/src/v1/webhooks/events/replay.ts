@@ -1,10 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
+import { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
 import { and, eq } from "drizzle-orm";
 import { replayWebhookEvent } from "@/openapi/v1/webhooks/events/replay";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import {
+	getWebhookDeliveryRetryBlockReason,
+	getWebhookPayloadExpiredErrorResponse,
 	requeueWebhookDeliveriesForEvent,
 	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
@@ -53,15 +56,29 @@ replayEvent.openapi(replayWebhookEvent, async (c) => {
 	});
 
 	if (requeuedDeliveries.length === 0) {
-		return c.json(
-			{
-				data: null,
-				error: {
+		const currentDeliveries = await db
+			.select()
+			.from(webhook_deliveries)
+			.where(eq(webhook_deliveries.eventId, event.id));
+		const allDeliveriesBlockedByPayloadRetention =
+			currentDeliveries.length > 0 &&
+			currentDeliveries.every((delivery) => {
+				const reason = getWebhookDeliveryRetryBlockReason(delivery);
+				return reason === "payload_expired" || reason === "payload_scrubbed";
+			});
+		const error = allDeliveriesBlockedByPayloadRetention
+			? getWebhookPayloadExpiredErrorResponse()
+			: {
 					code: "CONFLICT",
 					message: "Webhook event cannot be replayed.",
 					hint: "Only webhook events with replayable deliveries can be replayed.",
 					docs: "https://kayle.id/docs/api/webhooks/events#replay",
-				},
+				};
+
+		return c.json(
+			{
+				data: null,
+				error,
 			},
 			409,
 		);

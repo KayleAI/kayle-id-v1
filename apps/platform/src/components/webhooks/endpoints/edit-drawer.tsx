@@ -10,6 +10,7 @@ import {
 import { Switch } from "@kayleai/ui/switch";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
+import { WEBHOOK_PAYLOAD_RETENTION_OPTIONS } from "@/app/webhooks/utils";
 import { EventSubscriptionMenu } from "../events/pieces";
 import { showAsyncToast } from "../shared";
 
@@ -17,11 +18,13 @@ export function EditEndpointDrawer({
 	endpointEnabled,
 	endpointName,
 	endpointSubscribedEventTypes,
+	endpointUndeliveredPayloadRetentionHours,
 	endpointUrl,
 	isDirty,
 	isSaving,
 	onEndpointEnabledChange,
 	onEndpointNameChange,
+	onEndpointUndeliveredPayloadRetentionHoursChange,
 	onToggleEndpointEventType,
 	onEndpointUrlChange,
 	onReset,
@@ -30,11 +33,13 @@ export function EditEndpointDrawer({
 	endpointEnabled: boolean;
 	endpointName: string;
 	endpointSubscribedEventTypes: string[];
+	endpointUndeliveredPayloadRetentionHours: number;
 	endpointUrl: string;
 	isDirty: boolean;
 	isSaving: boolean;
 	onEndpointEnabledChange: (enabled: boolean) => void;
 	onEndpointNameChange: (value: string) => void;
+	onEndpointUndeliveredPayloadRetentionHoursChange: (hours: number) => void;
 	onToggleEndpointEventType: (eventType: string) => void;
 	onEndpointUrlChange: (value: string) => void;
 	onReset: () => void;
@@ -104,6 +109,38 @@ export function EditEndpointDrawer({
 							onToggleEventType={onToggleEndpointEventType}
 							selectedEventTypes={endpointSubscribedEventTypes}
 						/>
+					</div>
+
+					<div className="space-y-3">
+						<div className="space-y-1">
+							<Label>Undelivered payload retention</Label>
+							<p className="text-muted-foreground text-sm">
+								Delivered payloads are scrubbed immediately. This setting only
+								controls encrypted payloads after final delivery failure.
+							</p>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-2">
+							{WEBHOOK_PAYLOAD_RETENTION_OPTIONS.map((option) => (
+								<button
+									aria-pressed={
+										endpointUndeliveredPayloadRetentionHours === option.value
+									}
+									className="rounded-md border border-border/70 px-3 py-2 text-left text-sm transition-colors hover:border-foreground/30 aria-pressed:border-foreground aria-pressed:bg-muted"
+									key={option.value}
+									onClick={() =>
+										onEndpointUndeliveredPayloadRetentionHoursChange(
+											option.value,
+										)
+									}
+									type="button"
+								>
+									<span className="block font-medium">{option.label}</span>
+									<span className="mt-1 block text-muted-foreground text-xs">
+										{option.description}
+									</span>
+								</button>
+							))}
+						</div>
 					</div>
 
 					<div className="flex items-start justify-between gap-6 rounded-md border border-border/70 px-4 py-3">

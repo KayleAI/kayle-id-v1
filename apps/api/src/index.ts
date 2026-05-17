@@ -24,6 +24,7 @@ import {
 	refreshAppAttestReceipts,
 	shouldRunReceiptRefresh,
 } from "@/v1/verify/attest-receipt-refresh";
+import { runWebhookPayloadRetentionSweep } from "@/v1/webhooks/deliveries/service";
 import auth from "./auth";
 
 export { WebhookDeliveryWorkflow } from "@/v1/webhooks/deliveries/workflow";
@@ -193,6 +194,10 @@ const worker = Object.assign(app, {
 		}
 
 		await processDueOrganizationDeletions({
+			now: new Date(controller.scheduledTime),
+		});
+
+		await runWebhookPayloadRetentionSweep({
 			now: new Date(controller.scheduledTime),
 		});
 	},

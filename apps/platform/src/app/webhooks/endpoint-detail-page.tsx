@@ -1,4 +1,7 @@
-import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	SUPPORTED_WEBHOOK_EVENT_TYPES,
+} from "@kayle-id/config/webhook-events";
 import { InfoCard } from "@kayle-id/ui/info-card";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kayleai/ui/tabs";
@@ -55,6 +58,10 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 	const [endpointName, setEndpointName] = useState("");
 	const [endpointUrl, setEndpointUrl] = useState("");
 	const [endpointEnabled, setEndpointEnabled] = useState(true);
+	const [
+		endpointUndeliveredPayloadRetentionHours,
+		setEndpointUndeliveredPayloadRetentionHours,
+	] = useState(DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS);
 	const [endpointSubscribedEventTypes, setEndpointSubscribedEventTypes] =
 		useState<string[]>([...SUPPORTED_WEBHOOK_EVENT_TYPES]);
 	const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
@@ -93,6 +100,9 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 			setEndpointName("");
 			setEndpointUrl("");
 			setEndpointEnabled(true);
+			setEndpointUndeliveredPayloadRetentionHours(
+				DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+			);
 			setEndpointSubscribedEventTypes([...SUPPORTED_WEBHOOK_EVENT_TYPES]);
 			setRevealedSecret(null);
 			return;
@@ -101,6 +111,9 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		setEndpointName(endpoint.name ?? "");
 		setEndpointUrl(endpoint.url);
 		setEndpointEnabled(endpoint.enabled);
+		setEndpointUndeliveredPayloadRetentionHours(
+			endpoint.undelivered_payload_retention_hours,
+		);
 		setEndpointSubscribedEventTypes(endpoint.subscribed_event_types);
 		setRevealedSecret(null);
 	}, [endpoint]);
@@ -149,6 +162,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		endpointEnabled,
 		endpointName,
 		endpointSubscribedEventTypes,
+		endpointUndeliveredPayloadRetentionHours,
 		endpointUrl,
 	});
 	const showMissingKeyAlert = shouldShowMissingKeyAlert({
@@ -169,6 +183,9 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		setEndpointName(endpoint.name ?? "");
 		setEndpointUrl(endpoint.url);
 		setEndpointEnabled(endpoint.enabled);
+		setEndpointUndeliveredPayloadRetentionHours(
+			endpoint.undelivered_payload_retention_hours,
+		);
 		setEndpointSubscribedEventTypes(endpoint.subscribed_event_types);
 	}
 
@@ -187,6 +204,8 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 			url: endpointUrl.trim(),
 			enabled: endpointEnabled,
 			subscribedEventTypes: endpointSubscribedEventTypes,
+			undeliveredPayloadRetentionHours:
+				endpointUndeliveredPayloadRetentionHours,
 		});
 		await refreshWebhookQueries();
 	}
@@ -199,6 +218,8 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 			enabled: !nextEndpoint.enabled,
 			name: nextEndpoint.name,
 			subscribedEventTypes: nextEndpoint.subscribed_event_types,
+			undeliveredPayloadRetentionHours:
+				nextEndpoint.undelivered_payload_retention_hours,
 			url: nextEndpoint.url,
 		});
 		await refreshWebhookQueries();
@@ -338,11 +359,17 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 							endpointEnabled={endpointEnabled}
 							endpointName={endpointName}
 							endpointSubscribedEventTypes={endpointSubscribedEventTypes}
+							endpointUndeliveredPayloadRetentionHours={
+								endpointUndeliveredPayloadRetentionHours
+							}
 							endpointUrl={endpointUrl}
 							isDirty={isEndpointDirty}
 							isSaving={updateEndpointMutation.isPending}
 							onEndpointEnabledChange={setEndpointEnabled}
 							onEndpointNameChange={setEndpointName}
+							onEndpointUndeliveredPayloadRetentionHoursChange={
+								setEndpointUndeliveredPayloadRetentionHours
+							}
 							onEndpointUrlChange={setEndpointUrl}
 							onReset={resetEndpointDraft}
 							onSaveEndpoint={handleSaveEndpoint}

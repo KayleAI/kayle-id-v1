@@ -26,6 +26,15 @@ type WebhookEventResponse = {
 		id: string;
 		last_attempt_at: string | null;
 		last_status_code: number | null;
+		payload_expires_at: string | null;
+		payload_retention_reason:
+			| "delivered"
+			| "expired"
+			| "jwe_creation_failed"
+			| "no_active_key"
+			| "pending_delivery"
+			| "terminal_failure_retention";
+		payload_scrubbed_at: string | null;
 		status: "delivering" | "failed" | "pending" | "succeeded";
 		webhook_endpoint_id: string;
 	}>;
@@ -135,16 +144,18 @@ describe("/v1/webhooks/events", () => {
 
 			expect(payload.error).toBeNull();
 			expect(event).toBeDefined();
-			expect(event?.deliveries).toEqual([
-				{
-					attempt_count: 0,
-					id: seeded.deliveryId,
-					last_attempt_at: null,
-					last_status_code: null,
-					status: "pending",
-					webhook_endpoint_id: seeded.endpointId,
-				},
-			]);
+			expect(event?.deliveries).toHaveLength(1);
+			expect(event?.deliveries[0]).toMatchObject({
+				attempt_count: 0,
+				id: seeded.deliveryId,
+				last_attempt_at: null,
+				last_status_code: null,
+				payload_retention_reason: "pending_delivery",
+				payload_scrubbed_at: null,
+				status: "pending",
+				webhook_endpoint_id: seeded.endpointId,
+			});
+			expect(event?.deliveries[0]?.payload_expires_at).toBeString();
 		},
 	);
 
@@ -172,16 +183,18 @@ describe("/v1/webhooks/events", () => {
 
 			expect(payload.error).toBeNull();
 			expect(payload.data.id).toBe(seeded.eventId);
-			expect(payload.data.deliveries).toEqual([
-				{
-					attempt_count: 0,
-					id: seeded.deliveryId,
-					last_attempt_at: null,
-					last_status_code: null,
-					status: "pending",
-					webhook_endpoint_id: seeded.endpointId,
-				},
-			]);
+			expect(payload.data.deliveries).toHaveLength(1);
+			expect(payload.data.deliveries[0]).toMatchObject({
+				attempt_count: 0,
+				id: seeded.deliveryId,
+				last_attempt_at: null,
+				last_status_code: null,
+				payload_retention_reason: "pending_delivery",
+				payload_scrubbed_at: null,
+				status: "pending",
+				webhook_endpoint_id: seeded.endpointId,
+			});
+			expect(payload.data.deliveries[0]?.payload_expires_at).toBeString();
 		},
 	);
 
@@ -220,16 +233,18 @@ describe("/v1/webhooks/events", () => {
 
 			expect(payload.error).toBeNull();
 			expect(payload.data.id).toBe(seeded.eventId);
-			expect(payload.data.deliveries).toEqual([
-				{
-					attempt_count: 0,
-					id: seeded.deliveryId,
-					last_attempt_at: null,
-					last_status_code: null,
-					status: "pending",
-					webhook_endpoint_id: seeded.endpointId,
-				},
-			]);
+			expect(payload.data.deliveries).toHaveLength(1);
+			expect(payload.data.deliveries[0]).toMatchObject({
+				attempt_count: 0,
+				id: seeded.deliveryId,
+				last_attempt_at: null,
+				last_status_code: null,
+				payload_retention_reason: "pending_delivery",
+				payload_scrubbed_at: null,
+				status: "pending",
+				webhook_endpoint_id: seeded.endpointId,
+			});
+			expect(payload.data.deliveries[0]?.payload_expires_at).toBeString();
 
 			const [delivery] = await db
 				.select()
@@ -288,6 +303,45 @@ describe("/v1/webhooks/events", () => {
 	);
 
 	test.serial(
+		"POST /:event_id/replay rejects events whose delivery payloads expired",
+		async () => {
+			const seeded = await seedWebhookEvent();
+
+			await db
+				.update(webhook_deliveries)
+				.set({
+					payloadExpiresAt: new Date("2000-01-01T00:00:00.000Z"),
+					payloadRetentionReason: "expired",
+					status: "failed",
+				})
+				.where(eq(webhook_deliveries.id, seeded.deliveryId));
+
+			const response = await app.request(
+				`/v1/webhooks/events/${seeded.eventId}/replay`,
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					},
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(409);
+
+			const payload = (await response.json()) as {
+				data: null;
+				error: {
+					code: string;
+					hint: string;
+				};
+			};
+
+			expect(payload.error.code).toBe("WEBHOOK_PAYLOAD_EXPIRED");
+			expect(payload.error.hint).toContain("Payload expired");
+		},
+	);
+
+	test.serial(
 		"POST /:event_id/replay does not requeue deliveries already in progress",
 		async () => {
 			const seeded = await seedWebhookEvent();
@@ -314,6 +368,14 @@ describe("/v1/webhooks/events", () => {
 			);
 
 			expect(response.status).toBe(409);
+			const payload = (await response.json()) as {
+				data: null;
+				error: {
+					code: string;
+				};
+			};
+
+			expect(payload.error.code).toBe("CONFLICT");
 
 			const [delivery] = await db
 				.select()

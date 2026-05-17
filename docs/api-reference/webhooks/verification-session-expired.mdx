@@ -1,13 +1,13 @@
 ---
 title: "verification.session.expired"
-description: "Fires when a session passes its 60-minute window without a successful attempt."
+description: "Fires when a session passes its 60-minute window without a confirmed attempt."
 ---
 
-Emitted when a session's `expires_at` is reached and no attempt succeeded. A scheduled job sweeps expired sessions, marks them `expired`, and emits this event.
+Emitted when a session's `expires_at` is reached and no attempt was confirmed. A scheduled job sweeps expired sessions, marks them `expired`, and emits this event.
 
 ## When it fires
 
-A session expires when 60 minutes have elapsed since `created_at` and it has not reached `completed` (a successful attempt or three failed attempts) or `cancelled`. In-progress attempts inside an expired session are marked `failed` with `failure_code: session_expired`.
+A session expires when 60 minutes have elapsed since `created_at` and it has not reached `completed` (a confirmed attempt or three not-confirmed terminal attempts) or `cancelled`. In-progress attempts inside an expired session are marked `failed` with `failure_code: session_expired`.
 
 This event fires at most once per session.
 
@@ -58,4 +58,4 @@ if (event.type === "verification.session.expired") {
 }
 ```
 
-Treat an expired session as a definitive "user did not finish in time". If you need them to verify, create a fresh session.
+Treat an expired session as a definitive "user did not finish in time". If you need another Kayle check, create a fresh session.

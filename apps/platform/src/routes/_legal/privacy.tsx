@@ -39,7 +39,7 @@ function PrivacyPage() {
 								If another platform sends you to Kayle ID for verification, that
 								platform also has its own privacy practices. In particular, that
 								platform decides which claims it requests from you and what it
-								does with the verification result it receives from Kayle ID.
+								does with the Kayle check result it receives from Kayle ID.
 							</p>
 							<p>
 								Kayle Inc. and the relying party are separate controllers for
@@ -99,7 +99,7 @@ function PrivacyPage() {
 									"To validate passport authenticity by checking chip data, including DG1, DG2, and SOD artifacts.",
 									"To compare the passport chip portrait against captured selfies using Kayle ID's internal face-matching service.",
 									"To generate verification status records, events, risk scores, and receiver-scoped identifiers such as the Kayle Document ID.",
-									"To deliver the verification result and user-selected claims to the relying party through encrypted webhook payloads.",
+									"To deliver the Kayle check result and user-selected claims to the relying party through encrypted webhook payloads.",
 									"To monitor service health, investigate abuse or failures, enforce our terms, and comply with legal obligations.",
 								]}
 							/>
@@ -169,7 +169,7 @@ function PrivacyPage() {
 						<LegalSection title="How We Share Information">
 							<LegalList
 								items={[
-									"With the relying party that requested the verification, but only for the verification result and claims included in the session contract and selected by the user, except where a claim is marked required.",
+									"With the relying party that requested the verification, but only for the Kayle check result and claims included in the session contract and selected by the user, except where a claim is marked required.",
 									"With the relying party as a separate controller that is responsible for its own notices, lawful basis, decision process, fallback verification path, and review or appeal safeguards where applicable.",
 									"With infrastructure and security providers that help us operate Kayle ID, such as hosted compute, storage, networking, database, and authentication providers.",
 									"With Google if a developer chooses Google sign-in for their Kayle ID account.",
@@ -232,7 +232,7 @@ function PrivacyPage() {
 								</a>
 								. If your request concerns data that a relying party requested
 								or received, we may direct you to that party because it controls
-								how it uses the verification result on its side.
+								how it uses the Kayle check result on its side.
 							</p>
 							<p>
 								If a relying party uses a Kayle ID result for an access,

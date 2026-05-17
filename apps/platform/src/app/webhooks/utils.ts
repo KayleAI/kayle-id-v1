@@ -69,7 +69,7 @@ export const WEBHOOK_PAYLOAD_RETENTION_OPTIONS =
 		description:
 			hours === 0
 				? "Scrub encrypted payloads as soon as delivery permanently fails."
-				: `Retain encrypted payloads for ${hours} hours after terminal delivery failure.`,
+				: `Retain encrypted payloads for ${hours} hours after final delivery failure.`,
 		label:
 			hours === 0
 				? "Do not retain after final failure"
@@ -265,11 +265,11 @@ export function toggleEventSelection(
 
 export function getWebhookEventTypeDescription(eventType: string): string {
 	if (eventType === "verification.attempt.succeeded") {
-		return "Dispatch completed verification attempts to this endpoint.";
+		return "Dispatch confirmed Kayle check attempts to this endpoint.";
 	}
 
 	if (eventType === "verification.attempt.failed") {
-		return "Dispatch failed verification attempts to this endpoint.";
+		return "Dispatch not-confirmed Kayle check attempts to this endpoint.";
 	}
 
 	if (eventType === "verification.session.expired") {

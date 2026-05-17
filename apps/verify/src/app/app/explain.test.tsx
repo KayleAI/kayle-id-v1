@@ -196,17 +196,33 @@ describe("SessionExplain", () => {
 	test("renders the organization name in the share copy", () => {
 		render(<SessionExplain organization={createOrganization()} />);
 
-		expect(screen.getByText("Test Organization")).not.toBeNull();
+		expect(screen.getAllByText("Test Organization")).toHaveLength(2);
 		expect(screen.queryByText("Platform Name")).toBeNull();
 	});
 
-	test("renders the identity-verification heading by default", () => {
+	test("renders the Kayle check heading by default", () => {
 		render(<SessionExplain organization={createOrganization()} />);
 
 		expect(
 			screen.getByRole("heading", {
-				name: "Verify your identity with Kayle ID",
+				name: "Complete a Kayle ID check",
 			}),
+		).not.toBeNull();
+		expect(
+			screen.getByText((_, element) =>
+				Boolean(
+					element &&
+						element.tagName === "LI" &&
+						element.textContent ===
+							"Sends an identity-assurance signal to Test Organization; that organization decides what to do with the result.",
+				),
+			),
+		).not.toBeNull();
+		expect(screen.getByText(/bounded retention periods/i)).not.toBeNull();
+		expect(
+			screen.getByText(
+				/Does not decide whether you receive the organization's service/i,
+			),
 		).not.toBeNull();
 	});
 

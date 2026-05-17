@@ -43,10 +43,10 @@ function getWebhookPanelState({
 		return {
 			title: sessionStatus?.is_terminal
 				? "Waiting for the webhook"
-				: "Waiting for the result",
+				: "Waiting for the check result",
 			description: sessionStatus?.is_terminal
 				? "This run has ended. Waiting for the final webhook delivery to arrive."
-				: "Finish the verification on mobile and the result will appear here.",
+				: "Finish the Kayle check on mobile and the result will appear here.",
 		};
 	}
 
@@ -54,7 +54,7 @@ function getWebhookPanelState({
 		return {
 			title: "Preparing the result",
 			description:
-				"Verifying the signature and decrypting the webhook payload locally in this browser.",
+				"Checking the signature and decrypting the webhook payload locally in this browser.",
 		};
 	}
 
@@ -145,8 +145,8 @@ function WebhookResultSummary({
 		if (documentPreview) {
 			return {
 				description:
-					"The webhook was verified, decrypted locally, and mapped into the selected document fields below.",
-				title: "Verified document data",
+					"The webhook signature was checked, decrypted locally, and mapped into the selected document fields below.",
+				title: "Confirmed document signal",
 			};
 		}
 
@@ -160,14 +160,14 @@ function WebhookResultSummary({
 		if (processedWebhook.error) {
 			return {
 				description: processedWebhook.error,
-				title: "Local verification failed",
+				title: "Local webhook validation failed",
 			};
 		}
 
 		return (
 			state ?? {
 				description:
-					"The webhook payload has been verified and decrypted locally in this browser.",
+					"The webhook payload has been checked and decrypted locally in this browser.",
 				title: "Result ready",
 			}
 		);

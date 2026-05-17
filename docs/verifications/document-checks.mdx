@@ -4,7 +4,7 @@ description: "What runs against the chip and the image, and what each failure co
 icon: "microchip"
 ---
 
-Every accepted verification has passed every applicable check. Kayle treats document authenticity, chip authenticity, and biometric match as independent gates: any single failure is a hard reject.
+Every confirmed Kayle check has passed every applicable technical gate. Kayle treats document authenticity, chip authenticity, and biometric match as independent checks: any single failure produces a not-confirmed technical result, not a final decision about the user.
 
 ## The checks
 
@@ -21,12 +21,12 @@ Every accepted verification has passed every applicable check. Kayle treats docu
     The DSC is checked against the Certificate Revocation Lists for its issuing CSCA. The status is one of:
 
     - `verified_not_revoked` — fresh CRL coverage, certificate not on the list.
-    - `revoked` — the certificate is on a CRL. Hard reject.
+    - `revoked` — the certificate is on a CRL. The check is not confirmed.
     - `revocation_unknown` — CRL coverage is missing or stale. Treated conservatively in production.
   </Step>
 
   <Step title="Active authentication (DG15)">
-    If the document carries a DG15, the chip signs a freshly derived challenge with its private key. The challenge is bound to the attempt ID so the same signature can't be replayed. A successful signature proves the chip is the same one personalised at issuance — a clone holding only the public data groups would fail this step.
+    If the document carries a DG15, the chip signs a freshly derived challenge with its private key. The challenge is bound to the attempt ID so the same signature can't be replayed. A successful signature confirms the chip is the same one personalised at issuance — a clone holding only the public data groups would fail this step.
   </Step>
 
   <Step title="Chip authentication (DG14)">
@@ -34,7 +34,7 @@ Every accepted verification has passed every applicable check. Kayle treats docu
   </Step>
 
   <Step title="Face match">
-    The on-chip portrait (DG2) is sent to the biometric verifier service alongside the user's selfie frames. The threshold is derived from the document holder's age — children, who change quickly, are matched more leniently than adults. The biometric verifier is fail-closed: an unavailable verifier rejects, and a fallback decision is rejected in production even if the score looks fine.
+    The on-chip portrait (DG2) is sent to the biometric verifier service alongside the user's selfie frames. The threshold is derived from the document holder's age — children, who change quickly, are matched more leniently than adults. The biometric verifier is fail-closed: an unavailable verifier produces a not-confirmed result, and a fallback biometric result is not accepted in production even if the score looks fine.
   </Step>
 </Steps>
 
@@ -42,14 +42,14 @@ The entire pipeline runs while the WebSocket is open. The chip data is processed
 
 ## Failure codes
 
-When an attempt is rejected, the webhook payload's `data.failure_code` tells you which gate failed:
+When an attempt is not confirmed, the webhook payload's `data.failure_code` tells you which gate did not confirm:
 
 | Code | Meaning |
 |---|---|
-| `document_authenticity_failed` | Passive auth failed — the SOD signature, the DSC chain, a data-group hash, or CRL revocation rejected the document. |
+| `document_authenticity_failed` | Passive auth failed — the SOD signature, the DSC chain, a data-group hash, or CRL revocation did not confirm the document. |
 | `document_active_authentication_failed` | DG15 was present and the chip's signature over the challenge did not verify. |
 | `document_chip_authentication_failed` | DG14 was present and the authenticated key agreement transcript did not verify. |
-| `selfie_face_mismatch` | The biometric verifier rejected the selfie against the on-chip portrait. |
+| `selfie_face_mismatch` | The biometric verifier could not confirm the selfie against the on-chip portrait. |
 | `session_expired` | The session ran past its 60-minute window before this attempt could finish. |
 | `session_cancelled` | The session was cancelled while this attempt was in progress. |
 

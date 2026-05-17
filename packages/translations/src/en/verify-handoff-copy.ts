@@ -65,7 +65,7 @@ export const VERIFY_HANDOFF_COPY = {
       headerDescription: "This check must stay on the device that started it.",
       messageTitle: "Try again",
       messageDescription:
-        "It didn’t complete successfully. Retry on the same device, or cancel it there.",
+        "Kayle ID could not automatically confirm this check. Retry on the same device, or cancel it there.",
     },
 
     sameDeviceOnly: {
@@ -88,33 +88,35 @@ export const VERIFY_HANDOFF_COPY = {
       },
 
       failed: {
-        title: "Failed",
-        description: "The latest attempt didn’t pass.",
+        title: "Check not confirmed",
+        description:
+          "Kayle ID could not automatically confirm the latest attempt.",
       },
 
       documentAuthenticityFailed: {
-        title: "Document check failed",
-        description: "We couldn’t verify your document.",
+        title: "Document check not confirmed",
+        description: "Kayle ID could not automatically confirm your document.",
       },
 
       documentActiveAuthenticationFailed: {
-        title: "Document check failed",
+        title: "Document check not confirmed",
         description: "We couldn’t confirm your document chip.",
       },
 
       documentChipAuthenticationFailed: {
-        title: "Document check failed",
+        title: "Document check not confirmed",
         description: "We couldn’t confirm your document chip.",
       },
 
       selfieFaceMismatch: {
-        title: "Face doesn’t match",
-        description: "Your selfie doesn’t match your document photo.",
+        title: "Face match not confirmed",
+        description:
+          "Kayle ID could not automatically confirm that your selfie matched the document photo.",
       },
 
       success: {
-        title: "Complete",
-        description: "Finished successfully on your phone.",
+        title: "Kayle check complete",
+        description: "The Kayle check completed on your phone.",
       },
 
       finishedHeaderDescription: "This check is complete.",
@@ -125,20 +127,27 @@ export const VERIFY_HANDOFF_COPY = {
     },
 
     explain: {
-      headline: "Verify your identity with Kayle ID",
+      headline: "Complete a Kayle ID check",
       intro:
-        "Kayle ID lets you verify your identity using your document's chip and a selfie.",
+        "Kayle ID processes an identity-assurance check using your document's chip and a selfie.",
       processTitle: "This process:",
-      processBulletAuthentic: "Confirms that your document is genuine",
-      processBulletHolder: "Confirms that you are the document holder",
+      processBulletAuthentic: "Checks whether your document is genuine",
+      processBulletHolder: "Checks whether you are the document holder",
       processBulletSharingPrefix:
-        "Shares only the verification result and details you choose to share with ",
+        "Shares only the Kayle check result and details you choose to share with ",
       processBulletSharingSuffix: "",
+      processBulletDecisionPrefix: "Sends an identity-assurance signal to ",
+      processBulletDecisionSuffix:
+        "; that organization decides what to do with the result.",
       kayleIdTitle: "Kayle ID:",
       kayleIdBulletNoStorage: "Does not store your document or selfie",
       kayleIdBulletNoAccount: "Does not create an account for you",
       kayleIdBulletSessionScoped:
-        "Processes data only for this verification session",
+        "Processes document and biometric data only for this check, then discards it when the secure connection closes",
+      kayleIdBulletRetention:
+        "Keeps limited session metadata for bounded retention periods described in the Privacy Notice",
+      kayleIdBulletNoDecision:
+        "Does not decide whether you receive the organization's service",
       continueButton: "Continue",
 
       ageOnly: {
@@ -168,7 +177,7 @@ export const VERIFY_HANDOFF_COPY = {
       bulletSelfie:
         "I allow Kayle ID to capture a selfie to confirm I am the document holder",
       bulletShareFullPrefix:
-        "I allow Kayle ID to share the verification result and details I choose to share with ",
+        "I allow Kayle ID to share the Kayle check result and details I choose to share with ",
       bulletShareFullSuffix: "",
       bulletShareAgeOnlyPrefix: "I allow Kayle ID to share ",
       bulletShareAgeOnlyEmphasis: "only",
@@ -200,7 +209,7 @@ export const VERIFY_HANDOFF_COPY = {
       biometricConsent:
         "I consent to Kayle ID capturing and processing my selfie to confirm I am the document holder.",
       shareClaimsConsentFull:
-        "I consent to Kayle ID sharing the selected result and details with {organization}.",
+        "I consent to Kayle ID sharing the selected check result and details with {organization}.",
       shareClaimsConsentAgeOnly:
         "I consent to Kayle ID sharing only whether I am {ageLabel} with {organization}.",
       termsAcknowledgementPrefix: "I agree to the ",

@@ -31,33 +31,32 @@ export const CHART_Y_AXIS_LABEL_X = CHART_VIEWBOX_WIDTH - 6;
 
 export const METRIC_CONFIG: Record<DisplayMetricKey, MetricConfig> = {
 	total: {
-		description: "All verification sessions created for your organization.",
+		description: "All Kayle check sessions created for your organization.",
 		dotClassName: "bg-[#635bff]",
-		label: "Total Sessions",
+		label: "Total checks",
 		stroke: "#635bff",
-		title: "Total sessions",
+		title: "Total checks",
 	},
 	success: {
-		description: "Sessions where at least one verification attempt succeeded.",
+		description: "Sessions where Kayle confirmed at least one attempt.",
 		dotClassName: "bg-[#10b981]",
-		label: "Successful",
+		label: "Positive",
 		stroke: "#10b981",
-		title: "Successful sessions",
+		title: "Positive Kayle checks",
 	},
 	failure: {
-		description: "Completed sessions with no successful attempts.",
+		description: "Completed sessions with no Kayle-confirmed attempts.",
 		dotClassName: "bg-[#f43f5e]",
-		label: "Failed",
+		label: "Not confirmed",
 		stroke: "#f43f5e",
-		title: "Failed sessions",
+		title: "Checks not confirmed",
 	},
 	expired: {
-		description:
-			"Sessions that aged out before they reached a successful outcome.",
+		description: "Sessions that aged out before Kayle confirmed an attempt.",
 		dotClassName: "bg-[#f59e0b]",
 		label: "Expired",
 		stroke: "#f59e0b",
-		title: "Expired sessions",
+		title: "Expired checks",
 	},
 	cancelled: {
 		description: "Sessions that were actively cancelled before completion.",
@@ -67,6 +66,6 @@ export const METRIC_CONFIG: Record<DisplayMetricKey, MetricConfig> = {
 		dotClassName: "bg-[#94a3b8]",
 		label: "Cancelled",
 		stroke: "#94a3b8",
-		title: "Cancelled sessions",
+		title: "Cancelled checks",
 	},
 };

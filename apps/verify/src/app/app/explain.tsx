@@ -79,6 +79,11 @@ export function SessionExplain({
 								<OrganizationName organization={organization} />
 								{explainCopy.processBulletSharingSuffix}
 							</li>
+							<li>
+								{explainCopy.processBulletDecisionPrefix}
+								<OrganizationName organization={organization} />
+								{explainCopy.processBulletDecisionSuffix}
+							</li>
 						</ul>
 					</div>
 
@@ -90,6 +95,8 @@ export function SessionExplain({
 							<li>{explainCopy.kayleIdBulletNoStorage}</li>
 							<li>{explainCopy.kayleIdBulletNoAccount}</li>
 							<li>{explainCopy.kayleIdBulletSessionScoped}</li>
+							<li>{explainCopy.kayleIdBulletRetention}</li>
+							<li>{explainCopy.kayleIdBulletNoDecision}</li>
 						</ul>
 					</div>
 				</div>
@@ -177,6 +184,8 @@ function AgeOnlyExplain({
 							<li>{explainCopy.kayleIdBulletNoStorage}</li>
 							<li>{explainCopy.kayleIdBulletNoAccount}</li>
 							<li>{explainCopy.kayleIdBulletSessionScoped}</li>
+							<li>{explainCopy.kayleIdBulletRetention}</li>
+							<li>{explainCopy.kayleIdBulletNoDecision}</li>
 						</ul>
 					</div>
 				</div>

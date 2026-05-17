@@ -70,7 +70,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
         "Cette vérification doit rester sur l’appareil qui l’a démarrée.",
       messageTitle: "Réessayer",
       messageDescription:
-        "Elle ne s’est pas terminée avec succès. Réessayez sur le même appareil, ou annulez-la depuis cet appareil.",
+        "Kayle ID n’a pas pu confirmer automatiquement cette vérification. Réessayez sur le même appareil, ou annulez-la depuis cet appareil.",
     },
 
     sameDeviceOnly: {
@@ -94,34 +94,37 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       },
 
       failed: {
-        title: "Échec",
-        description: "La dernière tentative n’a pas abouti.",
+        title: "Vérification non confirmée",
+        description:
+          "Kayle ID n’a pas pu confirmer automatiquement la dernière tentative.",
       },
 
       documentAuthenticityFailed: {
-        title: "Échec de la vérification du document",
-        description: "Nous n’avons pas pu vérifier votre document.",
+        title: "Document non confirmé",
+        description:
+          "Kayle ID n’a pas pu confirmer automatiquement votre document.",
       },
 
       documentActiveAuthenticationFailed: {
-        title: "Échec de la vérification du document",
+        title: "Document non confirmé",
         description: "Nous n’avons pas pu confirmer la puce de votre document.",
       },
 
       documentChipAuthenticationFailed: {
-        title: "Échec de la vérification du document",
+        title: "Document non confirmé",
         description: "Nous n’avons pas pu confirmer la puce de votre document.",
       },
 
       selfieFaceMismatch: {
-        title: "Le visage ne correspond pas",
+        title: "Correspondance du visage non confirmée",
         description:
-          "Votre selfie ne correspond pas à la photo de votre document.",
+          "Kayle ID n’a pas pu confirmer automatiquement que votre selfie correspondait à la photo du document.",
       },
 
       success: {
-        title: "Terminée",
-        description: "Terminée avec succès sur votre téléphone.",
+        title: "Vérification Kayle terminée",
+        description:
+          "La vérification Kayle s’est terminée sur votre téléphone.",
       },
 
       finishedHeaderDescription: "Cette vérification est terminée.",
@@ -133,21 +136,27 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     },
 
     explain: {
-      headline: "Vérifiez votre identité avec Kayle ID",
+      headline: "Effectuez une vérification Kayle ID",
       intro:
-        "Kayle ID vous permet de vérifier votre identité à l’aide de la puce de votre document et d’un selfie.",
+        "Kayle ID traite une vérification d’assurance d’identité à l’aide de la puce de votre document et d’un selfie.",
       processTitle: "Ce processus :",
-      processBulletAuthentic: "Confirme que votre document est authentique",
-      processBulletHolder:
-        "Confirme que vous êtes bien le détenteur du document",
+      processBulletAuthentic: "Vérifie si votre document est authentique",
+      processBulletHolder: "Vérifie si vous êtes bien le détenteur du document",
       processBulletSharingPrefix:
-        "Partage uniquement le résultat de la vérification et les informations que vous choisissez de partager avec ",
+        "Partage uniquement le résultat de la vérification Kayle et les informations que vous choisissez de partager avec ",
       processBulletSharingSuffix: "",
+      processBulletDecisionPrefix: "Envoie un signal d’assurance d’identité à ",
+      processBulletDecisionSuffix:
+        " ; cette organisation décide quoi faire du résultat.",
       kayleIdTitle: "Kayle ID :",
       kayleIdBulletNoStorage: "Ne stocke ni votre document ni votre selfie",
       kayleIdBulletNoAccount: "Ne crée pas de compte pour vous",
       kayleIdBulletSessionScoped:
-        "Traite les données uniquement pour cette session de vérification",
+        "Traite les données du document et les données biométriques uniquement pour cette vérification, puis les supprime lorsque la connexion sécurisée se ferme",
+      kayleIdBulletRetention:
+        "Conserve des métadonnées limitées de session pendant les durées définies dans l’avis de confidentialité",
+      kayleIdBulletNoDecision:
+        "Ne décide pas si vous recevez le service de l’organisation",
       continueButton: "Continuer",
 
       ageOnly: {
@@ -180,7 +189,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       bulletSelfie:
         "J’autorise Kayle ID à prendre un selfie pour confirmer que je suis bien le détenteur du document",
       bulletShareFullPrefix:
-        "J’autorise Kayle ID à partager le résultat de la vérification et les informations que je choisis de partager avec ",
+        "J’autorise Kayle ID à partager le résultat de la vérification Kayle et les informations que je choisis de partager avec ",
       bulletShareFullSuffix: "",
       bulletShareAgeOnlyPrefix: "J’autorise Kayle ID à partager ",
       bulletShareAgeOnlyEmphasis: "uniquement",
@@ -212,7 +221,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       biometricConsent:
         "Je consens à ce que Kayle ID capture et traite mon selfie pour confirmer que je suis bien le détenteur du document.",
       shareClaimsConsentFull:
-        "Je consens à ce que Kayle ID partage le résultat et les informations sélectionnées avec {organization}.",
+        "Je consens à ce que Kayle ID partage le résultat de cette vérification et les informations sélectionnées avec {organization}.",
       shareClaimsConsentAgeOnly:
         "Je consens à ce que Kayle ID partage uniquement si j’ai {ageLabel} avec {organization}.",
       termsAcknowledgementPrefix: "J’accepte les ",

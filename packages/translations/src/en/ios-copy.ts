@@ -146,9 +146,9 @@ export const IOS_COPY_EN = {
     "Use your camera to scan the printed code on your document, then read the chip if it has one.",
   "Use your camera to scan the QR code from your browser and begin verification.":
     "Use your camera to scan the QR code from your browser and begin verification.",
-  "Verification Complete": "Verification Complete",
-  "Verification Failed": "Verification Failed",
-  "Verified from your document.": "Verified from your document.",
+  "Verification Complete": "Kayle check complete",
+  "Verification Failed": "Kayle check could not be confirmed",
+  "Verified from your document.": "Read from your document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "We couldn't use this scan to read the chip. Try scanning again.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
@@ -161,7 +161,7 @@ export const IOS_COPY_EN = {
   "You can optionally choose to share these details.":
     "You can optionally choose to share these details.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
-    "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.",
+    "Your Kayle check result has been securely sent. You can now close this app and return to your browser.",
 
   // Document-name nouns. Substituted into otherwise-localized parent
   // strings (e.g. "Look for this symbol on %@.") so they MUST be

@@ -181,7 +181,7 @@ function TermsPage() {
 							<LegalList
 								items={[
 									'Kayle ID is provided "as is" and "as available" to the fullest extent permitted by law.',
-									"A verification result is a signal derived from the submitted passport data, chip data, and selfies. It is not a guarantee of identity, legality, eligibility, or absence of fraud.",
+									"A Kayle check result is a signal derived from the submitted passport data, chip data, and selfies. It is not a guarantee of identity, legality, eligibility, or absence of fraud.",
 									"Kayle ID does not provide legal, regulatory, or compliance advice, and you should not treat the service as a substitute for your own risk or legal judgment.",
 									"We disclaim all implied warranties, including implied warranties of merchantability, fitness for a particular purpose, title, and non-infringement, to the fullest extent permitted by law.",
 								]}

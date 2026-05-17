@@ -41,7 +41,7 @@ export function DemoOutcomeStep({
 				shouldShowStepCopy
 					? mode === "age"
 						? "See whether the person met the age requirement."
-						: "Review the details Kayle returned for this check."
+						: "Review the identity-assurance details Kayle returned for this check."
 					: undefined
 			}
 			isLocked={!canReviewOutcome}
@@ -50,7 +50,7 @@ export function DemoOutcomeStep({
 				shouldShowStepCopy
 					? mode === "age"
 						? "Age check result"
-						: "Verified ID details"
+						: "Kayle check details"
 					: undefined
 			}
 		>

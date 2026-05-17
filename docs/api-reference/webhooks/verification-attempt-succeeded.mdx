@@ -1,15 +1,15 @@
 ---
 title: "verification.attempt.succeeded"
-description: "Fires when a verification attempt is accepted."
+description: "Fires when a Kayle check attempt is confirmed."
 ---
 
-Emitted when an attempt finishes with all checks passing. The payload includes the consented claims and the canonical list of selected field keys.
+Emitted when an attempt finishes with all Kayle checks confirmed. The payload includes the consented claims and the canonical list of selected field keys.
 
 ## When it fires
 
-After the verify pipeline accepts an attempt: SOD chain verified, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier accepts the selfie, and the user has consented to share at least all required fields.
+After the verify pipeline confirms an attempt: SOD chain checked, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier confirms the selfie, and the user has consented to share at least all required fields.
 
-A session can only have one accepted attempt — once this event fires, the session moves to `completed` and no further attempts are allowed.
+A session can only have one confirmed attempt — once this event fires, the session moves to `completed` and no further attempts are allowed.
 
 ## Payload
 
@@ -76,7 +76,7 @@ if (event.type === "verification.attempt.succeeded") {
   const { verification_session_id, verification_attempt_id, event_id } = event.metadata;
   if (await alreadyProcessed(event_id)) return;
 
-  await markSessionVerified({
+  await recordIdentityAssuranceSignal({
     sessionId: verification_session_id,
     attemptId: verification_attempt_id,
     claims: event.data.claims,
@@ -84,4 +84,4 @@ if (event.type === "verification.attempt.succeeded") {
 }
 ```
 
-The `claims` object reflects the user's consent at the moment of acceptance. If you requested an optional field and it's missing here, the user declined it — handle that without failing the verification.
+The `claims` object reflects the user's consent at the moment Kayle confirmed the check. If you requested an optional field and it's missing here, the user declined it — handle that without treating Kayle's technical result as your final decision.

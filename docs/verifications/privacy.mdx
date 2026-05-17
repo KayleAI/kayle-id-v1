@@ -4,7 +4,7 @@ description: "What Kayle stores, what it discards, and what reaches your webhook
 icon: "lock"
 ---
 
-Kayle ID is built around a single rule: the API stores the **minimum** needed to make verification work, and never more. Document images, MRZ fields, selfies, and chip signatures are processed in memory and discarded the moment the WebSocket closes. The only place verified claims exist outside that pipeline is the webhook payload sent to you, encrypted in flight if you've registered an encryption key.
+Kayle ID is built around a single rule: the API stores the **minimum** needed to make a Kayle check work, and never more. Document images, MRZ fields, selfies, and chip signatures are processed in memory and discarded the moment the WebSocket closes. The only place consented claims exist outside that pipeline is the webhook payload sent to you, encrypted in flight if you've registered an encryption key.
 
 ## What gets stored
 
@@ -56,7 +56,7 @@ Production log sinks must keep Cloudflare Workers Logs or Logpush retention boun
 
 Webhook payloads are always end-to-end encrypted: Kayle wraps every event body as a JWE addressed to a public key you've registered with the endpoint, so Kayle, your CDN, and any intermediary cannot read the cleartext. Endpoints without an active encryption key fail delivery before the body is sent. See [Encrypted payloads](/webhooks/encryption) for the registration flow.
 
-For a successful verification, the cleartext you receive after decryption contains only the claims the user consented to share:
+For a confirmed Kayle check, the cleartext you receive after decryption contains only the claims the user consented to share:
 
 ```json
 {
@@ -69,7 +69,7 @@ For a successful verification, the cleartext you receive after decryption contai
 }
 ```
 
-For a failed verification, you receive the failure code, no claims:
+For a not-confirmed Kayle check, you receive the failure code, no claims:
 
 ```json
 {

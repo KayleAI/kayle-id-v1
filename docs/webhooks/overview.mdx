@@ -1,10 +1,10 @@
 ---
 title: "Webhook overview"
-description: "How Kayle ID delivers verification results to your servers."
+description: "How Kayle ID delivers check results to your servers."
 icon: "bolt"
 ---
 
-When a verification reaches a terminal state, Kayle emits a domain event and delivers it to every webhook endpoint subscribed to that event type. Webhooks are the primary way you learn about verification outcomes — polling the API works for one-off lookups, but a subscribed endpoint is what you should build against.
+When a Kayle check reaches a terminal state, Kayle emits a domain event and delivers it to every webhook endpoint subscribed to that event type. Webhooks are the primary way you learn about Kayle check results — polling the API works for one-off lookups, but a subscribed endpoint is what you should build against.
 
 ## Event types
 
@@ -12,9 +12,9 @@ Four event types exist:
 
 | Event | Trigger |
 |---|---|
-| `verification.attempt.succeeded` | An attempt was accepted. The payload includes the consented claims and the list of selected field keys. |
-| `verification.attempt.failed` | An attempt was rejected. The payload includes a `failure_code`. |
-| `verification.session.expired` | A session passed its 60-minute window with no successful attempt. |
+| `verification.attempt.succeeded` | An attempt was confirmed by Kayle. The payload includes the consented claims and the list of selected field keys. |
+| `verification.attempt.failed` | Kayle could not confirm an attempt. The payload includes a `failure_code`. |
+| `verification.session.expired` | A session passed its 60-minute window with no confirmed attempt. |
 | `verification.session.cancelled` | A session was cancelled by you (authenticated cancel) or by the user (public cancel). |
 
 Each endpoint subscribes to a subset by listing event types when you create or update it. See [Configuring endpoints](/webhooks/configuring-endpoints).

@@ -63,7 +63,7 @@ The response includes the endpoint and its signing secret. Note that the endpoin
 
 Delivered webhook payloads are scrubbed immediately after the first successful `2xx` response. The `undelivered_payload_retention_hours` setting only controls how long Kayle keeps encrypted payloads after a delivery exhausts automatic retries and becomes `failed`.
 
-Supported values are `0`, `24`, `72`, and `168` hours. New endpoints default to `72`. Use `0` if you do not want manual retry or replay after terminal failure; use a longer window if your downstream service may need time to recover from an outage.
+Supported values are `0`, `24`, `72`, and `168` hours. New endpoints default to `72`. Use `0` if you do not want manual retry or replay after final delivery failure; use a longer window if your downstream service may need time to recover from an outage.
 
 ## Reveal or rotate the signing secret
 

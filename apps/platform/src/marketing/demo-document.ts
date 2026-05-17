@@ -231,17 +231,17 @@ function buildWebhookEventDescription({
 			return (
 				failureMessage?.description ??
 				(failureCodeLabel
-					? `A verification attempt failed with ${failureCodeLabel}.`
-					: "A verification attempt failed.")
+					? `A Kayle check attempt was not confirmed with ${failureCodeLabel}.`
+					: "A Kayle check attempt was not confirmed.")
 			);
 		case "verification.attempt.succeeded":
-			return "The verified document payload was received successfully.";
+			return "The confirmed document signal was received successfully.";
 		case "verification.session.cancelled":
 			return "The verification session was cancelled before completion.";
 		case "verification.session.expired":
 			return "The verification session expired before completion.";
 		default:
-			return "The latest webhook payload was received successfully.";
+			return "The latest webhook payload was received.";
 	}
 }
 

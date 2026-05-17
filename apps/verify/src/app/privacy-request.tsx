@@ -273,14 +273,14 @@ export function PrivacyRequestPage({
 					<h1 className="mb-4 font-light text-3xl text-foreground tracking-tight">
 						{pageHeading}
 					</h1>
-					<p className="text-lg text-muted-foreground">
+					<div className="text-lg text-muted-foreground">
 						{renderOrganizationText({
 							dim: true,
 							organization,
 							organizationLabel,
 							template: pageDescription,
 						})}
-					</p>
+					</div>
 				</div>
 
 				<div className="my-4 space-y-4">
@@ -328,14 +328,14 @@ export function PrivacyRequestPage({
 									template: privacyCopy.organizationRequestTitle,
 								})}
 							</h2>
-							<p className="mt-1 text-muted-foreground text-sm">
+							<div className="mt-1 text-muted-foreground text-sm">
 								{renderOrganizationText({
 									dim: true,
 									organization,
 									organizationLabel,
 									template: privacyCopy.organizationRequestDescription,
 								})}
-							</p>
+							</div>
 							{rpMailtoHref ? (
 								<div className="mt-4">
 									<Button

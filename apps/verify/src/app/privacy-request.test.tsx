@@ -50,6 +50,7 @@ vi.mock("@kayleai/ui/logo", () => ({
 
 vi.mock("@kayleai/ui/dialog", async () => {
 	const React = await import("react");
+	const { createPortal } = await import("react-dom");
 	const DialogContext = React.createContext<{
 		open: boolean;
 		setOpen: (open: boolean) => void;
@@ -85,7 +86,9 @@ vi.mock("@kayleai/ui/dialog", async () => {
 
 	function DialogContent({ children }: { children: React.ReactNode }) {
 		const { open } = React.useContext(DialogContext);
-		return open ? <div role="dialog">{children}</div> : null;
+		return open
+			? createPortal(<div role="dialog">{children}</div>, document.body)
+			: null;
 	}
 
 	function PassThrough({ children }: { children?: React.ReactNode }) {

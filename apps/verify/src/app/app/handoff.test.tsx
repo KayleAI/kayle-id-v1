@@ -191,6 +191,29 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 	};
 });
 
+vi.mock("@kayleai/ui/dialog", () => ({
+	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	DialogTrigger: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+		render?: React.ReactElement;
+	}) => (
+		<button className={className} type="button">
+			{children}
+		</button>
+	),
+	DialogContent: () => null,
+	DialogHeader: ({ children }: { children: React.ReactNode }) => (
+		<>{children}</>
+	),
+	DialogTitle: () => null,
+	DialogDescription: () => null,
+	DialogFooter: () => null,
+}));
+
 vi.mock("@kayle-id/ui/info-card", () => ({
 	InfoCard: ({
 		buttons,

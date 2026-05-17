@@ -49,7 +49,7 @@ const options: ReadonlyArray<DemoChooserOption> = [
 		Icon: IconLockPassword,
 		title: "Age verification",
 		description:
-			"Confirm a user is over a given age without revealing their date of birth — returns an over-N proof only.",
+			"Check whether someone meets an age requirement without collecting their birth date.",
 		to: "/demo/age",
 		cta: "Try age verification",
 	},

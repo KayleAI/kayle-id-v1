@@ -3,6 +3,7 @@ import Foundation
 /// API service for communicating with the Kayle verification backend.
 enum APIService {
   private static let productionBaseURL = "https://api.kayle.id"
+  private static let productionVerifyBaseURL = "https://verify.kayle.id"
   private static let developmentBaseURLKey = "KAYLE_DEV_API_BASE_URL"
 
   /// Construct the API base URL for the current app environment.
@@ -14,6 +15,20 @@ enum APIService {
     #endif
 
     return productionBaseURL
+  }
+
+  static func privacyRequestURL(sessionId: String, cancelToken: String?) -> URL? {
+    guard var components = URLComponents(string: productionVerifyBaseURL) else {
+      return nil
+    }
+
+    components.path = "/privacy/\(sessionId)"
+    if let cancelToken {
+      components.queryItems = [
+        URLQueryItem(name: "cancel_token", value: cancelToken)
+      ]
+    }
+    return components.url
   }
 
   @MainActor

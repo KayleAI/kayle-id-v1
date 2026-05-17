@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, expect, mock, test } from "bun:test";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
-import { events } from "@kayle-id/database/schema/core";
+import { events, verification_sessions } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
 	webhook_encryption_keys,
@@ -224,6 +224,34 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	expect(decodedPayload.metadata.verification_session_id).toBe(
 		"vs_delivery_pending",
 	);
+});
+
+test("createWebhookDeliveriesForVerificationSucceeded skips delivery after privacy withdrawal", async () => {
+	const sessionId = `vs_delivery_privacy_withdrawn_${crypto.randomUUID()}`;
+
+	await db.insert(verification_sessions).values({
+		id: sessionId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		cancelTokenConsumedAt: new Date("2099-01-01T00:00:00.000Z"),
+		shareFields: {},
+		status: "completed",
+	});
+
+	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
+		attemptId: "va_delivery_privacy_withdrawn",
+		eventId: "evt_delivery_privacy_withdrawn",
+		manifest: {
+			claims: {
+				family_name: "DOE",
+			},
+			contractVersion: 1,
+			selectedFieldKeys: ["family_name"],
+			sessionId,
+		},
+		organizationId: TEST_DATA?.organizationId ?? "",
+	});
+
+	expect(deliveryIds).toEqual([]);
 });
 
 test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encrypted delivery for subscribed endpoints", async () => {

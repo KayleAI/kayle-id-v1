@@ -41,6 +41,7 @@ private struct CompletionRenderSnapshot {
   let message: String
   let primaryButtonTitle: String
   let secondaryButtonTitle: String?
+  let privacyRequestURL: URL?
 }
 
 private struct StepRenderSnapshot: Identifiable {
@@ -407,7 +408,8 @@ struct ContentView: View {
         primaryButtonTitle: completionPrimaryButtonTitle,
         onPrimaryAction: handleCompletionPrimaryAction,
         secondaryButtonTitle: secondaryButtonTitle,
-        onSecondaryAction: secondaryAction
+        onSecondaryAction: secondaryAction,
+        privacyRequestURL: session.privacyRequestURL
       )
       )
     case .error:
@@ -418,7 +420,8 @@ struct ContentView: View {
         primaryButtonTitle: String(localized: "Start Again"),
         onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
-        onSecondaryAction: nil
+        onSecondaryAction: nil,
+        privacyRequestURL: session.privacyRequestURL
       )
       )
     }
@@ -497,7 +500,8 @@ struct ContentView: View {
           primaryButtonTitle: completionSnapshot.primaryButtonTitle,
           onPrimaryAction: {},
           secondaryButtonTitle: completionSnapshot.secondaryButtonTitle,
-          onSecondaryAction: nil
+          onSecondaryAction: nil,
+          privacyRequestURL: completionSnapshot.privacyRequestURL
         )
         )
       } else {
@@ -1014,7 +1018,8 @@ struct ContentView: View {
           isSuccess: isConfirmedCheck(session.checkResult),
           message: completionMessage,
           primaryButtonTitle: completionPrimaryButtonTitle,
-          secondaryButtonTitle: completionSecondaryButtonTitle
+          secondaryButtonTitle: completionSecondaryButtonTitle,
+          privacyRequestURL: session.privacyRequestURL
         )
       )
     case .error:
@@ -1024,7 +1029,8 @@ struct ContentView: View {
           isSuccess: false,
           message: session.errorMessage ?? String(localized: "An unexpected error occurred."),
           primaryButtonTitle: String(localized: "Start Again"),
-          secondaryButtonTitle: nil
+          secondaryButtonTitle: nil,
+          privacyRequestURL: session.privacyRequestURL
         )
       )
     }

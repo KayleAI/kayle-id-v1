@@ -103,6 +103,17 @@ final class VerificationSession: ObservableObject {
   // 1s base, exponential up to ~16s — total budget ~30s before giving up.
   private let reconnectBaseDelayNs: UInt64 = 1_000_000_000
 
+  var privacyRequestURL: URL? {
+    guard let payload else {
+      return nil
+    }
+
+    return APIService.privacyRequestURL(
+      sessionId: payload.sessionId,
+      cancelToken: payload.cancelToken
+    )
+  }
+
   private struct NFCUploadPlan {
     let kind: VerifyDataKind
     let chunks: [Data]

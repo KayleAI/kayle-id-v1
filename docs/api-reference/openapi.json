@@ -469,7 +469,8 @@
                     "terminal_failure_retention",
                     "expired",
                     "no_active_key",
-                    "jwe_creation_failed"
+                    "jwe_creation_failed",
+                    "privacy_request"
                   ],
                   "description": "Why the payload is retained or why it was scrubbed."
                 }
@@ -575,7 +576,8 @@
               "terminal_failure_retention",
               "expired",
               "no_active_key",
-              "jwe_creation_failed"
+              "jwe_creation_failed",
+              "privacy_request"
             ],
             "description": "Why the payload is retained or why it was scrubbed."
           },

@@ -17,6 +17,7 @@ import {
 import {
 	createWebhookDeliveriesForVerificationSessionCancelled,
 	createWebhookDeliveriesForVerificationSessionExpired,
+	scrubWebhookPayloadsForVerificationSessionPrivacyRequest,
 	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 
@@ -26,6 +27,22 @@ export { getVerificationSessionAnalyticsOverview } from "./session-analytics-rep
 
 const EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE = 100;
 const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
+const ATTEMPT_PRIVACY_MINIMIZATION_VALUES = {
+	claimedAt: null,
+	claimedByConnectionId: null,
+	currentPhase: null,
+	mobileAttestKeyId: null,
+	mobileHelloAppVersion: null,
+	mobileHelloDeviceIdHash: null,
+	mobileWriteTokenConsumedAt: null,
+	mobileWriteTokenExpiresAt: null,
+	mobileWriteTokenHash: null,
+	mobileWriteTokenIssuedAt: null,
+	mobileWriteTokenSeed: null,
+	phaseUpdatedAt: null,
+	riskScore: 0,
+	selectedShareFieldKeys: [] as string[],
+};
 
 export function listVerificationSessions({
 	organizationId,
@@ -280,8 +297,9 @@ export async function cancelVerificationSession({
 		await tx
 			.update(verification_attempts)
 			.set({
-				status: "failed",
+				...ATTEMPT_PRIVACY_MINIMIZATION_VALUES,
 				failureCode: "session_cancelled",
+				status: "cancelled",
 				completedAt: now,
 			})
 			.where(
@@ -331,6 +349,96 @@ export async function cancelVerificationSession({
 		});
 
 	await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
+}
+
+export type VerificationSessionPrivacyRequestResult = {
+	deliveredWebhookDeliveryCount: number;
+	minimizedCompletedAttemptCount: number;
+	scrubbedWebhookPayloadCount: number;
+	totalWebhookDeliveryCount: number;
+};
+
+export async function recordVerificationSessionPrivacyRequest({
+	env,
+	row,
+	organizationId,
+}: {
+	env?: CloudflareBindings;
+	row: typeof verification_sessions.$inferSelect;
+	organizationId: string;
+}): Promise<VerificationSessionPrivacyRequestResult> {
+	const scrubResult =
+		await scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
+			organizationId,
+			sessionId: row.id,
+		});
+	let minimizedCompletedAttemptCount = 0;
+
+	if ((ACTIVE_SESSION_STATUSES as readonly string[]).includes(row.status)) {
+		await cancelVerificationSession({ env, organizationId, row });
+	} else if (row.status === "completed") {
+		const now = new Date();
+		const shouldMarkWithdrawn = scrubResult.deliveredDeliveryCount === 0;
+		const minimized = await db.transaction(async (tx) => {
+			if (shouldMarkWithdrawn) {
+				await tx
+					.update(verification_sessions)
+					.set({
+						status: "cancelled",
+						completedAt: row.completedAt ?? now,
+					})
+					.where(
+						and(
+							eq(verification_sessions.id, row.id),
+							eq(verification_sessions.organizationId, organizationId),
+							eq(verification_sessions.status, "completed"),
+						),
+					);
+			}
+
+			return tx
+				.update(verification_attempts)
+				.set({
+					...ATTEMPT_PRIVACY_MINIMIZATION_VALUES,
+					...(shouldMarkWithdrawn
+						? {
+								failureCode: "session_cancelled",
+								status: "cancelled" as const,
+							}
+						: {}),
+				})
+				.where(
+					and(
+						eq(verification_attempts.verificationSessionId, row.id),
+						eq(verification_attempts.status, "succeeded"),
+					),
+				)
+				.returning({ id: verification_attempts.id });
+		});
+		minimizedCompletedAttemptCount = minimized.length;
+	}
+
+	await recordAuditLog({
+		actorType: "system",
+		organizationId,
+		event: "session.privacy_request.submitted",
+		targetId: row.id,
+		targetType: "verification_session",
+		metadata: {
+			delivered_webhook_delivery_count: scrubResult.deliveredDeliveryCount,
+			minimized_completed_attempt_count: minimizedCompletedAttemptCount,
+			scrubbed_webhook_payload_count: scrubResult.scrubbedDeliveryCount,
+			session_status_at_request: row.status,
+			total_webhook_delivery_count: scrubResult.totalDeliveryCount,
+		},
+	});
+
+	return {
+		deliveredWebhookDeliveryCount: scrubResult.deliveredDeliveryCount,
+		minimizedCompletedAttemptCount,
+		scrubbedWebhookPayloadCount: scrubResult.scrubbedDeliveryCount,
+		totalWebhookDeliveryCount: scrubResult.totalDeliveryCount,
+	};
 }
 
 export async function expireVerificationSessionIfNeeded({

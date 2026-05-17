@@ -12,6 +12,7 @@ export const AUDIT_LOG_EVENTS = [
   "session.created",
   "session.cancelled",
   "session.expired",
+  "session.privacy_request.submitted",
   "session.succeeded",
   // Per-attempt failure inside a session that still has retries left.
   "session.attempt.failed",

@@ -377,6 +377,10 @@ export function getWebhookDeliveryPayloadLabel(
 		return "Delivered - payload no longer retained.";
 	}
 
+	if (delivery.payload_retention_reason === "privacy_request") {
+		return "Payload scrubbed after privacy request.";
+	}
+
 	if (delivery.payload_scrubbed_at) {
 		return "Payload scrubbed.";
 	}

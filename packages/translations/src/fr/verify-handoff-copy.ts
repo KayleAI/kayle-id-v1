@@ -50,10 +50,10 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       pageDescription:
         "Retirez votre consentement ou demandez l’accès et la suppression des données liées à une vérification Kayle ID",
     },
-    linkLabel: "Retirer mon consentement ou demander la suppression",
+    linkLabel: "Retirer cette vérification",
     heading: "Demandes de confidentialité pour cette vérification",
     description:
-      "Vous pouvez arrêter cette vérification ou demander le retrait, la suppression ou l’accès aux données liées à cette session. Vous n’avez pas besoin d’un compte Kayle.",
+      "Kayle peut arrêter le traitement côté Kayle pour cette vérification. Pour les données déjà reçues par l’organisation, contactez directement l’organisation. Vous n’avez pas besoin d’un compte Kayle.",
     scopeTitle: "Référence pour cette demande",
     scopeDescription:
       "Ajoutez cette référence pour que Kayle ID retrouve la session sans vous demander de créer un compte.",
@@ -61,16 +61,17 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     attemptIdLabel: "ID de la dernière tentative",
     attemptUnavailable: "Pas encore disponible",
     organizationLabel: "Organisation",
-    withdrawTitle: "Arrêter cette vérification",
+    withdrawTitle: "Retirer cette vérification",
     withdrawDescriptionWithToken:
-      "Ce lien contient le jeton d’annulation de session, vous pouvez donc arrêter la vérification immédiatement.",
+      "Ce lien contient le jeton d’annulation de session, Kayle peut donc arrêter le traitement en attente et supprimer les charges utiles non livrées lorsque c’est possible.",
     withdrawDescriptionWithoutToken:
       "Ce lien ne contient pas de jeton d’annulation. Vous pouvez tout de même envoyer une demande de confidentialité avec la référence de session ci-dessous.",
-    cancelButton: "Arrêter cette vérification",
-    cancelPendingButton: "Arrêt en cours…",
-    cancelSuccess: "Cette vérification a été arrêtée.",
+    cancelButton: "Retirer cette vérification",
+    cancelPendingButton: "Retrait en cours…",
+    cancelSuccess:
+      "Kayle a enregistré cette demande et arrêté le traitement côté Kayle lorsque c’est possible.",
     cancelError:
-      "Nous n’avons pas pu arrêter cette vérification depuis ce lien.",
+      "Nous n’avons pas pu retirer cette vérification depuis ce lien.",
     requestTitle: "Demander la suppression ou l’accès aux données",
     requestDescription:
       "Utilisez ces liens d’e-mail préremplis pour les demandes de suppression, de retrait ou d’accès aux données. Le message inclut la référence de session.",

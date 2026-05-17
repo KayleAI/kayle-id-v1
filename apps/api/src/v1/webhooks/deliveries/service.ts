@@ -13,7 +13,11 @@ import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
-import { events } from "@kayle-id/database/schema/core";
+import {
+	events,
+	verification_attempts,
+	verification_sessions,
+} from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
 	webhook_delivery_attempts,
@@ -321,7 +325,12 @@ async function persistWebhookDeliveryAttemptResult({
 			payloadScrubbedAt: response.ok ? attemptedAt : delivery.payloadScrubbedAt,
 			status: response.ok ? "succeeded" : "pending",
 		})
-		.where(eq(webhook_deliveries.id, delivery.id));
+		.where(
+			and(
+				eq(webhook_deliveries.id, delivery.id),
+				eq(webhook_deliveries.status, "delivering"),
+			),
+		);
 }
 
 async function recordPreflightFailure({
@@ -331,7 +340,7 @@ async function recordPreflightFailure({
 }): Promise<void> {
 	const delivery = await getWebhookDeliveryById(deliveryId);
 
-	if (!delivery) {
+	if (!delivery?.payload) {
 		return;
 	}
 
@@ -352,7 +361,12 @@ async function recordPreflightFailure({
 			nextAttemptAt: null,
 			status: "pending",
 		})
-		.where(eq(webhook_deliveries.id, deliveryId));
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				eq(webhook_deliveries.status, "delivering"),
+			),
+		);
 }
 
 async function createWebhookDeliveriesForEvent({
@@ -476,7 +490,7 @@ async function createWebhookDeliveriesForEvent({
 	return createdDeliveryIds;
 }
 
-export function createWebhookDeliveriesForVerificationSucceeded({
+export async function createWebhookDeliveriesForVerificationSucceeded({
 	attemptId,
 	eventId,
 	manifest,
@@ -487,6 +501,19 @@ export function createWebhookDeliveriesForVerificationSucceeded({
 	manifest: VerifyShareManifest;
 	organizationId: string;
 }): Promise<string[]> {
+	const [session] = await db
+		.select({
+			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+			status: verification_sessions.status,
+		})
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, manifest.sessionId))
+		.limit(1);
+
+	if (session?.cancelTokenConsumedAt || session?.status === "cancelled") {
+		return [];
+	}
+
 	return createWebhookDeliveriesForEvent({
 		eventId,
 		eventType: "verification.attempt.succeeded",
@@ -497,6 +524,84 @@ export function createWebhookDeliveriesForVerificationSucceeded({
 			manifest,
 		}),
 	});
+}
+
+export type WebhookPayloadPrivacyScrubResult = {
+	deliveredDeliveryCount: number;
+	scrubbedDeliveryCount: number;
+	totalDeliveryCount: number;
+};
+
+export async function scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
+	now = new Date(),
+	organizationId,
+	sessionId,
+}: {
+	now?: Date;
+	organizationId: string;
+	sessionId: string;
+}): Promise<WebhookPayloadPrivacyScrubResult> {
+	const attemptRows = await db
+		.select({ id: verification_attempts.id })
+		.from(verification_attempts)
+		.where(eq(verification_attempts.verificationSessionId, sessionId));
+	const triggerIds = [sessionId, ...attemptRows.map((attempt) => attempt.id)];
+	const eventRows = await db
+		.select({ id: events.id })
+		.from(events)
+		.where(
+			and(
+				eq(events.organizationId, organizationId),
+				inArray(events.triggerId, triggerIds),
+			),
+		);
+
+	if (eventRows.length === 0) {
+		return {
+			deliveredDeliveryCount: 0,
+			scrubbedDeliveryCount: 0,
+			totalDeliveryCount: 0,
+		};
+	}
+
+	const deliveryRows = await db
+		.select({
+			id: webhook_deliveries.id,
+			payload: webhook_deliveries.payload,
+			status: webhook_deliveries.status,
+		})
+		.from(webhook_deliveries)
+		.where(
+			inArray(
+				webhook_deliveries.eventId,
+				eventRows.map((event) => event.id),
+			),
+		);
+	const scrubbedDeliveryIds = deliveryRows
+		.filter((delivery) => delivery.status !== "succeeded" && delivery.payload)
+		.map((delivery) => delivery.id);
+
+	if (scrubbedDeliveryIds.length > 0) {
+		await db
+			.update(webhook_deliveries)
+			.set({
+				nextAttemptAt: null,
+				payload: null,
+				payloadExpiresAt: null,
+				payloadRetentionReason: "privacy_request",
+				payloadScrubbedAt: now,
+				status: "failed",
+			})
+			.where(inArray(webhook_deliveries.id, scrubbedDeliveryIds));
+	}
+
+	return {
+		deliveredDeliveryCount: deliveryRows.filter(
+			(delivery) => delivery.status === "succeeded",
+		).length,
+		scrubbedDeliveryCount: scrubbedDeliveryIds.length,
+		totalDeliveryCount: deliveryRows.length,
+	};
 }
 
 export function createWebhookDeliveriesForVerificationAttemptFailed({

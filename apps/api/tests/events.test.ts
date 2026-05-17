@@ -33,6 +33,7 @@ type WebhookEventResponse = {
 			| "jwe_creation_failed"
 			| "no_active_key"
 			| "pending_delivery"
+			| "privacy_request"
 			| "terminal_failure_retention";
 		payload_scrubbed_at: string | null;
 		status: "delivering" | "failed" | "pending" | "succeeded";

@@ -1,11 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
+import { audit_logs } from "@kayle-id/database/schema/audit-logs";
 import {
+	events,
 	verification_attempts,
 	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
+import {
+	webhook_deliveries,
+	webhook_endpoints,
+} from "@kayle-id/database/schema/webhooks";
 import { and, eq } from "drizzle-orm";
 import { createHMAC } from "@/functions/hmac";
 import app from "@/index";
@@ -797,6 +803,226 @@ describe("/v1/verify/session/:id/status", () => {
 				},
 			);
 			expect(secondResponse.status).toBe(204);
+		},
+	);
+
+	test.serial(
+		"Public cancel records a privacy request and scrubs undelivered completed-check webhooks",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = "va_privacy_request_completed";
+			const eventId = "evt_privacy_request_completed";
+			const endpointId = "whe_privacy_request_completed";
+			const deliveryId = "whd_privacy_request_completed";
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				mobileHelloDeviceIdHash: "device_hash",
+				mobileWriteTokenConsumedAt: completedAt,
+				riskScore: 0.73,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-request",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values({
+				eventId,
+				id: deliveryId,
+				payload: "encrypted-claims-payload",
+				payloadExpiresAt: new Date("2099-01-02T00:00:00.000Z"),
+				payloadRetentionReason: "pending_delivery",
+				status: "pending",
+				webhookEndpointId: endpointId,
+				webhookEncryptionKeyId: null,
+			});
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(204);
+
+			const [delivery] = await db
+				.select()
+				.from(webhook_deliveries)
+				.where(eq(webhook_deliveries.id, deliveryId))
+				.limit(1);
+			const [attempt] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			const [session] = await db
+				.select()
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, sessionId))
+				.limit(1);
+			const [privacyAudit] = await db
+				.select()
+				.from(audit_logs)
+				.where(
+					and(
+						eq(audit_logs.organizationId, TEST_DATA?.organizationId ?? ""),
+						eq(audit_logs.event, "session.privacy_request.submitted"),
+						eq(audit_logs.targetId, sessionId),
+					),
+				)
+				.limit(1);
+
+			expect(delivery?.payload).toBeNull();
+			expect(delivery?.payloadExpiresAt).toBeNull();
+			expect(delivery?.payloadRetentionReason).toBe("privacy_request");
+			expect(delivery?.payloadScrubbedAt).not.toBeNull();
+			expect(delivery?.status).toBe("failed");
+			expect(attempt?.status).toBe("cancelled");
+			expect(attempt?.failureCode).toBe("session_cancelled");
+			expect(attempt?.mobileHelloDeviceIdHash).toBeNull();
+			expect(attempt?.mobileWriteTokenConsumedAt).toBeNull();
+			expect(attempt?.riskScore).toBe(0);
+			expect(attempt?.selectedShareFieldKeys).toEqual([]);
+			expect(session?.status).toBe("cancelled");
+			expect(privacyAudit?.metadata).toMatchObject({
+				delivered_webhook_delivery_count: 0,
+				minimized_completed_attempt_count: 1,
+				scrubbed_webhook_payload_count: 1,
+				session_status_at_request: "completed",
+				total_webhook_delivery_count: 1,
+			});
+		},
+	);
+
+	test.serial(
+		"Public cancel records delivered privacy requests without replayable payloads",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = "va_privacy_request_delivered";
+			const eventId = "evt_privacy_request_delivered";
+			const endpointId = "whe_privacy_request_delivered";
+			const deliveryId = "whd_privacy_request_delivered";
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				mobileHelloDeviceIdHash: "device_hash",
+				mobileWriteTokenConsumedAt: completedAt,
+				riskScore: 0.81,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-request-delivered",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values({
+				eventId,
+				id: deliveryId,
+				payload: null,
+				payloadRetentionReason: "delivered",
+				payloadScrubbedAt: completedAt,
+				status: "succeeded",
+				webhookEndpointId: endpointId,
+				webhookEncryptionKeyId: null,
+			});
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(204);
+
+			const [delivery] = await db
+				.select()
+				.from(webhook_deliveries)
+				.where(eq(webhook_deliveries.id, deliveryId))
+				.limit(1);
+			const [attempt] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			const [session] = await db
+				.select()
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, sessionId))
+				.limit(1);
+			const [privacyAudit] = await db
+				.select()
+				.from(audit_logs)
+				.where(
+					and(
+						eq(audit_logs.organizationId, TEST_DATA?.organizationId ?? ""),
+						eq(audit_logs.event, "session.privacy_request.submitted"),
+						eq(audit_logs.targetId, sessionId),
+					),
+				)
+				.limit(1);
+
+			expect(delivery?.payload).toBeNull();
+			expect(delivery?.payloadRetentionReason).toBe("delivered");
+			expect(delivery?.status).toBe("succeeded");
+			expect(attempt?.status).toBe("succeeded");
+			expect(attempt?.failureCode).toBeNull();
+			expect(attempt?.mobileHelloDeviceIdHash).toBeNull();
+			expect(attempt?.mobileWriteTokenConsumedAt).toBeNull();
+			expect(attempt?.riskScore).toBe(0);
+			expect(attempt?.selectedShareFieldKeys).toEqual([]);
+			expect(session?.status).toBe("completed");
+			expect(privacyAudit?.metadata).toMatchObject({
+				delivered_webhook_delivery_count: 1,
+				minimized_completed_attempt_count: 1,
+				scrubbed_webhook_payload_count: 0,
+				session_status_at_request: "completed",
+				total_webhook_delivery_count: 1,
+			});
 		},
 	);
 

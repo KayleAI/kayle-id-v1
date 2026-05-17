@@ -48,10 +48,10 @@ export const VERIFY_HANDOFF_COPY = {
       pageDescription:
         "Withdraw consent or request data access and deletion for a Kayle ID check",
     },
-    linkLabel: "Withdraw consent or request data deletion",
+    linkLabel: "Withdraw this check",
     heading: "Privacy requests for this check",
     description:
-      "You can stop this check or request withdrawal, deletion, or access to data linked to this session. You do not need a Kayle account.",
+      "Kayle can stop Kayle-side processing for this check. For data already received by the organization, contact the organization directly. You do not need a Kayle account.",
     scopeTitle: "Reference for this request",
     scopeDescription:
       "Include this reference so Kayle ID can find the session without asking you to create an account.",
@@ -59,15 +59,16 @@ export const VERIFY_HANDOFF_COPY = {
     attemptIdLabel: "Latest attempt ID",
     attemptUnavailable: "Not available yet",
     organizationLabel: "Organization",
-    withdrawTitle: "Stop this check",
+    withdrawTitle: "Withdraw this check",
     withdrawDescriptionWithToken:
-      "This link includes the session cancellation token, so you can stop the check immediately.",
+      "This link includes the session cancellation token, so Kayle can stop pending processing and scrub undelivered payloads where possible.",
     withdrawDescriptionWithoutToken:
       "This link does not include a cancellation token. You can still send a privacy request using the session reference below.",
-    cancelButton: "Stop this check",
-    cancelPendingButton: "Stopping...",
-    cancelSuccess: "This check has been stopped.",
-    cancelError: "We could not stop this check from this link.",
+    cancelButton: "Withdraw this check",
+    cancelPendingButton: "Withdrawing...",
+    cancelSuccess:
+      "Kayle has recorded this request and stopped Kayle-side processing where possible.",
+    cancelError: "We could not withdraw this check from this link.",
     requestTitle: "Request deletion or data access",
     requestDescription:
       "Use these prefilled email links for deletion, withdrawal, or data access requests. The message includes the session reference.",

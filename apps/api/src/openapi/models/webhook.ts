@@ -58,6 +58,7 @@ export const WebhookDelivery = z
 				"expired",
 				"no_active_key",
 				"jwe_creation_failed",
+				"privacy_request",
 			])
 			.nullable()
 			.describe("Why the payload is retained or why it was scrubbed."),
@@ -203,6 +204,7 @@ export const WebhookEventDelivery = z.object({
 			"expired",
 			"no_active_key",
 			"jwe_creation_failed",
+			"privacy_request",
 		])
 		.nullable()
 		.describe("Why the payload is retained or why it was scrubbed."),

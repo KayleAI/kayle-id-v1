@@ -185,6 +185,7 @@ export const webhook_deliveries = pgTable(
 				"expired",
 				"no_active_key",
 				"jwe_creation_failed",
+				"privacy_request",
 			],
 		}),
 

@@ -234,9 +234,10 @@ export const verification_attempts = pgTable(
 			.default("in_progress")
 			.notNull(),
 		/**
-		 * The code of the failure reason.
+		 * The code of the failure or terminal cancellation reason.
 		 *
-		 * This is only set if the attempt is marked as `failed`.
+		 * This is set for `failed` attempts and for attempts cancelled because
+		 * the user withdrew the session before Kayle delivered a final signal.
 		 */
 		failureCode: text("failure_code", {
 			enum: verificationAttemptFailureCodes,

@@ -8,8 +8,8 @@ import { z } from "zod";
 import { getRequestLogger } from "@/logging";
 import { sessionIdSchema } from "@/shared/validation";
 import {
-	cancelVerificationSession,
 	expireVerificationSessionIfNeeded,
+	recordVerificationSessionPrivacyRequest,
 } from "@/v1/sessions/repo/session-repo";
 import attest from "./attest-handlers";
 import {
@@ -457,13 +457,11 @@ verify.post(
 			);
 		}
 
-		if (!isTerminal) {
-			await cancelVerificationSession({
-				env: c.env,
-				row: session,
-				organizationId: session.organizationId,
-			});
-		}
+		await recordVerificationSessionPrivacyRequest({
+			env: c.env,
+			row: session,
+			organizationId: session.organizationId,
+		});
 
 		return c.body(null, 204);
 	},

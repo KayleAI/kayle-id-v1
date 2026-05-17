@@ -9,6 +9,7 @@ struct CompletionView: View {
   let onPrimaryAction: () -> Void
   let secondaryButtonTitle: String?
   let onSecondaryAction: (() -> Void)?
+  var privacyRequestURL: URL? = nil
 
   var body: some View {
     StepScreen(layout: .centered) {
@@ -43,6 +44,24 @@ struct CompletionView: View {
           isDisabled: isSecondaryDisabled,
           action: onSecondaryAction
         )
+      }
+
+      if let privacyRequestURL {
+        Link(destination: privacyRequestURL) {
+          Text("Privacy request")
+            .font(.system(.body, weight: .medium))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(.primary)
+            .background {
+              Capsule()
+                .fill(Color(.systemBackground))
+            }
+            .overlay {
+              Capsule()
+                .stroke(.primary.opacity(0.2), lineWidth: 1)
+            }
+        }
       }
     }
   }

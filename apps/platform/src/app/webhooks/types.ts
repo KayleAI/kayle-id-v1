@@ -87,5 +87,6 @@ export type WebhookPayloadRetentionReason =
 	| "jwe_creation_failed"
 	| "no_active_key"
 	| "pending_delivery"
+	| "privacy_request"
 	| "terminal_failure_retention"
 	| null;

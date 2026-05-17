@@ -31,7 +31,7 @@ const finalizeOrgVerificationRoute = createRoute({
 	path: "/finalize",
 	tags: ["Internal"],
 	summary:
-		"Finalize an organization verification: write the dedup hash row and flip the org's `verified_at`.",
+		"Finalize an organization verification: write the dedup hash row and record the org owner's ID check.",
 	request: {
 		body: {
 			content: {
@@ -136,7 +136,7 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 		.select({
 			id: auth_organizations.id,
 			pendingDeletionAt: auth_organizations.pending_deletion_at,
-			verifiedAt: auth_organizations.verified_at,
+			verifiedAt: auth_organizations.owner_id_checked_at,
 		})
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, body.organization_id))
@@ -261,11 +261,11 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 
 		const [updatedOrg] = await tx
 			.update(auth_organizations)
-			.set({ verified_at: now })
+			.set({ owner_id_checked_at: now })
 			.where(
 				and(
 					eq(auth_organizations.id, body.organization_id),
-					isNull(auth_organizations.verified_at),
+					isNull(auth_organizations.owner_id_checked_at),
 					isNull(auth_organizations.pending_deletion_at),
 					exists(
 						tx
@@ -286,14 +286,14 @@ finalize.openapi(finalizeOrgVerificationRoute, async (c) => {
 				),
 			)
 			.returning({
-				verifiedAt: auth_organizations.verified_at,
+				verifiedAt: auth_organizations.owner_id_checked_at,
 			});
 
 		if (!updatedOrg?.verifiedAt) {
 			const [currentOrg] = await tx
 				.select({
 					pendingDeletionAt: auth_organizations.pending_deletion_at,
-					verifiedAt: auth_organizations.verified_at,
+					verifiedAt: auth_organizations.owner_id_checked_at,
 				})
 				.from(auth_organizations)
 				.where(eq(auth_organizations.id, body.organization_id))

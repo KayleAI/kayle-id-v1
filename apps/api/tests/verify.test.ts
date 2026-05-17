@@ -58,8 +58,8 @@ type ServerAckOrError = {
 		code: string;
 		message: string;
 	};
-	verdict?: {
-		outcome: "accepted" | "rejected";
+	checkResult?: {
+		outcome: "confirmed" | "not_confirmed";
 		reasonCode: string;
 		reasonMessage: string;
 		retryAllowed: boolean;
@@ -200,14 +200,15 @@ function decodeServerMessage(bytes: Uint8Array): ServerAckOrError | null {
 						message: root.error.message,
 					},
 				};
-			case ServerMessage.VERDICT:
+			case ServerMessage.CHECK_RESULT:
 				return {
-					verdict: {
-						outcome: root.verdict.outcome === 0 ? "accepted" : "rejected",
-						reasonCode: root.verdict.reasonCode,
-						reasonMessage: root.verdict.reasonMessage,
-						retryAllowed: root.verdict.retryAllowed,
-						remainingAttempts: root.verdict.remainingAttempts,
+					checkResult: {
+						outcome:
+							root.checkResult.outcome === 0 ? "confirmed" : "not_confirmed",
+						reasonCode: root.checkResult.reasonCode,
+						reasonMessage: root.checkResult.reasonMessage,
+						retryAllowed: root.checkResult.retryAllowed,
+						remainingAttempts: root.checkResult.remainingAttempts,
 					},
 				};
 			case ServerMessage.SHARE_REQUEST: {
@@ -362,7 +363,7 @@ function ensureServerMessagePump(socket: WebSocket): void {
 
 		// The server emits an activeAuthChallenge after every successful hello
 		// as part of the AA protocol. Tests that don't exercise AA expect the
-		// next ack/verdict directly, so skip the challenge and keep listening.
+		// next ack/checkResult directly, so skip the challenge and keep listening.
 		if (decoded.activeAuthChallenge !== undefined) {
 			return;
 		}
@@ -796,17 +797,19 @@ async function advanceToShareRequest({
 	});
 
 	socket.send(encodePhaseMessage("liveness_complete"));
-	const verdict = (await awaitServerMessage(socket)).verdict;
+	const checkResult = (await awaitServerMessage(socket)).checkResult;
 	if (
 		!(
-			verdict?.outcome === "accepted" &&
-			verdict.reasonCode === "" &&
-			verdict.reasonMessage === "" &&
-			verdict.retryAllowed === false &&
-			verdict.remainingAttempts === 0
+			checkResult?.outcome === "confirmed" &&
+			checkResult.reasonCode === "" &&
+			checkResult.reasonMessage === "" &&
+			checkResult.retryAllowed === false &&
+			checkResult.remainingAttempts === 0
 		)
 	) {
-		throw new Error("Expected accepted verdict during share-request setup.");
+		throw new Error(
+			"Expected confirmed checkResult during share-request setup.",
+		);
 	}
 
 	const shareRequest = (await awaitServerMessage(socket)).shareRequest;
@@ -1637,7 +1640,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Reconnect after nfc_complete accepts NFC restream and reaches verdict",
+		"Reconnect after nfc_complete accepts NFC restream and reaches checkResult",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1702,8 +1705,8 @@ describe("Verification Flows", () => {
 				});
 
 				socketTwo.send(encodePhaseMessage("liveness_complete"));
-				const verdict = (await awaitServerMessage(socketTwo)).verdict;
-				expect(verdict?.outcome).toBe("accepted");
+				const checkResult = (await awaitServerMessage(socketTwo)).checkResult;
+				expect(checkResult?.outcome).toBe("confirmed");
 			} finally {
 				socketTwo.close();
 			}
@@ -2049,8 +2052,8 @@ describe("Verification Flows", () => {
 				});
 
 				socket.send(encodePhaseMessage("liveness_complete"));
-				expect((await awaitServerMessage(socket)).verdict).toEqual({
-					outcome: "accepted",
+				expect((await awaitServerMessage(socket)).checkResult).toEqual({
+					outcome: "confirmed",
 					reasonCode: "",
 					reasonMessage: "",
 					retryAllowed: false,
@@ -2311,8 +2314,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.error).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "document_authenticity_failed",
 					reasonMessage:
 						ERROR_MESSAGES.document_authenticity_failed.description,
@@ -2391,8 +2394,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.error).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "selfie_face_mismatch",
 					reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
 					retryAllowed: true,
@@ -2465,9 +2468,9 @@ describe("Verification Flows", () => {
 					socket.send(encodePhaseMessage("liveness_complete"));
 					const response = await awaitServerMessage(socket);
 					expect(response.error).toBeUndefined();
-					expect(response.verdict?.reasonCode).toBe("selfie_face_mismatch");
-					expect(response.verdict?.retryAllowed).toBe(index < 2);
-					expect(response.verdict?.remainingAttempts).toBe(2 - index);
+					expect(response.checkResult?.reasonCode).toBe("selfie_face_mismatch");
+					expect(response.checkResult?.retryAllowed).toBe(index < 2);
+					expect(response.checkResult?.remainingAttempts).toBe(2 - index);
 					await awaitSocketClose(socket);
 				} finally {
 					socket.close();
@@ -2519,7 +2522,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Marks attempt succeeded and session completed with risk score after accepted share selection",
+		"Marks attempt succeeded and session completed with risk score after confirmed share selection",
 		async () => {
 			const sessionId = await createSession({
 				share_fields: {
@@ -2636,8 +2639,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.ack).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "selfie_face_mismatch",
 					reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
 					retryAllowed: true,

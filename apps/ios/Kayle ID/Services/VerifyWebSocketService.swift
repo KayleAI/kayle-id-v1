@@ -99,7 +99,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private var pendingServerResponseAllowsErrorMessage = false
   private var queuedServerResponses: [VerifyServerMessage] = []
   private var serverResponseTimeoutTask: Task<Void, Never>?
-  private var expectedVerdictClose = false
+  private var expectedCheckResultClose = false
   private var keepaliveTask: Task<Void, Never>?
 
   private lazy var urlSession: URLSession = {
@@ -139,7 +139,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
     stateQueue.sync {
       isClosing = false
-      expectedVerdictClose = false
+      expectedCheckResultClose = false
     }
     startSocket(url: url)
   }
@@ -412,7 +412,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   func disconnect() {
     stateQueue.sync {
       isClosing = true
-      expectedVerdictClose = false
+      expectedCheckResultClose = false
     }
     stopKeepalive()
     resolvePendingHello(.failure(.connectionClosed))
@@ -435,7 +435,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private func startSocket(url: URL) {
     closeSocket()
     stateQueue.sync {
-      expectedVerdictClose = false
+      expectedCheckResultClose = false
     }
     let task = urlSession.webSocketTask(with: url)
     webSocketTask = task
@@ -673,16 +673,16 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func expectVerdictClose() {
+  private func expectCheckResultClose() {
     stateQueue.sync {
-      expectedVerdictClose = true
+      expectedCheckResultClose = true
     }
   }
 
-  private func consumeExpectedVerdictClose() -> Bool {
+  private func consumeExpectedCheckResultClose() -> Bool {
     stateQueue.sync {
-      let expected = expectedVerdictClose
-      expectedVerdictClose = false
+      let expected = expectedCheckResultClose
+      expectedCheckResultClose = false
       return expected
     }
   }
@@ -759,7 +759,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
         return false
       }
       isClosing = true
-      expectedVerdictClose = false
+      expectedCheckResultClose = false
       return true
     }
 
@@ -777,7 +777,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private func closeAfterSendFailure() {
     stateQueue.sync {
       isClosing = true
-      expectedVerdictClose = false
+      expectedCheckResultClose = false
     }
     stopKeepalive()
     closeSocket()
@@ -976,9 +976,9 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
                 return
               }
 
-              if let verdict = serverMessage.verdict {
-                if shouldSuppressReconnectAfterHandledVerdict(verdict) {
-                  self.expectVerdictClose()
+              if let checkResult = serverMessage.checkResult {
+                if shouldSuppressReconnectAfterHandledCheckResult(checkResult) {
+                  self.expectCheckResultClose()
                 }
                 self.handleServerResponse(serverMessage)
                 self.receiveLoop(for: task)
@@ -1006,7 +1006,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
             if
               serverMessage.errorCode != nil ||
-              serverMessage.verdict != nil ||
+              serverMessage.checkResult != nil ||
               serverMessage.shareReady != nil ||
               serverMessage.ackMessage != nil
             {
@@ -1018,16 +1018,16 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 #if DEBUG
             if let ack = serverMessage.ackMessage {
               print("WS <- ack \(ack)")
-            } else if let verdict = serverMessage.verdict {
-              let verdictLabel: String
-              switch verdict.outcome {
-              case .accepted:
-                verdictLabel = "accepted"
-              case .rejected:
-                verdictLabel = "rejected"
+            } else if let checkResult = serverMessage.checkResult {
+              let checkResultLabel: String
+              switch checkResult.outcome {
+              case .confirmed:
+                checkResultLabel = "confirmed"
+              case .notConfirmed:
+                checkResultLabel = "not_confirmed"
               }
               print(
-                "WS <- verdict \(verdictLabel) \(verdict.reasonCode)"
+                "WS <- checkResult \(checkResultLabel) \(checkResult.reasonCode)"
               )
             } else if let shareRequest = serverMessage.shareRequest {
               print(
@@ -1062,7 +1062,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 #if DEBUG
         print("WebSocket receive error: \(error)")
 #endif
-        if self.consumeExpectedVerdictClose() {
+        if self.consumeExpectedCheckResultClose() {
           return
         }
         self.handleUnexpectedConnectionLoss()
@@ -1086,7 +1086,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    if consumeExpectedVerdictClose() {
+    if consumeExpectedCheckResultClose() {
       return
     }
 

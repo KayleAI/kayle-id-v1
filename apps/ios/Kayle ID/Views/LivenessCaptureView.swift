@@ -115,8 +115,8 @@ struct LivenessCaptureView: View {
     engine.markUploading()
     do {
       session.livenessVideoURL = url
-      let accepted = try await session.sendLivenessVideo(url)
-      if accepted {
+      let completed = try await session.sendLivenessVideo(url)
+      if completed {
         onComplete()
       } else {
         onRejected()

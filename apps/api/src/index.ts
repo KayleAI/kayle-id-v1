@@ -13,6 +13,7 @@ import {
 import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
+import { registerWebhookPayloadOpenApi } from "@/openapi/models/webhook";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import { runStorageAtRestCron } from "@/scheduled/storage-at-rest";
 import {
@@ -128,7 +129,9 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 	scheme: "bearer",
 });
 
-app.doc("/openapi", {
+registerWebhookPayloadOpenApi(app.openAPIRegistry);
+
+app.doc31("/openapi", {
 	info: {
 		title: "Kayle ID",
 		version: config.version,
@@ -151,7 +154,7 @@ app.doc("/openapi", {
 		},
 	],
 	security: [{ bearerAuth: [] }],
-	openapi: "3.0.0",
+	openapi: "3.1.0",
 });
 
 app.get("/reference", Scalar({ url: "/openapi" }));

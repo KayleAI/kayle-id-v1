@@ -44,6 +44,43 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     complaintsLabel: "Réclamations",
   },
 
+  privacyRequest: {
+    head: {
+      pageTitle: "Demandes de confidentialité Kayle ID",
+      pageDescription:
+        "Retirez votre consentement ou demandez l’accès et la suppression des données liées à une vérification Kayle ID",
+    },
+    linkLabel: "Retirer mon consentement ou demander la suppression",
+    heading: "Demandes de confidentialité pour cette vérification",
+    description:
+      "Vous pouvez arrêter cette vérification ou demander le retrait, la suppression ou l’accès aux données liées à cette session. Vous n’avez pas besoin d’un compte Kayle.",
+    scopeTitle: "Référence pour cette demande",
+    scopeDescription:
+      "Ajoutez cette référence pour que Kayle ID retrouve la session sans vous demander de créer un compte.",
+    sessionIdLabel: "ID de session",
+    attemptIdLabel: "ID de la dernière tentative",
+    attemptUnavailable: "Pas encore disponible",
+    organizationLabel: "Organisation",
+    withdrawTitle: "Arrêter cette vérification",
+    withdrawDescriptionWithToken:
+      "Ce lien contient le jeton d’annulation de session, vous pouvez donc arrêter la vérification immédiatement.",
+    withdrawDescriptionWithoutToken:
+      "Ce lien ne contient pas de jeton d’annulation. Vous pouvez tout de même envoyer une demande de confidentialité avec la référence de session ci-dessous.",
+    cancelButton: "Arrêter cette vérification",
+    cancelPendingButton: "Arrêt en cours…",
+    cancelSuccess: "Cette vérification a été arrêtée.",
+    cancelError:
+      "Nous n’avons pas pu arrêter cette vérification depuis ce lien.",
+    requestTitle: "Demander la suppression ou l’accès aux données",
+    requestDescription:
+      "Utilisez ces liens d’e-mail préremplis pour les demandes de suppression, de retrait ou d’accès aux données. Le message inclut la référence de session.",
+    kayleEmailButton: "Envoyer un e-mail à l’équipe confidentialité Kayle",
+    rpEmailButton: "Envoyer un e-mail à {organization}",
+    loading: "Chargement de la référence de session…",
+    loadError:
+      "Nous n’avons pas pu charger toute la référence de session, mais l’ID de session dans l’URL peut tout de même être utilisé pour une demande.",
+  },
+
   screens: {
     connected: {
       headerTitle: "Continuez sur votre téléphone",

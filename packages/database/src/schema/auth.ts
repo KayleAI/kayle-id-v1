@@ -112,7 +112,7 @@ export const auth_organizations = pgTable(
 		 * the sessions API. See `verification_records` for the dedup hash row that
 		 * was written at verification time.
 		 */
-		verified_at: timestamp("verified_at"),
+		owner_id_checked_at: timestamp("owner_id_checked_at"),
 		businessType: text("business_type", {
 			enum: organizationBusinessTypes,
 		}),
@@ -129,7 +129,9 @@ export const auth_organizations = pgTable(
 		index("auth_organizations_pending_deletion_at_idx").on(
 			table.pending_deletion_at,
 		),
-		index("auth_organizations_verified_at_idx").on(table.verified_at),
+		index("auth_organizations_owner_id_checked_at_idx").on(
+			table.owner_id_checked_at,
+		),
 	],
 );
 

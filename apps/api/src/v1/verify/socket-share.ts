@@ -63,14 +63,14 @@ export async function handleShareSelectionMessage(
 		return;
 	}
 
-	if (typeof state.acceptedFaceScore !== "number") {
+	if (typeof state.confirmedFaceScore !== "number") {
 		throw new Error("face_score_required_for_share_success");
 	}
 
 	const successResult = await markAttemptSucceeded({
 		session,
 		attemptId: state.attemptId,
-		faceScore: state.acceptedFaceScore,
+		faceScore: state.confirmedFaceScore,
 		selectedFieldKeys: result.manifest.selectedFieldKeys,
 	});
 

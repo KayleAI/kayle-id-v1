@@ -78,7 +78,7 @@ function buildPhaseContextWithTransfer(
 	configure?.(transfer);
 	return {
 		state: {
-			acceptedFaceScore: null,
+			confirmedFaceScore: null,
 			attemptId: "att_test",
 			currentPhase: null,
 			helloReceived: true,

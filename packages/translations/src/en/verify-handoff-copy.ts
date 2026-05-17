@@ -42,6 +42,42 @@ export const VERIFY_HANDOFF_COPY = {
     complaintsLabel: "Complaints",
   },
 
+  privacyRequest: {
+    head: {
+      pageTitle: "Kayle ID Privacy Requests",
+      pageDescription:
+        "Withdraw consent or request data access and deletion for a Kayle ID check",
+    },
+    linkLabel: "Withdraw consent or request data deletion",
+    heading: "Privacy requests for this check",
+    description:
+      "You can stop this check or request withdrawal, deletion, or access to data linked to this session. You do not need a Kayle account.",
+    scopeTitle: "Reference for this request",
+    scopeDescription:
+      "Include this reference so Kayle ID can find the session without asking you to create an account.",
+    sessionIdLabel: "Session ID",
+    attemptIdLabel: "Latest attempt ID",
+    attemptUnavailable: "Not available yet",
+    organizationLabel: "Organization",
+    withdrawTitle: "Stop this check",
+    withdrawDescriptionWithToken:
+      "This link includes the session cancellation token, so you can stop the check immediately.",
+    withdrawDescriptionWithoutToken:
+      "This link does not include a cancellation token. You can still send a privacy request using the session reference below.",
+    cancelButton: "Stop this check",
+    cancelPendingButton: "Stopping...",
+    cancelSuccess: "This check has been stopped.",
+    cancelError: "We could not stop this check from this link.",
+    requestTitle: "Request deletion or data access",
+    requestDescription:
+      "Use these prefilled email links for deletion, withdrawal, or data access requests. The message includes the session reference.",
+    kayleEmailButton: "Email Kayle privacy team",
+    rpEmailButton: "Email {organization}",
+    loading: "Loading session reference...",
+    loadError:
+      "We could not load the full session reference, but the session ID in the URL can still be used for a request.",
+  },
+
   screens: {
     connected: {
       headerTitle: "Continue on your phone",

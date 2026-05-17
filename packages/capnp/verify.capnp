@@ -74,13 +74,13 @@ struct ServerError {
   message @1 :Text;
 }
 
-enum VerdictOutcome {
-  accepted @0;
-  rejected @1;
+enum CheckOutcome {
+  confirmed @0;
+  notConfirmed @1;
 }
 
-struct ServerVerdict {
-  outcome @0 :VerdictOutcome;
+struct ServerCheckResult {
+  outcome @0 :CheckOutcome;
   reasonCode @1 :Text;
   reasonMessage @2 :Text;
   retryAllowed @3 :Bool;
@@ -129,7 +129,7 @@ struct ServerMessage {
   union {
     ack @0 :ServerAck;
     error @1 :ServerError;
-    verdict @2 :ServerVerdict;
+    checkResult @2 :ServerCheckResult;
     shareRequest @3 :ShareRequest;
     shareReady @4 :ShareReady;
     activeAuthChallenge @5 :ServerActiveAuthChallenge;

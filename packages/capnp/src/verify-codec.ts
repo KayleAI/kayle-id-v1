@@ -1,9 +1,9 @@
 import { Message } from "capnp-es";
 import {
+  CheckOutcome as CapnpCheckOutcome,
   ClientMessage as CapnpClientMessage,
   DataKind as CapnpDataKind,
   ServerMessage as CapnpServerMessage,
-  VerdictOutcome as CapnpVerdictOutcome,
 } from "../generated/ts/verify.js";
 
 export interface VerifyClientHello {
@@ -50,6 +50,13 @@ export interface VerifyServerMessage {
   activeAuthChallenge?: {
     challenge: Uint8Array;
   };
+  checkResult?: {
+    outcome: "confirmed" | "not_confirmed";
+    reasonCode: string;
+    reasonMessage: string;
+    retryAllowed: boolean;
+    remainingAttempts: number;
+  };
   error?: {
     code: string;
     message: string;
@@ -71,16 +78,11 @@ export interface VerifyServerMessage {
       required: boolean;
     }>;
   };
-  verdict?: {
-    outcome: "accepted" | "rejected";
-    reasonCode: string;
-    reasonMessage: string;
-    retryAllowed: boolean;
-    remainingAttempts: number;
-  };
 }
 
-export type VerifyServerVerdict = NonNullable<VerifyServerMessage["verdict"]>;
+export type VerifyServerCheckResult = NonNullable<
+  VerifyServerMessage["checkResult"]
+>;
 export type VerifyServerActiveAuthChallenge = NonNullable<
   VerifyServerMessage["activeAuthChallenge"]
 >;
@@ -92,12 +94,14 @@ export type VerifyShareRequest = NonNullable<
 >;
 export type VerifyShareReady = NonNullable<VerifyServerMessage["shareReady"]>;
 
-function toVerifyVerdictOutcome(
+function toVerifyCheckOutcome(
   outcome:
-    | typeof CapnpVerdictOutcome.ACCEPTED
-    | typeof CapnpVerdictOutcome.REJECTED
-): VerifyServerVerdict["outcome"] {
-  return outcome === CapnpVerdictOutcome.ACCEPTED ? "accepted" : "rejected";
+    | typeof CapnpCheckOutcome.CONFIRMED
+    | typeof CapnpCheckOutcome.NOT_CONFIRMED
+): VerifyServerCheckResult["outcome"] {
+  return outcome === CapnpCheckOutcome.CONFIRMED
+    ? "confirmed"
+    : "not_confirmed";
 }
 
 function toCapnpDataKind(
@@ -144,18 +148,20 @@ export function encodeServerError(code: string, message: string): Uint8Array {
   return new Uint8Array(packet.toArrayBuffer());
 }
 
-export function encodeServerVerdict(verdict: VerifyServerVerdict): Uint8Array {
+export function encodeServerCheckResult(
+  checkResult: VerifyServerCheckResult
+): Uint8Array {
   const packet = new Message();
   const root = packet.initRoot(CapnpServerMessage);
-  const next = root._initVerdict();
+  const next = root._initCheckResult();
   next.outcome =
-    verdict.outcome === "accepted"
-      ? CapnpVerdictOutcome.ACCEPTED
-      : CapnpVerdictOutcome.REJECTED;
-  next.reasonCode = verdict.reasonCode;
-  next.reasonMessage = verdict.reasonMessage;
-  next.retryAllowed = verdict.retryAllowed;
-  next.remainingAttempts = verdict.remainingAttempts;
+    checkResult.outcome === "confirmed"
+      ? CapnpCheckOutcome.CONFIRMED
+      : CapnpCheckOutcome.NOT_CONFIRMED;
+  next.reasonCode = checkResult.reasonCode;
+  next.reasonMessage = checkResult.reasonMessage;
+  next.retryAllowed = checkResult.retryAllowed;
+  next.remainingAttempts = checkResult.remainingAttempts;
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -243,14 +249,14 @@ export function decodeServerMessage(
             message: root.error.message,
           },
         };
-      case CapnpServerMessage.VERDICT:
+      case CapnpServerMessage.CHECK_RESULT:
         return {
-          verdict: {
-            outcome: toVerifyVerdictOutcome(root.verdict.outcome),
-            reasonCode: root.verdict.reasonCode,
-            reasonMessage: root.verdict.reasonMessage,
-            retryAllowed: root.verdict.retryAllowed,
-            remainingAttempts: root.verdict.remainingAttempts,
+          checkResult: {
+            outcome: toVerifyCheckOutcome(root.checkResult.outcome),
+            reasonCode: root.checkResult.reasonCode,
+            reasonMessage: root.checkResult.reasonMessage,
+            retryAllowed: root.checkResult.retryAllowed,
+            remainingAttempts: root.checkResult.remainingAttempts,
           },
         };
       case CapnpServerMessage.SHARE_REQUEST: {

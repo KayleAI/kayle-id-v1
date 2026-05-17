@@ -315,6 +315,7 @@ test("createWebhookDeliveriesForVerificationAttemptFailed creates a pending encr
 	};
 
 	expect(decodedPayload.type).toBe("verification.attempt.failed");
+	expect(Object.keys(decodedPayload.data)).toEqual(["failure_code"]);
 	expect(decodedPayload.data.failure_code).toBe("selfie_face_mismatch");
 	expect(decodedPayload.metadata.contract_version).toBe(1);
 	expect(decodedPayload.metadata.event_id).toBe(event.id);

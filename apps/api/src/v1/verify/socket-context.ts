@@ -1,6 +1,6 @@
 import type {
+	VerifyServerCheckResult,
 	VerifyServerLivenessChallenge,
-	VerifyServerVerdict,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
 import type { ApiRequestLogger } from "@/logging";
@@ -9,7 +9,7 @@ import type { ActiveVerifySession } from "./session-context";
 import type { VerifyShareManifest } from "./share-manifest";
 
 export type VerifySocketState = {
-	acceptedFaceScore: number | null;
+	confirmedFaceScore: number | null;
 	attemptId: string | null;
 	currentPhase: string | null;
 	helloReceived: boolean;
@@ -20,7 +20,7 @@ export type VerifySocketState = {
 };
 
 export type VerifySocketTransport = {
-	closeAfterVerdict: (code: string) => void;
+	closeAfterCheckResult: (code: string) => void;
 	closeSocket: (code: number, reason: string) => void;
 	logDebug: (label: string, details?: Record<string, unknown>) => void;
 	sendAck: (message: string) => void;
@@ -46,7 +46,7 @@ export type VerifySocketTransport = {
 		sessionId: string;
 	}) => void;
 	sendShareRequest: (shareRequest: VerifyShareRequest) => void;
-	sendVerdict: (verdict: VerifyServerVerdict) => void;
+	sendCheckResult: (checkResult: VerifyServerCheckResult) => void;
 };
 
 export type VerifySocketContext = {
@@ -62,7 +62,7 @@ export type VerifySocketContext = {
 
 export function createVerifySocketState(): VerifySocketState {
 	return {
-		acceptedFaceScore: null,
+		confirmedFaceScore: null,
 		attemptId: null,
 		currentPhase: null,
 		helloReceived: false,

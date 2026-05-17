@@ -94,13 +94,13 @@ enum VerifyHelloResponse: Equatable {
   case failure(code: String, message: String)
 }
 
-enum VerifyVerdictOutcome: Equatable {
-  case accepted
-  case rejected
+enum VerifyCheckOutcome: Equatable {
+  case confirmed
+  case notConfirmed
 }
 
-struct VerifyServerVerdict: Equatable {
-  let outcome: VerifyVerdictOutcome
+struct VerifyServerCheckResult: Equatable {
+  let outcome: VerifyCheckOutcome
   let reasonCode: String
   let reasonMessage: String
   let retryAllowed: Bool
@@ -315,36 +315,36 @@ nonisolated func parseHelloResponse(
   return nil
 }
 
-nonisolated func isAcceptedVerdict(_ verdict: VerifyServerVerdict?) -> Bool {
-  guard let verdict else {
+nonisolated func isConfirmedCheck(_ checkResult: VerifyServerCheckResult?) -> Bool {
+  guard let checkResult else {
     return false
   }
 
-  switch verdict.outcome {
-  case .accepted:
+  switch checkResult.outcome {
+  case .confirmed:
     return true
-  case .rejected:
+  case .notConfirmed:
     return false
   }
 }
 
-nonisolated func isRejectedVerdict(_ verdict: VerifyServerVerdict?) -> Bool {
-  guard let verdict else {
+nonisolated func isNotConfirmedCheck(_ checkResult: VerifyServerCheckResult?) -> Bool {
+  guard let checkResult else {
     return false
   }
 
-  switch verdict.outcome {
-  case .accepted:
+  switch checkResult.outcome {
+  case .confirmed:
     return false
-  case .rejected:
+  case .notConfirmed:
     return true
   }
 }
 
-nonisolated func shouldSuppressReconnectAfterHandledVerdict(
-  _ verdict: VerifyServerVerdict?
+nonisolated func shouldSuppressReconnectAfterHandledCheckResult(
+  _ checkResult: VerifyServerCheckResult?
 ) -> Bool {
-  isRejectedVerdict(verdict)
+  isNotConfirmedCheck(checkResult)
 }
 
 nonisolated func defaultSelectedShareFieldKeys(

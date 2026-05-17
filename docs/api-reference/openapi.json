@@ -34,6 +34,166 @@
       }
     },
     "schemas": {
+      "Webhook Attempt Metadata": {
+        "type": "object",
+        "properties": {
+          "contract_version": {
+            "type": "integer",
+            "description": "Contract version the session was created against."
+          },
+          "event_id": {
+            "type": "string",
+            "description": "Unique webhook event ID."
+          },
+          "verification_attempt_id": {
+            "type": "string",
+            "description": "The verification attempt that triggered this event."
+          },
+          "verification_session_id": {
+            "type": "string",
+            "description": "The verification session this event belongs to."
+          }
+        },
+        "required": [
+          "contract_version",
+          "event_id",
+          "verification_attempt_id",
+          "verification_session_id"
+        ]
+      },
+      "VerificationAttemptSucceededWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["verification.attempt.succeeded"]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Webhook Attempt Metadata"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "claims": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Consented claim value. Claims are strings, booleans for derived age gates, or null when a selected optional claim has no value."
+                },
+                "description": "Only the claims the user consented to share, keyed by claim identifier."
+              },
+              "selected_field_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Canonical list of claim keys the user consented to share."
+              }
+            },
+            "required": ["claims", "selected_field_keys"]
+          }
+        },
+        "required": ["type", "metadata", "data"]
+      },
+      "VerificationAttemptFailedWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["verification.attempt.failed"]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Webhook Attempt Metadata"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "failure_code": {
+                "type": "string",
+                "enum": [
+                  "document_anti_cloning_attestation_failed",
+                  "document_authenticity_failed",
+                  "document_active_authentication_failed",
+                  "document_chip_authentication_failed",
+                  "document_data_invalid",
+                  "liveness_failed",
+                  "selfie_face_mismatch"
+                ],
+                "description": "Reason Kayle could not confirm the attempt. Failed-attempt payloads do not include claims, biometrics, or risk scores."
+              }
+            },
+            "required": ["failure_code"]
+          }
+        },
+        "required": ["type", "metadata", "data"]
+      },
+      "Webhook Session Metadata": {
+        "type": "object",
+        "properties": {
+          "contract_version": {
+            "type": "integer",
+            "description": "Contract version the session was created against."
+          },
+          "event_id": {
+            "type": "string",
+            "description": "Unique webhook event ID."
+          },
+          "verification_session_id": {
+            "type": "string",
+            "description": "The verification session this event belongs to."
+          }
+        },
+        "required": ["contract_version", "event_id", "verification_session_id"]
+      },
+      "VerificationSessionExpiredWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["verification.session.expired"]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Webhook Session Metadata"
+          },
+          "data": {
+            "type": "object",
+            "properties": {},
+            "description": "Reserved for future fields."
+          }
+        },
+        "required": ["type", "metadata", "data"]
+      },
+      "VerificationSessionCancelledWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["verification.session.cancelled"]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Webhook Session Metadata"
+          },
+          "data": {
+            "type": "object",
+            "properties": {},
+            "description": "Reserved for future fields."
+          }
+        },
+        "required": ["type", "metadata", "data"]
+      },
       "OwnedOrganization": {
         "type": "object",
         "properties": {
@@ -63,8 +223,7 @@
             "example": false
           },
           "next_cursor": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "Cursor to use as `starting_after` to fetch the next page of results, or null if there are no more items.",
             "example": null
           }
@@ -75,28 +234,23 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "type": {
             "type": "string",
             "enum": ["user", "system", "api_key"]
           },
           "name": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "email": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "apiKeyId": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "apiKeyName": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           }
         },
         "required": ["id", "type", "name", "email", "apiKeyId", "apiKeyName"]
@@ -114,18 +268,14 @@
             "$ref": "#/components/schemas/AuditLogActor"
           },
           "targetId": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "targetType": {
-            "type": "string",
-            "nullable": true
+            "type": ["string", "null"]
           },
           "metadata": {
             "type": "object",
-            "additionalProperties": {
-              "nullable": true
-            }
+            "additionalProperties": {}
           },
           "createdAt": {
             "type": "string"
@@ -292,8 +442,7 @@
                   "description": "The status of the webhook delivery"
                 },
                 "last_status_code": {
-                  "type": "number",
-                  "nullable": true,
+                  "type": ["number", "null"],
                   "description": "The last HTTP status code received from the endpoint, if any."
                 },
                 "attempt_count": {
@@ -301,23 +450,19 @@
                   "description": "The number of attempts made to deliver the webhook"
                 },
                 "last_attempt_at": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
                   "description": "The time the last delivery attempt was made, if any."
                 },
                 "payload_expires_at": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
                   "description": "When the encrypted payload expires for manual retry/replay."
                 },
                 "payload_scrubbed_at": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
                   "description": "When the encrypted payload was scrubbed, if no longer stored."
                 },
                 "payload_retention_reason": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
                   "enum": [
                     "pending_delivery",
                     "delivered",
@@ -398,8 +543,7 @@
             "description": "The ID of the webhook endpoint this delivery targets"
           },
           "webhook_encryption_key_id": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "The ID of the encryption key used to encrypt the payload for this delivery"
           },
           "status": {
@@ -412,23 +556,19 @@
             "description": "The number of attempts made to deliver the webhook"
           },
           "next_attempt_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "The next time this delivery should be attempted, or null if ready to send."
           },
           "payload_expires_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "When the encrypted payload expires for manual retry/replay."
           },
           "payload_scrubbed_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "When the encrypted payload was scrubbed, if no longer stored."
           },
           "payload_retention_reason": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "enum": [
               "pending_delivery",
               "delivered",
@@ -440,13 +580,11 @@
             "description": "Why the payload is retained or why it was scrubbed."
           },
           "last_status_code": {
-            "type": "number",
-            "nullable": true,
+            "type": ["number", "null"],
             "description": "The last HTTP status code received from the endpoint, if any."
           },
           "last_attempt_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "The time the last delivery attempt was made, if any."
           },
           "created_at": {
@@ -487,8 +625,7 @@
             "description": "The ID of the organization that owns this endpoint"
           },
           "name": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "An optional display name for the webhook endpoint."
           },
           "url": {
@@ -544,8 +681,7 @@
             "description": "The time the webhook endpoint was last updated"
           },
           "disabled_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "The time the webhook endpoint was disabled, null if enabled"
           }
         },
@@ -656,9 +792,7 @@
           },
           "jwk": {
             "type": "object",
-            "additionalProperties": {
-              "nullable": true
-            },
+            "additionalProperties": {},
             "description": "The public JWK used to encrypt webhook payloads"
           },
           "is_active": {
@@ -674,8 +808,7 @@
             "description": "The time the key was last updated"
           },
           "disabled_at": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "description": "The time the key was disabled, null if still active"
           }
         },
@@ -804,8 +937,7 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string",
-            "nullable": true,
+            "type": ["string", "null"],
             "minLength": 1,
             "maxLength": 120,
             "description": "Updated display name for the webhook endpoint."
@@ -884,9 +1016,7 @@
                       "required": ["organizations"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -902,12 +1032,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -942,12 +1071,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1076,9 +1204,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -1097,12 +1223,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1134,9 +1259,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -1155,12 +1278,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1192,9 +1314,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -1292,9 +1412,7 @@
                       "required": ["id", "key"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -1310,12 +1428,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1350,12 +1467,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1390,12 +1506,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1430,12 +1545,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1560,9 +1674,7 @@
                       "required": ["status", "message"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -1578,12 +1690,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1618,12 +1729,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1658,12 +1768,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1698,12 +1807,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1775,9 +1883,7 @@
                       "required": ["status", "message"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -1793,12 +1899,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1833,12 +1938,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1873,12 +1977,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -1913,12 +2016,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2020,9 +2122,7 @@
                       "required": ["id"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -2038,12 +2138,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2078,12 +2177,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2118,12 +2216,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2215,9 +2312,7 @@
                       "required": ["logo"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -2233,12 +2328,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2273,12 +2367,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2313,12 +2406,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2353,12 +2445,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2426,9 +2517,7 @@
                       "required": ["sentToEmail"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -2444,12 +2533,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2484,12 +2572,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2524,12 +2611,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2564,12 +2650,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2604,12 +2689,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2644,12 +2728,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2720,9 +2803,7 @@
                       "required": ["pendingDeletionAt"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -2738,12 +2819,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2778,12 +2858,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2818,12 +2897,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2858,12 +2936,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2898,12 +2975,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -2938,12 +3014,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3012,9 +3087,7 @@
                       "required": ["ok"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -3030,12 +3103,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3070,12 +3142,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3110,12 +3181,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3150,12 +3220,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3190,12 +3259,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3269,9 +3337,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -3287,12 +3353,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3327,12 +3392,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3367,12 +3431,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3407,12 +3470,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3447,12 +3509,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3487,12 +3548,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3527,12 +3587,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3574,23 +3633,19 @@
                 "type": "object",
                 "properties": {
                   "business_type": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "enum": ["sole", "business"]
                   },
                   "business_name": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "maxLength": 200
                   },
                   "business_jurisdiction": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "maxLength": 120
                   },
                   "business_registration_number": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "maxLength": 100
                   }
                 }
@@ -3610,21 +3665,17 @@
                       "type": "object",
                       "properties": {
                         "businessType": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "enum": ["sole", "business"]
                         },
                         "businessName": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "businessJurisdiction": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         },
                         "businessRegistrationNumber": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         }
                       },
                       "required": [
@@ -3635,9 +3686,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -3653,12 +3702,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3693,12 +3741,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3733,12 +3780,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3773,12 +3819,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3813,12 +3858,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3853,12 +3897,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -3935,8 +3978,7 @@
                           "type": "string"
                         },
                         "conflict": {
-                          "type": "object",
-                          "nullable": true,
+                          "type": ["object", "null"],
                           "properties": {
                             "organization_name": {
                               "type": "string"
@@ -3954,9 +3996,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -3972,12 +4012,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4012,12 +4051,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4052,12 +4090,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4092,12 +4129,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4132,12 +4168,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4172,12 +4207,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4212,12 +4246,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4252,12 +4285,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4292,12 +4324,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4332,12 +4363,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4372,12 +4402,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4450,8 +4479,7 @@
                           "type": "string"
                         },
                         "takeover_from": {
-                          "type": "object",
-                          "nullable": true,
+                          "type": ["object", "null"],
                           "properties": {
                             "organization_id": {
                               "type": "string",
@@ -4467,9 +4495,7 @@
                       "required": ["domain_id", "apex_domain", "takeover_from"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -4485,12 +4511,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4525,12 +4550,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4565,12 +4589,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4605,12 +4628,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4645,12 +4667,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4685,12 +4706,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4725,12 +4745,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4765,12 +4784,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4805,12 +4823,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4845,12 +4862,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4885,12 +4901,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -4955,12 +4970,10 @@
                                 "enum": ["dns_txt"]
                               },
                               "lastCheckedAt": {
-                                "type": "string",
-                                "nullable": true
+                                "type": ["string", "null"]
                               },
                               "downgradedAt": {
-                                "type": "string",
-                                "nullable": true
+                                "type": ["string", "null"]
                               }
                             },
                             "required": [
@@ -5009,9 +5022,7 @@
                       "required": ["domains", "challenges"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -5027,12 +5038,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5067,12 +5077,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5107,12 +5116,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5147,12 +5155,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5187,12 +5194,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5227,12 +5233,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5267,12 +5272,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5307,12 +5311,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5347,12 +5350,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5387,12 +5389,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5427,12 +5428,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5489,12 +5489,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5529,12 +5528,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5569,12 +5567,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5609,12 +5606,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5649,12 +5645,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5689,12 +5684,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5729,12 +5723,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5769,12 +5762,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5809,12 +5801,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5849,12 +5840,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5889,12 +5879,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -5969,9 +5958,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -5987,12 +5974,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6027,12 +6013,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6067,12 +6052,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6107,12 +6091,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6147,12 +6130,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6187,12 +6169,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6227,12 +6208,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6319,9 +6299,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -6337,12 +6315,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6377,12 +6354,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6417,12 +6393,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6457,12 +6432,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6497,12 +6471,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6537,12 +6510,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6577,12 +6549,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6639,12 +6610,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6679,12 +6649,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6719,12 +6688,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6759,12 +6727,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6799,12 +6766,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6839,12 +6805,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -6879,12 +6844,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7030,9 +6994,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -7051,12 +7013,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7091,12 +7052,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7131,12 +7091,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7203,9 +7162,7 @@
                       "required": ["message", "status"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -7221,12 +7178,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7261,12 +7217,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7301,12 +7256,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7341,12 +7295,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7381,12 +7334,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7442,9 +7394,7 @@
                       "required": ["message", "status"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -7460,12 +7410,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7500,12 +7449,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7540,12 +7488,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7580,12 +7527,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7652,9 +7598,7 @@
                       "required": ["message", "status"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -7670,12 +7614,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7710,12 +7653,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7750,12 +7692,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7790,12 +7731,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7830,12 +7770,411 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/orgs/rp-terms": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Get the active organization's current relying-party integration terms status.",
+        "responses": {
+          "200": {
+            "description": "Current RP integration terms status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
                       "type": "object",
-                      "nullable": true,
+                      "properties": {
+                        "acceptance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "accepted_at": {
+                              "type": "string"
+                            },
+                            "accepted_by": {
+                              "type": ["string", "null"]
+                            },
+                            "jurisdiction": {
+                              "type": "string"
+                            },
+                            "terms_hash": {
+                              "type": "string"
+                            },
+                            "terms_version": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "accepted_at",
+                            "accepted_by",
+                            "jurisdiction",
+                            "terms_hash",
+                            "terms_version"
+                          ]
+                        },
+                        "current": {
+                          "type": "object",
+                          "properties": {
+                            "jurisdiction": {
+                              "type": "string",
+                              "enum": ["UK/EU GDPR"]
+                            },
+                            "terms_hash": {
+                              "type": "string",
+                              "enum": [
+                                "sha256:5472d5130ecf957716380ec26d82aac35e1c59fe4ce8cba8337c0b8fec1e261e"
+                              ]
+                            },
+                            "terms_version": {
+                              "type": "string",
+                              "enum": ["2026-05-17"]
+                            }
+                          },
+                          "required": [
+                            "jurisdiction",
+                            "terms_hash",
+                            "terms_version"
+                          ]
+                        },
+                        "current_accepted": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["acceptance", "current", "current_accepted"]
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No active organization selected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Record that an owner accepted the current relying-party integration terms.",
+        "responses": {
+          "200": {
+            "description": "Current RP integration terms accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "acceptance": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "accepted_at": {
+                              "type": "string"
+                            },
+                            "accepted_by": {
+                              "type": ["string", "null"]
+                            },
+                            "jurisdiction": {
+                              "type": "string"
+                            },
+                            "terms_hash": {
+                              "type": "string"
+                            },
+                            "terms_version": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "accepted_at",
+                            "accepted_by",
+                            "jurisdiction",
+                            "terms_hash",
+                            "terms_version"
+                          ]
+                        },
+                        "current": {
+                          "type": "object",
+                          "properties": {
+                            "jurisdiction": {
+                              "type": "string",
+                              "enum": ["UK/EU GDPR"]
+                            },
+                            "terms_hash": {
+                              "type": "string",
+                              "enum": [
+                                "sha256:5472d5130ecf957716380ec26d82aac35e1c59fe4ce8cba8337c0b8fec1e261e"
+                              ]
+                            },
+                            "terms_version": {
+                              "type": "string",
+                              "enum": ["2026-05-17"]
+                            }
+                          },
+                          "required": [
+                            "jurisdiction",
+                            "terms_hash",
+                            "terms_version"
+                          ]
+                        },
+                        "current_accepted": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["acceptance", "current", "current_accepted"]
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not an owner of the active organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Organization is frozen pending deletion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "The error code"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "The error message"
+                        },
+                        "hint": {
+                          "type": "string",
+                          "description": "A hint to help the user fix the error"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "description": "A link to the documentation for the error"
+                        }
+                      },
+                      "required": ["code", "message", "hint", "docs"]
+                    }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "null",
+                      "description": "Empty data object."
+                    },
+                    "error": {
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -7954,9 +8293,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -7972,9 +8309,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -8044,9 +8379,7 @@
                       "$ref": "#/components/schemas/Webhook Event"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -8062,12 +8395,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -8111,9 +8443,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -8236,9 +8566,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -8257,12 +8585,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -8294,9 +8621,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -8347,9 +8672,7 @@
                       "$ref": "#/components/schemas/Webhook Event"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -8365,12 +8688,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -8414,12 +8736,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -8463,9 +8784,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -8587,8 +8906,7 @@
                             "description": "The status of the verification attempt"
                           },
                           "failure_code": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                             "enum": [
                               "session_expired",
                               "session_cancelled",
@@ -8603,8 +8921,7 @@
                             "description": "The code of the failure reason"
                           },
                           "completed_at": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                             "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
                           },
                           "created_at": {
@@ -8628,9 +8945,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -8649,12 +8964,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -8686,9 +9000,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -8790,8 +9102,7 @@
           },
           {
             "schema": {
-              "type": "boolean",
-              "nullable": true,
+              "type": ["boolean", "null"],
               "description": "When true, includes the `attempts` array for each session. When false or omitted, attempts are not returned."
             },
             "required": false,
@@ -8856,8 +9167,7 @@
                             "description": "Effective normalized share fields used by this session."
                           },
                           "redirect_url": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                             "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                           },
                           "verification_url": {
@@ -8874,8 +9184,7 @@
                             "description": "The expiration time of the verification session"
                           },
                           "completed_at": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                             "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
                           },
                           "created_at": {
@@ -8910,8 +9219,7 @@
                                   "description": "The status of the verification attempt"
                                 },
                                 "failure_code": {
-                                  "type": "string",
-                                  "nullable": true,
+                                  "type": ["string", "null"],
                                   "enum": [
                                     "session_expired",
                                     "session_cancelled",
@@ -8926,8 +9234,7 @@
                                   "description": "The code of the failure reason"
                                 },
                                 "completed_at": {
-                                  "type": "string",
-                                  "nullable": true,
+                                  "type": ["string", "null"],
                                   "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
                                 },
                                 "created_at": {
@@ -8997,9 +9304,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -9018,9 +9323,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -9055,9 +9358,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -9081,8 +9382,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "boolean",
-              "nullable": true,
+              "type": ["boolean", "null"],
               "description": "When true, includes the `attempts` array on the created session. Attempts will be empty on creation."
             },
             "required": false,
@@ -9155,8 +9455,7 @@
                           "description": "Effective normalized share fields used by this session."
                         },
                         "redirect_url": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                         },
                         "verification_url": {
@@ -9173,8 +9472,7 @@
                           "description": "The expiration time of the verification session"
                         },
                         "completed_at": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
                         },
                         "created_at": {
@@ -9209,8 +9507,7 @@
                                 "description": "The status of the verification attempt"
                               },
                               "failure_code": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "enum": [
                                   "session_expired",
                                   "session_cancelled",
@@ -9225,8 +9522,7 @@
                                 "description": "The code of the failure reason"
                               },
                               "completed_at": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
                               },
                               "created_at": {
@@ -9295,9 +9591,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -9313,12 +9607,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -9362,12 +9655,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -9402,12 +9694,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -9451,9 +9742,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -9509,8 +9798,7 @@
           },
           {
             "schema": {
-              "type": "boolean",
-              "nullable": true,
+              "type": ["boolean", "null"],
               "description": "When true, includes the `attempts` array for the session. When false or omitted, attempts are not returned."
             },
             "required": false,
@@ -9573,8 +9861,7 @@
                           "description": "Effective normalized share fields used by this session."
                         },
                         "redirect_url": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                         },
                         "verification_url": {
@@ -9591,8 +9878,7 @@
                           "description": "The expiration time of the verification session"
                         },
                         "completed_at": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
                         },
                         "created_at": {
@@ -9627,8 +9913,7 @@
                                 "description": "The status of the verification attempt"
                               },
                               "failure_code": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "enum": [
                                   "session_expired",
                                   "session_cancelled",
@@ -9643,8 +9928,7 @@
                                 "description": "The code of the failure reason"
                               },
                               "completed_at": {
-                                "type": "string",
-                                "nullable": true,
+                                "type": ["string", "null"],
                                 "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
                               },
                               "created_at": {
@@ -9713,9 +9997,7 @@
                       ]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -9731,12 +10013,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -9780,9 +10061,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -9849,12 +10128,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -9898,9 +10176,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -10021,9 +10297,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -10042,12 +10316,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10079,9 +10352,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -10146,9 +10417,7 @@
                       "$ref": "#/components/schemas/Webhook Delivery"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -10164,12 +10433,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10213,12 +10481,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10262,9 +10529,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -10359,9 +10624,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -10380,12 +10643,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10417,9 +10679,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -10462,9 +10722,7 @@
                       "$ref": "#/components/schemas/Created Webhook Endpoint"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -10480,12 +10738,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10529,9 +10786,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -10610,9 +10865,7 @@
                       "$ref": "#/components/schemas/Webhook Encryption Key"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -10628,12 +10881,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10677,12 +10929,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10726,9 +10977,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -10834,9 +11083,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -10855,12 +11102,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -10892,9 +11138,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -10945,9 +11189,7 @@
                       "$ref": "#/components/schemas/Revealed Webhook Signing Secret"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -10963,12 +11205,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11012,9 +11253,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11084,9 +11323,7 @@
                       "$ref": "#/components/schemas/Rotated Webhook Signing Secret"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -11102,12 +11339,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11151,9 +11387,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11223,9 +11457,7 @@
                       "$ref": "#/components/schemas/Webhook Endpoint"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -11241,12 +11473,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11290,9 +11521,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11369,9 +11598,7 @@
                       "$ref": "#/components/schemas/Webhook Endpoint"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -11387,12 +11614,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11436,12 +11662,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11485,9 +11710,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11565,9 +11788,7 @@
                       "required": ["message", "status"]
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -11583,12 +11804,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11632,9 +11852,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11704,9 +11922,7 @@
                       "$ref": "#/components/schemas/Webhook Event"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -11722,12 +11938,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11771,9 +11986,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -11896,9 +12109,7 @@
                       }
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
@@ -11917,12 +12128,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -11954,9 +12164,7 @@
                           "enum": [false]
                         },
                         "next_cursor": {
-                          "type": "object",
-                          "nullable": true,
-                          "additionalProperties": true
+                          "type": "null"
                         }
                       },
                       "required": ["limit", "has_more", "next_cursor"]
@@ -12007,9 +12215,7 @@
                       "$ref": "#/components/schemas/Webhook Event"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -12025,12 +12231,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -12074,12 +12279,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -12123,9 +12327,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -12195,9 +12397,7 @@
                       "$ref": "#/components/schemas/Webhook Encryption Key"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -12213,12 +12413,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -12262,9 +12461,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -12334,9 +12531,7 @@
                       "$ref": "#/components/schemas/Webhook Encryption Key"
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     }
                   },
                   "required": ["data", "error"]
@@ -12352,12 +12547,11 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "nullable": true,
+                      "type": "null",
                       "description": "Empty data object."
                     },
                     "error": {
-                      "type": "object",
-                      "nullable": true,
+                      "type": ["object", "null"],
                       "properties": {
                         "code": {
                           "type": "string",
@@ -12401,9 +12595,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true
+                      "type": "null"
                     },
                     "error": {
                       "type": "object",
@@ -12432,6 +12624,100 @@
                 }
               }
             }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "verification.attempt.succeeded": {
+      "post": {
+        "tags": ["Webhook payloads"],
+        "summary": "verification.attempt.succeeded payload",
+        "description": "Delivered as a JWE-encrypted POST body when Kayle confirms an attempt. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
+        "requestBody": {
+          "required": true,
+          "description": "The decrypted JSON payload. The actual request body delivered to your endpoint is compact JWE.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationAttemptSucceededWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Return any 2xx response to acknowledge receipt. Non-2xx responses are retried while the encrypted payload remains retained."
+          }
+        }
+      }
+    },
+    "verification.attempt.failed": {
+      "post": {
+        "tags": ["Webhook payloads"],
+        "summary": "verification.attempt.failed payload",
+        "description": "Delivered as a JWE-encrypted POST body when Kayle cannot confirm an attempt. This payload contains no claims, biometrics, face scores, or risk scores. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
+        "requestBody": {
+          "required": true,
+          "description": "The decrypted JSON payload. The actual request body delivered to your endpoint is compact JWE.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationAttemptFailedWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Return any 2xx response to acknowledge receipt. Non-2xx responses are retried while the encrypted payload remains retained."
+          }
+        }
+      }
+    },
+    "verification.session.expired": {
+      "post": {
+        "tags": ["Webhook payloads"],
+        "summary": "verification.session.expired payload",
+        "description": "Delivered as a JWE-encrypted POST body when a session expires without a confirmed attempt. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
+        "requestBody": {
+          "required": true,
+          "description": "The decrypted JSON payload. The actual request body delivered to your endpoint is compact JWE.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationSessionExpiredWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Return any 2xx response to acknowledge receipt. Non-2xx responses are retried while the encrypted payload remains retained."
+          }
+        }
+      }
+    },
+    "verification.session.cancelled": {
+      "post": {
+        "tags": ["Webhook payloads"],
+        "summary": "verification.session.cancelled payload",
+        "description": "Delivered as a JWE-encrypted POST body when a session is cancelled by the user or relying party. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
+        "requestBody": {
+          "required": true,
+          "description": "The decrypted JSON payload. The actual request body delivered to your endpoint is compact JWE.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationSessionCancelledWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Return any 2xx response to acknowledge receipt. Non-2xx responses are retried while the encrypted payload remains retained."
           }
         }
       }

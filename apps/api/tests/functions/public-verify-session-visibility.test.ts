@@ -100,7 +100,7 @@ afterAll(async () => {
 	TEST_DATA = undefined;
 });
 
-test("public verify session details expose RP fallback contact fields", async () => {
+test("public verify failed session details expose RP fallback contact fields", async () => {
 	const { sessionId } = await createVisibleSession();
 	await setOrganizationMetadata({
 		appealUrl: "https://rp.example/review",
@@ -108,9 +108,21 @@ test("public verify session details expose RP fallback contact fields", async ()
 		fallbackIdvUrl: "https://rp.example/manual-idv",
 		supportEmail: "support@rp.example",
 	});
+	await db.insert(verification_attempts).values({
+		completedAt: new Date("2026-01-01T00:00:00.000Z"),
+		failureCode: "selfie_face_mismatch",
+		id: generateId({ type: "va" }),
+		status: "failed",
+		verificationSessionId: sessionId,
+	});
 
 	const details = await getPublicVerifySessionDetails({ sessionId });
+	const status = await getPublicVerifySessionStatus({ sessionId });
 
+	expect(status?.latest_attempt).toMatchObject({
+		failure_code: "selfie_face_mismatch",
+		status: "failed",
+	});
 	expect(details?.rp_fallback).toEqual({
 		appeal_url: "https://rp.example/review",
 		complaints_url: "https://rp.example/complaints",

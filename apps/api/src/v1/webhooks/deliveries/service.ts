@@ -6,19 +6,35 @@ import {
 import { indexBy } from "@kayle-id/config/collections";
 import {
 	createSafeRequestLogger,
+	logEvent,
 	logSafeError,
 } from "@kayle-id/config/logging";
 import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
+import { MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
-import { events } from "@kayle-id/database/schema/core";
+import {
+	events,
+	verification_attempts,
+	verification_sessions,
+} from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
 	webhook_delivery_attempts,
 	webhook_encryption_keys,
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import {
+	and,
+	asc,
+	eq,
+	inArray,
+	isNotNull,
+	isNull,
+	lte,
+	ne,
+	or,
+} from "drizzle-orm";
 import { config } from "@/config";
 import { createJWE } from "@/functions/jwe";
 import { generateId } from "@/utils/generate-id";
@@ -38,6 +54,13 @@ import type {
 	VerificationAttemptFailedCode,
 	WebhookPayload,
 } from "./types";
+import {
+	WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS,
+	WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE,
+} from "./types";
+
+const HOUR_MS = 60 * 60_000;
+const WEBHOOK_PAYLOAD_RETENTION_SWEEP_BATCH_SIZE = 500;
 
 function isSubscribedToEventType(
 	subscribedEventTypes: unknown,
@@ -60,11 +83,36 @@ function mapWebhookDeliveryRowToResponse(
 		last_attempt_at: row.lastAttemptAt?.toISOString() ?? null,
 		last_status_code: row.lastStatusCode,
 		next_attempt_at: row.nextAttemptAt?.toISOString() ?? null,
+		payload_expires_at: row.payloadExpiresAt?.toISOString() ?? null,
+		payload_retention_reason: row.payloadRetentionReason,
+		payload_scrubbed_at: row.payloadScrubbedAt?.toISOString() ?? null,
 		status: row.status,
 		updated_at: row.updatedAt.toISOString(),
 		webhook_encryption_key_id: row.webhookEncryptionKeyId,
 		webhook_endpoint_id: row.webhookEndpointId,
 	};
+}
+
+function addHours(date: Date, hours: number): Date {
+	return new Date(date.getTime() + hours * HOUR_MS);
+}
+
+function getPendingPayloadExpiry({
+	retentionHours,
+	now,
+}: {
+	retentionHours: number;
+	now: Date;
+}): Date {
+	const boundedRetentionHours = Math.min(
+		Math.max(retentionHours, 0),
+		MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	);
+	return new Date(
+		now.getTime() +
+			WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS +
+			boundedRetentionHours * HOUR_MS,
+	);
 }
 
 async function insertAttempt({
@@ -109,7 +157,11 @@ async function getMappedWebhookDelivery(
 type DeliveryAttemptContext = {
 	delivery: typeof webhook_deliveries.$inferSelect;
 	endpoint: typeof webhook_endpoints.$inferSelect;
-	eventType: SupportedWebhookEventType;
+	event: {
+		triggerId: string;
+		triggerType: string;
+		type: SupportedWebhookEventType;
+	};
 };
 
 async function getDeliveryAttemptContext(
@@ -119,6 +171,8 @@ async function getDeliveryAttemptContext(
 		.select({
 			delivery: webhook_deliveries,
 			endpoint: webhook_endpoints,
+			eventTriggerId: events.triggerId,
+			eventTriggerType: events.triggerType,
 			eventType: events.type,
 		})
 		.from(webhook_deliveries)
@@ -134,9 +188,95 @@ async function getDeliveryAttemptContext(
 		? {
 				delivery: row.delivery,
 				endpoint: row.endpoint,
-				eventType: row.eventType as SupportedWebhookEventType,
+				event: {
+					triggerId: row.eventTriggerId,
+					triggerType: row.eventTriggerType,
+					type: row.eventType as SupportedWebhookEventType,
+				},
 			}
 		: null;
+}
+
+async function getSessionPrivacyStateForDeliveryEvent({
+	triggerId,
+	triggerType,
+}: DeliveryAttemptContext["event"]): Promise<{
+	cancelTokenConsumedAt: Date | null;
+	status: string;
+} | null> {
+	if (triggerType === "verification_session") {
+		const [row] = await db
+			.select({
+				cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+				status: verification_sessions.status,
+			})
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, triggerId))
+			.limit(1);
+
+		return row ?? null;
+	}
+
+	if (triggerType !== "verification_attempt") {
+		return null;
+	}
+
+	const [row] = await db
+		.select({
+			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+			status: verification_sessions.status,
+		})
+		.from(verification_attempts)
+		.innerJoin(
+			verification_sessions,
+			eq(verification_sessions.id, verification_attempts.verificationSessionId),
+		)
+		.where(eq(verification_attempts.id, triggerId))
+		.limit(1);
+
+	return row ?? null;
+}
+
+async function cancelWebhookDeliveryAfterPrivacyWithdrawal({
+	deliveryId,
+	event,
+	now = new Date(),
+}: {
+	deliveryId: string;
+	event: DeliveryAttemptContext["event"];
+	now?: Date;
+}): Promise<boolean> {
+	if (event.type === "verification.session.cancelled") {
+		return false;
+	}
+
+	const session = await getSessionPrivacyStateForDeliveryEvent(event);
+	const isWithdrawn = Boolean(
+		session?.cancelTokenConsumedAt || session?.status === "cancelled",
+	);
+
+	if (!isWithdrawn) {
+		return false;
+	}
+
+	await db
+		.update(webhook_deliveries)
+		.set({
+			nextAttemptAt: null,
+			payload: null,
+			payloadExpiresAt: null,
+			payloadRetentionReason: "privacy_request",
+			payloadScrubbedAt: now,
+			status: "failed",
+		})
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				ne(webhook_deliveries.status, "succeeded"),
+			),
+		);
+
+	return true;
 }
 
 async function claimPendingWebhookDelivery(
@@ -151,6 +291,11 @@ async function claimPendingWebhookDelivery(
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				eq(webhook_deliveries.status, "pending"),
+				isNotNull(webhook_deliveries.payload),
+				or(
+					isNull(webhook_deliveries.payloadRetentionReason),
+					ne(webhook_deliveries.payloadRetentionReason, "privacy_request"),
+				),
 			),
 		)
 		.returning();
@@ -281,9 +426,18 @@ async function persistWebhookDeliveryAttemptResult({
 			// Cloudflare Workflows owns retry scheduling now; keep this field
 			// nulled out so nothing else interprets it as a queue cursor.
 			nextAttemptAt: null,
+			payload: response.ok ? null : delivery.payload,
+			payloadExpiresAt: response.ok ? null : delivery.payloadExpiresAt,
+			payloadRetentionReason: response.ok ? "delivered" : "pending_delivery",
+			payloadScrubbedAt: response.ok ? attemptedAt : delivery.payloadScrubbedAt,
 			status: response.ok ? "succeeded" : "pending",
 		})
-		.where(eq(webhook_deliveries.id, delivery.id));
+		.where(
+			and(
+				eq(webhook_deliveries.id, delivery.id),
+				eq(webhook_deliveries.status, "delivering"),
+			),
+		);
 }
 
 async function recordPreflightFailure({
@@ -293,7 +447,7 @@ async function recordPreflightFailure({
 }): Promise<void> {
 	const delivery = await getWebhookDeliveryById(deliveryId);
 
-	if (!delivery) {
+	if (!delivery?.payload) {
 		return;
 	}
 
@@ -314,7 +468,12 @@ async function recordPreflightFailure({
 			nextAttemptAt: null,
 			status: "pending",
 		})
-		.where(eq(webhook_deliveries.id, deliveryId));
+		.where(
+			and(
+				eq(webhook_deliveries.id, deliveryId),
+				eq(webhook_deliveries.status, "delivering"),
+			),
+		);
 }
 
 async function createWebhookDeliveriesForEvent({
@@ -369,15 +528,22 @@ async function createWebhookDeliveriesForEvent({
 			type: "whd",
 		});
 		createdDeliveryIds.push(deliveryId);
+		const now = new Date();
+		const payloadExpiresAt = getPendingPayloadExpiry({
+			now,
+			retentionHours: endpoint.undeliveredPayloadRetentionHours,
+		});
 
 		if (!key) {
 			await db.insert(webhook_deliveries).values({
 				id: deliveryId,
 				attemptCount: 1,
 				eventId,
-				lastAttemptAt: new Date(),
+				lastAttemptAt: now,
 				nextAttemptAt: null,
 				payload: null,
+				payloadRetentionReason: "no_active_key",
+				payloadScrubbedAt: now,
 				status: "failed",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: null,
@@ -401,6 +567,8 @@ async function createWebhookDeliveriesForEvent({
 				eventId,
 				id: deliveryId,
 				payload: encryptedPayload,
+				payloadExpiresAt,
+				payloadRetentionReason: "pending_delivery",
 				status: "pending",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: key.id,
@@ -410,9 +578,11 @@ async function createWebhookDeliveriesForEvent({
 				id: deliveryId,
 				attemptCount: 1,
 				eventId,
-				lastAttemptAt: new Date(),
+				lastAttemptAt: now,
 				nextAttemptAt: null,
 				payload: null,
+				payloadRetentionReason: "jwe_creation_failed",
+				payloadScrubbedAt: now,
 				status: "failed",
 				webhookEndpointId: endpoint.id,
 				webhookEncryptionKeyId: key.id,
@@ -427,7 +597,7 @@ async function createWebhookDeliveriesForEvent({
 	return createdDeliveryIds;
 }
 
-export function createWebhookDeliveriesForVerificationSucceeded({
+export async function createWebhookDeliveriesForVerificationSucceeded({
 	attemptId,
 	eventId,
 	manifest,
@@ -438,6 +608,19 @@ export function createWebhookDeliveriesForVerificationSucceeded({
 	manifest: VerifyShareManifest;
 	organizationId: string;
 }): Promise<string[]> {
+	const [session] = await db
+		.select({
+			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
+			status: verification_sessions.status,
+		})
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, manifest.sessionId))
+		.limit(1);
+
+	if (session?.cancelTokenConsumedAt || session?.status === "cancelled") {
+		return [];
+	}
+
 	return createWebhookDeliveriesForEvent({
 		eventId,
 		eventType: "verification.attempt.succeeded",
@@ -448,6 +631,84 @@ export function createWebhookDeliveriesForVerificationSucceeded({
 			manifest,
 		}),
 	});
+}
+
+export type WebhookPayloadPrivacyScrubResult = {
+	deliveredDeliveryCount: number;
+	scrubbedDeliveryCount: number;
+	totalDeliveryCount: number;
+};
+
+export async function scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
+	now = new Date(),
+	organizationId,
+	sessionId,
+}: {
+	now?: Date;
+	organizationId: string;
+	sessionId: string;
+}): Promise<WebhookPayloadPrivacyScrubResult> {
+	const attemptRows = await db
+		.select({ id: verification_attempts.id })
+		.from(verification_attempts)
+		.where(eq(verification_attempts.verificationSessionId, sessionId));
+	const triggerIds = [sessionId, ...attemptRows.map((attempt) => attempt.id)];
+	const eventRows = await db
+		.select({ id: events.id })
+		.from(events)
+		.where(
+			and(
+				eq(events.organizationId, organizationId),
+				inArray(events.triggerId, triggerIds),
+			),
+		);
+
+	if (eventRows.length === 0) {
+		return {
+			deliveredDeliveryCount: 0,
+			scrubbedDeliveryCount: 0,
+			totalDeliveryCount: 0,
+		};
+	}
+
+	const deliveryRows = await db
+		.select({
+			id: webhook_deliveries.id,
+			payload: webhook_deliveries.payload,
+			status: webhook_deliveries.status,
+		})
+		.from(webhook_deliveries)
+		.where(
+			inArray(
+				webhook_deliveries.eventId,
+				eventRows.map((event) => event.id),
+			),
+		);
+	const scrubbedDeliveryIds = deliveryRows
+		.filter((delivery) => delivery.status !== "succeeded" && delivery.payload)
+		.map((delivery) => delivery.id);
+
+	if (scrubbedDeliveryIds.length > 0) {
+		await db
+			.update(webhook_deliveries)
+			.set({
+				nextAttemptAt: null,
+				payload: null,
+				payloadExpiresAt: null,
+				payloadRetentionReason: "privacy_request",
+				payloadScrubbedAt: now,
+				status: "failed",
+			})
+			.where(inArray(webhook_deliveries.id, scrubbedDeliveryIds));
+	}
+
+	return {
+		deliveredDeliveryCount: deliveryRows.filter(
+			(delivery) => delivery.status === "succeeded",
+		).length,
+		scrubbedDeliveryCount: scrubbedDeliveryIds.length,
+		totalDeliveryCount: deliveryRows.length,
+	};
 }
 
 export function createWebhookDeliveriesForVerificationAttemptFailed({
@@ -555,9 +816,25 @@ export async function runWebhookDeliveryAttempt({
 		return;
 	}
 
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
 	const claimedDelivery = await claimPendingWebhookDelivery(deliveryId);
 	if (!claimedDelivery) {
 		const currentDelivery = await getWebhookDeliveryById(deliveryId);
+		if (
+			!currentDelivery?.payload ||
+			currentDelivery.payloadRetentionReason === "privacy_request"
+		) {
+			return;
+		}
+
 		if (
 			currentDelivery?.status === "pending" ||
 			currentDelivery?.status === "delivering"
@@ -572,7 +849,25 @@ export async function runWebhookDeliveryAttempt({
 		return;
 	}
 
-	if (!(context.endpoint.enabled && claimedDelivery.payload)) {
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
+	const latestClaimedDelivery = await getWebhookDeliveryById(deliveryId);
+	if (
+		latestClaimedDelivery?.status !== "delivering" ||
+		!latestClaimedDelivery.payload ||
+		latestClaimedDelivery.payloadRetentionReason === "privacy_request"
+	) {
+		return;
+	}
+
+	if (!context.endpoint.enabled) {
 		await recordPreflightFailure({ deliveryId });
 		throw new WebhookDeliveryAttemptError(
 			"webhook_delivery_endpoint_disabled_or_payload_missing",
@@ -593,14 +888,32 @@ export async function runWebhookDeliveryAttempt({
 		);
 	}
 
+	if (
+		await cancelWebhookDeliveryAfterPrivacyWithdrawal({
+			deliveryId,
+			event: context.event,
+		})
+	) {
+		return;
+	}
+
+	const deliveryBeforeSend = await getWebhookDeliveryById(deliveryId);
+	if (
+		deliveryBeforeSend?.status !== "delivering" ||
+		!deliveryBeforeSend.payload ||
+		deliveryBeforeSend.payloadRetentionReason === "privacy_request"
+	) {
+		return;
+	}
+
 	const now = new Date();
 
 	let response: Response;
 	try {
 		response = await sendWebhookDeliveryRequest({
-			delivery: claimedDelivery,
+			delivery: deliveryBeforeSend,
 			endpoint: context.endpoint,
-			eventType: context.eventType,
+			eventType: context.event.type,
 			signingSecret,
 		});
 	} catch (error) {
@@ -633,7 +946,7 @@ export async function runWebhookDeliveryAttempt({
 
 	await persistWebhookDeliveryAttemptResult({
 		attemptedAt: now,
-		delivery: claimedDelivery,
+		delivery: deliveryBeforeSend,
 		response,
 	});
 
@@ -654,7 +967,9 @@ export async function finalizeWebhookDeliveryFailure({
 }: {
 	deliveryId: string;
 }): Promise<void> {
-	const delivery = await getWebhookDeliveryById(deliveryId);
+	const context = await getDeliveryAttemptContext(deliveryId);
+	const delivery =
+		context?.delivery ?? (await getWebhookDeliveryById(deliveryId));
 
 	if (!delivery) {
 		return;
@@ -664,11 +979,25 @@ export async function finalizeWebhookDeliveryFailure({
 		return;
 	}
 
+	const terminalFailureAt = new Date();
+	const retentionHours =
+		context?.endpoint.undeliveredPayloadRetentionHours ??
+		MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS;
+	const payloadExpiresAt = addHours(terminalFailureAt, retentionHours);
+	const shouldScrubImmediately =
+		delivery.payload === null || retentionHours === 0;
+
 	await db
 		.update(webhook_deliveries)
 		.set({
-			status: "failed",
 			nextAttemptAt: null,
+			payload: shouldScrubImmediately ? null : delivery.payload,
+			payloadExpiresAt: shouldScrubImmediately ? null : payloadExpiresAt,
+			payloadRetentionReason: shouldScrubImmediately
+				? "expired"
+				: "terminal_failure_retention",
+			payloadScrubbedAt: shouldScrubImmediately ? terminalFailureAt : null,
+			status: "failed",
 		})
 		.where(eq(webhook_deliveries.id, deliveryId));
 }
@@ -764,11 +1093,50 @@ export async function getWebhookDeliveryForOrganization({
 	return row?.delivery ?? null;
 }
 
+export type WebhookDeliveryRetryBlockReason =
+	| "delivering"
+	| "payload_expired"
+	| "payload_scrubbed";
+
+export function getWebhookDeliveryRetryBlockReason(
+	delivery: typeof webhook_deliveries.$inferSelect,
+	now = new Date(),
+): WebhookDeliveryRetryBlockReason | null {
+	if (delivery.status === "delivering") {
+		return "delivering";
+	}
+
+	if (!delivery.payload) {
+		return "payload_scrubbed";
+	}
+
+	if (!delivery.payloadExpiresAt || delivery.payloadExpiresAt <= now) {
+		return "payload_expired";
+	}
+
+	return null;
+}
+
+export function getWebhookPayloadExpiredErrorResponse() {
+	return {
+		code: WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE,
+		message: "Webhook payload is no longer retained.",
+		hint: "Payload expired; create a new verification session or handle the event manually.",
+		docs: "https://kayle.id/docs/api/webhooks/deliveries#payload-retention",
+	};
+}
+
 export async function requeueWebhookDelivery({
 	deliveryId,
 }: {
 	deliveryId: string;
 }): Promise<typeof webhook_deliveries.$inferSelect | null> {
+	const delivery = await getWebhookDeliveryById(deliveryId);
+
+	if (!delivery || getWebhookDeliveryRetryBlockReason(delivery) !== null) {
+		return null;
+	}
+
 	const [updated] = await db
 		.update(webhook_deliveries)
 		.set({
@@ -782,6 +1150,7 @@ export async function requeueWebhookDelivery({
 			and(
 				eq(webhook_deliveries.id, deliveryId),
 				ne(webhook_deliveries.status, "delivering"),
+				isNotNull(webhook_deliveries.payload),
 			),
 		)
 		.returning();
@@ -812,6 +1181,141 @@ export async function requeueWebhookDeliveriesForEvent({
 	}
 
 	return requeued;
+}
+
+export type WebhookPayloadRetentionSweepResult = {
+	failed: boolean;
+	orgCount: number;
+	scrubbedCount: number;
+};
+
+function getWebhookPayloadSweepAgeBucket({
+	expiresAt,
+	now,
+}: {
+	expiresAt: Date;
+	now: Date;
+}): "lt_1h" | "lt_24h" | "gte_24h" {
+	const overdueMs = Math.max(now.getTime() - expiresAt.getTime(), 0);
+
+	if (overdueMs < HOUR_MS) {
+		return "lt_1h";
+	}
+
+	if (overdueMs < 24 * HOUR_MS) {
+		return "lt_24h";
+	}
+
+	return "gte_24h";
+}
+
+export async function runWebhookPayloadRetentionSweep({
+	batchSize = WEBHOOK_PAYLOAD_RETENTION_SWEEP_BATCH_SIZE,
+	now,
+}: {
+	batchSize?: number;
+	now: Date;
+}): Promise<WebhookPayloadRetentionSweepResult> {
+	const logger = createSafeRequestLogger({
+		headers: new Headers(),
+		method: "SCHEDULED",
+		path: "/internal/webhook-payload-retention-sweep",
+	});
+
+	try {
+		const expiredRows = await db
+			.select({
+				deliveryId: webhook_deliveries.id,
+				expiresAt: webhook_deliveries.payloadExpiresAt,
+				organizationId: events.organizationId,
+			})
+			.from(webhook_deliveries)
+			.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
+			.where(
+				and(
+					isNotNull(webhook_deliveries.payload),
+					isNotNull(webhook_deliveries.payloadExpiresAt),
+					lte(webhook_deliveries.payloadExpiresAt, now),
+				),
+			)
+			.orderBy(asc(webhook_deliveries.payloadExpiresAt))
+			.limit(batchSize);
+
+		if (expiredRows.length === 0) {
+			logEvent(logger, {
+				details: {
+					age_bucket_gte_24h: 0,
+					age_bucket_lt_1h: 0,
+					age_bucket_lt_24h: 0,
+					org_count: 0,
+					scrubbed_count: 0,
+				},
+				event: "webhooks.payload_retention_sweep.completed",
+			});
+			logger.emit({ _forceKeep: false });
+			return { failed: false, orgCount: 0, scrubbedCount: 0 };
+		}
+
+		const ageBuckets = {
+			lt_1h: 0,
+			lt_24h: 0,
+			gte_24h: 0,
+		};
+		const organizationIds = new Set<string>();
+		const deliveryIds: string[] = [];
+
+		for (const row of expiredRows) {
+			if (!row.expiresAt) {
+				continue;
+			}
+
+			deliveryIds.push(row.deliveryId);
+			organizationIds.add(row.organizationId);
+			ageBuckets[
+				getWebhookPayloadSweepAgeBucket({ expiresAt: row.expiresAt, now })
+			] += 1;
+		}
+
+		if (deliveryIds.length > 0) {
+			await db
+				.update(webhook_deliveries)
+				.set({
+					payload: null,
+					payloadExpiresAt: null,
+					payloadRetentionReason: "expired",
+					payloadScrubbedAt: now,
+				})
+				.where(inArray(webhook_deliveries.id, deliveryIds));
+		}
+
+		logEvent(logger, {
+			details: {
+				age_bucket_gte_24h: ageBuckets.gte_24h,
+				age_bucket_lt_1h: ageBuckets.lt_1h,
+				age_bucket_lt_24h: ageBuckets.lt_24h,
+				org_count: organizationIds.size,
+				scrubbed_count: deliveryIds.length,
+			},
+			event: "webhooks.payload_retention_sweep.completed",
+		});
+		logger.emit({ _forceKeep: deliveryIds.length > 0 });
+
+		return {
+			failed: false,
+			orgCount: organizationIds.size,
+			scrubbedCount: deliveryIds.length,
+		};
+	} catch (error) {
+		logSafeError(logger, {
+			code: "webhook_payload_retention_sweep_failed",
+			error,
+			event: "webhooks.payload_retention_sweep.failed",
+			message: "Webhook payload retention sweep failed.",
+		});
+		logger.emit({ _forceKeep: true });
+
+		return { failed: true, orgCount: 0, scrubbedCount: 0 };
+	}
 }
 
 export { mapWebhookDeliveryRowToResponse };

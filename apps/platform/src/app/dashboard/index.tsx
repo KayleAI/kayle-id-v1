@@ -87,7 +87,7 @@ export function Dashboard() {
 						<EmptyTitle>No analytics yet</EmptyTitle>
 						<EmptyDescription>
 							Session analytics will appear here once your organization starts
-							creating verification sessions.
+							creating Kayle check sessions.
 						</EmptyDescription>
 					</EmptyHeader>
 				</Empty>

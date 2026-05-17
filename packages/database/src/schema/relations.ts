@@ -3,6 +3,7 @@ import {
 	auth_accounts,
 	auth_invitations,
 	auth_organization_members,
+	auth_organization_rp_terms_acceptances,
 	auth_organizations,
 	auth_passkeys,
 	auth_two_factors,
@@ -14,6 +15,7 @@ const schema = {
 	auth_accounts,
 	auth_invitations,
 	auth_organization_members,
+	auth_organization_rp_terms_acceptances,
 	auth_organizations,
 	auth_passkeys,
 	auth_two_factors,
@@ -70,6 +72,21 @@ export const relations = defineRelations(schema, (r) => ({
 		auth_invitationss: r.many.auth_invitations({
 			from: r.auth_organizations.id,
 			to: r.auth_invitations.organizationId,
+		}),
+		auth_organization_rp_terms_acceptancess:
+			r.many.auth_organization_rp_terms_acceptances({
+				from: r.auth_organizations.id,
+				to: r.auth_organization_rp_terms_acceptances.organizationId,
+			}),
+	},
+	auth_organization_rp_terms_acceptances: {
+		auth_organizations: r.one.auth_organizations({
+			from: r.auth_organization_rp_terms_acceptances.organizationId,
+			to: r.auth_organizations.id,
+		}),
+		auth_users: r.one.auth_users({
+			from: r.auth_organization_rp_terms_acceptances.acceptedBy,
+			to: r.auth_users.id,
 		}),
 	},
 	auth_organization_members: {

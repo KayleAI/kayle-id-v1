@@ -47,8 +47,8 @@ v1.use(
 // v1 routes
 v1.route("/analytics", analytics);
 v1.route("/events", events);
+v1.route("/sessions", sessionAttempts);
 v1.route("/sessions", sessions);
-v1.route("/sessions/attempts", sessionAttempts);
 v1.route("/webhooks", webhooks);
 
 export default v1;

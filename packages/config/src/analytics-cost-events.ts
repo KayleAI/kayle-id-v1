@@ -58,6 +58,10 @@ export const COST_EVENT_BLOB = {
   resource: "blob2",
   workerName: "blob3",
   unit: "blob4",
+  /**
+   * Reserved for positional compatibility. Raw verification attempt IDs must
+   * not be written to Analytics Engine rows.
+   */
   attemptId: "blob5",
   environment: "blob6",
   version: "blob7",
@@ -86,7 +90,10 @@ const COST_EVENT_BLOB_ORDER = [
 export type CostFeature = (typeof COST_FEATURES)[keyof typeof COST_FEATURES];
 
 export interface EmitCostEventInput {
-  /** Verify-flow trace identifier when applicable. */
+  /**
+   * Deprecated. Accepted for old call sites but intentionally redacted before
+   * writing to Analytics Engine.
+   */
   readonly attemptId?: string | null;
   /** The `KAYLE_ID_ANALYTICS` binding from `env`. Missing → no-op. */
   readonly dataset: AnalyticsEngineDatasetLike | undefined | null;
@@ -137,7 +144,7 @@ export function emitCostEvent(input: EmitCostEventInput): void {
     resource: input.resource,
     workerName: input.workerName,
     unit: input.unit,
-    attemptId: input.attemptId ?? "",
+    attemptId: "",
     environment: input.environment,
     version: input.version,
   };

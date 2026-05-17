@@ -66,12 +66,26 @@ async function setOrganizationPendingDeletion(
 		.where(eq(auth_organizations.id, TEST_DATA.organizationId));
 }
 
+async function setOrganizationMetadata(
+	metadata: Record<string, unknown> | null,
+): Promise<void> {
+	if (!TEST_DATA) {
+		throw new Error("Test data not initialized");
+	}
+
+	await db
+		.update(auth_organizations)
+		.set({ metadata: metadata ? JSON.stringify(metadata) : null })
+		.where(eq(auth_organizations.id, TEST_DATA.organizationId));
+}
+
 beforeAll(async () => {
 	TEST_DATA = await setup();
 });
 
 afterEach(async () => {
 	await setOrganizationPendingDeletion(null);
+	await setOrganizationMetadata(null);
 
 	for (const sessionId of createdSessionIds) {
 		await db
@@ -84,6 +98,37 @@ afterEach(async () => {
 afterAll(async () => {
 	await teardown(TEST_DATA);
 	TEST_DATA = undefined;
+});
+
+test("public verify failed session details expose RP fallback contact fields", async () => {
+	const { sessionId } = await createVisibleSession();
+	await setOrganizationMetadata({
+		appealUrl: "https://rp.example/review",
+		complaintsUrl: "https://rp.example/complaints",
+		fallbackIdvUrl: "https://rp.example/manual-idv",
+		supportEmail: "support@rp.example",
+	});
+	await db.insert(verification_attempts).values({
+		completedAt: new Date("2026-01-01T00:00:00.000Z"),
+		failureCode: "selfie_face_mismatch",
+		id: generateId({ type: "va" }),
+		status: "failed",
+		verificationSessionId: sessionId,
+	});
+
+	const details = await getPublicVerifySessionDetails({ sessionId });
+	const status = await getPublicVerifySessionStatus({ sessionId });
+
+	expect(status?.latest_attempt).toMatchObject({
+		failure_code: "selfie_face_mismatch",
+		status: "failed",
+	});
+	expect(details?.rp_fallback).toEqual({
+		appeal_url: "https://rp.example/review",
+		complaints_url: "https://rp.example/complaints",
+		fallback_idv_url: "https://rp.example/manual-idv",
+		support_email: "support@rp.example",
+	});
 });
 
 test("public verify session surfaces hide sessions owned by organizations pending deletion", async () => {

@@ -1,15 +1,15 @@
 ---
 title: "verification.attempt.failed"
-description: "Fires when a verification attempt is rejected."
+description: "Fires when a Kayle check attempt is not confirmed."
 ---
 
-Emitted when an attempt finishes with a hard failure on one of the verification gates. The payload carries a `failure_code` you can match on. No claims are shared.
+Emitted when an attempt finishes without one of the Kayle checks being confirmed. The payload carries a `failure_code` you can match on. No claims are shared.
 
 ## When it fires
 
-After the verify pipeline rejects an attempt: an authenticity check failed, a chip authentication check failed, or the selfie failed to match the on-chip portrait.
+After the verify pipeline cannot confirm an attempt: an authenticity check failed, a chip authentication check failed, or the selfie could not be matched to the on-chip portrait.
 
-Sessions allow up to three attempts. Each rejected attempt fires this event independently. After the third terminal failure the session moves to `completed` and no further attempts are accepted.
+Sessions allow up to three attempts. Each not-confirmed attempt fires this event independently. After the third not-confirmed terminal attempt the session moves to `completed` and no further attempts are accepted.
 
 ## Payload
 
@@ -43,7 +43,7 @@ Sessions allow up to three attempts. Each rejected attempt fires this event inde
 </ResponseField>
 
 <ResponseField name="metadata.verification_attempt_id" type="string">
-  The attempt that failed.
+  The attempt that was not confirmed.
 </ResponseField>
 
 <ResponseField name="metadata.verification_session_id" type="string">
@@ -55,7 +55,7 @@ Sessions allow up to three attempts. Each rejected attempt fires this event inde
   - `document_authenticity_failed` — passive auth failed (SOD signature, DSC chain, data-group hash, or CRL revocation).
   - `document_active_authentication_failed` — DG15 was present and the chip's signature over the challenge did not verify.
   - `document_chip_authentication_failed` — DG14 was present and the authenticated key agreement transcript did not verify.
-  - `selfie_face_mismatch` — the biometric verifier rejected the selfie against the on-chip portrait.
+  - `selfie_face_mismatch` — the biometric verifier could not confirm the selfie against the on-chip portrait.
 </ResponseField>
 
 See [Document checks](/verifications/document-checks) for what each gate is checking.
@@ -67,7 +67,7 @@ if (event.type === "verification.attempt.failed") {
   const { verification_session_id, verification_attempt_id, event_id } = event.metadata;
   if (await alreadyProcessed(event_id)) return;
 
-  await recordFailedAttempt({
+  await recordCheckNotConfirmed({
     sessionId: verification_session_id,
     attemptId: verification_attempt_id,
     failureCode: event.data.failure_code,
@@ -75,4 +75,4 @@ if (event.type === "verification.attempt.failed") {
 }
 ```
 
-A `verification.attempt.failed` is not a final answer for the session. Wait for `verification.attempt.succeeded`, `verification.session.expired`, or `verification.session.cancelled` before deciding the user can't be verified at all.
+A `verification.attempt.failed` is not a final answer for the session or for the user. Wait for `verification.attempt.succeeded`, `verification.session.expired`, or `verification.session.cancelled`, then apply your own fallback, review, or access policy.

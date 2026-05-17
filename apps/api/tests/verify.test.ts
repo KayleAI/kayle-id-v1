@@ -5,6 +5,7 @@ import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
@@ -57,8 +58,8 @@ type ServerAckOrError = {
 		code: string;
 		message: string;
 	};
-	verdict?: {
-		outcome: "accepted" | "rejected";
+	checkResult?: {
+		outcome: "confirmed" | "not_confirmed";
 		reasonCode: string;
 		reasonMessage: string;
 		retryAllowed: boolean;
@@ -199,14 +200,15 @@ function decodeServerMessage(bytes: Uint8Array): ServerAckOrError | null {
 						message: root.error.message,
 					},
 				};
-			case ServerMessage.VERDICT:
+			case ServerMessage.CHECK_RESULT:
 				return {
-					verdict: {
-						outcome: root.verdict.outcome === 0 ? "accepted" : "rejected",
-						reasonCode: root.verdict.reasonCode,
-						reasonMessage: root.verdict.reasonMessage,
-						retryAllowed: root.verdict.retryAllowed,
-						remainingAttempts: root.verdict.remainingAttempts,
+					checkResult: {
+						outcome:
+							root.checkResult.outcome === 0 ? "confirmed" : "not_confirmed",
+						reasonCode: root.checkResult.reasonCode,
+						reasonMessage: root.checkResult.reasonMessage,
+						retryAllowed: root.checkResult.retryAllowed,
+						remainingAttempts: root.checkResult.remainingAttempts,
 					},
 				};
 			case ServerMessage.SHARE_REQUEST: {
@@ -274,6 +276,123 @@ function decodeServerMessage(bytes: Uint8Array): ServerAckOrError | null {
 	}
 }
 
+type ServerMessageWaiter = {
+	reject: (error: Error) => void;
+	resolve: (message: ServerAckOrError) => void;
+	timeout: ReturnType<typeof setTimeout>;
+};
+
+const serverMessageQueues = new WeakMap<WebSocket, ServerAckOrError[]>();
+const serverMessageWaiters = new WeakMap<WebSocket, ServerMessageWaiter[]>();
+const serverMessagePumps = new WeakSet<WebSocket>();
+
+function resolveQueuedServerMessage(
+	socket: WebSocket,
+	message: ServerAckOrError,
+): void {
+	const waiters = serverMessageWaiters.get(socket);
+	const waiter = waiters?.shift();
+
+	if (waiter) {
+		clearTimeout(waiter.timeout);
+		waiter.resolve(message);
+		return;
+	}
+
+	const queue = serverMessageQueues.get(socket) ?? [];
+	queue.push(message);
+	serverMessageQueues.set(socket, queue);
+}
+
+function rejectQueuedServerMessageWaiters(
+	socket: WebSocket,
+	error: Error,
+): void {
+	const waiters = serverMessageWaiters.get(socket) ?? [];
+	serverMessageWaiters.set(socket, []);
+
+	for (const waiter of waiters) {
+		clearTimeout(waiter.timeout);
+		waiter.reject(error);
+	}
+}
+
+function removeServerMessageWaiter(
+	socket: WebSocket,
+	waiter: ServerMessageWaiter,
+): void {
+	const waiters = serverMessageWaiters.get(socket);
+
+	if (!waiters) {
+		return;
+	}
+
+	const index = waiters.indexOf(waiter);
+	if (index !== -1) {
+		waiters.splice(index, 1);
+	}
+}
+
+function ensureServerMessagePump(socket: WebSocket): void {
+	if (serverMessagePumps.has(socket)) {
+		return;
+	}
+
+	serverMessagePumps.add(socket);
+	serverMessageQueues.set(socket, []);
+	serverMessageWaiters.set(socket, []);
+
+	socket.addEventListener("message", async (event: MessageEvent) => {
+		const bytes = await getEventBytes(event.data);
+		if (!bytes) {
+			rejectQueuedServerMessageWaiters(
+				socket,
+				new Error("Expected a binary server message."),
+			);
+			return;
+		}
+
+		const decoded = decodeServerMessage(bytes);
+		if (!decoded) {
+			rejectQueuedServerMessageWaiters(
+				socket,
+				new Error("Failed to decode server protobuf message."),
+			);
+			return;
+		}
+
+		// The server emits an activeAuthChallenge after every successful hello
+		// as part of the AA protocol. Tests that don't exercise AA expect the
+		// next ack/checkResult directly, so skip the challenge and keep listening.
+		if (decoded.activeAuthChallenge !== undefined) {
+			return;
+		}
+
+		// Same pass-through for the liveness challenge emitted on the
+		// nfc_complete -> liveness_capturing transition; tests await the
+		// trailing phase_ok ack, not the challenge itself.
+		if (decoded.livenessChallenge !== undefined) {
+			return;
+		}
+
+		resolveQueuedServerMessage(socket, decoded);
+	});
+
+	socket.addEventListener("error", () => {
+		rejectQueuedServerMessageWaiters(
+			socket,
+			new Error("WebSocket connection failed."),
+		);
+	});
+
+	socket.addEventListener("close", () => {
+		rejectQueuedServerMessageWaiters(
+			socket,
+			new Error("WebSocket closed before receiving a server message."),
+		);
+	});
+}
+
 function awaitSocketOpen(socket: WebSocket): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (socket.readyState === WebSocket.OPEN) {
@@ -317,67 +436,30 @@ function awaitSocketOpen(socket: WebSocket): Promise<void> {
 }
 
 function awaitServerMessage(socket: WebSocket): Promise<ServerAckOrError> {
+	ensureServerMessagePump(socket);
+
+	const queue = serverMessageQueues.get(socket);
+	const queuedMessage = queue?.shift();
+	if (queuedMessage) {
+		return Promise.resolve(queuedMessage);
+	}
+
 	return new Promise((resolve, reject) => {
 		const timeoutMs = 15_000;
 
-		const timeout = setTimeout(() => {
-			cleanup();
-			reject(new Error("Timed out waiting for server message."));
-		}, timeoutMs);
-
-		const handleMessage = async (event: MessageEvent) => {
-			const bytes = await getEventBytes(event.data);
-			if (!bytes) {
-				cleanup();
-				reject(new Error("Expected a binary server message."));
-				return;
-			}
-
-			const decoded = decodeServerMessage(bytes);
-			if (!decoded) {
-				cleanup();
-				reject(new Error("Failed to decode server protobuf message."));
-				return;
-			}
-
-			// The server emits an activeAuthChallenge after every successful hello
-			// as part of the AA protocol. Tests that don't exercise AA expect the
-			// next ack/verdict directly, so skip the challenge and keep listening.
-			if (decoded.activeAuthChallenge !== undefined) {
-				return;
-			}
-
-			// Same pass-through for the liveness challenge emitted on the
-			// nfc_complete -> liveness_capturing transition; tests await the
-			// trailing phase_ok ack, not the challenge itself.
-			if (decoded.livenessChallenge !== undefined) {
-				return;
-			}
-
-			cleanup();
-			resolve(decoded);
+		let waiter: ServerMessageWaiter;
+		waiter = {
+			resolve,
+			reject,
+			timeout: setTimeout(() => {
+				removeServerMessageWaiter(socket, waiter);
+				reject(new Error("Timed out waiting for server message."));
+			}, timeoutMs),
 		};
 
-		const handleError = () => {
-			cleanup();
-			reject(new Error("WebSocket connection failed."));
-		};
-
-		const handleClose = () => {
-			cleanup();
-			reject(new Error("WebSocket closed before receiving a server message."));
-		};
-
-		const cleanup = () => {
-			clearTimeout(timeout);
-			socket.removeEventListener("message", handleMessage);
-			socket.removeEventListener("error", handleError);
-			socket.removeEventListener("close", handleClose);
-		};
-
-		socket.addEventListener("message", handleMessage);
-		socket.addEventListener("error", handleError);
-		socket.addEventListener("close", handleClose);
+		const waiters = serverMessageWaiters.get(socket) ?? [];
+		waiters.push(waiter);
+		serverMessageWaiters.set(socket, waiters);
 	});
 }
 
@@ -386,6 +468,7 @@ function openVerifySocket(sessionId: string): WebSocket {
 		`${VERIFY_TEST_SOCKET_BASE_URL}/v1/verify/session/${sessionId}`,
 	);
 	socket.binaryType = "arraybuffer";
+	ensureServerMessagePump(socket);
 	return socket;
 }
 
@@ -518,6 +601,29 @@ async function createSession(body?: {
 }
 
 async function createHandoff(sessionId: string): Promise<HandoffPayload> {
+	const consentResponse = await app.request(
+		`/v1/verify/session/${sessionId}/consent`,
+		{
+			body: JSON.stringify({
+				biometric_consent: true,
+				document_processing_consent: true,
+				privacy_notice_acknowledged: true,
+				share_claims_consent: true,
+				terms_acknowledged: true,
+			}),
+			headers: {
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		},
+	);
+
+	if (consentResponse.status !== 200) {
+		throw new Error(
+			`Expected 200 from /v1/verify/session/:id/consent, received ${consentResponse.status}`,
+		);
+	}
+
 	const response = await app.request(
 		`/v1/verify/session/${sessionId}/handoff`,
 		{
@@ -691,17 +797,19 @@ async function advanceToShareRequest({
 	});
 
 	socket.send(encodePhaseMessage("liveness_complete"));
-	const verdict = (await awaitServerMessage(socket)).verdict;
+	const checkResult = (await awaitServerMessage(socket)).checkResult;
 	if (
 		!(
-			verdict?.outcome === "accepted" &&
-			verdict.reasonCode === "" &&
-			verdict.reasonMessage === "" &&
-			verdict.retryAllowed === false &&
-			verdict.remainingAttempts === 0
+			checkResult?.outcome === "confirmed" &&
+			checkResult.reasonCode === "" &&
+			checkResult.reasonMessage === "" &&
+			checkResult.retryAllowed === false &&
+			checkResult.remainingAttempts === 0
 		)
 	) {
-		throw new Error("Expected accepted verdict during share-request setup.");
+		throw new Error(
+			"Expected confirmed checkResult during share-request setup.",
+		);
 	}
 
 	const shareRequest = (await awaitServerMessage(socket)).shareRequest;
@@ -1532,7 +1640,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Reconnect after nfc_complete accepts NFC restream and reaches verdict",
+		"Reconnect after nfc_complete accepts NFC restream and reaches checkResult",
 		async () => {
 			const sessionId = await createSession();
 			const handoff = await createHandoff(sessionId);
@@ -1597,8 +1705,8 @@ describe("Verification Flows", () => {
 				});
 
 				socketTwo.send(encodePhaseMessage("liveness_complete"));
-				const verdict = (await awaitServerMessage(socketTwo)).verdict;
-				expect(verdict?.outcome).toBe("accepted");
+				const checkResult = (await awaitServerMessage(socketTwo)).checkResult;
+				expect(checkResult?.outcome).toBe("confirmed");
 			} finally {
 				socketTwo.close();
 			}
@@ -1944,8 +2052,8 @@ describe("Verification Flows", () => {
 				});
 
 				socket.send(encodePhaseMessage("liveness_complete"));
-				expect((await awaitServerMessage(socket)).verdict).toEqual({
-					outcome: "accepted",
+				expect((await awaitServerMessage(socket)).checkResult).toEqual({
+					outcome: "confirmed",
 					reasonCode: "",
 					reasonMessage: "",
 					retryAllowed: false,
@@ -2206,8 +2314,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("nfc_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.error).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "document_authenticity_failed",
 					reasonMessage:
 						ERROR_MESSAGES.document_authenticity_failed.description,
@@ -2228,6 +2336,7 @@ describe("Verification Flows", () => {
 					status: verification_attempts.status,
 					failureCode: verification_attempts.failureCode,
 					riskScore: verification_attempts.riskScore,
+					selectedShareFieldKeys: verification_attempts.selectedShareFieldKeys,
 					completedAt: verification_attempts.completedAt,
 				})
 				.from(verification_attempts)
@@ -2285,8 +2394,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.error).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "selfie_face_mismatch",
 					reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
 					retryAllowed: true,
@@ -2304,6 +2413,7 @@ describe("Verification Flows", () => {
 					failureCode: verification_attempts.failureCode,
 					riskScore: verification_attempts.riskScore,
 					completedAt: verification_attempts.completedAt,
+					selectedShareFieldKeys: verification_attempts.selectedShareFieldKeys,
 				})
 				.from(verification_attempts)
 				.where(eq(verification_attempts.id, handoff.attempt_id))
@@ -2358,9 +2468,9 @@ describe("Verification Flows", () => {
 					socket.send(encodePhaseMessage("liveness_complete"));
 					const response = await awaitServerMessage(socket);
 					expect(response.error).toBeUndefined();
-					expect(response.verdict?.reasonCode).toBe("selfie_face_mismatch");
-					expect(response.verdict?.retryAllowed).toBe(index < 2);
-					expect(response.verdict?.remainingAttempts).toBe(2 - index);
+					expect(response.checkResult?.reasonCode).toBe("selfie_face_mismatch");
+					expect(response.checkResult?.retryAllowed).toBe(index < 2);
+					expect(response.checkResult?.remainingAttempts).toBe(2 - index);
 					await awaitSocketClose(socket);
 				} finally {
 					socket.close();
@@ -2412,7 +2522,7 @@ describe("Verification Flows", () => {
 	);
 
 	test.serial(
-		"Marks attempt succeeded and session completed with risk score after accepted share selection",
+		"Marks attempt succeeded and session completed with risk score after confirmed share selection",
 		async () => {
 			const sessionId = await createSession({
 				share_fields: {
@@ -2447,6 +2557,7 @@ describe("Verification Flows", () => {
 					failureCode: verification_attempts.failureCode,
 					riskScore: verification_attempts.riskScore,
 					completedAt: verification_attempts.completedAt,
+					selectedShareFieldKeys: verification_attempts.selectedShareFieldKeys,
 				})
 				.from(verification_attempts)
 				.where(eq(verification_attempts.id, handoff.attempt_id))
@@ -2465,8 +2576,23 @@ describe("Verification Flows", () => {
 			expect(attempt?.failureCode).toBeNull();
 			expect(attempt?.completedAt).not.toBeNull();
 			expect((attempt?.riskScore ?? 1) < 0.2).toBeTrue();
+			expect(attempt?.selectedShareFieldKeys).toEqual(["kayle_document_id"]);
 			expect(session?.status).toBe("completed");
 			expect(session?.completedAt).not.toBeNull();
+
+			const [consent] = await db
+				.select({
+					selectedClaimKeys: verification_consents.selectedClaimKeys,
+					verificationAttemptId: verification_consents.verificationAttemptId,
+				})
+				.from(verification_consents)
+				.where(
+					eq(verification_consents.verificationAttemptId, handoff.attempt_id),
+				)
+				.limit(1);
+
+			expect(consent?.selectedClaimKeys).toEqual(["kayle_document_id"]);
+			expect(consent?.verificationAttemptId).toBe(handoff.attempt_id);
 
 			const successEvents = await db
 				.select({
@@ -2513,8 +2639,8 @@ describe("Verification Flows", () => {
 				socket.send(encodePhaseMessage("liveness_complete"));
 				const response = await awaitServerMessage(socket);
 				expect(response.ack).toBeUndefined();
-				expect(response.verdict).toEqual({
-					outcome: "rejected",
+				expect(response.checkResult).toEqual({
+					outcome: "not_confirmed",
 					reasonCode: "selfie_face_mismatch",
 					reasonMessage: ERROR_MESSAGES.selfie_face_mismatch.description,
 					retryAllowed: true,

@@ -41,7 +41,7 @@ const options: ReadonlyArray<DemoChooserOption> = [
 		Icon: IconWalletCard,
 		title: "ID check",
 		description:
-			"Verify identity claims like name, date of birth, nationality, and document photo — read straight from the chip.",
+			"Verify identity claims like name, date of birth, and nationality from the chip.",
 		to: "/demo/id",
 		cta: "Try ID check",
 	},

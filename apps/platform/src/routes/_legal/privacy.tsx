@@ -6,7 +6,7 @@ import {
 } from "@/components/site/legal-document";
 import { PageHeading } from "@/components/site/page-heading";
 
-const LAST_UPDATED = "March 20, 2026";
+const LAST_UPDATED = "May 17, 2026";
 
 export const Route = createFileRoute("/_legal/privacy")({
 	component: PrivacyPage,
@@ -39,7 +39,16 @@ function PrivacyPage() {
 								If another platform sends you to Kayle ID for verification, that
 								platform also has its own privacy practices. In particular, that
 								platform decides which claims it requests from you and what it
-								does with the verification result it receives from Kayle ID.
+								does with the Kayle check result it receives from Kayle ID.
+							</p>
+							<p>
+								Kayle Inc. and the relying party are separate controllers for
+								different processing purposes. Kayle is a controller for
+								Kayle-side verification processing, service security, fraud
+								prevention, records, and legal compliance. The relying party is
+								a controller for its own product relationship and for any
+								access, onboarding, eligibility, or account decision it makes
+								from the Kayle ID result.
 							</p>
 						</LegalSection>
 
@@ -90,7 +99,7 @@ function PrivacyPage() {
 									"To validate passport authenticity by checking chip data, including DG1, DG2, and SOD artifacts.",
 									"To compare the passport chip portrait against captured selfies using Kayle ID's internal face-matching service.",
 									"To generate verification status records, events, risk scores, and receiver-scoped identifiers such as the Kayle Document ID.",
-									"To deliver the verification result and user-selected claims to the relying party through encrypted webhook payloads.",
+									"To deliver the Kayle check result and user-selected claims to the relying party through encrypted webhook payloads.",
 									"To monitor service health, investigate abuse or failures, enforce our terms, and comply with legal obligations.",
 								]}
 							/>
@@ -117,6 +126,12 @@ function PrivacyPage() {
 								key and signed with the webhook signing secret. Kayle ID stores
 								that payload only in encrypted form for delivery and retry
 								purposes.
+							</p>
+							<p>
+								Kayle ID provides the relying party with a verification signal
+								and selected claims. Kayle does not decide whether the relying
+								party gives you a service, account, onboarding approval, or
+								eligibility outcome.
 							</p>
 						</LegalSection>
 
@@ -145,17 +160,17 @@ function PrivacyPage() {
 
 							<p>
 								Raw verification artifacts are processed in volatile session
-								state while the verification is active. If a developer requests
-								the <code>document_photo</code> claim and the user shares it,
-								the resulting document portrait is included in the encrypted
-								webhook payload delivered to that developer.
+								state while the verification is active. Kayle ID does not expose
+								the document portrait as a normal claim in relying-party webhook
+								payloads.
 							</p>
 						</LegalSection>
 
 						<LegalSection title="How We Share Information">
 							<LegalList
 								items={[
-									"With the relying party that requested the verification, but only for the verification result and claims included in the session contract and selected by the user, except where a claim is marked required.",
+									"With the relying party that requested the verification, but only for the Kayle check result and claims included in the session contract and selected by the user, except where a claim is marked required.",
+									"With the relying party as a separate controller that is responsible for its own notices, lawful basis, decision process, fallback verification path, and review or appeal safeguards where applicable.",
 									"With infrastructure and security providers that help us operate Kayle ID, such as hosted compute, storage, networking, database, and authentication providers.",
 									"With Google if a developer chooses Google sign-in for their Kayle ID account.",
 									"When required by law, legal process, or to protect the rights, safety, and security of Kayle ID, our users, or third parties.",
@@ -217,7 +232,15 @@ function PrivacyPage() {
 								</a>
 								. If your request concerns data that a relying party requested
 								or received, we may direct you to that party because it controls
-								how it uses the verification result on its side.
+								how it uses the Kayle check result on its side.
+							</p>
+							<p>
+								If a relying party uses a Kayle ID result for an access,
+								onboarding, eligibility, or similarly significant decision, the
+								relying party is responsible for any applicable Article 22, UK
+								GDPR, EU GDPR, or similar automated-decision safeguards,
+								including review, appeal, contestation, and alternative
+								verification routes.
 							</p>
 						</LegalSection>
 

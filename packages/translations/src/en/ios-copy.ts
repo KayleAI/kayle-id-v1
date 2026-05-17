@@ -23,10 +23,12 @@ export const IOS_COPY_EN = {
   "Authenticating with document…": "Authenticating with document…",
   Back: "Back",
   Cancel: "Cancel",
+  "Cancel?": "Cancel?",
   "Checking verification…": "Checking verification…",
   "Choose at least one verification detail before continuing.":
     "Choose at least one verification detail before continuing.",
   "Choose what to share": "Choose what to share",
+  "Connecting securely...": "Connecting securely...",
   Continue: "Continue",
   "Date of Birth": "Date of Birth",
   "Do you see this symbol?": "Do you see this symbol?",
@@ -85,6 +87,7 @@ export const IOS_COPY_EN = {
     "Position your face in the frame, then slowly turn your head to the left and right. Make sure your face is well-lit and clearly visible.",
   "Press your document against your device and hold still to read the chip.":
     "Press your document against your device and hold still to read the chip.",
+  "Privacy Options": "Privacy Options",
   "Privacy Policy": "Privacy Policy",
   "Reading data groups…": "Reading data groups…",
   "Reconnecting…": "Reconnecting…",
@@ -146,9 +149,9 @@ export const IOS_COPY_EN = {
     "Use your camera to scan the printed code on your document, then read the chip if it has one.",
   "Use your camera to scan the QR code from your browser and begin verification.":
     "Use your camera to scan the QR code from your browser and begin verification.",
-  "Verification Complete": "Verification Complete",
-  "Verification Failed": "Verification Failed",
-  "Verified from your document.": "Verified from your document.",
+  "Verification Complete": "Kayle ID check complete",
+  "Verification Failed": "Kayle ID check could not be confirmed",
+  "Verified from your document.": "Read from your document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "We couldn't use this scan to read the chip. Try scanning again.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
@@ -161,7 +164,7 @@ export const IOS_COPY_EN = {
   "You can optionally choose to share these details.":
     "You can optionally choose to share these details.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
-    "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.",
+    "Your Kayle ID check result has been securely sent. You can now close this app and return to your browser.",
 
   // Document-name nouns. Substituted into otherwise-localized parent
   // strings (e.g. "Look for this symbol on %@.") so they MUST be

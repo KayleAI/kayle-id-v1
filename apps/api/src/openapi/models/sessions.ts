@@ -39,11 +39,6 @@ export const Attempt = z.object({
 		.enum(verificationAttemptFailureCodes)
 		.nullable()
 		.describe("The code of the failure reason"),
-	risk_score: z
-		.number()
-		.min(0)
-		.max(1)
-		.describe("The risk score of the verification attempt, between 0 and 1."),
 	completed_at: z
 		.string()
 		.nullable()

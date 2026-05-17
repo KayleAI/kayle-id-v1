@@ -1,4 +1,8 @@
-import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	SUPPORTED_WEBHOOK_EVENT_TYPES,
+	WEBHOOK_PAYLOAD_RETENTION_HOUR_OPTIONS,
+} from "@kayle-id/config/webhook-events";
 import {
 	type DeliveryStatus,
 	parsePublicKeyInput,
@@ -38,6 +42,7 @@ export interface CreateEndpointSubmission {
 	initialPublicKey: CreateEndpointInitialPublicKey | null;
 	name: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }
 
@@ -58,6 +63,23 @@ export const TAB_OPTIONS: Array<{
 		label: "Events",
 	},
 ];
+
+export const WEBHOOK_PAYLOAD_RETENTION_OPTIONS =
+	WEBHOOK_PAYLOAD_RETENTION_HOUR_OPTIONS.map((hours) => ({
+		description:
+			hours === 0
+				? "Scrub encrypted payloads as soon as delivery permanently fails."
+				: `Retain encrypted payloads for ${hours} hours after final delivery failure.`,
+		label:
+			hours === 0
+				? "Do not retain after final failure"
+				: hours === DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS
+					? `Retain for ${hours} hours (default)`
+					: hours === 168
+						? "Retain for 7 days"
+						: `Retain for ${hours} hours`,
+		value: hours,
+	}));
 
 const WWW_PREFIX_REGEX = /^www\./;
 
@@ -163,12 +185,14 @@ export function isWebhookEndpointDirty({
 	endpointEnabled,
 	endpointName,
 	endpointSubscribedEventTypes,
+	endpointUndeliveredPayloadRetentionHours,
 	endpointUrl,
 }: {
 	endpoint: WebhookEndpoint | null;
 	endpointEnabled: boolean;
 	endpointName: string;
 	endpointSubscribedEventTypes: string[];
+	endpointUndeliveredPayloadRetentionHours: number;
 	endpointUrl: string;
 }): boolean {
 	if (!endpoint) {
@@ -179,6 +203,8 @@ export function isWebhookEndpointDirty({
 		(endpoint.name ?? "") !== endpointName.trim() ||
 		endpoint.url !== endpointUrl ||
 		endpoint.enabled !== endpointEnabled ||
+		endpoint.undelivered_payload_retention_hours !==
+			endpointUndeliveredPayloadRetentionHours ||
 		!areEventSelectionsEqual(
 			endpoint.subscribed_event_types,
 			endpointSubscribedEventTypes,
@@ -239,11 +265,11 @@ export function toggleEventSelection(
 
 export function getWebhookEventTypeDescription(eventType: string): string {
 	if (eventType === "verification.attempt.succeeded") {
-		return "Dispatch completed verification attempts to this endpoint.";
+		return "Dispatch confirmed Kayle check attempts to this endpoint.";
 	}
 
 	if (eventType === "verification.attempt.failed") {
-		return "Dispatch failed verification attempts to this endpoint.";
+		return "Dispatch not-confirmed Kayle check attempts to this endpoint.";
 	}
 
 	if (eventType === "verification.session.expired") {
@@ -297,7 +323,73 @@ export function getWebhookEventReplayDisabledReason(
 		return "This event has no deliveries to replay.";
 	}
 
+	const disabledReasons = event.deliveries
+		.map(getWebhookDeliveryRetryDisabledReason)
+		.filter((reason): reason is string => reason !== null);
+
+	if (disabledReasons.length === event.deliveries.length) {
+		return disabledReasons.includes("Delivery is already in progress.")
+			? "All attached deliveries are already in progress or unavailable."
+			: "All attached delivery payloads have expired or were scrubbed.";
+	}
+
 	return null;
+}
+
+export function getWebhookDeliveryRetryDisabledReason(
+	delivery: Pick<
+		WebhookDelivery,
+		| "payload_expires_at"
+		| "payload_retention_reason"
+		| "payload_scrubbed_at"
+		| "status"
+	>,
+): string | null {
+	if (delivery.status === "delivering") {
+		return "Delivery is already in progress.";
+	}
+
+	if (
+		delivery.payload_scrubbed_at ||
+		delivery.payload_retention_reason === "delivered"
+	) {
+		return "Payload no longer retained.";
+	}
+
+	if (
+		delivery.payload_retention_reason === "expired" ||
+		!delivery.payload_expires_at ||
+		new Date(delivery.payload_expires_at).getTime() <= Date.now()
+	) {
+		return "Payload expired; create a new verification session or handle the event manually.";
+	}
+
+	return null;
+}
+
+export function getWebhookDeliveryPayloadLabel(
+	delivery: Pick<
+		WebhookDelivery,
+		"payload_expires_at" | "payload_retention_reason" | "payload_scrubbed_at"
+	>,
+): string {
+	if (delivery.payload_retention_reason === "delivered") {
+		return "Delivered - payload no longer retained.";
+	}
+
+	if (delivery.payload_retention_reason === "privacy_request") {
+		return "Payload scrubbed after privacy request.";
+	}
+
+	if (delivery.payload_scrubbed_at) {
+		return "Payload scrubbed.";
+	}
+
+	if (delivery.payload_expires_at) {
+		return "Retained for replay.";
+	}
+
+	return "Payload unavailable.";
 }
 
 const BADGE_PALETTE = {

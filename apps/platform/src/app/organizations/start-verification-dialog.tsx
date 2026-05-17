@@ -29,7 +29,7 @@ const TERMS_BULLETS: readonly { content: ReactNode; key: string }[] = [
 	{
 		key: "id-check",
 		content:
-			"You will complete a Kayle ID identity check on a supported passport. The verification result is bound to this organization.",
+			"You will complete a Kayle ID identity check on a supported passport. The Kayle check result is bound to this organization.",
 	},
 	{
 		key: "dedup",

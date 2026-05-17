@@ -15,6 +15,7 @@ curl -X POST https://api.kayle.id/v1/webhooks/endpoints \
   -d '{
     "name": "Production webhook",
     "url": "https://yourapp.com/webhooks/kayle",
+    "undelivered_payload_retention_hours": 72,
     "subscribed_event_types": [
       "verification.attempt.succeeded",
       "verification.attempt.failed"
@@ -37,6 +38,7 @@ The response includes the endpoint and its signing secret. Note that the endpoin
         "verification.attempt.succeeded",
         "verification.attempt.failed"
       ],
+      "undelivered_payload_retention_hours": 72,
       "created_at": "2026-05-05T11:00:00Z",
       "updated_at": "2026-05-05T11:00:00Z",
       "disabled_at": null
@@ -55,7 +57,13 @@ The response includes the endpoint and its signing secret. Note that the endpoin
 
 ## Update an endpoint
 
-`PATCH /v1/webhooks/endpoints/:endpoint_id` accepts any subset of `name`, `url`, `enabled`, `subscribed_event_types`. To temporarily stop deliveries without losing the configuration, set `enabled: false` — disabled endpoints retain history and can be re-enabled later.
+`PATCH /v1/webhooks/endpoints/:endpoint_id` accepts any subset of `name`, `url`, `enabled`, `subscribed_event_types`, and `undelivered_payload_retention_hours`. To temporarily stop deliveries without losing the configuration, set `enabled: false` — disabled endpoints retain history and can be re-enabled later.
+
+## Undelivered payload retention
+
+Delivered webhook payloads are scrubbed immediately after the first successful `2xx` response. The `undelivered_payload_retention_hours` setting only controls how long Kayle keeps encrypted payloads after a delivery exhausts automatic retries and becomes `failed`.
+
+Supported values are `0`, `24`, `72`, and `168` hours. New endpoints default to `72`. Use `0` if you do not want manual retry or replay after final delivery failure; use a longer window if your downstream service may need time to recover from an outage.
 
 ## Reveal or rotate the signing secret
 

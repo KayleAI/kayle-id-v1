@@ -189,32 +189,32 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
     XCTAssertFalse(isExpectedPhaseAck(nil))
   }
 
-  func testAcceptedVerdictHelpers() {
-    let verdict = VerifyServerVerdict(
-      outcome: .accepted,
+  func testConfirmedCheckHelpers() {
+    let checkResult = VerifyServerCheckResult(
+      outcome: .confirmed,
       reasonCode: "",
       reasonMessage: "",
       retryAllowed: false,
       remainingAttempts: 0
     )
 
-    XCTAssertTrue(isAcceptedVerdict(verdict))
-    XCTAssertFalse(isRejectedVerdict(verdict))
-    XCTAssertFalse(shouldSuppressReconnectAfterHandledVerdict(verdict))
+    XCTAssertTrue(isConfirmedCheck(checkResult))
+    XCTAssertFalse(isNotConfirmedCheck(checkResult))
+    XCTAssertFalse(shouldSuppressReconnectAfterHandledCheckResult(checkResult))
   }
 
-  func testRejectedVerdictHelpers() {
-    let verdict = VerifyServerVerdict(
-      outcome: .rejected,
+  func testNotConfirmedCheckHelpers() {
+    let checkResult = VerifyServerCheckResult(
+      outcome: .notConfirmed,
       reasonCode: "selfie_face_mismatch",
       reasonMessage: "Selfie evidence did not match the document photo.",
       retryAllowed: true,
       remainingAttempts: 2
     )
 
-    XCTAssertFalse(isAcceptedVerdict(verdict))
-    XCTAssertTrue(isRejectedVerdict(verdict))
-    XCTAssertTrue(shouldSuppressReconnectAfterHandledVerdict(verdict))
+    XCTAssertFalse(isConfirmedCheck(checkResult))
+    XCTAssertTrue(isNotConfirmedCheck(checkResult))
+    XCTAssertTrue(shouldSuppressReconnectAfterHandledCheckResult(checkResult))
   }
 
   func testDefaultSelectedShareFieldKeysIncludeSecurityAndRequiredDetails() {
@@ -321,12 +321,12 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
-          reason: "Kayle document identifier.",
+          reason: "Kayle ID document identifier.",
           required: true
         ),
         VerifyShareRequestField(
           key: "kayle_human_id",
-          reason: "Kayle human identifier.",
+          reason: "Kayle ID human identifier.",
           required: true
         ),
         VerifyShareRequestField(
@@ -363,12 +363,12 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       fields: [
         VerifyShareRequestField(
           key: "kayle_document_id",
-          reason: "Kayle document identifier.",
+          reason: "Kayle ID document identifier.",
           required: true
         ),
         VerifyShareRequestField(
           key: "kayle_human_id",
-          reason: "Kayle human identifier.",
+          reason: "Kayle ID human identifier.",
           required: true
         ),
       ]

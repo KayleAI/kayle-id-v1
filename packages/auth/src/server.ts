@@ -455,7 +455,7 @@ const plugins = [
             type: "date",
             required: false,
             input: false,
-            fieldName: "verified_at",
+            fieldName: "owner_id_checked_at",
           },
           businessType: {
             type: "string",
@@ -992,7 +992,7 @@ export const auth = betterAuth({
               auth_organizations.pending_deletion_requested_at,
             pendingDeletionRequestedBy:
               auth_organizations.pending_deletion_requested_by,
-            verifiedAt: auth_organizations.verified_at,
+            verifiedAt: auth_organizations.owner_id_checked_at,
             verificationTermsAcceptedAt:
               auth_organizations.verification_terms_accepted_at,
             verificationTermsAcceptedBy:

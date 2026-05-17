@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { db } from "@kayle-id/database/drizzle";
+import { verification_attempts } from "@kayle-id/database/schema/core";
 import type z from "zod";
 import type { Session } from "@/openapi/models/sessions";
+import { generateId } from "@/utils/generate-id";
 import v1 from "@/v1";
 import { setup, type TestData, teardown } from "./setup";
 
@@ -115,6 +118,56 @@ describe("/v1/sessions", () => {
 		expect(data?.id).toBe(createdSessionId);
 		expect(data?.contract_version).toBe(1);
 		expect(data?.share_fields).toBeDefined();
+	});
+
+	test.serial("Attempt responses do not expose risk score", async () => {
+		if (!createdSessionId) {
+			throw new Error("Created session ID is not defined");
+		}
+
+		await db.insert(verification_attempts).values({
+			id: generateId({ type: "va" }),
+			verificationSessionId: createdSessionId,
+			status: "failed",
+			failureCode: "selfie_face_mismatch",
+			riskScore: 0.9,
+			completedAt: new Date("2026-01-01T00:00:00.000Z"),
+		});
+
+		const sessionResponse = await v1.request(
+			`/sessions/${createdSessionId}?include_attempts=true`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+			},
+		);
+		expect(sessionResponse.status).toBe(200);
+		const sessionPayload = (await sessionResponse.json()) as {
+			data: { attempts?: Array<Record<string, unknown>> };
+		};
+		const sessionAttempt = sessionPayload.data.attempts?.[0];
+		expect(sessionAttempt).toBeDefined();
+		expect(sessionAttempt && "risk_score" in sessionAttempt).toBe(false);
+
+		const attemptsResponse = await v1.request(
+			`/sessions/attempts?session_id=${createdSessionId}`,
+			{
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+			},
+		);
+		expect(attemptsResponse.status).toBe(200);
+		const attemptsPayload = (await attemptsResponse.json()) as {
+			data: Array<Record<string, unknown>>;
+		};
+		expect(attemptsPayload.data[0]).toBeDefined();
+		expect(
+			attemptsPayload.data[0] && "risk_score" in attemptsPayload.data[0],
+		).toBe(false);
 	});
 
 	test.serial("Can cancel a session by ID", async () => {

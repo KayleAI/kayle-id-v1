@@ -30,7 +30,7 @@ async function setOrgVerified(
 ): Promise<void> {
 	await db
 		.update(auth_organizations)
-		.set({ verified_at: verifiedAt })
+		.set({ owner_id_checked_at: verifiedAt })
 		.where(eq(auth_organizations.id, organizationId));
 }
 

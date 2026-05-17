@@ -32,7 +32,20 @@ export const WEBHOOK_DELIVERY_RETRY_SCHEDULE = [
 /** Total attempts = 1 initial + N retries from the schedule above. */
 export const MAX_DELIVERY_ATTEMPTS = 1 + WEBHOOK_DELIVERY_RETRY_SCHEDULE.length;
 
+export const WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS =
+	5_000 +
+	5 * 60_000 +
+	30 * 60_000 +
+	2 * 60 * 60_000 +
+	5 * 60 * 60_000 +
+	10 * 60 * 60_000 +
+	10 * 60 * 60_000;
+
+export const WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE = "WEBHOOK_PAYLOAD_EXPIRED";
+
 export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
+export type DeliveryPayloadRetentionReason =
+	typeof webhook_deliveries.$inferSelect.payloadRetentionReason;
 
 export type VerificationAttemptFailedCode =
 	| "document_anti_cloning_attestation_failed"
@@ -99,6 +112,9 @@ export type DeliveryRowResponse = {
 	last_attempt_at: string | null;
 	last_status_code: number | null;
 	next_attempt_at: string | null;
+	payload_expires_at: string | null;
+	payload_retention_reason: DeliveryPayloadRetentionReason;
+	payload_scrubbed_at: string | null;
 	status: DeliveryStatus;
 	updated_at: string;
 	webhook_encryption_key_id: string | null;

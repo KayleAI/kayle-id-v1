@@ -76,6 +76,9 @@ listEvents.openapi(listWebhookEvents, async (c) => {
 						last_status_code: webhook_deliveries.lastStatusCode,
 						attempt_count: webhook_deliveries.attemptCount,
 						last_attempt_at: webhook_deliveries.lastAttemptAt,
+						payload_expires_at: webhook_deliveries.payloadExpiresAt,
+						payload_retention_reason: webhook_deliveries.payloadRetentionReason,
+						payload_scrubbed_at: webhook_deliveries.payloadScrubbedAt,
 					})
 					.from(webhook_deliveries)
 					.where(inArray(webhook_deliveries.eventId, eventIds));
@@ -95,6 +98,10 @@ listEvents.openapi(listWebhookEvents, async (c) => {
 				last_status_code: delivery.last_status_code,
 				attempt_count: delivery.attempt_count,
 				last_attempt_at: delivery.last_attempt_at?.toISOString() ?? null,
+				payload_expires_at: delivery.payload_expires_at?.toISOString() ?? null,
+				payload_retention_reason: delivery.payload_retention_reason,
+				payload_scrubbed_at:
+					delivery.payload_scrubbed_at?.toISOString() ?? null,
 			},
 		]);
 	}

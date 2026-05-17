@@ -1,10 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
+import { audit_logs } from "@kayle-id/database/schema/audit-logs";
 import {
+	events,
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
+import {
+	webhook_deliveries,
+	webhook_endpoints,
+} from "@kayle-id/database/schema/webhooks";
 import { and, eq } from "drizzle-orm";
 import { createHMAC } from "@/functions/hmac";
 import app from "@/index";
@@ -80,7 +87,7 @@ type VerifySessionStatusResponse = {
 
 type VerifySessionDetailsResponse = {
 	data: {
-		organization_name: string;
+		organization_name: string | null;
 		organization_owner_id_check_completed: boolean;
 		organization_verified_apex_domains: string[];
 		organization_logo: string | null;
@@ -95,6 +102,58 @@ type VerifySessionDetailsResponse = {
 		session_id: string;
 		is_age_only: boolean;
 		age_threshold: number | null;
+		share_fields: Record<
+			string,
+			{ reason: string; required: boolean; source: "default" | "rc" }
+		>;
+	} | null;
+	error: {
+		code: string;
+		message: string;
+	} | null;
+};
+
+type VerifySessionPrivacyContextResponse = {
+	data: {
+		session_id: string;
+		status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+		is_terminal: boolean;
+		has_withdrawn_consent: boolean;
+		organization_name: string;
+		organization_owner_id_check_completed: boolean;
+		organization_verified_apex_domains: string[];
+		organization_logo: string | null;
+		organization_business_type: "sole" | "business" | null;
+		organization_business_name: string | null;
+		organization_business_jurisdiction: string | null;
+		organization_business_registration_number: string | null;
+		organization_privacy_policy_url: string | null;
+		organization_terms_of_service_url: string | null;
+		organization_website: string | null;
+		organization_description: string | null;
+		rp_fallback: {
+			appeal_url: string | null;
+			complaints_url: string | null;
+			fallback_idv_url: string | null;
+			support_email: string | null;
+		};
+		latest_attempt_id: string | null;
+		result_webhook_deliveries: {
+			total_count: number;
+			succeeded_count: number;
+			undelivered_count: number;
+		};
+	} | null;
+	error: {
+		code: string;
+		message: string;
+	} | null;
+};
+
+type ConsentResponse = {
+	data: {
+		consent_id: string;
+		consented_at: string;
 	} | null;
 	error: {
 		code: string;
@@ -151,6 +210,34 @@ async function createSessionWithCancelToken({
 		sessionId: payload.data.id,
 		cancelToken: payload.data.cancel_token,
 	};
+}
+
+async function recordConsent(sessionId: string): Promise<string> {
+	const response = await app.request(
+		`/v1/verify/session/${sessionId}/consent`,
+		{
+			body: JSON.stringify({
+				biometric_consent: true,
+				document_processing_consent: true,
+				privacy_notice_acknowledged: true,
+				share_claims_consent: true,
+				terms_acknowledged: true,
+			}),
+			headers: {
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		},
+	);
+
+	expect(response.status).toBe(200);
+	const payload = (await response.json()) as ConsentResponse;
+	expect(payload.error).toBeNull();
+	if (!payload.data?.consent_id) {
+		throw new Error("Expected consent response to include consent_id");
+	}
+
+	return payload.data.consent_id;
 }
 
 describe("/v1/verify/session/:id/handoff", () => {
@@ -226,12 +313,28 @@ describe("/v1/verify/session/:id/handoff", () => {
 		expect(payload.error?.code).toBe("SESSION_IN_PROGRESS");
 	});
 
+	test.serial("Returns 409 before browser consent is recorded", async () => {
+		const sessionId = await createSession();
+
+		const response = await app.request(
+			`/v1/verify/session/${sessionId}/handoff`,
+			{
+				method: "POST",
+			},
+		);
+
+		expect(response.status).toBe(409);
+		const payload = (await response.json()) as HandoffResponse;
+		expect(payload.error?.code).toBe("CONSENT_REQUIRED");
+	});
+
 	test.serial("Creates handoff payload and persists token hash", async () => {
 		if (!TEST_DATA) {
 			throw new Error("Test data not initialized");
 		}
 
 		const sessionId = await createSession();
+		const consentId = await recordConsent(sessionId);
 
 		const response = await app.request(
 			`/v1/verify/session/${sessionId}/handoff`,
@@ -299,12 +402,23 @@ describe("/v1/verify/session/:id/handoff", () => {
 			},
 		);
 		expect(attempt?.mobileWriteTokenHash).toBe(expectedHash);
+
+		const [consent] = await db
+			.select({
+				verificationAttemptId: verification_consents.verificationAttemptId,
+			})
+			.from(verification_consents)
+			.where(eq(verification_consents.id, consentId))
+			.limit(1);
+
+		expect(consent?.verificationAttemptId).toBe(payload.data.attempt_id);
 	});
 
 	test.serial(
 		"Reuses an unclaimed handoff until the token expires",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -352,6 +466,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 		"Issues a new attempt after the active handoff token expires",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -387,6 +502,7 @@ describe("/v1/verify/session/:id/handoff", () => {
 		"Blocks new handoff issuance after a token is claimed",
 		async () => {
 			const sessionId = await createSession();
+			await recordConsent(sessionId);
 
 			const firstResponse = await app.request(
 				`/v1/verify/session/${sessionId}/handoff`,
@@ -416,6 +532,57 @@ describe("/v1/verify/session/:id/handoff", () => {
 			expect(secondResponse.status).toBe(409);
 			const secondPayload = (await secondResponse.json()) as HandoffResponse;
 			expect(secondPayload.error?.code).toBe("SESSION_IN_PROGRESS");
+		},
+	);
+});
+
+describe("/v1/verify/session/:id/consent", () => {
+	test.serial("Persists browser consent before handoff", async () => {
+		const sessionId = await createSession();
+		const consentId = await recordConsent(sessionId);
+
+		const [consent] = await db
+			.select()
+			.from(verification_consents)
+			.where(eq(verification_consents.id, consentId))
+			.limit(1);
+
+		expect(consent).toBeDefined();
+		expect(consent?.verificationSessionId).toBe(sessionId);
+		expect(consent?.verificationAttemptId).toBeNull();
+		expect(consent?.documentProcessingConsent).toBe(true);
+		expect(consent?.biometricConsent).toBe(true);
+		expect(consent?.shareClaimsConsent).toBe(true);
+		expect(consent?.termsAcknowledged).toBe(true);
+		expect(consent?.privacyNoticeAcknowledged).toBe(true);
+		expect(consent?.rpName).toBe("Test Organization");
+		expect(consent?.requestedClaimKeys).toContain("kayle_document_id");
+		expect(consent?.requiredClaimKeys).toContain("kayle_document_id");
+		expect(consent?.selectedClaimKeys).toEqual(consent?.requestedClaimKeys);
+		expect(consent?.shareContractHash).toHaveLength(64);
+	});
+
+	test.serial(
+		"Rejects consent requests missing separate acknowledgements",
+		async () => {
+			const sessionId = await createSession();
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/consent`,
+				{
+					body: JSON.stringify({
+						document_processing_consent: true,
+					}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(400);
+			const payload = (await response.json()) as ConsentResponse;
+			expect(payload.error?.code).toBe("INVALID_REQUEST");
 		},
 	);
 });
@@ -453,7 +620,7 @@ describe("/v1/verify/session/:id/status", () => {
 			const payload = (await response.json()) as VerifySessionDetailsResponse;
 
 			expect(payload.error).toBeNull();
-			expect(payload.data).toEqual({
+			expect(payload.data).toMatchObject({
 				organization_name: "Test Organization",
 				organization_owner_id_check_completed: true,
 				organization_verified_apex_domains: [
@@ -471,6 +638,10 @@ describe("/v1/verify/session/:id/status", () => {
 				session_id: sessionId,
 				is_age_only: false,
 				age_threshold: null,
+			});
+			expect(payload.data?.share_fields.kayle_document_id).toMatchObject({
+				required: true,
+				source: "default",
 			});
 		},
 	);
@@ -506,6 +677,12 @@ describe("/v1/verify/session/:id/status", () => {
 		expect(payload.data).toMatchObject({
 			is_age_only: true,
 			age_threshold: 21,
+			share_fields: {
+				age_over_21: {
+					required: true,
+					source: "rc",
+				},
+			},
 		});
 	});
 
@@ -663,6 +840,226 @@ describe("/v1/verify/session/:id/status", () => {
 				},
 			);
 			expect(secondResponse.status).toBe(204);
+		},
+	);
+
+	test.serial(
+		"Public cancel records a privacy request and scrubs undelivered completed-check webhooks",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = "va_privacy_request_completed";
+			const eventId = "evt_privacy_request_completed";
+			const endpointId = "whe_privacy_request_completed";
+			const deliveryId = "whd_privacy_request_completed";
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				mobileHelloDeviceIdHash: "device_hash",
+				mobileWriteTokenConsumedAt: completedAt,
+				riskScore: 0.73,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-request",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values({
+				eventId,
+				id: deliveryId,
+				payload: "encrypted-claims-payload",
+				payloadExpiresAt: new Date("2099-01-02T00:00:00.000Z"),
+				payloadRetentionReason: "pending_delivery",
+				status: "pending",
+				webhookEndpointId: endpointId,
+				webhookEncryptionKeyId: null,
+			});
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(204);
+
+			const [delivery] = await db
+				.select()
+				.from(webhook_deliveries)
+				.where(eq(webhook_deliveries.id, deliveryId))
+				.limit(1);
+			const [attempt] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			const [session] = await db
+				.select()
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, sessionId))
+				.limit(1);
+			const [privacyAudit] = await db
+				.select()
+				.from(audit_logs)
+				.where(
+					and(
+						eq(audit_logs.organizationId, TEST_DATA?.organizationId ?? ""),
+						eq(audit_logs.event, "session.privacy_request.submitted"),
+						eq(audit_logs.targetId, sessionId),
+					),
+				)
+				.limit(1);
+
+			expect(delivery?.payload).toBeNull();
+			expect(delivery?.payloadExpiresAt).toBeNull();
+			expect(delivery?.payloadRetentionReason).toBe("privacy_request");
+			expect(delivery?.payloadScrubbedAt).not.toBeNull();
+			expect(delivery?.status).toBe("failed");
+			expect(attempt?.status).toBe("cancelled");
+			expect(attempt?.failureCode).toBe("session_cancelled");
+			expect(attempt?.mobileHelloDeviceIdHash).toBeNull();
+			expect(attempt?.mobileWriteTokenConsumedAt).toBeNull();
+			expect(attempt?.riskScore).toBe(0);
+			expect(attempt?.selectedShareFieldKeys).toEqual([]);
+			expect(session?.status).toBe("cancelled");
+			expect(privacyAudit?.metadata).toMatchObject({
+				delivered_webhook_delivery_count: 0,
+				minimized_completed_attempt_count: 1,
+				scrubbed_webhook_payload_count: 1,
+				session_status_at_request: "completed",
+				total_webhook_delivery_count: 1,
+			});
+		},
+	);
+
+	test.serial(
+		"Public cancel records delivered privacy requests without replayable payloads",
+		async () => {
+			const { sessionId, cancelToken } = await createSessionWithCancelToken();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = "va_privacy_request_delivered";
+			const eventId = "evt_privacy_request_delivered";
+			const endpointId = "whe_privacy_request_delivered";
+			const deliveryId = "whd_privacy_request_delivered";
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				mobileHelloDeviceIdHash: "device_hash",
+				mobileWriteTokenConsumedAt: completedAt,
+				riskScore: 0.81,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-request-delivered",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values({
+				eventId,
+				id: deliveryId,
+				payload: null,
+				payloadRetentionReason: "delivered",
+				payloadScrubbedAt: completedAt,
+				status: "succeeded",
+				webhookEndpointId: endpointId,
+				webhookEncryptionKeyId: null,
+			});
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/cancel`,
+				{
+					body: JSON.stringify({ cancel_token: cancelToken }),
+					headers: { "Content-Type": "application/json" },
+					method: "POST",
+				},
+			);
+
+			expect(response.status).toBe(204);
+
+			const [delivery] = await db
+				.select()
+				.from(webhook_deliveries)
+				.where(eq(webhook_deliveries.id, deliveryId))
+				.limit(1);
+			const [attempt] = await db
+				.select()
+				.from(verification_attempts)
+				.where(eq(verification_attempts.id, attemptId))
+				.limit(1);
+			const [session] = await db
+				.select()
+				.from(verification_sessions)
+				.where(eq(verification_sessions.id, sessionId))
+				.limit(1);
+			const [privacyAudit] = await db
+				.select()
+				.from(audit_logs)
+				.where(
+					and(
+						eq(audit_logs.organizationId, TEST_DATA?.organizationId ?? ""),
+						eq(audit_logs.event, "session.privacy_request.submitted"),
+						eq(audit_logs.targetId, sessionId),
+					),
+				)
+				.limit(1);
+
+			expect(delivery?.payload).toBeNull();
+			expect(delivery?.payloadRetentionReason).toBe("delivered");
+			expect(delivery?.status).toBe("succeeded");
+			expect(attempt?.status).toBe("succeeded");
+			expect(attempt?.failureCode).toBeNull();
+			expect(attempt?.mobileHelloDeviceIdHash).toBeNull();
+			expect(attempt?.mobileWriteTokenConsumedAt).toBeNull();
+			expect(attempt?.riskScore).toBe(0);
+			expect(attempt?.selectedShareFieldKeys).toEqual([]);
+			expect(session?.status).toBe("completed");
+			expect(privacyAudit?.metadata).toMatchObject({
+				delivered_webhook_delivery_count: 1,
+				minimized_completed_attempt_count: 1,
+				scrubbed_webhook_payload_count: 0,
+				session_status_at_request: "completed",
+				total_webhook_delivery_count: 1,
+			});
 		},
 	);
 
@@ -878,6 +1275,147 @@ describe("/v1/verify/session/:id/status", () => {
 			expect(attempt?.status).toBe("failed");
 			expect(attempt?.failureCode).toBe("session_expired");
 			expect(attempt?.completedAt).not.toBeNull();
+		},
+	);
+});
+
+describe("/v1/verify/session/:id/privacy-context", () => {
+	test.serial("Returns 404 for unknown privacy context sessions", async () => {
+		const response = await app.request(
+			"/v1/verify/session/vs_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/privacy-context",
+		);
+
+		expect(response.status).toBe(404);
+		const payload =
+			(await response.json()) as VerifySessionPrivacyContextResponse;
+		expect(payload.error?.code).toBe("SESSION_NOT_FOUND");
+	});
+
+	test.serial(
+		"Returns active privacy context without result deliveries",
+		async () => {
+			const sessionId = await createSession();
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/privacy-context`,
+			);
+
+			expect(response.status).toBe(200);
+			const payload =
+				(await response.json()) as VerifySessionPrivacyContextResponse;
+			expect(payload.error).toBeNull();
+			expect(payload.data).toMatchObject({
+				session_id: sessionId,
+				status: "created",
+				is_terminal: false,
+				has_withdrawn_consent: false,
+				organization_name: "Test Organization",
+				organization_owner_id_check_completed: true,
+				organization_verified_apex_domains: [
+					...(TEST_DATA?.verifiedApexDomains ?? []),
+				].sort(),
+				organization_logo: null,
+				organization_business_name: null,
+				organization_business_jurisdiction: null,
+				organization_business_registration_number: null,
+				organization_business_type: null,
+				organization_privacy_policy_url: null,
+				organization_terms_of_service_url: null,
+				organization_website: null,
+				organization_description: null,
+				rp_fallback: {
+					appeal_url: null,
+					complaints_url: null,
+					fallback_idv_url: null,
+					support_email: null,
+				},
+				result_webhook_deliveries: {
+					total_count: 0,
+					succeeded_count: 0,
+					undelivered_count: 0,
+				},
+			});
+		},
+	);
+
+	test.serial(
+		"Returns terminal privacy context with result webhook summary",
+		async () => {
+			const sessionId = await createSession();
+			const completedAt = new Date("2099-01-01T00:00:00.000Z");
+			const attemptId = `va_privacy_context_${crypto.randomUUID()}`;
+			const eventId = `evt_privacy_context_${crypto.randomUUID()}`;
+			const endpointId = `whe_privacy_context_${crypto.randomUUID()}`;
+			const pendingDeliveryId = `whd_privacy_context_pending_${crypto.randomUUID()}`;
+			const succeededDeliveryId = `whd_privacy_context_succeeded_${crypto.randomUUID()}`;
+
+			await db
+				.update(verification_sessions)
+				.set({
+					completedAt,
+					status: "completed",
+				})
+				.where(eq(verification_sessions.id, sessionId));
+			await db.insert(verification_attempts).values({
+				id: attemptId,
+				verificationSessionId: sessionId,
+				completedAt,
+				selectedShareFieldKeys: ["family_name"],
+				status: "succeeded",
+			});
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				subscribedEventTypes: ["verification.attempt.succeeded"],
+				url: "https://example.com/privacy-context",
+			});
+			await db.insert(events).values({
+				id: eventId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				triggerId: attemptId,
+				triggerType: "verification_attempt",
+				type: "verification.attempt.succeeded",
+			});
+			await db.insert(webhook_deliveries).values([
+				{
+					eventId,
+					id: pendingDeliveryId,
+					payload: "encrypted-claims-payload",
+					payloadRetentionReason: "pending_delivery",
+					status: "pending",
+					webhookEndpointId: endpointId,
+					webhookEncryptionKeyId: null,
+				},
+				{
+					eventId,
+					id: succeededDeliveryId,
+					payload: null,
+					payloadRetentionReason: "delivered",
+					payloadScrubbedAt: completedAt,
+					status: "succeeded",
+					webhookEndpointId: endpointId,
+					webhookEncryptionKeyId: null,
+				},
+			]);
+
+			const response = await app.request(
+				`/v1/verify/session/${sessionId}/privacy-context`,
+			);
+
+			expect(response.status).toBe(200);
+			const payload =
+				(await response.json()) as VerifySessionPrivacyContextResponse;
+			expect(payload.error).toBeNull();
+			expect(payload.data).toMatchObject({
+				session_id: sessionId,
+				status: "completed",
+				is_terminal: true,
+				latest_attempt_id: attemptId,
+				result_webhook_deliveries: {
+					total_count: 2,
+					succeeded_count: 1,
+					undelivered_count: 1,
+				},
+			});
 		},
 	);
 });

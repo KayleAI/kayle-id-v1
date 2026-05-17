@@ -73,7 +73,8 @@ export const ERROR_MESSAGES = {
 
   MIN_APP_VERSION_REQUIRED: {
     title: "Update required",
-    description: "Update Kayle ID to the latest version to continue verifying.",
+    description:
+      "Update Kayle ID to the latest version to continue this check.",
   },
 
   CANCEL_TOKEN_INVALID: {
@@ -90,6 +91,11 @@ export const ERROR_MESSAGES = {
   INVALID_REQUEST: {
     title: "Invalid request",
     description: "The request payload was missing or malformed.",
+  },
+
+  CONSENT_REQUIRED: {
+    title: "Consent required",
+    description: "Review and accept the required consent steps to continue.",
   },
 
   ATTEMPT_CONNECTION_ACTIVE: {
@@ -129,7 +135,7 @@ export const ERROR_MESSAGES = {
   },
 
   LIVENESS_CHALLENGE_UNAVAILABLE: {
-    title: "Verification unavailable",
+    title: "Check unavailable",
     description:
       "We couldn’t start the liveness check on this server. Try again later or contact support.",
   },
@@ -151,25 +157,25 @@ export const ERROR_MESSAGES = {
   },
 
   document_authenticity_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
-      "We couldn’t verify your document. Try again or use a different one.",
+      "Kayle ID could not automatically confirm your document. Try again or use a different one.",
   },
 
   document_active_authentication_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
   document_chip_authentication_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
   document_anti_cloning_attestation_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
@@ -181,12 +187,13 @@ export const ERROR_MESSAGES = {
   },
 
   selfie_face_mismatch: {
-    title: "Face doesn’t match",
-    description: "Your face doesn’t match your document photo. Try again.",
+    title: "Face match not confirmed",
+    description:
+      "Kayle ID could not automatically confirm that your face matched the document photo. Try again.",
   },
 
   liveness_failed: {
-    title: "Liveness check failed",
+    title: "Liveness check not confirmed",
     description:
       "We couldn’t confirm the camera was on a live person. Try again and follow the head-movement prompts.",
   },

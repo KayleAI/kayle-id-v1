@@ -13,6 +13,8 @@ import type { WebhookDelivery, WebhookEndpoint } from "@/app/webhooks/api";
 import {
 	getEndpointDisplayName,
 	getEndpointSecondaryLabel,
+	getWebhookDeliveryPayloadLabel,
+	getWebhookDeliveryRetryDisabledReason,
 } from "@/app/webhooks/utils";
 import { RelativeTime } from "@/components/relative-time";
 import {
@@ -71,6 +73,7 @@ export function DeliveriesTabContent({
 							<TableHead>Status</TableHead>
 							<TableHead>Attempts</TableHead>
 							<TableHead>Response</TableHead>
+							<TableHead>Payload</TableHead>
 							<TableHead>Last attempt</TableHead>
 							<TableHead>
 								<span className="sr-only">Actions</span>
@@ -139,6 +142,17 @@ export function DeliveriesTabContent({
 									<TableCell>
 										<ResponseCodeBadge statusCode={delivery.last_status_code} />
 									</TableCell>
+									<TableCell className="min-w-[12rem]">
+										<div className="space-y-1 text-sm">
+											<div>{getWebhookDeliveryPayloadLabel(delivery)}</div>
+											{delivery.payload_expires_at ? (
+												<div className="text-muted-foreground text-xs">
+													Expires{" "}
+													<RelativeTime iso={delivery.payload_expires_at} />
+												</div>
+											) : null}
+										</div>
+									</TableCell>
 									<TableCell className="text-muted-foreground text-sm tabular-nums">
 										{delivery.last_attempt_at ? (
 											<RelativeTime iso={delivery.last_attempt_at} />
@@ -148,7 +162,10 @@ export function DeliveriesTabContent({
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											disabled={isRetrying}
+											disabled={
+												isRetrying ||
+												getWebhookDeliveryRetryDisabledReason(delivery) !== null
+											}
 											onClick={() =>
 												showAsyncToast(onRetryDelivery(delivery.id), {
 													loading: "Retrying delivery...",

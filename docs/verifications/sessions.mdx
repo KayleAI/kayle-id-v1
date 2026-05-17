@@ -4,7 +4,7 @@ description: "Lifecycle, attempts, expiry, and cancellation."
 icon: "id-card"
 ---
 
-A verification session represents one identity verification you want to perform. You create a session via the API, redirect the user to the session's `verification_url`, and receive the result over a webhook when the user finishes — or a `verification.session.expired` event if they don't.
+A verification session represents one Kayle check you want to run. You create a session via the API, redirect the user to the session's `verification_url`, and receive the Kayle result over a webhook when the user finishes, or a `verification.session.expired` event if they don't.
 
 ## The session object
 
@@ -38,8 +38,8 @@ A session moves through these statuses:
 | Status        | Meaning |
 |---------------|---------|
 | `created`     | The session exists. No attempt has been claimed yet. |
-| `in_progress` | A mobile or web client is actively performing the verification. |
-| `completed`   | An attempt succeeded, **or** the maximum number of attempts was exhausted with no success. |
+| `in_progress` | A mobile or web client is actively performing the Kayle check. |
+| `completed`   | An attempt was confirmed, **or** the maximum number of attempts was exhausted without a confirmed attempt. |
 | `expired`     | 60 minutes elapsed since creation without a terminal attempt. |
 | `cancelled`   | The session was cancelled by you or by the user. |
 
@@ -49,7 +49,7 @@ Sessions expire 60 minutes after `created_at`. A scheduled job sweeps expired se
 
 Inside a session, each interactive run by the user is an **attempt** (`va_...`). An attempt has its own status — `in_progress`, `succeeded`, `failed`, `cancelled` — and, on failure, a `failure_code` you can match on. See [Document checks](/verifications/document-checks#failure-codes) for the codes.
 
-A session allows up to **three attempts**. After the third terminal failure, the session moves to `completed` and no further attempts are accepted.
+A session allows up to **three attempts**. After the third not-confirmed terminal attempt, the session moves to `completed` and no further attempts are accepted.
 
 You can fetch attempts attached to a session with `?include_attempts=true` on `GET /v1/sessions/:id`, or list across sessions via `GET /v1/sessions/attempts`.
 
@@ -62,7 +62,7 @@ curl -X POST https://api.kayle.id/v1/sessions \
   -d '{
     "redirect_url": "https://yourapp.com/verification/done",
     "share_fields": {
-      "date_of_birth": { "required": true, "reason": "Verify age eligibility" },
+      "date_of_birth": { "required": true, "reason": "Check age eligibility" },
       "family_name":   { "required": true, "reason": "Match account name" }
     }
   }'
@@ -78,7 +78,7 @@ Both fields are reflected back to the user during the consent step, so write `re
 
 Two cancel paths exist:
 
-- **Authenticated cancel** — `POST /v1/sessions/:id/cancel` with your API key. Idempotent. Use this when you decide server-side that you no longer want the verification to proceed.
+- **Authenticated cancel** — `POST /v1/sessions/:id/cancel` with your API key. Idempotent. Use this when you decide server-side that you no longer want the Kayle check to proceed.
 - **Public cancel** — `POST /v1/verify/session/:id/cancel` with the one-shot `cancel_token` in the body. The verify app and native apps use this to abort from the user's side. The token is consumed on first successful use; subsequent calls return `204` if the session is already terminal, otherwise `CANCEL_TOKEN_USED`.
 
 A cancelled session emits `verification.session.cancelled` to subscribed webhooks.
@@ -98,4 +98,4 @@ curl "https://api.kayle.id/v1/sessions?status=completed&limit=50" \
 
 ## What you don't see
 
-The session object never includes raw document data, MRZ fields, the on-chip portrait, selfies, or the face match score. Those are computed and discarded inside the verification pipeline. The only place verified claims surface is in the `verification.attempt.succeeded` webhook payload.
+The session object never includes raw document data, MRZ fields, the on-chip portrait, selfies, or the face match score. Those are computed and discarded inside the verification pipeline. The consented claims surface only in the `verification.attempt.succeeded` webhook payload.

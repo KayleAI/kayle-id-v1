@@ -24,7 +24,7 @@ interface InfoCardProps {
     secondary?: ButtonAction;
   };
   children?: ReactNode;
-  colour: "red" | "blue" | "emerald";
+  colour: "red" | "blue" | "emerald" | "amber";
   footer?: boolean;
   header: {
     title: string;
@@ -43,6 +43,7 @@ const ICONS = {
   emerald: (
     <OctagonCheck className="size-5 text-emerald-800 dark:text-emerald-300" />
   ),
+  amber: <OctagonAlert className="size-5 text-amber-800 dark:text-amber-400" />,
 };
 
 const COLOUR_CLASSES = {
@@ -63,6 +64,12 @@ const COLOUR_CLASSES = {
       "bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900",
     title: "text-emerald-800 dark:text-emerald-200",
     description: "text-emerald-700 dark:text-emerald-300",
+  },
+  amber: {
+    container:
+      "bg-amber-50 border border-amber-200 dark:border-amber-500/30 dark:bg-amber-500/10",
+    title: "text-amber-800 dark:text-amber-100",
+    description: "text-amber-700 dark:text-amber-200/80",
   },
 };
 

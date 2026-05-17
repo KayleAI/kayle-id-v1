@@ -12,6 +12,7 @@ export const AUDIT_LOG_EVENTS = [
   "session.created",
   "session.cancelled",
   "session.expired",
+  "session.privacy_request.submitted",
   "session.succeeded",
   // Per-attempt failure inside a session that still has retries left.
   "session.attempt.failed",
@@ -24,6 +25,7 @@ export const AUDIT_LOG_EVENTS = [
   "organization.public_details.updated",
   "organization.logo.updated",
   "organization.business_details.updated",
+  "organization.rp_terms.accepted",
   // Domain verification + redirect URIs
   "domain.challenge.started",
   "domain.verified",

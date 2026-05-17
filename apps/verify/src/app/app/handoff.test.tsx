@@ -11,6 +11,7 @@ import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,
 } from "@/config/handoff";
+import type { Organization } from "./organization-name";
 
 if (typeof document === "undefined") {
 	const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -190,10 +191,34 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 	};
 });
 
+vi.mock("@kayleai/ui/dialog", () => ({
+	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	DialogTrigger: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+		render?: React.ReactElement;
+	}) => (
+		<button className={className} type="button">
+			{children}
+		</button>
+	),
+	DialogContent: () => null,
+	DialogHeader: ({ children }: { children: React.ReactNode }) => (
+		<>{children}</>
+	),
+	DialogTitle: () => null,
+	DialogDescription: () => null,
+	DialogFooter: () => null,
+}));
+
 vi.mock("@kayle-id/ui/info-card", () => ({
 	InfoCard: ({
 		buttons,
 		children,
+		colour,
 		header,
 		message,
 	}: {
@@ -208,6 +233,7 @@ vi.mock("@kayle-id/ui/info-card", () => ({
 			};
 		};
 		children?: React.ReactNode;
+		colour: string;
 		header: {
 			description: string;
 			title: string;
@@ -217,7 +243,7 @@ vi.mock("@kayle-id/ui/info-card", () => ({
 			title: string;
 		};
 	}) => (
-		<div>
+		<div data-colour={colour} data-testid="info-card">
 			<h1>{header.title}</h1>
 			<p>{header.description}</p>
 			<h2>{message.title}</h2>
@@ -281,6 +307,32 @@ function createSessionStatus(
 	};
 }
 
+function createOrganization(
+	overrides: Partial<Organization> = {},
+): Organization {
+	return {
+		name: "Test Organization",
+		ownerIdCheckCompleted: true,
+		verifiedApexDomains: ["test.example"],
+		logo: null,
+		businessType: null,
+		businessName: null,
+		businessJurisdiction: null,
+		businessRegistrationNumber: null,
+		privacyPolicyUrl: null,
+		termsOfServiceUrl: null,
+		website: null,
+		description: null,
+		rpFallback: {
+			appealUrl: null,
+			complaintsUrl: null,
+			fallbackIdvUrl: null,
+			supportEmail: null,
+		},
+		...overrides,
+	};
+}
+
 function createVerifyRequestError(
 	code: string,
 	message: string,
@@ -314,6 +366,7 @@ beforeEach(() => {
 		redirect_url: null,
 	});
 	mockedUseSession.mockReturnValue({
+		organization: createOrganization(),
 		sessionStatus: null,
 	});
 	Object.defineProperty(window, "close", {
@@ -366,7 +419,9 @@ describe("Handoff", () => {
 		});
 		expect(openAppLink.getAttribute("href")).toContain("kayle-id://");
 		expect(
-			view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel }),
+			view.getByRole("button", {
+				name: VERIFY_HANDOFF_COPY.actions.cancelOrWithdrawConsent,
+			}),
 		).not.toBeNull();
 	});
 
@@ -376,6 +431,7 @@ describe("Handoff", () => {
 			os: "unknown",
 		});
 		mockedUseSession.mockReturnValue({
+			organization: createOrganization(),
 			sessionStatus: createSessionStatus({
 				completed_at: "2099-01-01T00:00:00.000Z",
 				is_terminal: true,
@@ -396,8 +452,51 @@ describe("Handoff", () => {
 		expect(
 			await view.findByText(VERIFY_HANDOFF_COPY.screens.terminal.success.title),
 		).not.toBeNull();
+		expect(
+			view.getByRole("button", {
+				name: VERIFY_HANDOFF_COPY.privacyRequest.linkLabel,
+			}),
+		).not.toBeNull();
 		expect(requestVerifySessionStatusMock).not.toHaveBeenCalled();
 		expect(requestHandoffPayloadMock).not.toHaveBeenCalled();
+	});
+
+	test("renders expired terminal copy without saying the check completed", async () => {
+		mockedUseDevice.mockReturnValue({
+			supported: false,
+			os: "unknown",
+		});
+		mockedUseSession.mockReturnValue({
+			organization: createOrganization(),
+			sessionStatus: createSessionStatus({
+				completed_at: "2099-01-01T00:00:00.000Z",
+				is_terminal: true,
+				latest_attempt: null,
+				status: "expired",
+			}),
+		});
+
+		const view = render(<Handoff />);
+
+		expect(
+			await view.findByText(VERIFY_HANDOFF_COPY.screens.terminal.expired.title),
+		).not.toBeNull();
+		expect(
+			view.getByText(
+				VERIFY_HANDOFF_COPY.screens.terminal.unfinishedHeaderDescription,
+			),
+		).not.toBeNull();
+		expect(
+			view.queryByText(
+				VERIFY_HANDOFF_COPY.screens.terminal.finishedHeaderDescription,
+			),
+		).toBeNull();
+		expect(
+			view.getByRole("button", {
+				name: VERIFY_HANDOFF_COPY.privacyRequest.linkLabel,
+			}),
+		).not.toBeNull();
+		expect(view.container.querySelector(".flex-1")).toBeNull();
 	});
 
 	test("hides the handoff QR code once the mobile device connects", async () => {
@@ -494,7 +593,9 @@ describe("Handoff", () => {
 			view.getByText(VERIFY_HANDOFF_COPY.handoff.errorMessageDescription),
 		).not.toBeNull();
 		expect(
-			view.getByRole("button", { name: VERIFY_HANDOFF_COPY.actions.cancel }),
+			view.getByRole("button", {
+				name: VERIFY_HANDOFF_COPY.actions.cancelOrWithdrawConsent,
+			}),
 		).not.toBeNull();
 		expect(view.queryByTestId("qr-code")).toBeNull();
 	});
@@ -612,7 +713,11 @@ describe("Handoff", () => {
 		expect(view.queryByTestId("cancel-dialog")).toBeNull();
 
 		act(() => {
-			view.getByRole("button", { name: "Cancel" }).click();
+			view
+				.getByRole("button", {
+					name: VERIFY_HANDOFF_COPY.actions.cancelOrWithdrawConsent,
+				})
+				.click();
 		});
 		await flushUi();
 
@@ -638,6 +743,7 @@ describe("Handoff", () => {
 		expect(
 			view.getByText(VERIFY_HANDOFF_COPY.screens.terminal.cancelled.title),
 		).not.toBeNull();
+		expect(view.getByTestId("info-card").dataset.colour).toBe("amber");
 	});
 
 	test("closes the browser locally instead of cancelling a same-device session", async () => {
@@ -688,7 +794,11 @@ describe("Handoff", () => {
 		await flushUi();
 
 		act(() => {
-			view.getByRole("button", { name: "Cancel" }).click();
+			view
+				.getByRole("button", {
+					name: VERIFY_HANDOFF_COPY.actions.cancelOrWithdrawConsent,
+				})
+				.click();
 		});
 		await flushUi();
 
@@ -800,5 +910,75 @@ describe("Handoff", () => {
 		expect(view.getByText(SELFIE_FAILURE_CLOSE_PAGE_TEXT)).not.toBeNull();
 		expect(assignLocationSpy).not.toHaveBeenCalled();
 		expect(view.queryByTestId("qr-code")).toBeNull();
+	});
+
+	test("renders configured RP fallback CTAs on terminal failure", async () => {
+		mockedUseDevice.mockReturnValue({
+			supported: false,
+			os: "unknown",
+		});
+		mockedUseSession.mockReturnValue({
+			organization: createOrganization({
+				name: "Acme",
+				rpFallback: {
+					appealUrl: "https://acme.example/review",
+					complaintsUrl: "https://acme.example/complaints",
+					fallbackIdvUrl: "https://acme.example/manual-idv",
+					supportEmail: "support@acme.example",
+				},
+			}),
+			sessionStatus: null,
+		});
+
+		requestHandoffPayloadMock.mockRejectedValue(
+			createVerifyRequestError(
+				"SESSION_EXPIRED",
+				"The verification session has already finished.",
+			),
+		);
+		requestVerifySessionStatusMock.mockResolvedValue(
+			createSessionStatus({
+				completed_at: "2099-01-01T00:00:00.000Z",
+				is_terminal: true,
+				latest_attempt: {
+					completed_at: "2099-01-01T00:00:00.000Z",
+					failure_code: "selfie_face_mismatch",
+					handoff_claimed: true,
+					id: "va_attempt123",
+					retry_allowed: false,
+					status: "failed",
+				},
+				redirect_url: null,
+				same_device_only: true,
+				status: "completed",
+			}),
+		);
+
+		const view = render(<Handoff />);
+
+		expect(
+			(
+				await view.findByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.fallbackIdvLabel,
+				})
+			).getAttribute("href"),
+		).toBe("https://acme.example/manual-idv");
+		expect(
+			view
+				.getByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.appealLabel,
+				})
+				.getAttribute("href"),
+		).toBe("https://acme.example/review");
+		expect(
+			view.getByRole("link", { name: "Contact Acme" }).getAttribute("href"),
+		).toBe("mailto:support@acme.example");
+		expect(
+			view
+				.getByRole("link", {
+					name: VERIFY_HANDOFF_COPY.rpFallback.complaintsLabel,
+				})
+				.getAttribute("href"),
+		).toBe("https://acme.example/complaints");
 	});
 });

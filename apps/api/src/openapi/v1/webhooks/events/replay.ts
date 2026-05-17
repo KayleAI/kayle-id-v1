@@ -16,7 +16,7 @@ export const replayWebhookEvent = createRoute({
 	tags: ["Webhooks"],
 	summary: "Replay a webhook event",
 	description:
-		"Manually requeue all deliveries for a replayable webhook event.",
+		"Manually requeue replayable deliveries for a webhook event while their encrypted payloads are still retained.",
 	security: [{ bearerAuth: [] }],
 	responses: {
 		202: {
@@ -57,7 +57,7 @@ export const replayWebhookEvent = createRoute({
 							error: {
 								code: "CONFLICT",
 								message: "Webhook event cannot be replayed.",
-								hint: "Only webhook events with replayable deliveries can be replayed.",
+								hint: "Only webhook events with retained encrypted payloads can be replayed.",
 								docs: "https://kayle.id/docs/api/webhooks/events#replay",
 							},
 						},

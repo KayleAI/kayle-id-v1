@@ -7,7 +7,7 @@ icon: "key"
 Webhook payloads are always end-to-end encrypted. Kayle wraps every event body as a JWE addressed to a public key you've registered with the endpoint. Without an active encryption key, deliveries fail closed — the body is never sent. This is part of Kayle ID's privacy guarantee: Kayle, your CDN, your reverse proxy, and any intermediate logs cannot see the cleartext claims.
 
 <Warning>
-  An endpoint with no active encryption key cannot receive deliveries. The delivery row is created with `status: failed` and no payload. You must register a key before enabling the endpoint, or you'll lose the events that fire in the gap.
+  An endpoint with no active encryption key cannot receive deliveries. The delivery row is created with `status: failed` and no retained payload, so it cannot be manually retried or replayed. You must register a key before enabling the endpoint, or you'll lose the events that fire in the gap.
 </Warning>
 
 ## Algorithms

@@ -115,8 +115,8 @@ struct LivenessCaptureView: View {
     engine.markUploading()
     do {
       session.livenessVideoURL = url
-      let accepted = try await session.sendLivenessVideo(url)
-      if accepted {
+      let completed = try await session.sendLivenessVideo(url)
+      if completed {
         onComplete()
       } else {
         onRejected()
@@ -651,7 +651,7 @@ final class LivenessEngine: ObservableObject {
   }
 
   private func beginRecording() throws {
-    let tempURL = makeTempURL()
+    let tempURL = try makeTempURL()
     let writer = try AVAssetWriter(outputURL: tempURL, fileType: .mp4)
 
     let outputSettings: [String: Any] = [
@@ -758,6 +758,13 @@ final class LivenessEngine: ObservableObject {
           self.fatalError = LivenessError.captureFailed
           return
         }
+        do {
+          try LivenessTempFileStore.protectRecording(at: url)
+        } catch {
+          self.cleanup(removingFile: true)
+          self.fatalError = LivenessError.captureFailed
+          return
+        }
 
         if !self.hasReportedFinalURL {
           self.hasReportedFinalURL = true
@@ -814,10 +821,8 @@ final class LivenessEngine: ObservableObject {
     }
   }
 
-  private func makeTempURL() -> URL {
-    let tempDir = FileManager.default.temporaryDirectory
-    let filename = "liveness-\(UUID().uuidString).mp4"
-    return tempDir.appendingPathComponent(filename)
+  private func makeTempURL() throws -> URL {
+    try LivenessTempFileStore.makeRecordingURL()
   }
 
   private func cleanup(removingFile: Bool) {

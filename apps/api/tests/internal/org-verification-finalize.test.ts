@@ -33,7 +33,7 @@ afterAll(async () => {
 async function setOrgUnverified(organizationId: string): Promise<void> {
 	await db
 		.update(auth_organizations)
-		.set({ pending_deletion_at: null, verified_at: null })
+		.set({ owner_id_checked_at: null, pending_deletion_at: null })
 		.where(eq(auth_organizations.id, organizationId));
 }
 
@@ -190,7 +190,7 @@ describe("POST /internal/org-verification/finalize", () => {
 			expect(body.error.code).toBe("ORGANIZATION_FROZEN");
 
 			const [org] = await db
-				.select({ verifiedAt: auth_organizations.verified_at })
+				.select({ verifiedAt: auth_organizations.owner_id_checked_at })
 				.from(auth_organizations)
 				.where(eq(auth_organizations.id, TEST_DATA.organizationId))
 				.limit(1);
@@ -208,7 +208,7 @@ describe("POST /internal/org-verification/finalize", () => {
 		}
 	});
 
-	test("flips verified_at + writes a dedup record on first finalize", async () => {
+	test("records owner ID check + writes a dedup record on first finalize", async () => {
 		if (!TEST_DATA) {
 			throw new Error("TEST_DATA missing");
 		}
@@ -245,7 +245,7 @@ describe("POST /internal/org-verification/finalize", () => {
 		expect(body.data.pepper_version).toBe(1);
 
 		const [org] = await db
-			.select({ verifiedAt: auth_organizations.verified_at })
+			.select({ verifiedAt: auth_organizations.owner_id_checked_at })
 			.from(auth_organizations)
 			.where(eq(auth_organizations.id, TEST_DATA.organizationId))
 			.limit(1);
@@ -324,7 +324,7 @@ describe("POST /internal/org-verification/finalize", () => {
 			expect(body.error.code).toBe("OWNER_NOT_ACTIVE");
 
 			const [org] = await db
-				.select({ verifiedAt: auth_organizations.verified_at })
+				.select({ verifiedAt: auth_organizations.owner_id_checked_at })
 				.from(auth_organizations)
 				.where(eq(auth_organizations.id, organizationId))
 				.limit(1);
@@ -397,7 +397,7 @@ describe("POST /internal/org-verification/finalize", () => {
 			const orgRows = await db
 				.select({
 					id: auth_organizations.id,
-					verifiedAt: auth_organizations.verified_at,
+					verifiedAt: auth_organizations.owner_id_checked_at,
 				})
 				.from(auth_organizations)
 				.where(inArray(auth_organizations.id, [firstOrgId, secondOrgId]));

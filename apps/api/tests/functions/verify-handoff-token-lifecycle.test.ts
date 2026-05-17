@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	verification_attempts,
+	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
@@ -28,6 +29,25 @@ async function createSession(): Promise<string> {
 		cancelTokenHash: await hashSessionCancelToken(cancelToken),
 		id: sessionId,
 		organizationId: TEST_DATA.organizationId,
+	});
+	await db.insert(verification_consents).values({
+		id: generateId({ type: "vc" }),
+		organizationId: TEST_DATA.organizationId,
+		verificationSessionId: sessionId,
+		consentUiVersion: 1,
+		termsVersion: "test",
+		privacyNoticeVersion: "test",
+		shareContractHash: "0".repeat(64),
+		requestedClaimKeys: ["kayle_document_id"],
+		selectedClaimKeys: ["kayle_document_id"],
+		requiredClaimKeys: ["kayle_document_id"],
+		documentProcessingConsent: true,
+		biometricConsent: true,
+		shareClaimsConsent: true,
+		termsAcknowledged: true,
+		privacyNoticeAcknowledged: true,
+		rpName: "Test Organization",
+		controllerName: "Test Organization",
 	});
 
 	createdSessionIds.push(sessionId);

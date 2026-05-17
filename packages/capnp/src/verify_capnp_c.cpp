@@ -155,8 +155,8 @@ verify_server_message_kind_t verify_server_message_kind(void* message_reader) {
       return VERIFY_SERVER_MESSAGE_ACK;
     case ServerMessage::ERROR:
       return VERIFY_SERVER_MESSAGE_ERROR;
-    case ServerMessage::VERDICT:
-      return VERIFY_SERVER_MESSAGE_VERDICT;
+    case ServerMessage::CHECK_RESULT:
+      return VERIFY_SERVER_MESSAGE_CHECK_RESULT;
     case ServerMessage::SHARE_REQUEST:
       return VERIFY_SERVER_MESSAGE_SHARE_REQUEST;
     case ServerMessage::SHARE_READY:
@@ -272,7 +272,7 @@ int verify_server_message_get_error(
   return 1;
 }
 
-int verify_server_message_get_verdict(
+int verify_server_message_get_check_result(
   void* message_reader,
   int* out_outcome,
   char* out_reason_code,
@@ -293,18 +293,18 @@ int verify_server_message_get_verdict(
 
   auto* reader = reinterpret_cast<capnp::MessageReader*>(message_reader);
   auto root = reader->getRoot<ServerMessage>();
-  if (root.which() != ServerMessage::VERDICT) {
+  if (root.which() != ServerMessage::CHECK_RESULT) {
     return 0;
   }
 
-  auto verdict = root.getVerdict();
-  *out_outcome = verdict.getOutcome() == VerdictOutcome::ACCEPTED
-    ? VERIFY_SERVER_VERDICT_ACCEPTED
-    : VERIFY_SERVER_VERDICT_REJECTED;
+  auto check_result = root.getCheckResult();
+  *out_outcome = check_result.getOutcome() == CheckOutcome::CONFIRMED
+    ? VERIFY_SERVER_CHECK_CONFIRMED
+    : VERIFY_SERVER_CHECK_NOT_CONFIRMED;
 
   if (
     !copy_text_to_buffer(
-      verdict.getReasonCode(),
+      check_result.getReasonCode(),
       out_reason_code,
       out_reason_code_size
     )
@@ -314,7 +314,7 @@ int verify_server_message_get_verdict(
 
   if (
     !copy_text_to_buffer(
-      verdict.getReasonMessage(),
+      check_result.getReasonMessage(),
       out_reason_message,
       out_reason_message_size
     )
@@ -322,8 +322,8 @@ int verify_server_message_get_verdict(
     return 0;
   }
 
-  *out_retry_allowed = verdict.getRetryAllowed() ? 1 : 0;
-  *out_remaining_attempts = verdict.getRemainingAttempts();
+  *out_retry_allowed = check_result.getRetryAllowed() ? 1 : 0;
+  *out_remaining_attempts = check_result.getRemainingAttempts();
   return 1;
 }
 

@@ -91,7 +91,7 @@ describe("/v1/sessions cancel terminal states", () => {
 	);
 
 	test.serial(
-		"Cancel marks in-progress attempts with canonical failure_code",
+		"Cancel marks in-progress attempts with canonical cancellation state",
 		async () => {
 			if (!TEST_DATA) {
 				throw new Error("Test data not initialized");
@@ -111,6 +111,19 @@ describe("/v1/sessions cancel terminal states", () => {
 			await db.insert(verification_attempts).values({
 				id: attemptId,
 				verificationSessionId: created.data.id,
+				claimedAt: new Date(),
+				claimedByConnectionId: "conn_cancelled",
+				currentPhase: "nfc_reading",
+				mobileHelloAppVersion: "1.0.0",
+				mobileHelloDeviceIdHash: "device_hash",
+				mobileWriteTokenConsumedAt: new Date(),
+				mobileWriteTokenExpiresAt: new Date(Date.now() + 60_000),
+				mobileWriteTokenHash: "token_hash",
+				mobileWriteTokenIssuedAt: new Date(),
+				mobileWriteTokenSeed: "token_seed",
+				phaseUpdatedAt: new Date(),
+				riskScore: 0.42,
+				selectedShareFieldKeys: ["family_name"],
 				status: "in_progress",
 			});
 
@@ -131,9 +144,22 @@ describe("/v1/sessions cancel terminal states", () => {
 				.where(eq(verification_attempts.id, attemptId))
 				.limit(1);
 
-			expect(attemptAfter?.status).toBe("failed");
+			expect(attemptAfter?.status).toBe("cancelled");
 			expect(attemptAfter?.failureCode).toBe("session_cancelled");
 			expect(attemptAfter?.completedAt).not.toBeNull();
+			expect(attemptAfter?.claimedAt).toBeNull();
+			expect(attemptAfter?.claimedByConnectionId).toBeNull();
+			expect(attemptAfter?.currentPhase).toBeNull();
+			expect(attemptAfter?.mobileHelloAppVersion).toBeNull();
+			expect(attemptAfter?.mobileHelloDeviceIdHash).toBeNull();
+			expect(attemptAfter?.mobileWriteTokenConsumedAt).toBeNull();
+			expect(attemptAfter?.mobileWriteTokenExpiresAt).toBeNull();
+			expect(attemptAfter?.mobileWriteTokenHash).toBeNull();
+			expect(attemptAfter?.mobileWriteTokenIssuedAt).toBeNull();
+			expect(attemptAfter?.mobileWriteTokenSeed).toBeNull();
+			expect(attemptAfter?.phaseUpdatedAt).toBeNull();
+			expect(attemptAfter?.riskScore).toBe(0);
+			expect(attemptAfter?.selectedShareFieldKeys).toEqual([]);
 		},
 	);
 

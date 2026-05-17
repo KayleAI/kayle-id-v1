@@ -160,12 +160,12 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	expect(preview).toEqual({
 		contractVersion: 1,
 		description:
-			"We couldn’t verify your document. Try again or use a different one.",
+			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
 		eventType: "verification.attempt.failed",
 		failureCode: "document_authenticity_failed",
 		failureDescription:
-			"We couldn’t verify your document. Try again or use a different one.",
-		failureTitle: "Document check failed",
+			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
+		failureTitle: "Document check not confirmed",
 		title: "Attempt Failed",
 		verificationAttemptId: "va_demo_test",
 		verificationSessionId: "vs_demo_test",
@@ -184,7 +184,8 @@ test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => 
 
 	expect(preview).toEqual({
 		contractVersion: null,
-		description: "A verification attempt failed with Unexpected Failure Code.",
+		description:
+			"A Kayle check attempt was not confirmed with Unexpected Failure Code.",
 		eventType: "verification.attempt.failed",
 		failureCode: "unexpected_failure_code",
 		failureDescription: null,

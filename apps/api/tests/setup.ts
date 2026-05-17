@@ -64,7 +64,7 @@ const setup = async (): Promise<TestData> => {
 			// doesn't cap test fixtures at 5 identity sessions per file. Tests
 			// that explicitly exercise the unverified path (see
 			// `sessions-unverified-org-limit.test.ts`) toggle this back to null.
-			verified_at: new Date(),
+			owner_id_checked_at: new Date(),
 			verification_terms_accepted_at: new Date(),
 			verification_terms_accepted_by: userId,
 		})

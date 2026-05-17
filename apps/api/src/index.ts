@@ -13,8 +13,13 @@ import {
 import { config } from "@/config";
 import internal from "@/internal";
 import { requestLoggingMiddleware } from "@/logging";
+import { registerWebhookPayloadOpenApi } from "@/openapi/models/webhook";
 import { requestBodyLimitMiddleware } from "@/request-body-limit";
 import { runStorageAtRestCron } from "@/scheduled/storage-at-rest";
+import {
+	runVerificationRetentionSweep,
+	shouldRunVerificationRetentionSweep,
+} from "@/scheduled/verification-retention";
 import v1 from "@/v1";
 import admin from "@/v1/admin";
 import { shouldRunExpiredSessionNormalization } from "@/v1/analytics/session-analytics";
@@ -24,6 +29,7 @@ import {
 	refreshAppAttestReceipts,
 	shouldRunReceiptRefresh,
 } from "@/v1/verify/attest-receipt-refresh";
+import { runWebhookPayloadRetentionSweep } from "@/v1/webhooks/deliveries/service";
 import auth from "./auth";
 
 export { WebhookDeliveryWorkflow } from "@/v1/webhooks/deliveries/workflow";
@@ -123,7 +129,9 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 	scheme: "bearer",
 });
 
-app.doc("/openapi", {
+registerWebhookPayloadOpenApi(app.openAPIRegistry);
+
+app.doc31("/openapi", {
 	info: {
 		title: "Kayle ID",
 		version: config.version,
@@ -146,7 +154,7 @@ app.doc("/openapi", {
 		},
 	],
 	security: [{ bearerAuth: [] }],
-	openapi: "3.0.0",
+	openapi: "3.1.0",
 });
 
 app.get("/reference", Scalar({ url: "/openapi" }));
@@ -185,6 +193,12 @@ const worker = Object.assign(app, {
 			});
 		}
 
+		if (shouldRunVerificationRetentionSweep(controller.scheduledTime)) {
+			await runVerificationRetentionSweep({
+				now: new Date(controller.scheduledTime),
+			});
+		}
+
 		if (shouldRunDomainReverification(controller.scheduledTime)) {
 			await runDomainReverificationCron({
 				env: env as Parameters<typeof runDomainReverificationCron>[0]["env"],
@@ -193,6 +207,10 @@ const worker = Object.assign(app, {
 		}
 
 		await processDueOrganizationDeletions({
+			now: new Date(controller.scheduledTime),
+		});
+
+		await runWebhookPayloadRetentionSweep({
 			now: new Date(controller.scheduledTime),
 		});
 	},

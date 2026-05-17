@@ -67,14 +67,14 @@ export async function handlePhaseMessage(
 		return;
 	}
 
-	const verdict =
+	const checkResult =
 		nextPhase === "nfc_complete" || nextPhase === "liveness_complete"
 			? await runPhaseValidation(context, state.attemptId, nextPhase)
 			: null;
 
 	if (
-		verdict?.outcome === "rejected" ||
-		(nextPhase === "nfc_complete" && verdict)
+		checkResult?.outcome === "not_confirmed" ||
+		(nextPhase === "nfc_complete" && checkResult)
 	) {
 		return;
 	}
@@ -113,7 +113,7 @@ export async function handlePhaseMessage(
 					"LIVENESS_CHALLENGE_UNAVAILABLE",
 					resolveVerifyErrorMessage("LIVENESS_CHALLENGE_UNAVAILABLE"),
 				);
-				transport.closeAfterVerdict("LIVENESS_CHALLENGE_UNAVAILABLE");
+				transport.closeAfterCheckResult("LIVENESS_CHALLENGE_UNAVAILABLE");
 				return;
 			}
 			const challenge = await deriveLivenessChallenge({
@@ -128,8 +128,8 @@ export async function handlePhaseMessage(
 		}
 	}
 
-	if (nextPhase === "liveness_complete" && verdict) {
-		transport.sendVerdict(verdict);
+	if (nextPhase === "liveness_complete" && checkResult) {
+		transport.sendCheckResult(checkResult);
 		transport.sendShareRequest(context.shareRequestPayload);
 		state.shareRequestSent = true;
 		return;

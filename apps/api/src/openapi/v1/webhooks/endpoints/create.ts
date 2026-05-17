@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { safeWebhookUrl } from "@kayle-id/config/safe-url";
-import { webhookEventTypeSchema } from "@kayle-id/config/webhook-events";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	webhookEventTypeSchema,
+	webhookPayloadRetentionHoursSchema,
+} from "@kayle-id/config/webhook-events";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
 import { CreatedWebhookEndpoint } from "@/openapi/models/webhook";
@@ -38,6 +42,13 @@ export const createWebhookEndpoint = createRoute({
 								.array(webhookEventTypeSchema)
 								.optional()
 								.describe("The event types this endpoint should receive."),
+							undelivered_payload_retention_hours:
+								webhookPayloadRetentionHoursSchema
+									.optional()
+									.default(DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS)
+									.describe(
+										"How long Kayle should retain encrypted undelivered payloads after terminal delivery failure.",
+									),
 						})
 						.openapi("CreateWebhookEndpointRequest"),
 				},

@@ -15,8 +15,10 @@ export function SessionApp() {
 		error,
 		isAgeOnly,
 		isSessionDetailsReady,
+		markSessionCancelled,
 		organization,
 		session,
+		sessionId,
 	} = useSession();
 	const step = useVerificationStore((state) => state.step);
 
@@ -48,7 +50,9 @@ export function SessionApp() {
 				<SessionConsent
 					ageThreshold={ageThreshold}
 					isAgeOnly={isAgeOnly}
+					onSessionCancelled={markSessionCancelled}
 					organization={organization}
+					sessionId={sessionId}
 				/>
 			);
 		case "handoff":

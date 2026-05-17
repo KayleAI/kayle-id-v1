@@ -36,7 +36,7 @@ async function resetAttemptState(
 		attemptId,
 		ownerId: connectionOwnerId,
 	});
-	state.acceptedFaceScore = null;
+	state.confirmedFaceScore = null;
 	state.attemptId = null;
 	state.currentPhase = null;
 	state.shareManifest = null;
@@ -140,7 +140,7 @@ export async function handleHelloMessage(
 		return;
 	}
 
-	state.acceptedFaceScore = null;
+	state.confirmedFaceScore = null;
 	state.attemptId = attempt.id;
 	state.currentPhase = attempt.currentPhase ?? null;
 	state.helloReceived = true;

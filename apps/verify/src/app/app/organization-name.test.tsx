@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@kayleai/ui/dialog", async () => {
 	const React = await import("react");
+	const { createPortal } = await import("react-dom");
 	const DialogContext = React.createContext<{
 		open: boolean;
 		setOpen: (open: boolean) => void;
@@ -43,7 +44,9 @@ vi.mock("@kayleai/ui/dialog", async () => {
 
 	function DialogContent({ children }: { children: React.ReactNode }) {
 		const { open } = React.useContext(DialogContext);
-		return open ? <div role="dialog">{children}</div> : null;
+		return open
+			? createPortal(<div role="dialog">{children}</div>, document.body)
+			: null;
 	}
 
 	function PassThrough({ children }: { children?: React.ReactNode }) {
@@ -81,6 +84,12 @@ function createOrganization(
 		termsOfServiceUrl: null,
 		website: null,
 		description: null,
+		rpFallback: {
+			appealUrl: null,
+			complaintsUrl: null,
+			fallbackIdvUrl: null,
+			supportEmail: null,
+		},
 		...overrides,
 	};
 }
@@ -141,26 +150,26 @@ describe("OrganizationName", () => {
 	});
 
 	test("softens unverified callout to amber for age-only sessions", () => {
-		const { container: redContainer } = render(
+		render(
 			<OrganizationName
 				organization={createOrganization({ ownerIdCheckCompleted: false })}
 			/>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
-		expect(redContainer.querySelector(".bg-red-50\\/60")).not.toBeNull();
-		expect(redContainer.querySelector(".bg-amber-50\\/60")).toBeNull();
+		expect(document.body.querySelector(".bg-red-50\\/60")).not.toBeNull();
+		expect(document.body.querySelector(".bg-amber-50\\/60")).toBeNull();
 
 		cleanup();
 
-		const { container: amberContainer } = render(
+		render(
 			<OrganizationName
 				isAgeOnly
 				organization={createOrganization({ ownerIdCheckCompleted: false })}
 			/>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
-		expect(amberContainer.querySelector(".bg-amber-50\\/60")).not.toBeNull();
-		expect(amberContainer.querySelector(".bg-red-50\\/60")).toBeNull();
+		expect(document.body.querySelector(".bg-amber-50\\/60")).not.toBeNull();
+		expect(document.body.querySelector(".bg-red-50\\/60")).toBeNull();
 	});
 
 	test("renders privacy policy and terms of service links when provided", () => {
@@ -347,11 +356,12 @@ describe("OrganizationName", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
 		expect(screen.getByText("Verified domains")).not.toBeNull();
-		expect(screen.getByText("acme-corp.com, acme.co")).not.toBeNull();
+		expect(screen.getByText("acme-corp.com")).not.toBeNull();
+		expect(screen.getByText("acme.co")).not.toBeNull();
 	});
 
 	test("hides the user-supplied logo when no verified domain", () => {
-		const { container } = render(
+		render(
 			<OrganizationName
 				organization={createOrganization({
 					verifiedApexDomains: [],
@@ -362,11 +372,11 @@ describe("OrganizationName", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
-		expect(container.querySelector('img[src*="spoofed.png"]')).toBeNull();
+		expect(document.body.querySelector('img[src*="spoofed.png"]')).toBeNull();
 	});
 
 	test("renders the user-supplied logo when a verified domain is present", () => {
-		const { container } = render(
+		render(
 			<OrganizationName
 				organization={createOrganization({
 					verifiedApexDomains: ["acme.co"],
@@ -377,6 +387,6 @@ describe("OrganizationName", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
-		expect(container.querySelector('img[src*="acme.png"]')).not.toBeNull();
+		expect(document.body.querySelector('img[src*="acme.png"]')).not.toBeNull();
 	});
 });

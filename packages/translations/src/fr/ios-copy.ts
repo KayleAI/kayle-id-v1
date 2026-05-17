@@ -14,10 +14,12 @@ export const IOS_COPY_FR: IosCopy = {
   "Authenticating with document…": "Authentification avec le document…",
   Back: "Retour",
   Cancel: "Annuler",
+  "Cancel?": "Annuler ?",
   "Checking verification…": "Vérification en cours…",
   "Choose at least one verification detail before continuing.":
     "Choisissez au moins une information de vérification pour continuer.",
   "Choose what to share": "Choisissez ce que vous souhaitez partager",
+  "Connecting securely...": "Connexion sécurisée…",
   Continue: "Continuer",
   "Date of Birth": "Date de naissance",
   "Do you see this symbol?": "Voyez-vous ce symbole ?",
@@ -77,6 +79,7 @@ export const IOS_COPY_FR: IosCopy = {
     "Positionnez votre visage dans le cadre, puis tournez lentement la tête vers la gauche et la droite. Assurez-vous que votre visage est bien éclairé et clairement visible.",
   "Press your document against your device and hold still to read the chip.":
     "Appuyez votre document contre votre appareil et restez immobile pour lire la puce.",
+  "Privacy Options": "Options de confidentialité",
   "Privacy Policy": "Politique de confidentialité",
   "Reading data groups…": "Lecture des groupes de données…",
   "Reconnecting…": "Reconnexion…",
@@ -138,9 +141,9 @@ export const IOS_COPY_FR: IosCopy = {
     "Utilisez votre appareil photo pour scanner le code imprimé sur votre document, puis lisez la puce s’il en a une.",
   "Use your camera to scan the QR code from your browser and begin verification.":
     "Utilisez votre appareil photo pour scanner le code QR depuis votre navigateur et commencer la vérification.",
-  "Verification Complete": "Vérification terminée",
-  "Verification Failed": "Échec de la vérification",
-  "Verified from your document.": "Vérifié depuis votre document.",
+  "Verification Complete": "Vérification Kayle ID terminée",
+  "Verification Failed": "Vérification Kayle ID non confirmée",
+  "Verified from your document.": "Lu depuis votre document.",
   "We couldn't use this scan to read the chip. Try scanning again.":
     "Nous n’avons pas pu utiliser ce scan pour lire la puce. Réessayez.",
   "When you're ready, tap Start Scanning and follow the NFC prompt.":
@@ -153,7 +156,7 @@ export const IOS_COPY_FR: IosCopy = {
   "You can optionally choose to share these details.":
     "Vous pouvez choisir de partager ces informations.",
   "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.":
-    "Vos données de vérification d’identité ont été transmises en toute sécurité. Vous pouvez maintenant fermer cette application et retourner à votre navigateur.",
+    "Le résultat de votre vérification Kayle ID a été envoyé en toute sécurité. Vous pouvez maintenant fermer cette application et retourner à votre navigateur.",
 
   "a document": "un document",
   "a passport": "un passeport",

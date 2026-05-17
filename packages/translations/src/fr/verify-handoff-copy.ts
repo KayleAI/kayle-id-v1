@@ -12,6 +12,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
 
   actions: {
     cancel: "Annuler",
+    cancelOrWithdrawConsent: "Annuler ou retirer le consentement",
     closeThisPage: "Fermer cette page",
     continueNow: "Continuer",
     openKayleIdApp: "Ouvrir Kayle ID",
@@ -19,10 +20,10 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
   },
 
   cancelDialog: {
-    title: "Annuler cette vérification ?",
+    title: "Annuler ou retirer le consentement ?",
     description:
-      "Cela arrêtera la vérification. Vous pourrez en démarrer une nouvelle plus tard.",
-    confirm: "Oui, annuler",
+      "Cela arrêtera cette vérification et retirera le consentement pour le traitement par Kayle ID.",
+    confirm: "Oui, arrêter cette vérification",
     dismiss: "Continuer",
   },
 
@@ -34,13 +35,64 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     errorMessageDescription: "Vérifiez votre connexion internet et réessayez.",
   },
 
+  rpFallback: {
+    title: "Besoin d’une autre voie ?",
+    description:
+      "Utilisez l’une des options de secours de cette organisation si Kayle ID n’est pas la bonne méthode pour terminer cette vérification.",
+    fallbackIdvLabel: "Utiliser une autre méthode de vérification",
+    appealLabel: "Demander un examen",
+    contactLabel: "Contacter {organization}",
+    complaintsLabel: "Réclamations",
+  },
+
+  privacyRequest: {
+    head: {
+      pageTitle: "Options de confidentialité Kayle ID",
+      pageDescription:
+        "Retirez votre consentement pour une vérification Kayle ID",
+    },
+    linkLabel: "Mes options de confidentialité",
+    heading: "Options de confidentialité",
+    statusHeading: "À propos de cette vérification d’identité",
+    terminalHeading: "Cette vérification d’identité est terminée",
+    activeDescription:
+      "Kayle ID ne conserve que les données temporaires du document et du selfie nécessaires à cette vérification. Retirer le consentement arrête le traitement et supprime tout ce qui est encore conservé pour cette vérification.",
+    unavailableActiveDescription:
+      "Kayle ID ne peut pas charger l’organisation de cette vérification. Comme la vérification n’est pas terminée, Kayle ID peut encore conserver des données temporaires pour celle-ci.",
+    terminalNoDataDescription:
+      "Cette vérification d’identité est déjà terminée. Kayle ID n’a plus votre document, votre selfie ni vos informations personnelles pour celle-ci.",
+    terminalUndeliveredDescription:
+      "Cette vérification d’identité est déjà terminée. Kayle ID n’a plus votre document, votre selfie ni vos informations personnelles. {organization} n’a pas reçu le résultat, et le retrait peut supprimer maintenant le résultat chiffré non livré.",
+    terminalDeliveredDescription:
+      "Cette vérification d’identité est déjà terminée. Kayle ID n’a plus votre document, votre selfie ni vos informations personnelles. {organization} a déjà reçu vos données.",
+    notFoundHeading: "Nous ne trouvons pas cette vérification d’identité",
+    notFoundDescription:
+      "S’il s’agit de la vérification d’identité que vous avez utilisée, Kayle ID n’a plus votre document, votre selfie ni vos informations personnelles pour celle-ci.",
+    withdrawTitle: "Retirer le consentement",
+    withdrawDescriptionActive:
+      "Kayle ID arrêtera le traitement de cette vérification et supprimera tout ce qui est encore conservé pour celle-ci.",
+    withdrawDescriptionTerminal:
+      "Kayle ID enregistrera le retrait de votre consentement et supprimera tout résultat chiffré que nous détenons encore pour cette vérification.",
+    cancelButton: "Retirer le consentement",
+    cancelPendingButton: "Retrait du consentement en cours…",
+    cancelSuccess: "Consentement retiré",
+    cancelError: "Nous n’avons pas pu retirer le consentement depuis ce lien.",
+    organizationRequestTitle:
+      "Vos données ont déjà été envoyées à {organization}",
+    organizationRequestDescription:
+      "{organization} contrôle les données reçues. Contactez cette organisation pour y demander l’accès ou la suppression.",
+    rpEmailButton: "Envoyer un e-mail à {organization}",
+    learnMoreLink: "En savoir plus sur Kayle ID",
+    defaultOrganizationName: "cette organisation",
+  },
+
   screens: {
     connected: {
       headerTitle: "Continuez sur votre téléphone",
       headerDescription: "Votre téléphone est maintenant connecté.",
-      messageTitle: "En cours",
+      messageTitle: "Vérification d’identité en cours",
       messageDescription:
-        "Terminez les étapes dans l’application Kayle ID. Cette page se mettra à jour automatiquement.",
+        "Continuez la vérification dans l’application Kayle ID.",
     },
 
     initial: {
@@ -60,7 +112,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
         "Cette vérification doit rester sur l’appareil qui l’a démarrée.",
       messageTitle: "Réessayer",
       messageDescription:
-        "Elle ne s’est pas terminée avec succès. Réessayez sur le même appareil, ou annulez-la depuis cet appareil.",
+        "Kayle ID n’a pas pu confirmer automatiquement cette vérification. Réessayez sur le même appareil, ou annulez-la depuis cet appareil.",
     },
 
     sameDeviceOnly: {
@@ -74,8 +126,10 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
 
     terminal: {
       cancelled: {
-        title: "Annulée",
-        description: "Cette vérification a été annulée avant d’être terminée.",
+        title: "Vérification annulée",
+        headerDescription: "Kayle ID ne poursuivra pas cette vérification.",
+        messageTitle: "Aucune autre action requise",
+        description: "Cette vérification a été arrêtée.",
       },
 
       expired: {
@@ -84,37 +138,42 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       },
 
       failed: {
-        title: "Échec",
-        description: "La dernière tentative n’a pas abouti.",
+        title: "Vérification non confirmée",
+        description:
+          "Kayle ID n’a pas pu confirmer automatiquement la dernière tentative.",
       },
 
       documentAuthenticityFailed: {
-        title: "Échec de la vérification du document",
-        description: "Nous n’avons pas pu vérifier votre document.",
+        title: "Document non confirmé",
+        description:
+          "Kayle ID n’a pas pu confirmer automatiquement votre document.",
       },
 
       documentActiveAuthenticationFailed: {
-        title: "Échec de la vérification du document",
+        title: "Document non confirmé",
         description: "Nous n’avons pas pu confirmer la puce de votre document.",
       },
 
       documentChipAuthenticationFailed: {
-        title: "Échec de la vérification du document",
+        title: "Document non confirmé",
         description: "Nous n’avons pas pu confirmer la puce de votre document.",
       },
 
       selfieFaceMismatch: {
-        title: "Le visage ne correspond pas",
+        title: "Correspondance du visage non confirmée",
         description:
-          "Votre selfie ne correspond pas à la photo de votre document.",
+          "Kayle ID n’a pas pu confirmer automatiquement que votre selfie correspondait à la photo du document.",
       },
 
       success: {
-        title: "Terminée",
-        description: "Terminée avec succès sur votre téléphone.",
+        title: "Vérification d’identité terminée",
+        description:
+          "La vérification d’identité a été effectuée avec succès sur votre téléphone.",
       },
 
-      finishedHeaderDescription: "Cette vérification est terminée.",
+      finishedHeaderDescription: "Cette vérification d’identité est terminée.",
+      unfinishedHeaderDescription:
+        "Cette vérification d’identité ne s’est pas terminée.",
       outcomeMessageTitle: "Résultat",
       redirectHeaderDescription:
         "Continuez maintenant ou attendez d’être redirigé.",
@@ -123,21 +182,27 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
     },
 
     explain: {
-      headline: "Vérifiez votre identité avec Kayle ID",
+      headline: "Effectuez une vérification Kayle ID",
       intro:
-        "Kayle ID vous permet de vérifier votre identité à l’aide de la puce de votre document et d’un selfie.",
+        "Kayle ID traite une vérification d’assurance d’identité à l’aide de la puce de votre document et d’un selfie.",
       processTitle: "Ce processus :",
-      processBulletAuthentic: "Confirme que votre document est authentique",
-      processBulletHolder:
-        "Confirme que vous êtes bien le détenteur du document",
+      processBulletAuthentic: "Vérifie si votre document est authentique",
+      processBulletHolder: "Vérifie si vous êtes bien le détenteur du document",
       processBulletSharingPrefix:
-        "Partage uniquement le résultat de la vérification et les informations que vous choisissez de partager avec ",
+        "Partage uniquement le résultat de la vérification Kayle ID et les informations que vous choisissez de partager avec ",
       processBulletSharingSuffix: "",
+      processBulletDecisionPrefix: "Envoie un signal d’assurance d’identité à ",
+      processBulletDecisionSuffix:
+        " ; cette organisation décide quoi faire du résultat.",
       kayleIdTitle: "Kayle ID :",
       kayleIdBulletNoStorage: "Ne stocke ni votre document ni votre selfie",
       kayleIdBulletNoAccount: "Ne crée pas de compte pour vous",
       kayleIdBulletSessionScoped:
-        "Traite les données uniquement pour cette session de vérification",
+        "Traite les données du document et les données biométriques uniquement pour cette vérification, puis les supprime lorsque la connexion sécurisée se ferme",
+      kayleIdBulletRetention:
+        "Conserve des métadonnées limitées de session pendant les durées définies dans l’avis de confidentialité",
+      kayleIdBulletNoDecision:
+        "Ne décide pas si vous recevez le service de l’organisation",
       continueButton: "Continuer",
 
       ageOnly: {
@@ -179,13 +244,23 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
 
       agreementPrefix: "J’accepte les ",
       agreementMiddle: " et l’",
-      agreementSuffix: " et je consens à la vérification d’identité.",
+      agreementSuffix: " et je consens à cette vérification.",
       termsOfServiceLink: "Conditions de service",
       privacyNoticeLink: "Avis de confidentialité",
 
       startButtonFull: "Démarrer la vérification",
       startButtonAgeOnly: "Confirmer mon âge",
-      backButton: "Retour",
+      startButtonPending: "Démarrage…",
+      declineButton: "Je ne consens pas",
+      submitError:
+        "Nous n’avons pas pu enregistrer votre consentement. Vérifiez votre connexion et réessayez.",
+      refusalDialogTitle: "Ne pas consentir ?",
+      refusalDialogDescriptionPrefix:
+        "Cela arrêtera cette vérification. Contactez ",
+      refusalDialogDescriptionSuffix:
+        " pour utiliser une autre voie ou demander un examen.",
+      refusalDialogConfirm: "Oui, arrêter cette vérification",
+      refusalDialogDismiss: "Retour",
     },
 
     notFound: {

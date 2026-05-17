@@ -1,6 +1,6 @@
 ---
 title: "Share fields"
-description: "The catalogue of claims you can request from a verified user."
+description: "The catalogue of claims you can request for a Kayle check."
 icon: "list-check"
 ---
 
@@ -13,7 +13,7 @@ When you create a session you tell Kayle which claims you need. The user sees th
   "share_fields": {
     "date_of_birth": {
       "required": true,
-      "reason": "Verify age eligibility for this product"
+      "reason": "Check age eligibility for this product"
     },
     "given_names": {
       "required": false,
@@ -26,7 +26,7 @@ When you create a session you tell Kayle which claims you need. The user sees th
 Each entry is keyed by the claim's identifier and contains:
 
 <ParamField path="required" type="boolean" required>
-  When `true`, the user must consent to share this claim or the verification cannot proceed. When `false`, the user can decline this claim individually and still finish the flow.
+  When `true`, the user must consent to share this claim or the Kayle check cannot proceed. When `false`, the user can decline this claim individually and still finish the flow.
 </ParamField>
 
 <ParamField path="reason" type="string" required>
@@ -51,8 +51,7 @@ These are the claim keys Kayle understands by default:
 | `sex_marker` | MRZ (DG1) | `M`, `F`, or `X`. |
 | `document_expiry_date` | MRZ (DG1) | ISO 8601 date. |
 | `mrz_optional_data` | MRZ (DG1) | The optional data field of the MRZ, raw. Most documents leave this blank. |
-| `document_photo` | DG2 | The on-chip portrait, base64-encoded JPEG or JPEG2000. |
-| `kayle_document_id` | Derived | Stable identifier for this document for this organization. Lets you recognise the same document on a future verification without storing the document number. |
+| `kayle_document_id` | Derived | Stable identifier for this document for this organization. Lets you recognise the same document on a future Kayle check without storing the document number. |
 | `kayle_human_id` | Derived | Stable identifier for the human, derived from the cryptographically attested document. Lets you recognise the same person across re-issued documents within your organization. |
 
 ## Age-over derived claims
@@ -62,7 +61,7 @@ You can request `age_over_N` for any integer **N** between 12 and 130. The retur
 ```json
 {
   "share_fields": {
-    "age_over_18": { "required": true, "reason": "Verify legal age for our service" }
+    "age_over_18": { "required": true, "reason": "Check legal age for our service" }
   }
 }
 ```
@@ -76,7 +75,7 @@ If you create a session without `share_fields`, Kayle applies a default contract
 
 ## Receiving the values
 
-The `verification.attempt.succeeded` webhook returns the consented claims:
+When Kayle confirms an attempt, the `verification.attempt.succeeded` webhook returns the consented claims:
 
 ```json
 {

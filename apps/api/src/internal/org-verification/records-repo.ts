@@ -70,7 +70,7 @@ export async function prepareOrgVerificationRecord(
  * Compute the dedup hash for a candidate document, scoped to the org being
  * verified, and persist the row that proves the org owner completed an ID
  * check. Returns the inserted record + the hash so callers can immediately
- * branch on existing matches before flipping the org's `verifiedAt`.
+ * branch on existing matches before recording the org owner's ID check.
  */
 export async function recordOrgVerification(
 	input: RecordVerificationInput,

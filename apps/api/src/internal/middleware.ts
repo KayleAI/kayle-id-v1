@@ -19,7 +19,7 @@ function unauthorized(c: Context) {
 /**
  * Internal-only Hono middleware: requires `Authorization: Bearer <token>` to
  * match `env.KAYLE_INTERNAL_TOKEN` exactly. Used to gate platform-to-API calls
- * that perform privileged DB writes (e.g. flipping `auth_organizations.verified_at`).
+ * that perform privileged DB writes (e.g. recording org owner ID checks).
  *
  * No DB lookup, no scope concept — the trust token is the entire authority.
  */

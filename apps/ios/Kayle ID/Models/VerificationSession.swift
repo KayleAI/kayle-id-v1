@@ -16,15 +16,15 @@ nonisolated func describeUnexpectedServerMessage(
     return "\(fallback) Received server error '\(errorCode)': \(errorMessage)"
   }
 
-  if let verdict = message.verdict {
+  if let checkResult = message.checkResult {
     let outcomeLabel: String
-    switch verdict.outcome {
-    case .accepted:
-      outcomeLabel = "accepted"
-    case .rejected:
-      outcomeLabel = "rejected"
+    switch checkResult.outcome {
+    case .confirmed:
+      outcomeLabel = "confirmed"
+    case .notConfirmed:
+      outcomeLabel = "not_confirmed"
     }
-    return "\(fallback) Received verdict '\(outcomeLabel)'."
+    return "\(fallback) Received checkResult '\(outcomeLabel)'."
   }
 
   if message.shareRequest != nil {
@@ -56,7 +56,7 @@ final class VerificationSession: ObservableObject {
   /// remounts it and resets its internal isRecording/buffered state,
   /// instead of leaving the "Uploading…" overlay stuck on screen.
   @Published var livenessCaptureGeneration = UUID()
-  @Published var verdict: VerifyServerVerdict?
+  @Published var checkResult: VerifyServerCheckResult?
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
   @Published var shareSelectionErrorMessage: String?
@@ -102,6 +102,17 @@ final class VerificationSession: ObservableObject {
   private let maxReconnectAttempts = 5
   // 1s base, exponential up to ~16s — total budget ~30s before giving up.
   private let reconnectBaseDelayNs: UInt64 = 1_000_000_000
+
+  var privacyRequestURL: URL? {
+    guard let payload else {
+      return nil
+    }
+
+    return APIService.privacyRequestURL(
+      sessionId: payload.sessionId,
+      cancelToken: payload.cancelToken
+    )
+  }
 
   private struct NFCUploadPlan {
     let kind: VerifyDataKind
@@ -208,8 +219,8 @@ final class VerificationSession: ObservableObject {
   }
   
   /// Upload the head-movement liveness video and advance to liveness_complete.
-  /// Returns the recorded verdict (accepted or rejected) once the server has
-  /// run the liveness + face match validation.
+  /// Returns true once the server has finished evaluating liveness and face
+  /// matching and the flow can advance.
   func sendLivenessVideo(_ videoURL: URL) async throws -> Bool {
     let uploadStartedAt = Date()
     defer {
@@ -324,7 +335,7 @@ final class VerificationSession: ObservableObject {
     reconnectTask?.cancel()
     reconnectTask = nil
     isReconnecting = false
-    verdict = nil
+    checkResult = nil
     errorMessage = resolvedError.localizedDescription
     isRetryingVerification = false
     step = .error
@@ -565,7 +576,7 @@ final class VerificationSession: ObservableObject {
       payload = nil
     }
 
-    verdict = nil
+    checkResult = nil
     errorMessage = nil
     isRetryingVerification = false
     isReconnecting = false
@@ -752,14 +763,14 @@ final class VerificationSession: ObservableObject {
     }
   }
 
-  private func handleVerdict(_ verdict: VerifyServerVerdict) {
-    self.verdict = verdict
+  private func handleCheckResult(_ checkResult: VerifyServerCheckResult) {
+    self.checkResult = checkResult
     errorMessage = nil
     shareSelectionErrorMessage = nil
     isSubmittingShareSelection = false
-    livenessUploadCancelled = isRejectedVerdict(verdict)
+    livenessUploadCancelled = isNotConfirmedCheck(checkResult)
 
-    if isRejectedVerdict(verdict) {
+    if isNotConfirmedCheck(checkResult) {
       closeActiveAttemptConnection()
       shareRequest = nil
       selectedShareFieldKeys = []
@@ -1027,8 +1038,8 @@ final class VerificationSession: ObservableObject {
           error: nil
         )
 
-        if let verdict = response.verdict {
-          handleVerdict(verdict)
+        if let checkResult = response.checkResult {
+          handleCheckResult(checkResult)
           return
         }
 
@@ -1380,8 +1391,8 @@ final class VerificationSession: ObservableObject {
           return true
         }
 
-        if let verdict = response.verdict {
-          handleVerdict(verdict)
+        if let checkResult = response.checkResult {
+          handleCheckResult(checkResult)
           return false
         }
 

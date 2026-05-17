@@ -344,7 +344,7 @@ test("verifyLiveness emits a container_active cost event on success", async () =
 	expect(point.blobs?.[0]).toBe("verify");
 	expect(point.blobs?.[1]).toBe("container_active");
 	expect(point.blobs?.[3]).toBe("ms");
-	expect(point.blobs?.[4]).toBe("attempt-1");
+	expect(point.blobs?.[4]).toBe("");
 	expect(point.doubles?.[0]).toBeGreaterThanOrEqual(0);
 });
 

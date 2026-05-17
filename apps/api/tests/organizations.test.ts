@@ -8,11 +8,17 @@ import {
 	test,
 } from "bun:test";
 import { ORGANIZATION_NAME_MAX_LENGTH } from "@kayle-id/auth/organization-name";
+import {
+	RP_INTEGRATION_TERMS_HASH,
+	RP_INTEGRATION_TERMS_JURISDICTION,
+	RP_INTEGRATION_TERMS_VERSION,
+} from "@kayle-id/auth/rp-integration-terms";
 import { auth } from "@kayle-id/auth/server";
 import { env } from "@kayle-id/config/env";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
+	auth_organization_rp_terms_acceptances,
 	auth_organizations,
 } from "@kayle-id/database/schema/auth";
 import { and, eq, inArray } from "drizzle-orm";
@@ -39,6 +45,30 @@ type AcceptVerificationTermsResponse = {
 	data: null | {
 		verificationTermsAcceptedAt: string;
 		verificationTermsAcceptedBy: string;
+	};
+	error: null | {
+		code: string;
+		docs?: string;
+		hint?: string;
+		message: string;
+	};
+};
+
+type RpTermsStatusResponse = {
+	data: null | {
+		acceptance: null | {
+			accepted_at: string;
+			accepted_by: string | null;
+			jurisdiction: string;
+			terms_hash: string;
+			terms_version: string;
+		};
+		current: {
+			jurisdiction: string;
+			terms_hash: string;
+			terms_version: string;
+		};
+		current_accepted: boolean;
 	};
 	error: null | {
 		code: string;
@@ -374,6 +404,128 @@ describe("Organization Endpoints", () => {
 
 			expect(organization?.verificationTermsAcceptedAt).toBeNull();
 			expect(organization?.verificationTermsAcceptedBy).toBeNull();
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
+	test("allows an active organization owner to accept current RP integration terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			const initialResponse = await app.request("/v1/auth/orgs/rp-terms", {
+				headers: createJsonHeaders(activeSession.sessionCookie),
+				method: "GET",
+			});
+
+			expect(initialResponse.status).toBe(200);
+			const initialPayload =
+				(await initialResponse.json()) as RpTermsStatusResponse;
+			expect(initialPayload.data?.current).toEqual({
+				jurisdiction: RP_INTEGRATION_TERMS_JURISDICTION,
+				terms_hash: RP_INTEGRATION_TERMS_HASH,
+				terms_version: RP_INTEGRATION_TERMS_VERSION,
+			});
+			expect(initialPayload.data?.current_accepted).toBe(false);
+
+			const response = await app.request("/v1/auth/orgs/rp-terms", {
+				headers: createJsonHeaders(activeSession.sessionCookie),
+				method: "POST",
+			});
+
+			expect(response.status).toBe(200);
+
+			const payload = (await response.json()) as RpTermsStatusResponse;
+			expect(payload.error).toBeNull();
+			expect(payload.data?.current_accepted).toBe(true);
+			expect(payload.data?.acceptance).toMatchObject({
+				accepted_by: activeSession.userId,
+				jurisdiction: RP_INTEGRATION_TERMS_JURISDICTION,
+				terms_hash: RP_INTEGRATION_TERMS_HASH,
+				terms_version: RP_INTEGRATION_TERMS_VERSION,
+			});
+			expect(payload.data?.acceptance?.accepted_at).toBeString();
+
+			const [acceptance] = await db
+				.select({
+					acceptedAt: auth_organization_rp_terms_acceptances.acceptedAt,
+					acceptedBy: auth_organization_rp_terms_acceptances.acceptedBy,
+					jurisdiction: auth_organization_rp_terms_acceptances.jurisdiction,
+					termsHash: auth_organization_rp_terms_acceptances.termsHash,
+					termsVersion: auth_organization_rp_terms_acceptances.termsVersion,
+				})
+				.from(auth_organization_rp_terms_acceptances)
+				.where(
+					eq(
+						auth_organization_rp_terms_acceptances.organizationId,
+						activeSession.organizationId,
+					),
+				)
+				.limit(1);
+
+			expect(acceptance).toEqual({
+				acceptedAt: new Date(payload.data?.acceptance?.accepted_at ?? ""),
+				acceptedBy: activeSession.userId,
+				jurisdiction: RP_INTEGRATION_TERMS_JURISDICTION,
+				termsHash: RP_INTEGRATION_TERMS_HASH,
+				termsVersion: RP_INTEGRATION_TERMS_VERSION,
+			});
+		} finally {
+			await teardownSessionAuth(activeSession);
+		}
+	});
+
+	test("prevents non-owner organization members from accepting RP integration terms", async () => {
+		const activeSession = await setupSessionAuth({
+			withActiveOrganization: true,
+		});
+
+		try {
+			if (!activeSession.organizationId) {
+				throw new Error("active_organization_missing");
+			}
+
+			await db
+				.update(auth_organization_members)
+				.set({ role: "member" })
+				.where(
+					and(
+						eq(
+							auth_organization_members.organizationId,
+							activeSession.organizationId,
+						),
+						eq(auth_organization_members.userId, activeSession.userId),
+					),
+				);
+
+			const response = await app.request("/v1/auth/orgs/rp-terms", {
+				headers: createJsonHeaders(activeSession.sessionCookie),
+				method: "POST",
+			});
+
+			expect(response.status).toBe(403);
+
+			const payload = (await response.json()) as RpTermsStatusResponse;
+			expect(payload.data).toBeNull();
+			expect(payload.error?.code).toBe("FORBIDDEN");
+
+			const [acceptance] = await db
+				.select({ id: auth_organization_rp_terms_acceptances.id })
+				.from(auth_organization_rp_terms_acceptances)
+				.where(
+					eq(
+						auth_organization_rp_terms_acceptances.organizationId,
+						activeSession.organizationId,
+					),
+				)
+				.limit(1);
+			expect(acceptance).toBeUndefined();
 		} finally {
 			await teardownSessionAuth(activeSession);
 		}

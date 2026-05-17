@@ -41,6 +41,7 @@ private struct CompletionRenderSnapshot {
   let message: String
   let primaryButtonTitle: String
   let secondaryButtonTitle: String?
+  let privacyRequestURL: URL?
 }
 
 private struct StepRenderSnapshot: Identifiable {
@@ -389,7 +390,7 @@ struct ContentView: View {
 
       if secondaryButtonTitle == nil {
         secondaryAction = nil
-      } else if let verdict = session.verdict, isRejectedVerdict(verdict), verdict.retryAllowed {
+      } else if let checkResult = session.checkResult, isNotConfirmedCheck(checkResult), checkResult.retryAllowed {
         secondaryAction = presentCancelVerificationConfirmation
       } else {
         secondaryAction = { resetVerificationFlow() }
@@ -397,17 +398,18 @@ struct ContentView: View {
 
       return AnyView(
         CompletionView(
-        isSuccess: isAcceptedVerdict(session.verdict),
+        isSuccess: isConfirmedCheck(session.checkResult),
         message: completionMessage,
         isPrimaryLoading:
-          isRejectedVerdict(session.verdict) &&
-          session.verdict?.retryAllowed == true &&
+          isNotConfirmedCheck(session.checkResult) &&
+          session.checkResult?.retryAllowed == true &&
           session.isRetryingVerification,
         isSecondaryDisabled: session.isRetryingVerification,
         primaryButtonTitle: completionPrimaryButtonTitle,
         onPrimaryAction: handleCompletionPrimaryAction,
         secondaryButtonTitle: secondaryButtonTitle,
-        onSecondaryAction: secondaryAction
+        onSecondaryAction: secondaryAction,
+        privacyRequestURL: session.privacyRequestURL
       )
       )
     case .error:
@@ -418,7 +420,8 @@ struct ContentView: View {
         primaryButtonTitle: String(localized: "Start Again"),
         onPrimaryAction: resetVerificationFlow,
         secondaryButtonTitle: nil,
-        onSecondaryAction: nil
+        onSecondaryAction: nil,
+        privacyRequestURL: session.privacyRequestURL
       )
       )
     }
@@ -497,7 +500,8 @@ struct ContentView: View {
           primaryButtonTitle: completionSnapshot.primaryButtonTitle,
           onPrimaryAction: {},
           secondaryButtonTitle: completionSnapshot.secondaryButtonTitle,
-          onSecondaryAction: nil
+          onSecondaryAction: nil,
+          privacyRequestURL: completionSnapshot.privacyRequestURL
         )
         )
       } else {
@@ -667,32 +671,32 @@ struct ContentView: View {
   }
 
   private var completionMessage: String {
-    guard let verdict = session.verdict else {
+    guard let checkResult = session.checkResult else {
       return String(localized: "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.")
     }
 
-    if isAcceptedVerdict(verdict) {
+    if isConfirmedCheck(checkResult) {
       return String(localized: "Your identity verification data has been securely transmitted. You can now close this app and return to your browser.")
     }
 
     if
-      isRejectedVerdict(verdict),
-      verdict.retryAllowed,
+      isNotConfirmedCheck(checkResult),
+      checkResult.retryAllowed,
       let errorMessage = session.errorMessage,
       !errorMessage.isEmpty
     {
-      return "\(verdict.reasonMessage)\n\n\(errorMessage)"
+      return "\(checkResult.reasonMessage)\n\n\(errorMessage)"
     }
 
-    return verdict.reasonMessage
+    return checkResult.reasonMessage
   }
 
   private var completionPrimaryButtonTitle: String {
-    guard let verdict = session.verdict else {
+    guard let checkResult = session.checkResult else {
       return String(localized: "Done")
     }
 
-    if isRejectedVerdict(verdict), verdict.retryAllowed {
+    if isNotConfirmedCheck(checkResult), checkResult.retryAllowed {
       return String(localized: "Retry Verification")
     }
 
@@ -700,15 +704,15 @@ struct ContentView: View {
   }
 
   private var completionSecondaryButtonTitle: String? {
-    guard let verdict = session.verdict else {
+    guard let checkResult = session.checkResult else {
       return nil
     }
 
-    return isRejectedVerdict(verdict) && verdict.retryAllowed ? "Cancel" : nil
+    return isNotConfirmedCheck(checkResult) && checkResult.retryAllowed ? "Cancel" : nil
   }
 
   private func handleCompletionPrimaryAction() {
-    if let verdict = session.verdict, isRejectedVerdict(verdict), verdict.retryAllowed {
+    if let checkResult = session.checkResult, isNotConfirmedCheck(checkResult), checkResult.retryAllowed {
       captureCurrentStepSnapshot()
       let attemptId = session.payload?.attemptId
       Task {
@@ -1011,10 +1015,11 @@ struct ContentView: View {
       return StepRenderSnapshot(
         step: .complete,
         completion: CompletionRenderSnapshot(
-          isSuccess: isAcceptedVerdict(session.verdict),
+          isSuccess: isConfirmedCheck(session.checkResult),
           message: completionMessage,
           primaryButtonTitle: completionPrimaryButtonTitle,
-          secondaryButtonTitle: completionSecondaryButtonTitle
+          secondaryButtonTitle: completionSecondaryButtonTitle,
+          privacyRequestURL: session.privacyRequestURL
         )
       )
     case .error:
@@ -1024,7 +1029,8 @@ struct ContentView: View {
           isSuccess: false,
           message: session.errorMessage ?? String(localized: "An unexpected error occurred."),
           primaryButtonTitle: String(localized: "Start Again"),
-          secondaryButtonTitle: nil
+          secondaryButtonTitle: nil,
+          privacyRequestURL: session.privacyRequestURL
         )
       )
     }

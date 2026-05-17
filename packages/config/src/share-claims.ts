@@ -12,7 +12,6 @@ export const STATIC_CLAIMS = [
   "sex_marker",
   "document_expiry_date",
   "mrz_optional_data",
-  "document_photo",
   "kayle_document_id",
   "kayle_human_id",
 ] as const;
@@ -36,7 +35,6 @@ export const claimLabels: Record<string, string> = {
   sex_marker: "Sex Marker",
   document_expiry_date: "Document Expiry Date",
   mrz_optional_data: "MRZ Optional Data",
-  document_photo: "Document Photo",
   kayle_document_id: "Kayle Document ID",
   kayle_human_id: "Kayle Human ID",
 };

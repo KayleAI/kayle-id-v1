@@ -8,12 +8,17 @@ import { z } from "zod";
 import { getRequestLogger } from "@/logging";
 import { sessionIdSchema } from "@/shared/validation";
 import {
-	cancelVerificationSession,
 	expireVerificationSessionIfNeeded,
+	recordVerificationSessionPrivacyRequest,
 } from "@/v1/sessions/repo/session-repo";
 import attest from "./attest-handlers";
+import {
+	recordVerifySessionConsent,
+	type VerifyConsentInput,
+} from "./consent-records";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
+import { getPublicVerifySessionPrivacyContext } from "./privacy-context";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { checkRedirectPermitted } from "./redirect-permitted";
 import { loadActiveVerifySession } from "./session-context";
@@ -61,6 +66,76 @@ function sessionParamJsonValidator(value: unknown, c: Context) {
 		response.status,
 	);
 }
+
+const consentBodySchema = z.object({
+	biometric_consent: z.literal(true),
+	document_processing_consent: z.literal(true),
+	privacy_notice_acknowledged: z.literal(true),
+	share_claims_consent: z.literal(true),
+	terms_acknowledged: z.literal(true),
+});
+
+verify.post(
+	"/session/:id/consent",
+	validator("param", sessionParamJsonValidator),
+	validator("json", (value, c) => {
+		const parsed = consentBodySchema.safeParse(value);
+		if (parsed.success) {
+			return parsed.data;
+		}
+
+		const response = createVerifyJsonErrorResponse({
+			code: "INVALID_REQUEST",
+			status: 400,
+		});
+
+		return c.json(
+			{
+				data: response.data,
+				error: response.error,
+			},
+			response.status,
+		);
+	}),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const body = c.req.valid("json");
+		const result = await recordVerifySessionConsent({
+			env: c.env,
+			sessionId: id,
+			input: {
+				biometricConsent: body.biometric_consent,
+				documentProcessingConsent: body.document_processing_consent,
+				privacyNoticeAcknowledged: body.privacy_notice_acknowledged,
+				shareClaimsConsent: body.share_claims_consent,
+				termsAcknowledged: body.terms_acknowledged,
+			} satisfies VerifyConsentInput,
+		});
+
+		if (!result.ok) {
+			const response = createVerifyJsonErrorResponse({
+				code: result.error.code,
+				status: result.error.status,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		return c.json(
+			{
+				data: result.data,
+				error: null,
+			},
+			200,
+		);
+	},
+);
 
 verify.post(
 	"/session/:id/handoff",
@@ -197,6 +272,41 @@ verify.get(
 		return c.json(
 			{
 				data: status,
+				error: null,
+			},
+			200,
+		);
+	},
+);
+
+verify.get(
+	"/session/:id/privacy-context",
+	validator("param", sessionParamJsonValidator),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const context = await getPublicVerifySessionPrivacyContext({
+			env: c.env,
+			sessionId: id,
+		});
+
+		if (!context) {
+			const response = createVerifyJsonErrorResponse({
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+
+			return c.json(
+				{
+					data: response.data,
+					error: response.error,
+				},
+				response.status,
+			);
+		}
+
+		return c.json(
+			{
+				data: context,
 				error: null,
 			},
 			200,
@@ -383,13 +493,11 @@ verify.post(
 			);
 		}
 
-		if (!isTerminal) {
-			await cancelVerificationSession({
-				env: c.env,
-				row: session,
-				organizationId: session.organizationId,
-			});
-		}
+		await recordVerificationSessionPrivacyRequest({
+			env: c.env,
+			row: session,
+			organizationId: session.organizationId,
+		});
 
 		return c.body(null, 204);
 	},

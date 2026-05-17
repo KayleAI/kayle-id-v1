@@ -63,7 +63,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 	const [org] = await db
 		.select({
 			id: auth_organizations.id,
-			verifiedAt: auth_organizations.verified_at,
+			verifiedAt: auth_organizations.owner_id_checked_at,
 			verificationTermsAcceptedAt:
 				auth_organizations.verification_terms_accepted_at,
 			verificationTermsAcceptedBy:
@@ -156,7 +156,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 			.where(
 				and(
 					eq(auth_organizations.id, organizationId),
-					isNull(auth_organizations.verified_at),
+					isNull(auth_organizations.owner_id_checked_at),
 					isNull(auth_organizations.pending_deletion_at),
 					or(
 						isNull(auth_organizations.verification_terms_accepted_at),
@@ -236,7 +236,7 @@ acceptVerificationTerms.openapi(acceptVerificationTermsRoute, async (c) => {
 	const [latestOrg] = await db
 		.select({
 			pendingDeletionAt: auth_organizations.pending_deletion_at,
-			verifiedAt: auth_organizations.verified_at,
+			verifiedAt: auth_organizations.owner_id_checked_at,
 			verificationTermsAcceptedAt:
 				auth_organizations.verification_terms_accepted_at,
 			verificationTermsAcceptedBy:

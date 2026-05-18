@@ -540,7 +540,7 @@ export async function fetchRpIntegrationTermsStatus(): Promise<RpIntegrationTerm
 		basePath: ORG_DOMAINS_BASE_PATH,
 		method: "GET",
 		path: "/rp-terms",
-		unexpectedMessage: "Failed to load RP integration terms status.",
+		unexpectedMessage: "Failed to load Kayle ID Integration Terms status.",
 	});
 }
 
@@ -549,7 +549,7 @@ export async function acceptRpIntegrationTerms(): Promise<RpIntegrationTermsStat
 		basePath: ORG_DOMAINS_BASE_PATH,
 		method: "POST",
 		path: "/rp-terms",
-		unexpectedMessage: "Failed to accept RP integration terms.",
+		unexpectedMessage: "Failed to accept Kayle ID Integration Terms.",
 	});
 }
 

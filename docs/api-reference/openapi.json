@@ -7812,7 +7812,7 @@
         "summary": "Get the active organization's current relying-party integration terms status.",
         "responses": {
           "200": {
-            "description": "Current RP integration terms status.",
+            "description": "Current Kayle ID Integration Terms status.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7972,7 +7972,7 @@
         "summary": "Record that an owner accepted the current relying-party integration terms.",
         "responses": {
           "200": {
-            "description": "Current RP integration terms accepted.",
+            "description": "Current Kayle ID Integration Terms accepted.",
             "content": {
               "application/json": {
                 "schema": {

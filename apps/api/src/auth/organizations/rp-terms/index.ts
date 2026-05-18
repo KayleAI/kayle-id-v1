@@ -61,7 +61,7 @@ function resolveActor(c: RpTermsCtx) {
 					data: null,
 					error: {
 						code: "UNAUTHORIZED" as const,
-						message: "Sign in to manage RP integration terms.",
+						message: "Sign in to manage Kayle ID Integration Terms.",
 						hint: "Send a session cookie or use a session-authenticated client.",
 						docs: "https://kayle.id/docs/api/errors#unauthorized",
 					},
@@ -78,7 +78,8 @@ function resolveActor(c: RpTermsCtx) {
 					data: null,
 					error: {
 						code: "FORBIDDEN" as const,
-						message: "Select an organization to manage RP integration terms.",
+						message:
+							"Select an organization to manage Kayle ID Integration Terms.",
 						hint: "The active session must have an organization selected.",
 						docs: "https://kayle.id/docs/api/errors#forbidden",
 					},
@@ -105,7 +106,7 @@ async function ensureOrgNotFrozen(c: RpTermsCtx, organizationId: string) {
 					error: {
 						code: "ORGANIZATION_FROZEN" as const,
 						message: error.message,
-						hint: "Cancel the pending deletion before accepting RP integration terms.",
+						hint: "Cancel the pending deletion before accepting Kayle ID Integration Terms.",
 						docs: "https://kayle.id/docs/api/errors#organization_frozen",
 					},
 				},
@@ -218,8 +219,8 @@ rpTerms.openapi(acceptRpTermsRoute, async (c) => {
 				data: null,
 				error: {
 					code: "FORBIDDEN" as const,
-					message: "Only an owner can accept RP integration terms.",
-					hint: "Ask an owner of this organization to accept the current RP integration terms.",
+					message: "Only an owner can accept Kayle ID Integration Terms.",
+					hint: "Ask an owner of this organization to accept the current Kayle ID Integration Terms.",
 					docs: "https://kayle.id/docs/api/errors#forbidden",
 				},
 			},
@@ -286,7 +287,7 @@ rpTerms.openapi(acceptRpTermsRoute, async (c) => {
 			details: { organization_id: organizationId },
 			error,
 			event: "organizations.rp_terms.accept.failed",
-			message: "Failed to record RP integration terms acceptance.",
+			message: "Failed to record Kayle ID Integration Terms acceptance.",
 			status: 500,
 		});
 
@@ -295,7 +296,7 @@ rpTerms.openapi(acceptRpTermsRoute, async (c) => {
 				data: null,
 				error: {
 					code: "INTERNAL_SERVER_ERROR" as const,
-					message: "Failed to record RP integration terms acceptance.",
+					message: "Failed to record Kayle ID Integration Terms acceptance.",
 					hint: "Please try again in a few moments.",
 					docs: "https://kayle.id/docs/api/errors#internal_server_error",
 				},

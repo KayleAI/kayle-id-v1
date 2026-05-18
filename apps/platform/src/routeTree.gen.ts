@@ -37,6 +37,7 @@ import { Route as AppOrganizationsSettingsRouteImport } from './routes/_app/orga
 import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organizations/public'
 import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
 import { Route as AppOrganizationsDomainsRouteImport } from './routes/_app/organizations/domains'
+import { Route as AppOrganizationsComplianceRouteImport } from './routes/_app/organizations/compliance'
 import { Route as AppOrganizationsBusinessRouteImport } from './routes/_app/organizations/business'
 import { Route as AppOrganizationsAuditLogsRouteImport } from './routes/_app/organizations/audit-logs'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
@@ -188,6 +189,12 @@ const AppOrganizationsDomainsRoute = AppOrganizationsDomainsRouteImport.update({
   path: '/organizations/domains',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOrganizationsComplianceRoute =
+  AppOrganizationsComplianceRouteImport.update({
+    id: '/organizations/compliance',
+    path: '/organizations/compliance',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppOrganizationsBusinessRoute =
   AppOrganizationsBusinessRouteImport.update({
     id: '/organizations/business',
@@ -274,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/organizations/compliance': typeof AppOrganizationsComplianceRoute
   '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
   '/organizations/public': typeof AppOrganizationsPublicRoute
@@ -312,6 +320,7 @@ export interface FileRoutesByTo {
   '/api-keys/$key': typeof AppApiKeysKeyRoute
   '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/organizations/compliance': typeof AppOrganizationsComplianceRoute
   '/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/organizations/members': typeof AppOrganizationsMembersRoute
   '/organizations/public': typeof AppOrganizationsPublicRoute
@@ -356,6 +365,7 @@ export interface FileRoutesById {
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
   '/_app/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
   '/_app/organizations/business': typeof AppOrganizationsBusinessRoute
+  '/_app/organizations/compliance': typeof AppOrganizationsComplianceRoute
   '/_app/organizations/domains': typeof AppOrganizationsDomainsRoute
   '/_app/organizations/members': typeof AppOrganizationsMembersRoute
   '/_app/organizations/public': typeof AppOrganizationsPublicRoute
@@ -397,6 +407,7 @@ export interface FileRouteTypes {
     | '/api-keys/$key'
     | '/organizations/audit-logs'
     | '/organizations/business'
+    | '/organizations/compliance'
     | '/organizations/domains'
     | '/organizations/members'
     | '/organizations/public'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/api-keys/$key'
     | '/organizations/audit-logs'
     | '/organizations/business'
+    | '/organizations/compliance'
     | '/organizations/domains'
     | '/organizations/members'
     | '/organizations/public'
@@ -478,6 +490,7 @@ export interface FileRouteTypes {
     | '/_app/api-keys/$key'
     | '/_app/organizations/audit-logs'
     | '/_app/organizations/business'
+    | '/_app/organizations/compliance'
     | '/_app/organizations/domains'
     | '/_app/organizations/members'
     | '/_app/organizations/public'
@@ -714,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrganizationsDomainsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/organizations/compliance': {
+      id: '/_app/organizations/compliance'
+      path: '/organizations/compliance'
+      fullPath: '/organizations/compliance'
+      preLoaderRoute: typeof AppOrganizationsComplianceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/organizations/business': {
       id: '/_app/organizations/business'
       path: '/organizations/business'
@@ -829,6 +849,7 @@ interface AppRouteChildren {
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
   AppOrganizationsAuditLogsRoute: typeof AppOrganizationsAuditLogsRoute
   AppOrganizationsBusinessRoute: typeof AppOrganizationsBusinessRoute
+  AppOrganizationsComplianceRoute: typeof AppOrganizationsComplianceRoute
   AppOrganizationsDomainsRoute: typeof AppOrganizationsDomainsRoute
   AppOrganizationsMembersRoute: typeof AppOrganizationsMembersRoute
   AppOrganizationsPublicRoute: typeof AppOrganizationsPublicRoute
@@ -848,6 +869,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
   AppOrganizationsAuditLogsRoute: AppOrganizationsAuditLogsRoute,
   AppOrganizationsBusinessRoute: AppOrganizationsBusinessRoute,
+  AppOrganizationsComplianceRoute: AppOrganizationsComplianceRoute,
   AppOrganizationsDomainsRoute: AppOrganizationsDomainsRoute,
   AppOrganizationsMembersRoute: AppOrganizationsMembersRoute,
   AppOrganizationsPublicRoute: AppOrganizationsPublicRoute,

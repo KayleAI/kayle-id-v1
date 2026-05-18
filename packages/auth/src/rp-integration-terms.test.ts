@@ -7,7 +7,7 @@ import {
   RP_INTEGRATION_TERMS_VERSION,
 } from "./rp-integration-terms";
 
-test("current RP integration terms hash matches the canonical terms text", () => {
+test("current Kayle ID Integration Terms hash matches the canonical terms text", () => {
   const hash = createHash("sha256")
     .update(RP_INTEGRATION_TERMS_CANONICAL_TEXT, "utf8")
     .digest("hex");

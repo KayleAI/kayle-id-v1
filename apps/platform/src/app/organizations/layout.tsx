@@ -19,6 +19,7 @@ interface TabDefinition {
 		| "/organizations/settings"
 		| "/organizations/public"
 		| "/organizations/business"
+		| "/organizations/compliance"
 		| "/organizations/domains";
 	label: string;
 	requiresRole?: "admin";
@@ -28,6 +29,7 @@ const TABS: readonly TabDefinition[] = [
 	{ href: "/organizations", label: "Overview" },
 	{ href: "/organizations/members", label: "Members" },
 	{ href: "/organizations/public", label: "Public details" },
+	{ href: "/organizations/compliance", label: "Compliance" },
 	{ href: "/organizations/business", label: "Business" },
 	{ href: "/organizations/domains", label: "Domains" },
 	{ href: "/organizations/settings", label: "Settings" },

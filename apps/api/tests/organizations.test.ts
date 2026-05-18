@@ -409,7 +409,7 @@ describe("Organization Endpoints", () => {
 		}
 	});
 
-	test("allows an active organization owner to accept current RP integration terms", async () => {
+	test("allows an active organization owner to accept current Kayle ID Integration Terms", async () => {
 		const activeSession = await setupSessionAuth({
 			withActiveOrganization: true,
 		});
@@ -481,7 +481,7 @@ describe("Organization Endpoints", () => {
 		}
 	});
 
-	test("prevents non-owner organization members from accepting RP integration terms", async () => {
+	test("prevents non-owner organization members from accepting Kayle ID Integration Terms", async () => {
 		const activeSession = await setupSessionAuth({
 			withActiveOrganization: true,
 		});

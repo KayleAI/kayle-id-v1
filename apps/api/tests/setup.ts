@@ -1,6 +1,12 @@
+import {
+	RP_INTEGRATION_TERMS_HASH,
+	RP_INTEGRATION_TERMS_JURISDICTION,
+	RP_INTEGRATION_TERMS_VERSION,
+} from "@kayle-id/auth/rp-integration-terms";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
+	auth_organization_rp_terms_acceptances,
 	auth_organization_verified_domains,
 	auth_organizations,
 	auth_users,
@@ -9,6 +15,19 @@ import { api_keys } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import { CUSTOMER_API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
+
+// Default compliance profile seeded for every test org so the RP-compliance
+// gate (now always-on) doesn't block routine session-creating tests. Tests
+// that exercise the gate explicitly clear this state in beforeEach.
+const DEFAULT_TEST_COMPLIANCE_METADATA = {
+	article6Basis: "legitimate interests",
+	article9Condition: "explicit consent",
+	controllerJurisdiction: "United Kingdom",
+	legalControllerName: "Test Organization",
+	privacyPolicyUrl: "https://test.example/privacy",
+	supportEmail: "support@test.example",
+	usesKayleForConsequentialDecisions: false,
+} as const;
 
 type TestData = {
 	userId: string;
@@ -67,6 +86,7 @@ const setup = async (): Promise<TestData> => {
 			owner_id_checked_at: new Date(),
 			verification_terms_accepted_at: new Date(),
 			verification_terms_accepted_by: userId,
+			metadata: JSON.stringify(DEFAULT_TEST_COMPLIANCE_METADATA),
 		})
 		.returning({
 			id: auth_organizations.id,
@@ -83,6 +103,16 @@ const setup = async (): Promise<TestData> => {
 		createdAt: new Date(),
 		userId,
 		role: "owner",
+	});
+
+	// Seed the current RP integration terms acceptance so the RP-compliance gate
+	// (now enforced in every environment) doesn't reject default test sessions.
+	await db.insert(auth_organization_rp_terms_acceptances).values({
+		organizationId,
+		termsVersion: RP_INTEGRATION_TERMS_VERSION,
+		termsHash: RP_INTEGRATION_TERMS_HASH,
+		jurisdiction: RP_INTEGRATION_TERMS_JURISDICTION,
+		acceptedBy: userId,
 	});
 
 	const verifiedApexDomains = makeTestVerifiedApexDomains();

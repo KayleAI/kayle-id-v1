@@ -27,19 +27,11 @@ export type RpComplianceProfileGateResult =
 			reason: "terms_not_accepted";
 	  };
 
-export function shouldEnforceRpComplianceProfile(): boolean {
-	return process.env.NODE_ENV === "production";
-}
-
 export async function checkRpComplianceProfileGate({
 	organizationId,
 }: {
 	organizationId: string;
 }): Promise<RpComplianceProfileGateResult> {
-	if (!shouldEnforceRpComplianceProfile()) {
-		return { ok: true };
-	}
-
 	const [organization] = await db
 		.select({ metadata: auth_organizations.metadata })
 		.from(auth_organizations)

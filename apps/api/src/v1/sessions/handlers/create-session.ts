@@ -109,8 +109,8 @@ export const createSessionHandler: RouteHandler<
 						? "Accept the current relying-party integration terms before creating production verification sessions."
 						: "Complete the relying-party compliance profile before creating production verification sessions.",
 					hint: termsAcceptanceRequired
-						? "An owner must accept the current RP integration terms in the organization settings."
-						: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration, and accept the current RP integration terms.`,
+						? "An owner must accept the current Kayle ID Integration Terms in the organization settings."
+						: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration, and accept the current Kayle ID Integration Terms.`,
 					docs,
 				},
 			},

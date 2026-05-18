@@ -43,7 +43,7 @@ export const getRpTermsRoute = createRoute({
 					}),
 				},
 			},
-			description: "Current RP integration terms status.",
+			description: "Current Kayle ID Integration Terms status.",
 		},
 		401: {
 			content: { "application/json": { schema: ErrorResponse } },
@@ -73,7 +73,7 @@ export const acceptRpTermsRoute = createRoute({
 					}),
 				},
 			},
-			description: "Current RP integration terms accepted.",
+			description: "Current Kayle ID Integration Terms accepted.",
 		},
 		401: {
 			content: { "application/json": { schema: ErrorResponse } },

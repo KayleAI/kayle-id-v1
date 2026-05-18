@@ -1,4 +1,11 @@
-import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	expect,
+	test,
+} from "bun:test";
 import {
 	RP_INTEGRATION_TERMS_HASH,
 	RP_INTEGRATION_TERMS_JURISDICTION,
@@ -14,25 +21,6 @@ import v1 from "@/v1";
 import { setup, type TestData, teardown } from "../setup";
 
 let TEST_DATA: TestData | undefined;
-const originalNodeEnv = process.env.NODE_ENV;
-const originalPublicVerifyUrl = process.env.PUBLIC_VERIFY_URL;
-const TEST_PUBLIC_VERIFY_URL = "http://localhost:2999";
-
-function restoreNodeEnv(): void {
-	if (originalNodeEnv === undefined) {
-		Reflect.deleteProperty(process.env, "NODE_ENV");
-		return;
-	}
-	process.env.NODE_ENV = originalNodeEnv;
-}
-
-function restorePublicVerifyUrl(): void {
-	if (originalPublicVerifyUrl === undefined) {
-		Reflect.deleteProperty(process.env, "PUBLIC_VERIFY_URL");
-		return;
-	}
-	process.env.PUBLIC_VERIFY_URL = originalPublicVerifyUrl;
-}
 
 async function setOrganizationMetadata(
 	metadata: Record<string, unknown> | null,
@@ -85,24 +73,20 @@ async function createSession(): Promise<Response> {
 	});
 }
 
-async function createProductionSession(): Promise<Response> {
-	process.env.NODE_ENV = "production";
-	process.env.PUBLIC_VERIFY_URL = TEST_PUBLIC_VERIFY_URL;
-	try {
-		return await createSession();
-	} finally {
-		restoreNodeEnv();
-		restorePublicVerifyUrl();
-	}
-}
-
 beforeAll(async () => {
 	TEST_DATA = await setup();
 });
 
+beforeEach(async () => {
+	// The shared setup() seeds a valid compliance profile + RP terms acceptance
+	// so unrelated session tests still pass under always-on gate enforcement.
+	// This file exercises the gate itself, so clear both before each case and
+	// let the test repopulate the state it needs.
+	await setOrganizationMetadata(null);
+	await clearRpTermsAcceptance();
+});
+
 afterEach(async () => {
-	restoreNodeEnv();
-	restorePublicVerifyUrl();
 	await setOrganizationMetadata(null);
 	await clearRpTermsAcceptance();
 });
@@ -110,14 +94,12 @@ afterEach(async () => {
 afterAll(async () => {
 	await teardown(TEST_DATA);
 	TEST_DATA = undefined;
-	restoreNodeEnv();
-	restorePublicVerifyUrl();
 });
 
 test.serial(
-	"rejects production session creation when the RP compliance profile is incomplete",
+	"rejects session creation when the RP compliance profile is incomplete",
 	async () => {
-		const response = await createProductionSession();
+		const response = await createSession();
 
 		expect(response.status).toBe(400);
 		const payload = (await response.json()) as {
@@ -131,7 +113,7 @@ test.serial(
 );
 
 test.serial(
-	"rejects production session creation until current RP integration terms are accepted",
+	"rejects session creation until current Kayle ID Integration Terms are accepted",
 	async () => {
 		await setOrganizationMetadata({
 			article6Basis: "legitimate interests",
@@ -143,25 +125,25 @@ test.serial(
 			usesKayleForConsequentialDecisions: false,
 		});
 
-		const rejectedResponse = await createProductionSession();
+		const rejectedResponse = await createSession();
 		expect(rejectedResponse.status).toBe(400);
 		const rejectedPayload = (await rejectedResponse.json()) as {
 			error: { code: string; hint: string };
 		};
 		expect(rejectedPayload.error.code).toBe("RP_TERMS_ACCEPTANCE_REQUIRED");
 		expect(rejectedPayload.error.hint).toContain(
-			"current RP integration terms",
+			"current Kayle ID Integration Terms",
 		);
 
 		await acceptCurrentRpTerms();
 
-		const acceptedResponse = await createProductionSession();
+		const acceptedResponse = await createSession();
 		expect(acceptedResponse.status).toBe(200);
 	},
 );
 
 test.serial(
-	"allows production session creation with an explicit non-consequential-use declaration",
+	"allows session creation with an explicit non-consequential-use declaration",
 	async () => {
 		await setOrganizationMetadata({
 			article6Basis: "legitimate interests",
@@ -174,7 +156,7 @@ test.serial(
 		});
 		await acceptCurrentRpTerms();
 
-		const response = await createProductionSession();
+		const response = await createSession();
 
 		expect(response.status).toBe(200);
 	},
@@ -193,7 +175,7 @@ test.serial(
 			usesKayleForConsequentialDecisions: true,
 		});
 
-		const rejectedResponse = await createProductionSession();
+		const rejectedResponse = await createSession();
 		expect(rejectedResponse.status).toBe(400);
 		const rejectedPayload = (await rejectedResponse.json()) as {
 			error: { code: string; hint: string };
@@ -215,7 +197,7 @@ test.serial(
 		});
 		await acceptCurrentRpTerms();
 
-		const acceptedResponse = await createProductionSession();
+		const acceptedResponse = await createSession();
 		expect(acceptedResponse.status).toBe(200);
 	},
 );

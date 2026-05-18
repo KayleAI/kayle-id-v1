@@ -26,7 +26,7 @@ export function SummaryBreakdownCard({
 		<Card className={cn(ANALYTICS_CARD_CLASS, className)}>
 			<CardHeader className="space-y-2">
 				<CardDescription className="font-medium text-foreground text-sm">
-					Sessions in last 14 days
+					Sessions in the last 14 days
 				</CardDescription>
 				<CardTitle className="text-4xl tracking-tight">
 					{formatMetric(summary.total)}

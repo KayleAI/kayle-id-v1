@@ -35,7 +35,7 @@ const DEFAULT_TEST_ORG_METADATA = {
 
 const DEFAULT_TEST_ORG_LOGO = "https://test.example/logo.png";
 const DEFAULT_TEST_ORG_BUSINESS = {
-	businessType: "business" as const,
+	business_type: "business" as const,
 	business_name: "Test Organization Ltd",
 	business_jurisdiction: "United Kingdom",
 	business_registration_number: "12345678",

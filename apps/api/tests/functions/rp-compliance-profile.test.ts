@@ -62,14 +62,14 @@ async function setBusinessAndLogo({
 		.set(
 			complete
 				? {
-						businessType: "business",
+						business_type: "business",
 						business_name: "Acme Ltd",
 						business_jurisdiction: "United Kingdom",
 						business_registration_number: "12345678",
 						logo: "https://acme.example/logo.png",
 					}
 				: {
-						businessType: null,
+						business_type: null,
 						business_name: null,
 						business_jurisdiction: null,
 						business_registration_number: null,

@@ -1,62 +1,42 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import type { OnboardingStepId } from "@kayle-id/auth/organization-onboarding";
+import { getOrganizationComplianceProfileStatus } from "@kayle-id/auth/organization-metadata";
+import {
+	getOrganizationBusinessDetailsStatus,
+	getOrganizationPublicDetailsStatus,
+} from "@kayle-id/auth/organization-onboarding";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Skeleton } from "@kayleai/ui/skeleton";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { type ReactNode, useEffect, useState } from "react";
+import type { OrganizationRole } from "@/app/organizations/api";
+import type { BusinessDetailsDraftValues } from "@/app/organizations/business";
+import type { ComplianceDraftValues } from "@/app/organizations/compliance";
+import type { PublicDetailsDraftValues } from "@/app/organizations/public-details";
+import { OnboardingPreviewPane } from "./preview-pane";
 import {
-	acceptVerificationTerms,
-	createOwnerVerificationSession,
-	type FullOrganization,
-	type OrganizationRole,
-} from "@/app/organizations/api";
-import { BusinessDetailsForm } from "@/app/organizations/business";
-import { ComplianceForm } from "@/app/organizations/compliance";
-import { PublicDetailsForm } from "@/app/organizations/public-details";
+	ONBOARDING_STEP_HEADER_LABELS,
+	ONBOARDING_STEP_ORDER,
+	type OnboardingOutletContext,
+	OnboardingProvider,
+	type OnboardingRouteStep,
+	pathForStep,
+	stepFromPathname,
+} from "./shell-context";
 import { useOnboardingStatus } from "./use-onboarding-status";
 
-interface StepDefinition {
-	id: OnboardingStepId;
-	/** Shown in the "Onboarding - <headerLabel>" indicator at the top of the aside. */
-	headerLabel: string;
-	completedCopy: string;
-}
-
-const STEP_DEFINITIONS: readonly StepDefinition[] = [
-	{
-		id: "business",
-		headerLabel: "Business Details",
-		completedCopy: "Business details are on file.",
-	},
-	{
-		id: "public",
-		headerLabel: "Public Details",
-		completedCopy: "Public details are on file.",
-	},
-	{
-		id: "compliance",
-		headerLabel: "Compliance Details",
-		completedCopy:
-			"Compliance profile is complete and the current Kayle ID Integration Terms are accepted.",
-	},
-	{
-		id: "owner_id",
-		headerLabel: "Owner ID Check",
-		completedCopy:
-			"Owner identity check on file. The organization is verified.",
-	},
-] as const;
-
-const STEP_ORDER: readonly OnboardingStepId[] = STEP_DEFINITIONS.map(
-	(s) => s.id,
-);
-
+/**
+ * Layout shell for /onboarding/*. Owns the org query, the live form draft
+ * state, and the Continue/Back navigation. Each child route at
+ * /onboarding/<slug> renders its own step body via `<Outlet />`.
+ */
 export function OnboardingPage() {
 	const { activeOrganization, user } = useAuth();
 	const navigate = useNavigate();
-	const { isError, isLoading, organization, steps } = useOnboardingStatus();
+	const pathname = useRouterState({ select: (s) => s.location.pathname });
+	const activeStep = stepFromPathname(pathname);
+	const { isError, isLoading, organization, rpTermsAccepted } =
+		useOnboardingStatus();
 
 	const currentRole = organization?.members.find(
 		(member) => member.userId === user?.id,
@@ -64,42 +44,143 @@ export function OnboardingPage() {
 	const isOwner = currentRole === "owner";
 	const canEdit = isOwner || currentRole === "admin";
 
-	const firstIncompleteStep = useMemo<OnboardingStepId>(() => {
-		const incomplete = steps.find((s) => !s.complete);
-		return incomplete?.id ?? "business";
-	}, [steps]);
+	// Live draft values that drive the left-pane preview. Two write sources:
+	//
+	// 1. This effect seeds them from the persisted organization as soon as
+	//    the org query resolves — so the preview shows real data on /intro
+	//    (and any other step the user hasn't mounted yet) without waiting
+	//    for the corresponding form to mount.
+	// 2. Each form publishes its current values via `onValuesChange` while
+	//    the user is on that step — so the preview updates live as the user
+	//    types. The form-driven writes always come after the user navigates
+	//    to a step, so they correctly take precedence over the seeded values.
+	const [publicDraft, setPublicDraft] = useState<PublicDetailsDraftValues>(
+		() => ({
+			name: organization?.name ?? "",
+			description: organization?.metadata?.description ?? "",
+			website: organization?.metadata?.website ?? "",
+			privacyPolicyUrl: organization?.metadata?.privacyPolicyUrl ?? "",
+			termsOfServiceUrl: organization?.metadata?.termsOfServiceUrl ?? "",
+			logoPreview: organization?.logo ?? null,
+		}),
+	);
+	const [businessDraft, setBusinessDraft] =
+		useState<BusinessDetailsDraftValues>(() => ({
+			businessType: organization?.businessType ?? "business",
+			businessName: organization?.businessName ?? "",
+			businessJurisdiction: organization?.businessJurisdiction ?? "",
+			businessRegistrationNumber:
+				organization?.businessRegistrationNumber ?? "",
+		}));
+	const [complianceDraft, setComplianceDraft] = useState<ComplianceDraftValues>(
+		() => ({
+			legalControllerName: organization?.metadata?.legalControllerName ?? "",
+			controllerJurisdiction:
+				organization?.metadata?.controllerJurisdiction ?? "",
+			supportEmail: organization?.metadata?.supportEmail ?? "",
+			fallbackIdvUrl: organization?.metadata?.fallbackIdvUrl ?? "",
+			appealUrl: organization?.metadata?.appealUrl ?? "",
+			complaintsUrl: organization?.metadata?.complaintsUrl ?? "",
+			article6Basis: organization?.metadata?.article6Basis ?? "",
+			article9Condition: organization?.metadata?.article9Condition ?? "",
+			usesKayleForConsequentialDecisions:
+				organization?.metadata?.usesKayleForConsequentialDecisions ?? null,
+		}),
+	);
 
-	const [activeStepId, setActiveStepId] =
-		useState<OnboardingStepId>(firstIncompleteStep);
-
-	// Snap to the next incomplete step once status finishes loading. After
-	// that the user can navigate freely (Back / Continue / direct visits) —
-	// onboarding is replayable, not a one-shot wizard.
-	const [hasInitialised, setHasInitialised] = useState(false);
 	useEffect(() => {
-		if (!isLoading && !hasInitialised) {
-			setActiveStepId(firstIncompleteStep);
-			setHasInitialised(true);
+		if (!organization) {
+			return;
 		}
-	}, [firstIncompleteStep, hasInitialised, isLoading]);
+		setPublicDraft({
+			name: organization.name,
+			description: organization.metadata?.description ?? "",
+			website: organization.metadata?.website ?? "",
+			privacyPolicyUrl: organization.metadata?.privacyPolicyUrl ?? "",
+			termsOfServiceUrl: organization.metadata?.termsOfServiceUrl ?? "",
+			logoPreview: organization.logo ?? null,
+		});
+	}, [
+		organization,
+		organization?.name,
+		organization?.logo,
+		organization?.metadata?.description,
+		organization?.metadata?.website,
+		organization?.metadata?.privacyPolicyUrl,
+		organization?.metadata?.termsOfServiceUrl,
+	]);
 
-	const activeStepIndex = STEP_ORDER.indexOf(activeStepId);
+	useEffect(() => {
+		if (!organization) {
+			return;
+		}
+		setBusinessDraft({
+			businessType: organization.businessType ?? "business",
+			businessName: organization.businessName ?? "",
+			businessJurisdiction: organization.businessJurisdiction ?? "",
+			businessRegistrationNumber: organization.businessRegistrationNumber ?? "",
+		});
+	}, [
+		organization,
+		organization?.businessType,
+		organization?.businessName,
+		organization?.businessJurisdiction,
+		organization?.businessRegistrationNumber,
+	]);
+
+	useEffect(() => {
+		if (!organization) {
+			return;
+		}
+		setComplianceDraft({
+			legalControllerName: organization.metadata?.legalControllerName ?? "",
+			controllerJurisdiction:
+				organization.metadata?.controllerJurisdiction ?? "",
+			supportEmail: organization.metadata?.supportEmail ?? "",
+			fallbackIdvUrl: organization.metadata?.fallbackIdvUrl ?? "",
+			appealUrl: organization.metadata?.appealUrl ?? "",
+			complaintsUrl: organization.metadata?.complaintsUrl ?? "",
+			article6Basis: organization.metadata?.article6Basis ?? "",
+			article9Condition: organization.metadata?.article9Condition ?? "",
+			usesKayleForConsequentialDecisions:
+				organization.metadata?.usesKayleForConsequentialDecisions ?? null,
+		});
+	}, [
+		organization,
+		organization?.metadata?.legalControllerName,
+		organization?.metadata?.controllerJurisdiction,
+		organization?.metadata?.supportEmail,
+		organization?.metadata?.fallbackIdvUrl,
+		organization?.metadata?.appealUrl,
+		organization?.metadata?.complaintsUrl,
+		organization?.metadata?.article6Basis,
+		organization?.metadata?.article9Condition,
+		organization?.metadata?.usesKayleForConsequentialDecisions,
+	]);
+
+	const activeStepIndex = ONBOARDING_STEP_ORDER.indexOf(activeStep);
 	const isFirstStep = activeStepIndex <= 0;
-	const isLastStep = activeStepIndex === STEP_ORDER.length - 1;
+	const isLastStep = activeStepIndex === ONBOARDING_STEP_ORDER.length - 1;
 
 	const advanceToNextStep = (): void => {
 		if (activeStepIndex === -1 || isLastStep) {
 			navigate({ to: "/dashboard" });
 			return;
 		}
-		setActiveStepId(STEP_ORDER[activeStepIndex + 1] ?? activeStepId);
+		const next = ONBOARDING_STEP_ORDER[activeStepIndex + 1];
+		if (next) {
+			navigate({ to: pathForStep(next) });
+		}
 	};
 
 	const goBackToPreviousStep = (): void => {
 		if (isFirstStep) {
 			return;
 		}
-		setActiveStepId(STEP_ORDER[activeStepIndex - 1] ?? activeStepId);
+		const previous = ONBOARDING_STEP_ORDER[activeStepIndex - 1];
+		if (previous) {
+			navigate({ to: pathForStep(previous) });
+		}
 	};
 
 	if (isLoading) {
@@ -132,17 +213,130 @@ export function OnboardingPage() {
 		);
 	}
 
-	const activeStepDefinition =
-		STEP_DEFINITIONS.find((d) => d.id === activeStepId) ?? STEP_DEFINITIONS[0];
+	const outletContext: OnboardingOutletContext = {
+		canAcceptRpTerms: isOwner,
+		canEdit,
+		isOwner,
+		organization,
+		setBusinessDraft,
+		setComplianceDraft,
+		setPublicDraft,
+		advanceToNextStep,
+	};
+
+	const headerLabel = ONBOARDING_STEP_HEADER_LABELS[activeStep];
+
+	// Continue button is always a plain button. When the active step is a
+	// form step we programmatically submit `#onboarding-form` via the DOM's
+	// `requestSubmit()` so the form's existing onSubmit + onSaved chain
+	// drives advancement. Using `form="…" type="submit"` for this was buggy:
+	// React reconciles the conditional <Button> at the same JSX position, so
+	// after navigation the underlying DOM button briefly retained the new
+	// form-submit attributes while the click event was still being
+	// processed, causing the next form to auto-submit and skip a step.
+	//
+	// The owner-id step is a form step *only* while the owner hasn't
+	// completed the identity check yet — submitting it kicks off the
+	// verification redirect. Once `verifiedAt` is set, Continue just
+	// navigates to the dashboard like before.
+	const isOwnerIdAwaitingVerification =
+		activeStep === "owner-id" && organization.verifiedAt === null;
+	const isFormStep =
+		activeStep === "public" ||
+		activeStep === "business" ||
+		activeStep === "compliance" ||
+		isOwnerIdAwaitingVerification;
+
+	const handleContinueClick = (): void => {
+		if (isFormStep) {
+			const form = document.getElementById(
+				"onboarding-form",
+			) as HTMLFormElement | null;
+			if (form) {
+				form.requestSubmit();
+				return;
+			}
+		}
+		advanceToNextStep();
+	};
+
+	const continueLabel = isOwnerIdAwaitingVerification
+		? "Accept and continue"
+		: isLastStep
+			? "Go to dashboard"
+			: "Continue";
+
+	// Continue stays disabled until the current step's required fields are
+	// filled. Drafts feed this so the button reacts as the user types — without
+	// waiting for a save. Skip remains as the explicit bypass.
+	const isContinueDisabled = ((): boolean => {
+		if (activeStep === "intro") {
+			return false;
+		}
+		if (activeStep === "public") {
+			if (!publicDraft.name.trim()) {
+				return true;
+			}
+			return !getOrganizationPublicDetailsStatus({
+				logo: publicDraft.logoPreview,
+				metadata: {
+					description: publicDraft.description,
+					website: publicDraft.website,
+					privacyPolicyUrl: publicDraft.privacyPolicyUrl,
+					termsOfServiceUrl: publicDraft.termsOfServiceUrl,
+				},
+			}).complete;
+		}
+		if (activeStep === "business") {
+			return !getOrganizationBusinessDetailsStatus(businessDraft).complete;
+		}
+		if (activeStep === "compliance") {
+			const complianceComplete = getOrganizationComplianceProfileStatus({
+				legalControllerName: complianceDraft.legalControllerName,
+				controllerJurisdiction: complianceDraft.controllerJurisdiction,
+				supportEmail: complianceDraft.supportEmail,
+				fallbackIdvUrl: complianceDraft.fallbackIdvUrl || null,
+				appealUrl: complianceDraft.appealUrl || null,
+				complaintsUrl: complianceDraft.complaintsUrl || null,
+				article6Basis: complianceDraft.article6Basis,
+				article9Condition: complianceDraft.article9Condition,
+				// `privacyPolicyUrl` is on the public-details step but the
+				// compliance predicate also requires it — pull it from
+				// `publicDraft` so a user who's already filled it in earlier in
+				// the wizard isn't blocked here.
+				privacyPolicyUrl: publicDraft.privacyPolicyUrl,
+				usesKayleForConsequentialDecisions:
+					complianceDraft.usesKayleForConsequentialDecisions,
+			}).complete;
+			return !(complianceComplete && rpTermsAccepted);
+		}
+		if (activeStep === "owner-id") {
+			// Verified — Continue just navigates to the dashboard.
+			if (organization.verifiedAt !== null) {
+				return false;
+			}
+			// Not verified — Continue triggers the verification redirect, which
+			// only owners can do. Non-owners still have Skip as the bypass.
+			return !isOwner;
+		}
+		return false;
+	})();
 
 	return (
-		<OnboardingTwoPaneShell>
+		<OnboardingTwoPaneShell
+			previewPane={
+				<OnboardingPreviewPane
+					activeStep={activeStep}
+					businessDraft={businessDraft}
+					isOwnerIdVerified={organization.verifiedAt !== null}
+					publicDraft={publicDraft}
+				/>
+			}
+		>
 			<header className="border-border/70 border-b px-6 py-6 lg:px-10">
 				<p className="font-medium text-foreground text-sm">
 					Onboarding —{" "}
-					<span className="text-muted-foreground">
-						{activeStepDefinition.headerLabel}
-					</span>
+					<span className="text-muted-foreground">{headerLabel}</span>
 				</p>
 			</header>
 
@@ -157,42 +351,41 @@ export function OnboardingPage() {
 					</Alert>
 				) : null}
 
-				<ActiveStepBody
-					canAcceptRpTerms={isOwner}
-					canEdit={canEdit}
-					onSaved={advanceToNextStep}
-					organization={organization}
-					stepId={activeStepId}
-				/>
+				<OnboardingProvider value={outletContext}>
+					<Outlet />
+				</OnboardingProvider>
 			</OnboardingBody>
 
 			<footer className="border-border/70 border-t px-6 py-4 lg:px-10">
 				<div className="flex items-center justify-between gap-2">
-					<Button
-						disabled={isFirstStep}
-						onClick={goBackToPreviousStep}
-						type="button"
-						variant="outline"
-					>
-						Back
-					</Button>
-					<div className="flex items-center gap-2">
+					{isFirstStep ? (
+						// Empty span keeps `justify-between` pinning the right
+						// button group to the right edge of the footer.
+						<span aria-hidden="true" />
+					) : (
 						<Button
-							onClick={() => navigate({ to: "/dashboard" })}
+							onClick={goBackToPreviousStep}
 							type="button"
-							variant="ghost"
+							variant="outline"
 						>
-							Finish Later
+							Back
 						</Button>
-						{isLastStep ? (
-							<Button onClick={advanceToNextStep} type="button">
-								Go to dashboard
-							</Button>
-						) : (
-							<Button form="onboarding-form" type="submit">
-								Continue
+					)}
+					<div className="flex items-center gap-2">
+						{isFirstStep ||
+						(activeStep === "owner-id" &&
+							organization.verifiedAt !== null) ? null : (
+							<Button onClick={advanceToNextStep} type="button" variant="ghost">
+								Skip
 							</Button>
 						)}
+						<Button
+							disabled={isContinueDisabled}
+							onClick={handleContinueClick}
+							type="button"
+						>
+							{continueLabel}
+						</Button>
 					</div>
 				</div>
 			</footer>
@@ -200,165 +393,44 @@ export function OnboardingPage() {
 	);
 }
 
-function OnboardingTwoPaneShell({ children }: { children: ReactNode }) {
+function OnboardingTwoPaneShell({
+	children,
+	previewPane,
+}: {
+	children: ReactNode;
+	previewPane?: ReactNode;
+}) {
+	// The aside is its own floating card on `lg+`: rounded on all sides,
+	// inset from the Layout's page surface, with a solid background + soft
+	// shadow so it reads as a distinct surface. The aside itself owns the
+	// vertical scroll (`overflow-y-auto`) — when the step body exceeds the
+	// card height, the entire card content (header + body + footer)
+	// scrolls inside the rounded edges, instead of an inner body region
+	// scrolling between fixed bars. `overflow-x-hidden` keeps the rounded
+	// corners clipping any incidental horizontal overflow cleanly.
 	return (
 		<>
-			<section aria-hidden="true" className="hidden flex-1 lg:block" />
-			<aside className="flex min-h-0 w-full flex-col lg:w-[480px] lg:border-border/70 lg:border-l xl:w-[560px]">
+			<aside
+				className={[
+					"flex min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden",
+					"lg:my-4 lg:ml-4 lg:w-[480px] xl:w-[560px]",
+					"lg:rounded-2xl dark:lg:bg-card lg:ring-1 lg:ring-border dark:lg:ring-0",
+				].join(" ")}
+			>
 				{children}
 			</aside>
+			<section className="hidden flex-1 lg:block">{previewPane}</section>
 		</>
 	);
 }
 
 function OnboardingBody({ children }: { children: ReactNode }) {
 	return (
-		<div className="flex flex-1 flex-col overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+		<div className="flex flex-1 flex-col px-6 py-6 lg:px-10 lg:py-8">
 			<div className="mt-auto">{children}</div>
 		</div>
 	);
 }
 
-function ActiveStepBody({
-	canAcceptRpTerms,
-	canEdit,
-	onSaved,
-	organization,
-	stepId,
-}: {
-	canAcceptRpTerms: boolean;
-	canEdit: boolean;
-	onSaved: () => void;
-	organization: FullOrganization;
-	stepId: OnboardingStepId;
-}) {
-	if (stepId === "business") {
-		return (
-			<BusinessDetailsForm
-				canEdit={canEdit}
-				compact
-				onSaved={onSaved}
-				organization={organization}
-			/>
-		);
-	}
-	if (stepId === "public") {
-		return (
-			<PublicDetailsForm
-				canEdit={canEdit}
-				compact
-				onSaved={onSaved}
-				organization={organization}
-			/>
-		);
-	}
-	if (stepId === "compliance") {
-		return (
-			<ComplianceForm
-				canAcceptRpTerms={canAcceptRpTerms}
-				canEdit={canEdit}
-				compact
-				onSaved={onSaved}
-				organization={organization}
-			/>
-		);
-	}
-	return (
-		<OwnerIdInlineStep
-			canEdit={canEdit && canAcceptRpTerms}
-			organization={organization}
-		/>
-	);
-}
-
-const OWNER_ID_TERMS: readonly { content: ReactNode; key: string }[] = [
-	{
-		key: "owner",
-		content:
-			"You confirm that you are an owner of this organization and authorized to verify it.",
-	},
-	{
-		key: "id-check",
-		content:
-			"You will complete a Kayle ID identity check on a supported passport. The Kayle check result is bound to this organization.",
-	},
-	{
-		key: "dedup",
-		content:
-			"Kayle ID stores a peppered hash of the document number for deduplication; raw document data is not retained outside the verification flow.",
-	},
-	{
-		key: "legal",
-		content:
-			"By continuing you accept the Kayle ID Terms of Service and Privacy Policy as they apply to organization verification.",
-	},
-] as const;
-
-function OwnerIdInlineStep({
-	canEdit,
-	organization,
-}: {
-	canEdit: boolean;
-	organization: FullOrganization;
-}) {
-	const [errorMessage, setErrorMessage] = useState("");
-	const startVerification = useMutation({
-		mutationFn: async () => {
-			if (!organization.verificationTermsAcceptedAt) {
-				await acceptVerificationTerms(organization.id);
-			}
-			return await createOwnerVerificationSession({
-				organizationId: organization.id,
-			});
-		},
-		onSuccess: (session) => {
-			window.location.href = session.verification_url;
-		},
-		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to start verification.",
-			);
-		},
-	});
-
-	if (!canEdit) {
-		return (
-			<p className="text-muted-foreground text-sm">
-				Only an owner can complete the owner identity check.
-			</p>
-		);
-	}
-
-	return (
-		<div className="space-y-4">
-			<p className="text-muted-foreground text-sm">
-				As the final step, an owner of{" "}
-				<span className="font-semibold text-foreground">
-					{organization.name}
-				</span>{" "}
-				must complete a one-time Kayle ID identity check. This binds the
-				organization to a verified person.
-			</p>
-			<ul className="space-y-2 text-muted-foreground text-sm">
-				{OWNER_ID_TERMS.map((bullet) => (
-					<li className="flex gap-2" key={bullet.key}>
-						<span aria-hidden="true">•</span>
-						<span>{bullet.content}</span>
-					</li>
-				))}
-			</ul>
-			{errorMessage ? (
-				<p className="text-destructive text-sm">{errorMessage}</p>
-			) : null}
-			<div>
-				<Button
-					disabled={startVerification.isPending}
-					onClick={() => startVerification.mutate()}
-					type="button"
-				>
-					{startVerification.isPending ? "Starting..." : "Accept and continue"}
-				</Button>
-			</div>
-		</div>
-	);
-}
+/** Re-exports so step route files can pull the type without circular imports. */
+export type { OnboardingOutletContext, OnboardingRouteStep };

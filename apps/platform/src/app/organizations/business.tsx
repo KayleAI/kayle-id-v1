@@ -59,7 +59,7 @@ function labelsFor(type: EffectiveType): {
 				jurisdiction:
 					"Where you operate from — typically your country of tax residence.",
 				registrationNumber:
-					"A government-issued identifier such as a tax ID, VAT number, or trader registration. Optional.",
+					"An optional government-issued identifier such as a tax ID.",
 			},
 		};
 	}
@@ -68,7 +68,7 @@ function labelsFor(type: EffectiveType): {
 		jurisdiction: "Registered in",
 		registrationNumber: "Registration number",
 		helper: {
-			name: "The legal name of the registered entity (e.g. as it appears on incorporation documents).",
+			name: "The legal name of the registered entity as it appears on incorporation documents.",
 			jurisdiction:
 				"Country or sub-national region where the entity is registered.",
 			registrationNumber:
@@ -77,15 +77,28 @@ function labelsFor(type: EffectiveType): {
 	};
 }
 
+export interface BusinessDetailsDraftValues {
+	businessType: OrganizationBusinessType;
+	businessName: string;
+	businessJurisdiction: string;
+	businessRegistrationNumber: string;
+}
+
 export function BusinessDetailsForm({
 	canEdit,
 	compact,
 	onSaved,
+	onValuesChange,
 	organization,
 }: {
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
+	/**
+	 * Called whenever any of the form's editable values change. Used by the
+	 * onboarding preview pane to mirror the user's draft input live.
+	 */
+	onValuesChange?: (values: BusinessDetailsDraftValues) => void;
 	organization: FullOrganization;
 }) {
 	const queryClient = useQueryClient();
@@ -120,6 +133,21 @@ export function BusinessDetailsForm({
 		organization.businessRegistrationNumber,
 	]);
 
+	useEffect(() => {
+		onValuesChange?.({
+			businessType,
+			businessName,
+			businessJurisdiction,
+			businessRegistrationNumber,
+		});
+	}, [
+		onValuesChange,
+		businessType,
+		businessName,
+		businessJurisdiction,
+		businessRegistrationNumber,
+	]);
+
 	const saveMutation = useMutation({
 		mutationFn: async () => {
 			await updateOrganizationBusinessDetails({
@@ -136,7 +164,12 @@ export function BusinessDetailsForm({
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
-			toast.success("Business details updated");
+			// In compact (onboarding-wizard) mode the success toast covers the
+			// Back / Skip / Continue footer buttons — suppress it there. The
+			// standalone settings page still surfaces it.
+			if (!compact) {
+				toast.success("Business details updated");
+			}
 			setErrorMessage("");
 			onSaved?.();
 		},
@@ -166,30 +199,44 @@ export function BusinessDetailsForm({
 
 	const handleSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
-		if (!canEdit || !isDirty || isSaving) {
+		if (!canEdit || isSaving) {
 			return;
 		}
 		setErrorMessage("");
+		// Nothing to persist — fire the onSaved hook anyway so external callers
+		// (e.g. the onboarding wizard) can advance past an already-complete step
+		// when the user clicks Continue without touching any field.
+		if (!isDirty) {
+			onSaved?.();
+			return;
+		}
 		saveMutation.mutate();
 	};
 
 	return (
-		<FormSection
-			compact={compact}
-			description="Your registered legal entity, or the individual operating it. Your users will be able to see these."
-			title="Business details"
+		<form
+			className="space-y-6"
+			id={compact ? "onboarding-form" : undefined}
+			onSubmit={handleSubmit}
 		>
-			<form
-				className="space-y-5"
-				id={compact ? "onboarding-form" : undefined}
-				onSubmit={handleSubmit}
-			>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+			<div className="space-y-2">
+				<h1 className="font-semibold text-2xl text-foreground tracking-tight">
+					Business details
+				</h1>
+				<p className="text-muted-foreground text-sm">
+					Your registered legal entity, or the individual operating it. Your
+					users will be able to see these and they're important for compliance.
+				</p>
+			</div>
+
+			{errorMessage ? (
+				<Alert variant="destructive">
+					<AlertTitle>Error</AlertTitle>
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+			) : null}
+
+			<FormSection compact={compact}>
 				<div className="space-y-2">
 					<Label htmlFor="business-type">Type</Label>
 					<Select
@@ -220,8 +267,8 @@ export function BusinessDetailsForm({
 					</Select>
 					<p className="text-muted-foreground text-xs">
 						{businessType === "sole"
-							? "Pick this if you operate under your own legal name without a separate registered entity."
-							: "Pick this if your organization is a registered company, LLC, partnership, or similar."}
+							? "Pick this if you operate under your own legal name."
+							: "Pick this if your organization is a registered business."}
 					</p>
 				</div>
 
@@ -287,8 +334,8 @@ export function BusinessDetailsForm({
 						</Button>
 					</div>
 				)}
-			</form>
-		</FormSection>
+			</FormSection>
+		</form>
 	);
 }
 

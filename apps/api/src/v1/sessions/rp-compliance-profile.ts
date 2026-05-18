@@ -41,7 +41,7 @@ export async function checkOrganizationOnboardingGate({
 			businessName: auth_organizations.business_name,
 			businessRegistrationNumber:
 				auth_organizations.business_registration_number,
-			businessType: auth_organizations.businessType,
+			businessType: auth_organizations.business_type,
 			logo: auth_organizations.logo,
 			metadata: auth_organizations.metadata,
 			ownerIdCheckedAt: auth_organizations.owner_id_checked_at,

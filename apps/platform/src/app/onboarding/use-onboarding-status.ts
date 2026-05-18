@@ -13,6 +13,7 @@ export interface UseOnboardingStatusResult {
 	isError: boolean;
 	organization: FullOrganization | undefined;
 	complete: boolean;
+	rpTermsAccepted: boolean;
 	steps: ReturnType<typeof getOrganizationOnboardingStatus>["steps"];
 }
 
@@ -48,6 +49,7 @@ export function useOnboardingStatus(): UseOnboardingStatusResult {
 		isError: organizationQuery.isError || rpTermsQuery.isError,
 		organization,
 		complete: status.complete,
+		rpTermsAccepted,
 		steps: status.steps,
 	};
 }

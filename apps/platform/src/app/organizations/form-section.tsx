@@ -16,7 +16,7 @@ interface FormSectionProps {
 	 */
 	compact?: boolean;
 	description?: ReactNode;
-	title: ReactNode;
+	title?: ReactNode;
 }
 
 export function FormSection({
@@ -29,7 +29,9 @@ export function FormSection({
 		return (
 			<section className="space-y-3">
 				<div className="space-y-1">
-					<h3 className="font-medium text-foreground text-sm">{title}</h3>
+					{title ? (
+						<h3 className="font-medium text-foreground text-sm">{title}</h3>
+					) : null}
 					{description ? (
 						<p className="text-muted-foreground text-sm">{description}</p>
 					) : null}
@@ -40,10 +42,14 @@ export function FormSection({
 	}
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle>{title}</CardTitle>
-				{description ? <CardDescription>{description}</CardDescription> : null}
-			</CardHeader>
+			{title || description ? (
+				<CardHeader>
+					{title ? <CardTitle>{title}</CardTitle> : null}
+					{description ? (
+						<CardDescription>{description}</CardDescription>
+					) : null}
+				</CardHeader>
+			) : null}
 			<CardContent className="space-y-4">{children}</CardContent>
 		</Card>
 	);

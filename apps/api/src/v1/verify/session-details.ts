@@ -76,7 +76,7 @@ export async function getPublicVerifySessionDetails({
 			organizationName: auth_organizations.name,
 			organizationVerifiedAt: auth_organizations.owner_id_checked_at,
 			organizationLogo: auth_organizations.logo,
-			organizationBusinessType: auth_organizations.businessType,
+			organizationBusinessType: auth_organizations.business_type,
 			organizationBusinessName: auth_organizations.business_name,
 			organizationBusinessJurisdiction:
 				auth_organizations.business_jurisdiction,

@@ -100,17 +100,35 @@ function ComplianceSkeleton() {
 	);
 }
 
+export interface ComplianceDraftValues {
+	legalControllerName: string;
+	controllerJurisdiction: string;
+	supportEmail: string;
+	fallbackIdvUrl: string;
+	appealUrl: string;
+	complaintsUrl: string;
+	article6Basis: string;
+	article9Condition: string;
+	usesKayleForConsequentialDecisions: boolean | null;
+}
+
 export function ComplianceForm({
 	canAcceptRpTerms,
 	canEdit,
 	compact,
 	onSaved,
+	onValuesChange,
 	organization,
 }: {
 	canAcceptRpTerms: boolean;
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
+	/**
+	 * Called whenever any of the form's editable values change. Used by the
+	 * onboarding shell to gate Continue on draft completeness.
+	 */
+	onValuesChange?: (values: ComplianceDraftValues) => void;
 	organization: FullOrganization;
 }) {
 	const queryClient = useQueryClient();
@@ -179,6 +197,33 @@ export function ComplianceForm({
 		organization.metadata?.usesKayleForConsequentialDecisions,
 	]);
 
+	useEffect(() => {
+		onValuesChange?.({
+			legalControllerName,
+			controllerJurisdiction,
+			supportEmail,
+			fallbackIdvUrl,
+			appealUrl,
+			complaintsUrl,
+			article6Basis,
+			article9Condition,
+			usesKayleForConsequentialDecisions: fromConsequentialUseValue(
+				usesKayleForConsequentialDecisions,
+			),
+		});
+	}, [
+		onValuesChange,
+		legalControllerName,
+		controllerJurisdiction,
+		supportEmail,
+		fallbackIdvUrl,
+		appealUrl,
+		complaintsUrl,
+		article6Basis,
+		article9Condition,
+		usesKayleForConsequentialDecisions,
+	]);
+
 	const saveMutation = useMutation({
 		mutationFn: async () => {
 			const trimmedLegalControllerName = legalControllerName.trim();
@@ -221,7 +266,11 @@ export function ComplianceForm({
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
-			toast.success("Compliance details updated");
+			// In compact (onboarding-wizard) mode the success toast covers the
+			// Back / Skip / Continue footer buttons — suppress it there.
+			if (!compact) {
+				toast.success("Compliance details updated");
+			}
 			setErrorMessage("");
 			onSaved?.();
 		},
@@ -261,7 +310,7 @@ export function ComplianceForm({
 
 	const handleSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
-		if (!canEdit || !isDirty || isSaving) {
+		if (!canEdit || isSaving) {
 			return;
 		}
 		if (trimmedSupportEmail && !parsePublicSupportEmail(trimmedSupportEmail)) {
@@ -293,6 +342,10 @@ export function ComplianceForm({
 			return;
 		}
 		setErrorMessage("");
+		if (!isDirty) {
+			onSaved?.();
+			return;
+		}
 		saveMutation.mutate();
 	};
 
@@ -304,6 +357,15 @@ export function ComplianceForm({
 			id={compact ? "onboarding-form" : undefined}
 			onSubmit={handleSubmit}
 		>
+			<div className="space-y-2">
+				<h1 className="font-semibold text-2xl text-foreground tracking-tight">
+					Compliance profile
+				</h1>
+				<p className="text-muted-foreground text-sm">
+					Shows users who controls the requests for identity checks.
+				</p>
+			</div>
+
 			{errorMessage ? (
 				<Alert variant="destructive">
 					<AlertTitle>Error</AlertTitle>
@@ -311,11 +373,7 @@ export function ComplianceForm({
 				</Alert>
 			) : null}
 
-			<FormSection
-				compact={compact}
-				description="Required before production identity checks. Used to show users who controls the request and where they can go if Kayle ID is not the right route."
-				title="Compliance profile"
-			>
+			<FormSection compact={compact}>
 				<div className="grid gap-4 md:grid-cols-2">
 					<div className="space-y-2">
 						<Label htmlFor="compliance-controller-name">
@@ -334,7 +392,7 @@ export function ComplianceForm({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="compliance-controller-jurisdiction">
-							Controller country or jurisdiction
+							Controller jurisdiction
 							<RequiredMark />
 						</Label>
 						<Input
@@ -388,11 +446,7 @@ export function ComplianceForm({
 				</div>
 			</FormSection>
 
-			<FormSection
-				compact={compact}
-				description="How you've recorded the GDPR basis for processing identity data."
-				title="Lawful basis"
-			>
+			<FormSection compact={compact}>
 				<div className="space-y-2">
 					<Label htmlFor="compliance-article-6-basis">
 						Declared Article 6 basis
@@ -427,11 +481,7 @@ export function ComplianceForm({
 				</div>
 			</FormSection>
 
-			<FormSection
-				compact={compact}
-				description="Whether Kayle results drive a consequential decision, and where users go if Kayle ID isn't the right route or if they want human review."
-				title="Decision purpose & appeal routes"
-			>
+			<FormSection compact={compact}>
 				<div className="space-y-2">
 					<Label htmlFor="compliance-consequential-use">
 						Decision purpose declaration
@@ -549,7 +599,11 @@ function RpIntegrationTermsCard({
 			await queryClient.invalidateQueries({
 				queryKey: ORGANIZATION_RP_TERMS_QUERY_KEY,
 			});
-			toast.success("Kayle ID Integration Terms accepted");
+			// Same logic as the form-save toasts — suppress in onboarding so
+			// the floating-card footer stays clear.
+			if (!compact) {
+				toast.success("Kayle ID Integration Terms accepted");
+			}
 			setOpen(false);
 		},
 		onError: (err) => {

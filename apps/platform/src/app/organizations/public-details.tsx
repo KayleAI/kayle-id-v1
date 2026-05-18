@@ -49,15 +49,31 @@ function readFileAsDataUrl(file: File): Promise<string> {
 	});
 }
 
+export interface PublicDetailsDraftValues {
+	name: string;
+	description: string;
+	website: string;
+	privacyPolicyUrl: string;
+	termsOfServiceUrl: string;
+	/** Local data URL while a logo is pending, persisted URL otherwise, or null. */
+	logoPreview: string | null;
+}
+
 export function PublicDetailsForm({
 	canEdit,
 	compact,
 	onSaved,
+	onValuesChange,
 	organization,
 }: {
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
+	/**
+	 * Called whenever any of the form's editable values change. Used by the
+	 * onboarding preview pane to mirror the user's draft input live.
+	 */
+	onValuesChange?: (values: PublicDetailsDraftValues) => void;
 	organization: FullOrganization;
 }) {
 	const queryClient = useQueryClient();
@@ -99,6 +115,25 @@ export function PublicDetailsForm({
 		organization.metadata?.website,
 		organization.metadata?.privacyPolicyUrl,
 		organization.metadata?.termsOfServiceUrl,
+	]);
+
+	useEffect(() => {
+		onValuesChange?.({
+			name,
+			description,
+			website,
+			privacyPolicyUrl,
+			termsOfServiceUrl,
+			logoPreview,
+		});
+	}, [
+		onValuesChange,
+		name,
+		description,
+		website,
+		privacyPolicyUrl,
+		termsOfServiceUrl,
+		logoPreview,
 	]);
 
 	const saveMutation = useMutation({
@@ -156,7 +191,11 @@ export function PublicDetailsForm({
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
-			toast.success("Public details updated");
+			// In compact (onboarding-wizard) mode the success toast covers the
+			// Back / Skip / Continue footer buttons — suppress it there.
+			if (!compact) {
+				toast.success("Public details updated");
+			}
 			setErrorMessage("");
 			setPendingLogo(undefined);
 			if (fileInputRef.current) {
@@ -228,7 +267,7 @@ export function PublicDetailsForm({
 
 	const handleSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
-		if (!canEdit || !isDirty || isSaving) {
+		if (!canEdit || isSaving) {
 			return;
 		}
 		if (!trimmedName) {
@@ -260,6 +299,12 @@ export function PublicDetailsForm({
 			return;
 		}
 		setErrorMessage("");
+		// Already-valid + clean state — the onboarding wizard expects Continue
+		// to advance even if there's nothing to persist.
+		if (!isDirty) {
+			onSaved?.();
+			return;
+		}
 		saveMutation.mutate();
 	};
 
@@ -269,6 +314,16 @@ export function PublicDetailsForm({
 			id={compact ? "onboarding-form" : undefined}
 			onSubmit={handleSubmit}
 		>
+			<div className="space-y-2">
+				<h1 className="font-semibold text-2xl text-foreground tracking-tight">
+					Public details
+				</h1>
+				<p className="text-muted-foreground text-sm">
+					This section lets you customize how your organization appears to users
+					while they complete an ID or Age check.
+				</p>
+			</div>
+
 			{errorMessage ? (
 				<Alert variant="destructive">
 					<AlertTitle>Error</AlertTitle>
@@ -276,11 +331,7 @@ export function PublicDetailsForm({
 				</Alert>
 			) : null}
 
-			<FormSection
-				compact={compact}
-				description="Shown to users during verification flows. PNG, JPEG, GIF, or WebP up to 1 MiB."
-				title="Logo"
-			>
+			<FormSection compact={compact}>
 				<div className="flex items-center gap-4">
 					<div className="group relative flex size-16 shrink-0">
 						<button
@@ -341,11 +392,7 @@ export function PublicDetailsForm({
 				</div>
 			</FormSection>
 
-			<FormSection
-				compact={compact}
-				description="How your organization appears to users during verification."
-				title="Profile"
-			>
+			<FormSection compact={compact}>
 				<div className="space-y-2">
 					<Label htmlFor="public-name">Display name</Label>
 					<Input
@@ -388,11 +435,7 @@ export function PublicDetailsForm({
 				</div>
 			</FormSection>
 
-			<FormSection
-				compact={compact}
-				description="Linked from the relying-party dialog so users can review your privacy policy and terms of service before sharing their identity."
-				title="Legal links"
-			>
+			<FormSection compact={compact}>
 				<div className="space-y-2">
 					<Label htmlFor="public-privacy-policy">
 						Privacy policy URL

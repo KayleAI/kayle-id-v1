@@ -152,13 +152,13 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 	// is "set this trimmed value". This way the same endpoint supports patch-
 	// style partial updates without forcing the UI to round-trip every field.
 	const updates: Partial<{
-		businessType: OrganizationBusinessType | null;
+		business_type: OrganizationBusinessType | null;
 		business_name: string | null;
 		business_jurisdiction: string | null;
 		business_registration_number: string | null;
 	}> = {};
 	if (normalized.businessType !== undefined) {
-		updates.businessType = normalized.businessType;
+		updates.business_type = normalized.businessType;
 	}
 	if (normalized.businessName !== undefined) {
 		updates.business_name = normalized.businessName;
@@ -183,7 +183,7 @@ businessDetails.openapi(updateOrganizationBusinessDetailsRoute, async (c) => {
 			)
 			.where(eq(auth_organizations.id, organizationId))
 			.returning({
-				businessType: auth_organizations.businessType,
+				businessType: auth_organizations.business_type,
 				businessName: auth_organizations.business_name,
 				businessJurisdiction: auth_organizations.business_jurisdiction,
 				businessRegistrationNumber:

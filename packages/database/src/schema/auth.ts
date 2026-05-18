@@ -113,7 +113,7 @@ export const auth_organizations = pgTable(
 		 * was written at verification time.
 		 */
 		owner_id_checked_at: timestamp("owner_id_checked_at"),
-		businessType: text("business_type", {
+		business_type: text("business_type", {
 			enum: organizationBusinessTypes,
 		}),
 		business_jurisdiction: text("business_jurisdiction"),

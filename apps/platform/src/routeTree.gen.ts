@@ -14,7 +14,12 @@ import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as LegalRouteImport } from './routes/_legal'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as OnboardingPublicRouteImport } from './routes/onboarding/public'
+import { Route as OnboardingOwnerIdRouteImport } from './routes/onboarding/owner-id'
+import { Route as OnboardingComplianceRouteImport } from './routes/onboarding/compliance'
+import { Route as OnboardingBusinessRouteImport } from './routes/onboarding/business'
 import { Route as LegalTermsRouteImport } from './routes/_legal/terms'
 import { Route as LegalPrivacyRouteImport } from './routes/_legal/privacy'
 import { Route as AuthVerify2faRouteImport } from './routes/_auth/verify-2fa'
@@ -74,10 +79,35 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OnboardingRoute,
+} as any)
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRoute,
+} as any)
+const OnboardingPublicRoute = OnboardingPublicRouteImport.update({
+  id: '/public',
+  path: '/public',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingOwnerIdRoute = OnboardingOwnerIdRouteImport.update({
+  id: '/owner-id',
+  path: '/owner-id',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingComplianceRoute = OnboardingComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingBusinessRoute = OnboardingBusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 const LegalTermsRoute = LegalTermsRouteImport.update({
   id: '/terms',
@@ -273,7 +303,7 @@ const ApiApiAdminSplatRoute = ApiApiAdminSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
-  '/onboarding': typeof OnboardingRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/account': typeof AppAccountRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
@@ -282,6 +312,11 @@ export interface FileRoutesByFullPath {
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
@@ -314,7 +349,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
-  '/onboarding': typeof OnboardingRoute
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
@@ -322,6 +356,11 @@ export interface FileRoutesByTo {
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
+  '/onboarding': typeof OnboardingIndexRoute
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
@@ -358,7 +397,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_legal': typeof LegalRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/_app/account': typeof AppAccountRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_auth/sign-in': typeof AuthSignInRoute
@@ -367,7 +406,12 @@ export interface FileRoutesById {
   '/_auth/verify-2fa': typeof AuthVerify2faRoute
   '/_legal/privacy': typeof LegalPrivacyRoute
   '/_legal/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
   '/_marketing/': typeof MarketingIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
@@ -411,6 +455,11 @@ export interface FileRouteTypes {
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
+    | '/onboarding/'
     | '/api/start-org-verification'
     | '/account/security'
     | '/admin/cost-analytics'
@@ -443,7 +492,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/onboarding'
     | '/dashboard'
     | '/sign-in'
     | '/sign-out'
@@ -451,6 +499,11 @@ export interface FileRouteTypes {
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
+    | '/onboarding'
     | '/api/start-org-verification'
     | '/account/security'
     | '/admin/cost-analytics'
@@ -495,7 +548,12 @@ export interface FileRouteTypes {
     | '/_auth/verify-2fa'
     | '/_legal/privacy'
     | '/_legal/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
     | '/_marketing/'
+    | '/onboarding/'
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
     | '/_app/admin/cost-analytics'
@@ -532,7 +590,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
-  OnboardingRoute: typeof OnboardingRoute
+  OnboardingRoute: typeof OnboardingRouteWithChildren
   ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
   ApiApiAdminSplatRoute: typeof ApiApiAdminSplatRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
@@ -579,12 +637,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding/': {
+      id: '/onboarding/'
+      path: '/'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof OnboardingIndexRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
     '/_marketing/': {
       id: '/_marketing/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
+    }
+    '/onboarding/public': {
+      id: '/onboarding/public'
+      path: '/public'
+      fullPath: '/onboarding/public'
+      preLoaderRoute: typeof OnboardingPublicRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/owner-id': {
+      id: '/onboarding/owner-id'
+      path: '/owner-id'
+      fullPath: '/onboarding/owner-id'
+      preLoaderRoute: typeof OnboardingOwnerIdRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/compliance': {
+      id: '/onboarding/compliance'
+      path: '/compliance'
+      fullPath: '/onboarding/compliance'
+      preLoaderRoute: typeof OnboardingComplianceRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/business': {
+      id: '/onboarding/business'
+      path: '/business'
+      fullPath: '/onboarding/business'
+      preLoaderRoute: typeof OnboardingBusinessRouteImport
+      parentRoute: typeof OnboardingRoute
     }
     '/_legal/terms': {
       id: '/_legal/terms'
@@ -954,12 +1047,32 @@ const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
   MarketingRouteChildren,
 )
 
+interface OnboardingRouteChildren {
+  OnboardingBusinessRoute: typeof OnboardingBusinessRoute
+  OnboardingComplianceRoute: typeof OnboardingComplianceRoute
+  OnboardingOwnerIdRoute: typeof OnboardingOwnerIdRoute
+  OnboardingPublicRoute: typeof OnboardingPublicRoute
+  OnboardingIndexRoute: typeof OnboardingIndexRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingBusinessRoute: OnboardingBusinessRoute,
+  OnboardingComplianceRoute: OnboardingComplianceRoute,
+  OnboardingOwnerIdRoute: OnboardingOwnerIdRoute,
+  OnboardingPublicRoute: OnboardingPublicRoute,
+  OnboardingIndexRoute: OnboardingIndexRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
-  OnboardingRoute: OnboardingRoute,
+  OnboardingRoute: OnboardingRouteWithChildren,
   ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
   ApiApiAdminSplatRoute: ApiApiAdminSplatRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,

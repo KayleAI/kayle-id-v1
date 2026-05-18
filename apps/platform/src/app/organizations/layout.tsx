@@ -9,8 +9,6 @@ import {
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationRole,
 } from "./api";
-import { PendingDeletionBanner } from "./pending-deletion-banner";
-import { UnverifiedOrgBanner } from "./unverified-org-banner";
 
 interface TabDefinition {
 	href:
@@ -60,8 +58,7 @@ export function OrganizationPageLayout({
 }: OrganizationPageLayoutProps) {
 	const { location } = useRouterState();
 	const currentPath = location.pathname.replace(/\/$/, "");
-	const { activeOrganization, user } = useAuth();
-	const pendingDeletionAt = activeOrganization?.pendingDeletionAt ?? null;
+	const { user } = useAuth();
 	// Reuse the cached org query the page itself will fetch (TanStack Query
 	// dedupes), so we don't issue a second request just to gate tab visibility.
 	const { data: org } = useQuery({
@@ -78,11 +75,6 @@ export function OrganizationPageLayout({
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
-			{pendingDeletionAt ? (
-				<PendingDeletionBanner pendingDeletionAt={pendingDeletionAt} />
-			) : (
-				<UnverifiedOrgBanner />
-			)}
 			<AppHeading button={button} description={description} title={title} />
 
 			<nav

@@ -1,13 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@kayleai/ui/card";
 import { Input } from "@kayleai/ui/input";
 import { Label } from "@kayleai/ui/label";
 import {
@@ -29,6 +22,7 @@ import {
 	type OrganizationRole,
 	updateOrganizationBusinessDetails,
 } from "./api";
+import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
 
 function BusinessSkeleton() {
@@ -83,11 +77,15 @@ function labelsFor(type: EffectiveType): {
 	};
 }
 
-function BusinessDetailsForm({
+export function BusinessDetailsForm({
 	canEdit,
+	compact,
+	onSaved,
 	organization,
 }: {
 	canEdit: boolean;
+	compact?: boolean;
+	onSaved?: () => void;
 	organization: FullOrganization;
 }) {
 	const queryClient = useQueryClient();
@@ -140,6 +138,7 @@ function BusinessDetailsForm({
 			await refresh();
 			toast.success("Business details updated");
 			setErrorMessage("");
+			onSaved?.();
 		},
 		onError: (err) => {
 			setErrorMessage(
@@ -154,7 +153,10 @@ function BusinessDetailsForm({
 	const trimmedJurisdiction = businessJurisdiction.trim();
 	const trimmedRegistration = businessRegistrationNumber.trim();
 	const isDirty =
-		businessType !== effectiveBusinessType(organization.businessType) ||
+		// Compare to the stored column, not the form's defaulted-display value:
+		// when the column is null and the form is showing "Business" by default,
+		// clicking Save should still persist "business" instead of being a no-op.
+		businessType !== organization.businessType ||
 		trimmedName !== (organization.businessName ?? "") ||
 		trimmedJurisdiction !== (organization.businessJurisdiction ?? "") ||
 		trimmedRegistration !== (organization.businessRegistrationNumber ?? "");
@@ -172,122 +174,121 @@ function BusinessDetailsForm({
 	};
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Business details</CardTitle>
-				<CardDescription>
-					Your registered legal entity, or the individual operating it. Your
-					users will be able to see these.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<form className="space-y-5" onSubmit={handleSubmit}>
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
-					<div className="space-y-2">
-						<Label htmlFor="business-type">Type</Label>
-						<Select
-							disabled={!canEdit || isSaving}
-							name="businessType"
-							onValueChange={(value) => {
-								if (value === "sole" || value === "business") {
-									setBusinessType(value);
+		<FormSection
+			compact={compact}
+			description="Your registered legal entity, or the individual operating it. Your users will be able to see these."
+			title="Business details"
+		>
+			<form
+				className="space-y-5"
+				id={compact ? "onboarding-form" : undefined}
+				onSubmit={handleSubmit}
+			>
+				{errorMessage ? (
+					<Alert variant="destructive">
+						<AlertTitle>Error</AlertTitle>
+						<AlertDescription>{errorMessage}</AlertDescription>
+					</Alert>
+				) : null}
+				<div className="space-y-2">
+					<Label htmlFor="business-type">Type</Label>
+					<Select
+						disabled={!canEdit || isSaving}
+						name="businessType"
+						onValueChange={(value) => {
+							if (value === "sole" || value === "business") {
+								setBusinessType(value);
+							}
+						}}
+						value={businessType}
+					>
+						<SelectTrigger className="w-full" id="business-type">
+							<SelectValue>
+								{(value) =>
+									value === "sole"
+										? "Individual / sole trader"
+										: "Business (registered legal entity)"
 								}
-							}}
-							value={businessType}
-						>
-							<SelectTrigger className="w-full" id="business-type">
-								<SelectValue>
-									{(value) =>
-										value === "sole"
-											? "Individual / sole trader"
-											: "Business (registered legal entity)"
-									}
-								</SelectValue>
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="business">
-									Business (registered legal entity)
-								</SelectItem>
-								<SelectItem value="sole">Individual / sole trader</SelectItem>
-							</SelectContent>
-						</Select>
-						<p className="text-muted-foreground text-xs">
-							{businessType === "sole"
-								? "Pick this if you operate under your own legal name without a separate registered entity."
-								: "Pick this if your organization is a registered company, LLC, partnership, or similar."}
-						</p>
-					</div>
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="business">
+								Business (registered legal entity)
+							</SelectItem>
+							<SelectItem value="sole">Individual / sole trader</SelectItem>
+						</SelectContent>
+					</Select>
+					<p className="text-muted-foreground text-xs">
+						{businessType === "sole"
+							? "Pick this if you operate under your own legal name without a separate registered entity."
+							: "Pick this if your organization is a registered company, LLC, partnership, or similar."}
+					</p>
+				</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="business-name">{labels.name}</Label>
-						<Input
-							autoComplete={businessType === "sole" ? "name" : "organization"}
-							disabled={!canEdit || isSaving}
-							id="business-name"
-							maxLength={200}
-							name="businessName"
-							onChange={(event) => setBusinessName(event.target.value)}
-							placeholder={
-								businessType === "sole" ? "Jane Doe" : "Acme Corporation Ltd"
-							}
-							value={businessName}
-						/>
-						<p className="text-muted-foreground text-xs">
-							{labels.helper.name}
-						</p>
-					</div>
+				<div className="space-y-2">
+					<Label htmlFor="business-name">{labels.name}</Label>
+					<Input
+						autoComplete={businessType === "sole" ? "name" : "organization"}
+						disabled={!canEdit || isSaving}
+						id="business-name"
+						maxLength={200}
+						name="businessName"
+						onChange={(event) => setBusinessName(event.target.value)}
+						placeholder={
+							businessType === "sole" ? "Jane Doe" : "Acme Corporation Ltd"
+						}
+						value={businessName}
+					/>
+					<p className="text-muted-foreground text-xs">{labels.helper.name}</p>
+				</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="business-jurisdiction">{labels.jurisdiction}</Label>
-						<Input
-							autoComplete="country-name"
-							disabled={!canEdit || isSaving}
-							id="business-jurisdiction"
-							maxLength={120}
-							name="businessJurisdiction"
-							onChange={(event) => setBusinessJurisdiction(event.target.value)}
-							placeholder="United Kingdom"
-							value={businessJurisdiction}
-						/>
-						<p className="text-muted-foreground text-xs">
-							{labels.helper.jurisdiction}
-						</p>
-					</div>
+				<div className="space-y-2">
+					<Label htmlFor="business-jurisdiction">{labels.jurisdiction}</Label>
+					<Input
+						autoComplete="country-name"
+						disabled={!canEdit || isSaving}
+						id="business-jurisdiction"
+						maxLength={120}
+						name="businessJurisdiction"
+						onChange={(event) => setBusinessJurisdiction(event.target.value)}
+						placeholder="United Kingdom"
+						value={businessJurisdiction}
+					/>
+					<p className="text-muted-foreground text-xs">
+						{labels.helper.jurisdiction}
+					</p>
+				</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="business-registration-number">
-							{labels.registrationNumber}
-						</Label>
-						<Input
-							autoComplete="off"
-							disabled={!canEdit || isSaving}
-							id="business-registration-number"
-							maxLength={100}
-							name="businessRegistrationNumber"
-							onChange={(event) =>
-								setBusinessRegistrationNumber(event.target.value)
-							}
-							placeholder={businessType === "sole" ? "GB123456789" : "12345678"}
-							value={businessRegistrationNumber}
-						/>
-						<p className="text-muted-foreground text-xs">
-							{labels.helper.registrationNumber}
-						</p>
-					</div>
+				<div className="space-y-2">
+					<Label htmlFor="business-registration-number">
+						{labels.registrationNumber}
+					</Label>
+					<Input
+						autoComplete="off"
+						disabled={!canEdit || isSaving}
+						id="business-registration-number"
+						maxLength={100}
+						name="businessRegistrationNumber"
+						onChange={(event) =>
+							setBusinessRegistrationNumber(event.target.value)
+						}
+						placeholder={businessType === "sole" ? "GB123456789" : "12345678"}
+						value={businessRegistrationNumber}
+					/>
+					<p className="text-muted-foreground text-xs">
+						{labels.helper.registrationNumber}
+					</p>
+				</div>
 
+				{compact ? null : (
 					<div className="flex justify-end">
 						<Button disabled={!canEdit || !isDirty || isSaving} type="submit">
 							{isSaving ? "Saving..." : "Save changes"}
 						</Button>
 					</div>
-				</form>
-			</CardContent>
-		</Card>
+				)}
+			</form>
+		</FormSection>
 	);
 }
 

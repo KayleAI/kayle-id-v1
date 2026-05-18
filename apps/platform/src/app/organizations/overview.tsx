@@ -17,6 +17,8 @@ import {
 	ORGANIZATION_QUERY_KEY,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { PendingDeletionBanner } from "./pending-deletion-banner";
+import { UnverifiedOrgBanner } from "./unverified-org-banner";
 
 function OverviewSkeleton() {
 	return (
@@ -187,6 +189,11 @@ export function OrganizationOverviewPage() {
 			description="A snapshot of your organization."
 			title={data?.name ?? "Organization"}
 		>
+			{data?.pendingDeletionAt ? (
+				<PendingDeletionBanner pendingDeletionAt={data.pendingDeletionAt} />
+			) : (
+				<UnverifiedOrgBanner />
+			)}
 			{isLoading || !data ? null : null}
 			{isError ? (
 				<Alert variant="destructive">

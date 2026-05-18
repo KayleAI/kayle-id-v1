@@ -24,7 +24,7 @@ import { Label } from "@kayleai/ui/label";
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -41,7 +41,6 @@ import {
 	updateOrganization,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
-import { StartVerificationDialog } from "./start-verification-dialog";
 
 function SettingsSkeleton() {
 	return (
@@ -259,7 +258,6 @@ function VerificationCard({
 	canStartVerification: boolean;
 	organization: FullOrganization;
 }) {
-	const [dialogOpen, setDialogOpen] = useState(false);
 	const isVerified = organization.verifiedAt !== null;
 
 	return (
@@ -268,8 +266,7 @@ function VerificationCard({
 				<CardTitle>Verification</CardTitle>
 				{!isVerified ? (
 					<CardDescription>
-						Verifying lifts the unverified-org rate limit and removes the
-						warning shown to your end-users.
+						The owner identity check is part of organization onboarding.
 					</CardDescription>
 				) : null}
 			</CardHeader>
@@ -289,24 +286,17 @@ function VerificationCard({
 					<div className="flex items-center justify-between gap-4">
 						<p className="text-muted-foreground text-sm">
 							{canStartVerification
-								? "You'll be redirected to complete a one-time identity check."
-								: "Only an owner can start the verification flow."}
+								? "Finish onboarding to complete the owner identity check."
+								: "Only an owner can complete the owner identity check."}
 						</p>
 						{canStartVerification ? (
-							<Button onClick={() => setDialogOpen(true)} type="button">
-								Start verification
-							</Button>
+							<Link to="/onboarding">
+								<Button type="button">Continue onboarding</Button>
+							</Link>
 						) : null}
 					</div>
 				)}
 			</CardContent>
-			{!isVerified && canStartVerification ? (
-				<StartVerificationDialog
-					onOpenChange={setDialogOpen}
-					open={dialogOpen}
-					organization={organization}
-				/>
-			) : null}
 		</Card>
 	);
 }

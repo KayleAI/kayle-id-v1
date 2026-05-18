@@ -1,7 +1,8 @@
+import { parseStoredOrganizationMetadata } from "@kayle-id/auth/organization-metadata";
 import {
-	getOrganizationComplianceProfileStatus,
-	parseStoredOrganizationMetadata,
-} from "@kayle-id/auth/organization-metadata";
+	getOrganizationOnboardingStatus,
+	type OnboardingStepId,
+} from "@kayle-id/auth/organization-onboarding";
 import {
 	RP_INTEGRATION_TERMS_HASH,
 	RP_INTEGRATION_TERMS_JURISDICTION,
@@ -14,31 +15,41 @@ import {
 } from "@kayle-id/database/schema/auth";
 import { and, eq } from "drizzle-orm";
 
-export type RpComplianceProfileGateResult =
+export type OrganizationOnboardingGateResult =
 	| { ok: true }
 	| {
 			ok: false;
+			missingSteps: OnboardingStepId[];
 			missingFields: string[];
-			reason: "profile_and_terms_incomplete" | "profile_incomplete";
-	  }
-	| {
-			ok: false;
-			missingFields: ["rpIntegrationTermsAcceptance"];
-			reason: "terms_not_accepted";
+			/**
+			 * `terms_not_accepted` is surfaced separately so the API can route to
+			 * the long-standing "accept the current Kayle ID Integration Terms"
+			 * copy. Every other shape of incompleteness maps to
+			 * `onboarding_incomplete`.
+			 */
+			reason: "onboarding_incomplete" | "terms_not_accepted";
 	  };
 
-export async function checkRpComplianceProfileGate({
+export async function checkOrganizationOnboardingGate({
 	organizationId,
 }: {
 	organizationId: string;
-}): Promise<RpComplianceProfileGateResult> {
+}): Promise<OrganizationOnboardingGateResult> {
 	const [organization] = await db
-		.select({ metadata: auth_organizations.metadata })
+		.select({
+			businessJurisdiction: auth_organizations.business_jurisdiction,
+			businessName: auth_organizations.business_name,
+			businessRegistrationNumber:
+				auth_organizations.business_registration_number,
+			businessType: auth_organizations.businessType,
+			logo: auth_organizations.logo,
+			metadata: auth_organizations.metadata,
+			ownerIdCheckedAt: auth_organizations.owner_id_checked_at,
+		})
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, organizationId))
 		.limit(1);
-	const metadata = parseStoredOrganizationMetadata(organization?.metadata);
-	const profileStatus = getOrganizationComplianceProfileStatus(metadata);
+
 	const [currentTermsAcceptance] = await db
 		.select({ id: auth_organization_rp_terms_acceptances.id })
 		.from(auth_organization_rp_terms_acceptances)
@@ -64,32 +75,41 @@ export async function checkRpComplianceProfileGate({
 		)
 		.limit(1);
 
-	if (profileStatus.complete && currentTermsAcceptance) {
+	const metadata = parseStoredOrganizationMetadata(organization?.metadata);
+	const status = getOrganizationOnboardingStatus({
+		businessType: organization?.businessType ?? null,
+		businessName: organization?.businessName ?? null,
+		businessJurisdiction: organization?.businessJurisdiction ?? null,
+		businessRegistrationNumber:
+			organization?.businessRegistrationNumber ?? null,
+		logo: organization?.logo ?? null,
+		metadata,
+		rpTermsAccepted: Boolean(currentTermsAcceptance),
+		ownerIdCheckedAt: organization?.ownerIdCheckedAt ?? null,
+	});
+
+	if (status.complete) {
 		return { ok: true };
 	}
 
-	if (profileStatus.complete) {
-		return {
-			ok: false,
-			missingFields: ["rpIntegrationTermsAcceptance"],
-			reason: "terms_not_accepted",
-		};
-	}
+	const missingSteps = status.steps
+		.filter((step) => !step.complete)
+		.map((step) => step.id);
+	const missingFields = status.steps.flatMap((step) => step.missingFields);
 
-	if (!currentTermsAcceptance) {
-		return {
-			ok: false,
-			missingFields: [
-				...profileStatus.missingFields,
-				"rpIntegrationTermsAcceptance",
-			],
-			reason: "profile_and_terms_incomplete",
-		};
-	}
+	// Preserve the long-standing "RP_TERMS_ACCEPTANCE_REQUIRED" copy when terms
+	// acceptance is the *only* outstanding item — the platform still hands users
+	// to the dedicated dialog for that case.
+	const onlyMissingTerms =
+		missingSteps.length === 1 &&
+		missingSteps[0] === "compliance" &&
+		missingFields.length === 1 &&
+		missingFields[0] === "rpIntegrationTermsAcceptance";
 
 	return {
 		ok: false,
-		missingFields: profileStatus.missingFields,
-		reason: "profile_incomplete",
+		missingSteps,
+		missingFields,
+		reason: onlyMissingTerms ? "terms_not_accepted" : "onboarding_incomplete",
 	};
 }

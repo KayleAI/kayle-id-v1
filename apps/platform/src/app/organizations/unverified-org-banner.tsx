@@ -1,75 +1,54 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Button } from "@kayleai/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import {
-	type FullOrganization,
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-} from "./api";
-import { StartVerificationDialog } from "./start-verification-dialog";
+import { Link } from "@tanstack/react-router";
+import { useOnboardingStatus } from "@/app/onboarding/use-onboarding-status";
 
 function isOwnerRole(role: string | undefined): boolean {
 	return role?.split(",").includes("owner") ?? false;
 }
 
-function findCurrentUserIsOwner(
-	organization: FullOrganization,
-	userId: string | undefined,
-): boolean {
-	if (!userId) {
-		return false;
-	}
-	return organization.members.some(
-		(member) => member.userId === userId && isOwnerRole(member.role),
-	);
-}
-
+/**
+ * Shown on every organization page until the org has finished the four-step
+ * onboarding flow (business, public, compliance, owner ID check). Replaces
+ * the legacy "this organization is not verified" notice — the gate now spans
+ * more than just owner identity verification.
+ */
 export function UnverifiedOrgBanner() {
 	const { user } = useAuth();
-	const { data } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const [dialogOpen, setDialogOpen] = useState(false);
+	const { complete, organization, steps } = useOnboardingStatus();
 
-	if (!data || data.verifiedAt) {
+	if (!organization || complete) {
 		return null;
 	}
-	if (data.pendingDeletionAt) {
+	if (organization.pendingDeletionAt) {
 		return null;
 	}
 
-	const isOwner = findCurrentUserIsOwner(data, user?.id);
+	const currentMembership = organization.members.find(
+		(member) => member.userId === user?.id,
+	);
+	const isOwner = isOwnerRole(currentMembership?.role);
+
+	const incompleteCount = steps.filter((s) => !s.complete).length;
+	const totalSteps = steps.length;
 
 	return (
-		<>
-			<div className="mb-6 flex flex-col gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 text-sm sm:flex-row sm:items-center sm:justify-between dark:text-amber-200">
-				<div>
-					<strong>This organization is not verified.</strong>{" "}
-					{isOwner
-						? "Complete a one-time identity check to lift restrictions on your organization."
-						: "An owner needs to complete a one-time identity check to lift restrictions on the organization."}
-				</div>
-				{isOwner ? (
-					<Button
-						className="shrink-0"
-						onClick={() => setDialogOpen(true)}
-						type="button"
-						variant="outline"
-					>
-						Verify now
-					</Button>
-				) : null}
+		<div className="mb-6 flex flex-col gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 text-sm sm:flex-row sm:items-center sm:justify-between dark:text-amber-200">
+			<div>
+				<strong>
+					Finish setting up {organization.name} to start running ID checks.
+				</strong>{" "}
+				{isOwner
+					? `${incompleteCount} of ${totalSteps} onboarding steps still need attention.`
+					: "An owner needs to finish the onboarding flow before this organization can run ID checks."}
 			</div>
 			{isOwner ? (
-				<StartVerificationDialog
-					onOpenChange={setDialogOpen}
-					open={dialogOpen}
-					organization={data}
-				/>
+				<Link className="shrink-0" to="/onboarding">
+					<Button type="button" variant="outline">
+						Continue onboarding
+					</Button>
+				</Link>
 			) : null}
-		</>
+		</div>
 	);
 }

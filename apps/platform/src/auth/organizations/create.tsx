@@ -135,7 +135,7 @@ export function CreateOrganization() {
 			await refresh();
 
 			setCreated(true);
-			setTimeout(() => navigate({ to: "/dashboard" }), 1000);
+			setTimeout(() => navigate({ to: "/onboarding" }), 1000);
 		} catch (err) {
 			const message =
 				err instanceof Error

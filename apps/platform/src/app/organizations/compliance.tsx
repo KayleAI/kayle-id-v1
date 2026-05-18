@@ -45,6 +45,7 @@ import {
 	type OrganizationRole,
 	updateOrganization,
 } from "./api";
+import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
 import {
 	parsePublicAppealUrl,
@@ -99,13 +100,17 @@ function ComplianceSkeleton() {
 	);
 }
 
-function ComplianceForm({
+export function ComplianceForm({
 	canAcceptRpTerms,
 	canEdit,
+	compact,
+	onSaved,
 	organization,
 }: {
 	canAcceptRpTerms: boolean;
 	canEdit: boolean;
+	compact?: boolean;
+	onSaved?: () => void;
 	organization: FullOrganization;
 }) {
 	const queryClient = useQueryClient();
@@ -218,6 +223,7 @@ function ComplianceForm({
 			await refresh();
 			toast.success("Compliance details updated");
 			setErrorMessage("");
+			onSaved?.();
 		},
 		onError: (err) => {
 			setErrorMessage(
@@ -293,7 +299,11 @@ function ComplianceForm({
 	const consequentialRequired = usesKayleForConsequentialDecisions === "yes";
 
 	return (
-		<form className="space-y-6" onSubmit={handleSubmit}>
+		<form
+			className="space-y-6"
+			id={compact ? "onboarding-form" : undefined}
+			onSubmit={handleSubmit}
+		>
 			{errorMessage ? (
 				<Alert variant="destructive">
 					<AlertTitle>Error</AlertTitle>
@@ -301,243 +311,231 @@ function ComplianceForm({
 				</Alert>
 			) : null}
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Compliance profile</CardTitle>
-					<CardDescription>
-						Required before production identity checks. Used to show users who
-						controls the request and where they can go if Kayle ID is not the
-						right route.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="compliance-controller-name">
-								Legal controller name
-								<RequiredMark />
-							</Label>
-							<Input
-								aria-required="true"
-								disabled={!canEdit || isSaving}
-								id="compliance-controller-name"
-								name="legalControllerName"
-								onChange={(event) => setLegalControllerName(event.target.value)}
-								placeholder="Acme Ltd"
-								value={legalControllerName}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="compliance-controller-jurisdiction">
-								Controller country or jurisdiction
-								<RequiredMark />
-							</Label>
-							<Input
-								aria-required="true"
-								disabled={!canEdit || isSaving}
-								id="compliance-controller-jurisdiction"
-								name="controllerJurisdiction"
-								onChange={(event) =>
-									setControllerJurisdiction(event.target.value)
-								}
-								placeholder="United Kingdom"
-								value={controllerJurisdiction}
-							/>
-						</div>
-					</div>
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="compliance-support-email">
-								Support email
-								<RequiredMark />
-							</Label>
-							<Input
-								aria-required="true"
-								autoComplete="email"
-								disabled={!canEdit || isSaving}
-								id="compliance-support-email"
-								inputMode="email"
-								name="supportEmail"
-								onChange={(event) => setSupportEmail(event.target.value)}
-								placeholder="support@acme.example"
-								type="email"
-								value={supportEmail}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="compliance-complaints-url">
-								Complaints URL or contact page
-							</Label>
-							<Input
-								autoComplete="url"
-								disabled={!canEdit || isSaving}
-								id="compliance-complaints-url"
-								inputMode="url"
-								name="complaintsUrl"
-								onChange={(event) => setComplaintsUrl(event.target.value)}
-								placeholder="https://acme.example/complaints"
-								type="url"
-								value={complaintsUrl}
-							/>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Lawful basis</CardTitle>
-					<CardDescription>
-						How you've recorded the GDPR basis for processing identity data.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4">
+			<FormSection
+				compact={compact}
+				description="Required before production identity checks. Used to show users who controls the request and where they can go if Kayle ID is not the right route."
+				title="Compliance profile"
+			>
+				<div className="grid gap-4 md:grid-cols-2">
 					<div className="space-y-2">
-						<Label htmlFor="compliance-article-6-basis">
-							Declared Article 6 basis
+						<Label htmlFor="compliance-controller-name">
+							Legal controller name
 							<RequiredMark />
 						</Label>
-						<Textarea
+						<Input
 							aria-required="true"
 							disabled={!canEdit || isSaving}
-							id="compliance-article-6-basis"
-							name="article6Basis"
-							onChange={(event) => setArticle6Basis(event.target.value)}
-							placeholder="Legitimate interests"
-							rows={3}
-							value={article6Basis}
+							id="compliance-controller-name"
+							name="legalControllerName"
+							onChange={(event) => setLegalControllerName(event.target.value)}
+							placeholder="Acme Ltd"
+							value={legalControllerName}
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="compliance-article-9-condition">
-							Declared Article 9 condition
+						<Label htmlFor="compliance-controller-jurisdiction">
+							Controller country or jurisdiction
 							<RequiredMark />
 						</Label>
-						<Textarea
+						<Input
 							aria-required="true"
 							disabled={!canEdit || isSaving}
-							id="compliance-article-9-condition"
-							name="article9Condition"
-							onChange={(event) => setArticle9Condition(event.target.value)}
-							placeholder="Explicit consent"
-							rows={3}
-							value={article9Condition}
-						/>
-					</div>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Decision purpose & appeal routes</CardTitle>
-					<CardDescription>
-						Whether Kayle results drive a consequential decision, and where
-						users go if Kayle ID isn't the right route or if they want human
-						review.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="compliance-consequential-use">
-							Decision purpose declaration
-							<RequiredMark />
-						</Label>
-						<Select
-							disabled={!canEdit || isSaving}
-							onValueChange={(value) =>
-								setUsesKayleForConsequentialDecisions(
-									value as ConsequentialUseValue,
-								)
+							id="compliance-controller-jurisdiction"
+							name="controllerJurisdiction"
+							onChange={(event) =>
+								setControllerJurisdiction(event.target.value)
 							}
-							value={usesKayleForConsequentialDecisions}
-						>
-							<SelectTrigger
-								className="w-full"
-								id="compliance-consequential-use"
-							>
-								<SelectValue placeholder="Select how Kayle results are used">
-									{(value) => {
-										if (value === "yes") {
-											return "Used for access, onboarding, eligibility, or another consequential decision";
-										}
-										if (value === "no") {
-											return "Not used for a significant automated decision";
-										}
-										return "Not declared";
-									}}
-								</SelectValue>
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="unset">Not declared</SelectItem>
-								<SelectItem value="yes">
-									Used for access, onboarding, eligibility, or another
-									consequential decision
-								</SelectItem>
-								<SelectItem value="no">
-									Not used for a significant automated decision
-								</SelectItem>
-							</SelectContent>
-						</Select>
+							placeholder="United Kingdom"
+							value={controllerJurisdiction}
+						/>
 					</div>
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="compliance-fallback-idv-url">
-								Fallback verification URL
-								{consequentialRequired ? <RequiredMark /> : null}
-							</Label>
-							<Input
-								aria-required={consequentialRequired ? "true" : undefined}
-								autoComplete="url"
-								disabled={!canEdit || isSaving}
-								id="compliance-fallback-idv-url"
-								inputMode="url"
-								name="fallbackIdvUrl"
-								onChange={(event) => setFallbackIdvUrl(event.target.value)}
-								placeholder="https://acme.example/manual-idv"
-								type="url"
-								value={fallbackIdvUrl}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="compliance-appeal-url">
-								Appeal or human review URL
-								{consequentialRequired ? <RequiredMark /> : null}
-							</Label>
-							<Input
-								aria-required={consequentialRequired ? "true" : undefined}
-								autoComplete="url"
-								disabled={!canEdit || isSaving}
-								id="compliance-appeal-url"
-								inputMode="url"
-								name="appealUrl"
-								onChange={(event) => setAppealUrl(event.target.value)}
-								placeholder="https://acme.example/review"
-								type="url"
-								value={appealUrl}
-							/>
-						</div>
+				</div>
+				<div className="grid gap-4 md:grid-cols-2">
+					<div className="space-y-2">
+						<Label htmlFor="compliance-support-email">
+							Support email
+							<RequiredMark />
+						</Label>
+						<Input
+							aria-required="true"
+							autoComplete="email"
+							disabled={!canEdit || isSaving}
+							id="compliance-support-email"
+							inputMode="email"
+							name="supportEmail"
+							onChange={(event) => setSupportEmail(event.target.value)}
+							placeholder="support@acme.example"
+							type="email"
+							value={supportEmail}
+						/>
 					</div>
-					{consequentialRequired ? (
-						<p className="text-muted-foreground text-xs">
-							Required because Kayle ID is being used for consequential
-							decisions.
-						</p>
-					) : null}
-				</CardContent>
-			</Card>
+					<div className="space-y-2">
+						<Label htmlFor="compliance-complaints-url">
+							Complaints URL or contact page
+						</Label>
+						<Input
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="compliance-complaints-url"
+							inputMode="url"
+							name="complaintsUrl"
+							onChange={(event) => setComplaintsUrl(event.target.value)}
+							placeholder="https://acme.example/complaints"
+							type="url"
+							value={complaintsUrl}
+						/>
+					</div>
+				</div>
+			</FormSection>
 
-			<RpIntegrationTermsCard canAccept={canAcceptRpTerms} />
+			<FormSection
+				compact={compact}
+				description="How you've recorded the GDPR basis for processing identity data."
+				title="Lawful basis"
+			>
+				<div className="space-y-2">
+					<Label htmlFor="compliance-article-6-basis">
+						Declared Article 6 basis
+						<RequiredMark />
+					</Label>
+					<Textarea
+						aria-required="true"
+						disabled={!canEdit || isSaving}
+						id="compliance-article-6-basis"
+						name="article6Basis"
+						onChange={(event) => setArticle6Basis(event.target.value)}
+						placeholder="Legitimate interests"
+						rows={3}
+						value={article6Basis}
+					/>
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="compliance-article-9-condition">
+						Declared Article 9 condition
+						<RequiredMark />
+					</Label>
+					<Textarea
+						aria-required="true"
+						disabled={!canEdit || isSaving}
+						id="compliance-article-9-condition"
+						name="article9Condition"
+						onChange={(event) => setArticle9Condition(event.target.value)}
+						placeholder="Explicit consent"
+						rows={3}
+						value={article9Condition}
+					/>
+				</div>
+			</FormSection>
 
-			<div className="flex justify-end">
-				<Button disabled={!canEdit || !isDirty || isSaving} type="submit">
-					{isSaving ? "Saving..." : "Save changes"}
-				</Button>
-			</div>
+			<FormSection
+				compact={compact}
+				description="Whether Kayle results drive a consequential decision, and where users go if Kayle ID isn't the right route or if they want human review."
+				title="Decision purpose & appeal routes"
+			>
+				<div className="space-y-2">
+					<Label htmlFor="compliance-consequential-use">
+						Decision purpose declaration
+						<RequiredMark />
+					</Label>
+					<Select
+						disabled={!canEdit || isSaving}
+						onValueChange={(value) =>
+							setUsesKayleForConsequentialDecisions(
+								value as ConsequentialUseValue,
+							)
+						}
+						value={usesKayleForConsequentialDecisions}
+					>
+						<SelectTrigger className="w-full" id="compliance-consequential-use">
+							<SelectValue placeholder="Select how Kayle results are used">
+								{(value) => {
+									if (value === "yes") {
+										return "Used for access, onboarding, eligibility, or another consequential decision";
+									}
+									if (value === "no") {
+										return "Not used for a significant automated decision";
+									}
+									return "Not declared";
+								}}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="unset">Not declared</SelectItem>
+							<SelectItem value="yes">
+								Used for access, onboarding, eligibility, or another
+								consequential decision
+							</SelectItem>
+							<SelectItem value="no">
+								Not used for a significant automated decision
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+				<div className="grid gap-4 md:grid-cols-2">
+					<div className="space-y-2">
+						<Label htmlFor="compliance-fallback-idv-url">
+							Fallback verification URL
+							{consequentialRequired ? <RequiredMark /> : null}
+						</Label>
+						<Input
+							aria-required={consequentialRequired ? "true" : undefined}
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="compliance-fallback-idv-url"
+							inputMode="url"
+							name="fallbackIdvUrl"
+							onChange={(event) => setFallbackIdvUrl(event.target.value)}
+							placeholder="https://acme.example/manual-idv"
+							type="url"
+							value={fallbackIdvUrl}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="compliance-appeal-url">
+							Appeal or human review URL
+							{consequentialRequired ? <RequiredMark /> : null}
+						</Label>
+						<Input
+							aria-required={consequentialRequired ? "true" : undefined}
+							autoComplete="url"
+							disabled={!canEdit || isSaving}
+							id="compliance-appeal-url"
+							inputMode="url"
+							name="appealUrl"
+							onChange={(event) => setAppealUrl(event.target.value)}
+							placeholder="https://acme.example/review"
+							type="url"
+							value={appealUrl}
+						/>
+					</div>
+				</div>
+				{consequentialRequired ? (
+					<p className="text-muted-foreground text-xs">
+						Required because Kayle ID is being used for consequential decisions.
+					</p>
+				) : null}
+			</FormSection>
+
+			<RpIntegrationTermsCard canAccept={canAcceptRpTerms} compact={compact} />
+
+			{compact ? null : (
+				<div className="flex justify-end">
+					<Button disabled={!canEdit || !isDirty || isSaving} type="submit">
+						{isSaving ? "Saving..." : "Save changes"}
+					</Button>
+				</div>
+			)}
 		</form>
 	);
 }
 
-function RpIntegrationTermsCard({ canAccept }: { canAccept: boolean }) {
+function RpIntegrationTermsCard({
+	canAccept,
+	compact,
+}: {
+	canAccept: boolean;
+	compact?: boolean;
+}) {
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const { data, isError, isLoading } = useQuery({
@@ -569,46 +567,71 @@ function RpIntegrationTermsCard({ canAccept }: { canAccept: boolean }) {
 	const isAccepted = data?.current_accepted === true;
 	const termsParagraphs = RP_INTEGRATION_TERMS_CANONICAL_TEXT.split("\n");
 
+	const titleText = isAccepted
+		? "Current terms accepted"
+		: "Current terms not accepted";
+	const subtitleText = `Version ${data?.current.terms_version ?? "loading"} · ${
+		data?.current.jurisdiction ?? "loading"
+	}${acceptedAt ? ` · Accepted ${acceptedAt}` : ""}`;
+	const description =
+		"These terms record the current controller split, fallback IDV, and review safeguards for relying parties.";
+
 	return (
 		<>
-			<Card>
-				<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div className="space-y-1.5">
-						<CardTitle>
-							{isAccepted
-								? "Current terms accepted"
-								: "Current terms not accepted"}
-						</CardTitle>
-						<CardDescription>
-							These terms record the current controller split, fallback IDV, and
-							review safeguards for relying parties.
-						</CardDescription>
-						<p className="text-muted-foreground text-xs">
-							Version {data?.current.terms_version ?? "loading"} ·{" "}
-							{data?.current.jurisdiction ?? "loading"}
-							{acceptedAt ? ` · Accepted ${acceptedAt}` : ""}
-						</p>
+			{compact ? (
+				<section className="space-y-3">
+					<div className="space-y-1">
+						<h3 className="font-medium text-foreground text-sm">{titleText}</h3>
+						<p className="text-muted-foreground text-sm">{description}</p>
+						<p className="text-muted-foreground text-xs">{subtitleText}</p>
 					</div>
+					{isError ? (
+						<Alert variant="destructive">
+							<AlertTitle>Failed to load terms status</AlertTitle>
+							<AlertDescription>
+								Refresh the page before accepting the current Kayle ID
+								Integration Terms.
+							</AlertDescription>
+						</Alert>
+					) : null}
 					<Button
 						disabled={isLoading || isError}
 						onClick={() => setOpen(true)}
 						type="button"
+						variant="outline"
 					>
 						View terms
 					</Button>
-				</CardHeader>
-				{isError ? (
-					<CardContent>
-						<Alert variant="destructive">
-							<AlertTitle>Failed to load terms status</AlertTitle>
-							<AlertDescription>
-								Refresh the page before accepting the current RP integration
-								terms.
-							</AlertDescription>
-						</Alert>
-					</CardContent>
-				) : null}
-			</Card>
+				</section>
+			) : (
+				<Card>
+					<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div className="space-y-1.5">
+							<CardTitle>{titleText}</CardTitle>
+							<CardDescription>{description}</CardDescription>
+							<p className="text-muted-foreground text-xs">{subtitleText}</p>
+						</div>
+						<Button
+							disabled={isLoading || isError}
+							onClick={() => setOpen(true)}
+							type="button"
+						>
+							View terms
+						</Button>
+					</CardHeader>
+					{isError ? (
+						<CardContent>
+							<Alert variant="destructive">
+								<AlertTitle>Failed to load terms status</AlertTitle>
+								<AlertDescription>
+									Refresh the page before accepting the current Kayle ID
+									Integration Terms.
+								</AlertDescription>
+							</Alert>
+						</CardContent>
+					) : null}
+				</Card>
+			)}
 
 			<Dialog onOpenChange={setOpen} open={open}>
 				<DialogContent className="sm:max-w-2xl">

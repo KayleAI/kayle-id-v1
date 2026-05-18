@@ -8,7 +8,7 @@ import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normal
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
 import { validateRedirectUrlForOrg } from "@/v1/sessions/redirect-uri-validator";
 import { createVerificationSessionWithUnverifiedOrgLimit } from "@/v1/sessions/repo/session-repo";
-import { checkRpComplianceProfileGate } from "@/v1/sessions/rp-compliance-profile";
+import { checkOrganizationOnboardingGate } from "@/v1/sessions/rp-compliance-profile";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 import { isAgeOnlyShareFields } from "@/v1/sessions/unverified-org-limit";
 
@@ -84,17 +84,20 @@ export const createSessionHandler: RouteHandler<
 	}
 
 	const isAgeOnly = isAgeOnlyShareFields(normalized.shareFields);
-	const complianceGate = await checkRpComplianceProfileGate({ organizationId });
-	if (!complianceGate.ok) {
+	const onboardingGate = await checkOrganizationOnboardingGate({
+		organizationId,
+	});
+	if (!onboardingGate.ok) {
 		const termsAcceptanceRequired =
-			complianceGate.reason === "terms_not_accepted";
+			onboardingGate.reason === "terms_not_accepted";
 		logEvent(log, {
 			details: {
 				organization_id: organizationId,
-				missing_fields: complianceGate.missingFields,
-				reason: complianceGate.reason,
+				missing_steps: onboardingGate.missingSteps,
+				missing_fields: onboardingGate.missingFields,
+				reason: onboardingGate.reason,
 			},
-			event: "sessions.create.rp_compliance_profile_incomplete",
+			event: "sessions.create.onboarding_incomplete",
 			level: "warn",
 		});
 
@@ -104,13 +107,13 @@ export const createSessionHandler: RouteHandler<
 				error: {
 					code: termsAcceptanceRequired
 						? "RP_TERMS_ACCEPTANCE_REQUIRED"
-						: "RP_COMPLIANCE_PROFILE_INCOMPLETE",
+						: "ONBOARDING_INCOMPLETE",
 					message: termsAcceptanceRequired
 						? "Accept the current relying-party integration terms before creating production verification sessions."
-						: "Complete the relying-party compliance profile before creating production verification sessions.",
+						: "Finish onboarding the organization before creating verification sessions.",
 					hint: termsAcceptanceRequired
 						? "An owner must accept the current Kayle ID Integration Terms in the organization settings."
-						: `Missing fields: ${complianceGate.missingFields.join(", ")}. Configure the organization compliance profile, including a fallback path or an explicit non-consequential-use declaration, and accept the current Kayle ID Integration Terms.`,
+						: `Missing onboarding steps: ${onboardingGate.missingSteps.join(", ")}. Finish the organization onboarding flow at /onboarding (missing fields: ${onboardingGate.missingFields.join(", ")}).`,
 					docs,
 				},
 			},

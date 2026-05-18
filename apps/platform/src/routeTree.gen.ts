@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as LegalRouteImport } from './routes/_legal'
 import { Route as AuthRouteImport } from './routes/_auth'
@@ -52,6 +53,11 @@ import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
 import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
 import { Route as ApiApiAdminSplatRouteImport } from './routes/_api/api/admin/$'
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
   getParentRoute: () => rootRouteImport,
@@ -267,6 +273,7 @@ const ApiApiAdminSplatRoute = ApiApiAdminSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
+  '/onboarding': typeof OnboardingRoute
   '/account': typeof AppAccountRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
+  '/onboarding': typeof OnboardingRoute
   '/dashboard': typeof AppDashboardRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_legal': typeof LegalRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
   '/_app/account': typeof AppAccountRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_auth/sign-in': typeof AuthSignInRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/onboarding'
     | '/account'
     | '/dashboard'
     | '/sign-in'
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/onboarding'
     | '/dashboard'
     | '/sign-in'
     | '/sign-out'
@@ -475,6 +486,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_legal'
     | '/_marketing'
+    | '/onboarding'
     | '/_app/account'
     | '/_app/dashboard'
     | '/_auth/sign-in'
@@ -520,6 +532,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  OnboardingRoute: typeof OnboardingRoute
   ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
   ApiApiAdminSplatRoute: typeof ApiApiAdminSplatRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
@@ -531,6 +544,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_marketing': {
       id: '/_marketing'
       path: ''
@@ -939,6 +959,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
   ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
   ApiApiAdminSplatRoute: ApiApiAdminSplatRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,

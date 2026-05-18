@@ -16,18 +16,30 @@ import { eq } from "drizzle-orm";
 import { CUSTOMER_API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 
-// Default compliance profile seeded for every test org so the RP-compliance
-// gate (now always-on) doesn't block routine session-creating tests. Tests
-// that exercise the gate explicitly clear this state in beforeEach.
-const DEFAULT_TEST_COMPLIANCE_METADATA = {
+// Default compliance + public profile seeded for every test org so the
+// onboarding gate (now always-on, covering business + public + compliance +
+// owner ID check) doesn't block routine session-creating tests. Tests that
+// exercise the gate clear/override these fields per-case.
+const DEFAULT_TEST_ORG_METADATA = {
 	article6Basis: "legitimate interests",
 	article9Condition: "explicit consent",
 	controllerJurisdiction: "United Kingdom",
+	description: "Test organization fixture.",
 	legalControllerName: "Test Organization",
 	privacyPolicyUrl: "https://test.example/privacy",
 	supportEmail: "support@test.example",
+	termsOfServiceUrl: "https://test.example/terms",
 	usesKayleForConsequentialDecisions: false,
+	website: "https://test.example",
 } as const;
+
+const DEFAULT_TEST_ORG_LOGO = "https://test.example/logo.png";
+const DEFAULT_TEST_ORG_BUSINESS = {
+	businessType: "business" as const,
+	business_name: "Test Organization Ltd",
+	business_jurisdiction: "United Kingdom",
+	business_registration_number: "12345678",
+};
 
 type TestData = {
 	userId: string;
@@ -79,6 +91,7 @@ const setup = async (): Promise<TestData> => {
 			name: "Test Organization",
 			slug: `test-${crypto.randomUUID()}`,
 			createdAt: new Date(),
+			logo: DEFAULT_TEST_ORG_LOGO,
 			// Seed the test org as verified so the unverified-org rate limit
 			// doesn't cap test fixtures at 5 identity sessions per file. Tests
 			// that explicitly exercise the unverified path (see
@@ -86,7 +99,8 @@ const setup = async (): Promise<TestData> => {
 			owner_id_checked_at: new Date(),
 			verification_terms_accepted_at: new Date(),
 			verification_terms_accepted_by: userId,
-			metadata: JSON.stringify(DEFAULT_TEST_COMPLIANCE_METADATA),
+			metadata: JSON.stringify(DEFAULT_TEST_ORG_METADATA),
+			...DEFAULT_TEST_ORG_BUSINESS,
 		})
 		.returning({
 			id: auth_organizations.id,

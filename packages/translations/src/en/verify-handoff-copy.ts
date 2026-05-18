@@ -287,7 +287,7 @@ export const VERIFY_HANDOFF_COPY = {
 
     ownerVerifiedTitle: "Owner ID check completed",
     ownerVerifiedDescription:
-      "The people running this organization have completed Kayle ID's owner identity check.",
+      "A verified owner has completed Kayle ID's owner identity check.",
     ownerNotVerifiedTitle: "Owner ID check not completed",
     ownerNotVerifiedDescription:
       "Kayle ID has not independently verified the people running this organization. Only continue if you trust this request.",

@@ -304,7 +304,7 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
 
     ownerVerifiedTitle: "Vérification d’identité du propriétaire effectuée",
     ownerVerifiedDescription:
-      "Les personnes qui dirigent cette organisation ont effectué la vérification d’identité du propriétaire de Kayle ID.",
+      "Un propriétaire vérifié a effectué la vérification d’identité du propriétaire de Kayle ID.",
     ownerNotVerifiedTitle:
       "Vérification d’identité du propriétaire non effectuée",
     ownerNotVerifiedDescription:

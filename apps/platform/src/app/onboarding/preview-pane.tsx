@@ -246,8 +246,7 @@ function VerificationStatusCallout({ verified }: { verified: boolean }) {
 						Owner ID check completed
 					</p>
 					<p className="mt-1 text-emerald-700 text-sm dark:text-emerald-300">
-						The people running this organization have completed Kayle ID&apos;s
-						owner identity check.
+						A verified owner has completed Kayle ID&apos;s owner identity check.
 					</p>
 				</div>
 			</div>

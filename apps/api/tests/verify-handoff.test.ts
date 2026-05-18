@@ -21,7 +21,14 @@ import {
 	deriveAttestNfcChallenge,
 } from "@/v1/verify/attest-challenges";
 import { issueHandoffPayload } from "@/v1/verify/handoff";
-import { setup, type TestData, teardown } from "./setup";
+import {
+	DEFAULT_TEST_ORG_BUSINESS,
+	DEFAULT_TEST_ORG_LOGO,
+	DEFAULT_TEST_ORG_METADATA,
+	setup,
+	type TestData,
+	teardown,
+} from "./setup";
 
 let TEST_DATA: TestData | undefined;
 const VALID_SHAPED_WRONG_CANCEL_TOKEN = "a".repeat(48);
@@ -626,15 +633,19 @@ describe("/v1/verify/session/:id/status", () => {
 				organization_verified_apex_domains: [
 					...(TEST_DATA?.verifiedApexDomains ?? []),
 				].sort(),
-				organization_logo: null,
-				organization_business_name: null,
-				organization_business_jurisdiction: null,
-				organization_business_registration_number: null,
-				organization_business_type: null,
-				organization_privacy_policy_url: null,
-				organization_terms_of_service_url: null,
-				organization_website: null,
-				organization_description: null,
+				organization_logo: DEFAULT_TEST_ORG_LOGO,
+				organization_business_name: DEFAULT_TEST_ORG_BUSINESS.business_name,
+				organization_business_jurisdiction:
+					DEFAULT_TEST_ORG_BUSINESS.business_jurisdiction,
+				organization_business_registration_number:
+					DEFAULT_TEST_ORG_BUSINESS.business_registration_number,
+				organization_business_type: DEFAULT_TEST_ORG_BUSINESS.business_type,
+				organization_privacy_policy_url:
+					DEFAULT_TEST_ORG_METADATA.privacyPolicyUrl,
+				organization_terms_of_service_url:
+					DEFAULT_TEST_ORG_METADATA.termsOfServiceUrl,
+				organization_website: DEFAULT_TEST_ORG_METADATA.website,
+				organization_description: DEFAULT_TEST_ORG_METADATA.description,
 				session_id: sessionId,
 				is_age_only: false,
 				age_threshold: null,
@@ -1313,20 +1324,24 @@ describe("/v1/verify/session/:id/privacy-context", () => {
 				organization_verified_apex_domains: [
 					...(TEST_DATA?.verifiedApexDomains ?? []),
 				].sort(),
-				organization_logo: null,
-				organization_business_name: null,
-				organization_business_jurisdiction: null,
-				organization_business_registration_number: null,
-				organization_business_type: null,
-				organization_privacy_policy_url: null,
-				organization_terms_of_service_url: null,
-				organization_website: null,
-				organization_description: null,
+				organization_logo: DEFAULT_TEST_ORG_LOGO,
+				organization_business_name: DEFAULT_TEST_ORG_BUSINESS.business_name,
+				organization_business_jurisdiction:
+					DEFAULT_TEST_ORG_BUSINESS.business_jurisdiction,
+				organization_business_registration_number:
+					DEFAULT_TEST_ORG_BUSINESS.business_registration_number,
+				organization_business_type: DEFAULT_TEST_ORG_BUSINESS.business_type,
+				organization_privacy_policy_url:
+					DEFAULT_TEST_ORG_METADATA.privacyPolicyUrl,
+				organization_terms_of_service_url:
+					DEFAULT_TEST_ORG_METADATA.termsOfServiceUrl,
+				organization_website: DEFAULT_TEST_ORG_METADATA.website,
+				organization_description: DEFAULT_TEST_ORG_METADATA.description,
 				rp_fallback: {
 					appeal_url: null,
 					complaints_url: null,
 					fallback_idv_url: null,
-					support_email: null,
+					support_email: DEFAULT_TEST_ORG_METADATA.supportEmail,
 				},
 				result_webhook_deliveries: {
 					total_count: 0,

@@ -6,9 +6,11 @@ import {
 	auth_users,
 } from "@kayle-id/database/schema/auth";
 import { eq } from "drizzle-orm";
+import { seedCompleteOrganizationOnboarding } from "./setup";
 
 type SessionAuthSetupOptions = {
 	withActiveOrganization?: boolean;
+	withCompletedOnboarding?: boolean;
 	emailVerified?: boolean;
 };
 
@@ -71,6 +73,7 @@ function mergeCookieHeader(
 
 export async function setupSessionAuth({
 	withActiveOrganization = false,
+	withCompletedOnboarding = false,
 	emailVerified = false,
 }: SessionAuthSetupOptions = {}): Promise<SessionAuthTestData> {
 	const credentials = {
@@ -117,7 +120,7 @@ export async function setupSessionAuth({
 		sessionCookie = mergeCookieHeader(null, getSetCookieHeader(signInResponse));
 	}
 
-	if (withActiveOrganization) {
+	if (withActiveOrganization || withCompletedOnboarding) {
 		organizationId = crypto.randomUUID();
 
 		await db.insert(auth_organizations).values({
@@ -133,6 +136,13 @@ export async function setupSessionAuth({
 			role: "owner",
 			userId: signUpPayload.user.id,
 		});
+
+		if (withCompletedOnboarding) {
+			await seedCompleteOrganizationOnboarding({
+				organizationId,
+				userId: signUpPayload.user.id,
+			});
+		}
 
 		const setActiveOrganizationResponse = await auth.api.setActiveOrganization({
 			asResponse: true,

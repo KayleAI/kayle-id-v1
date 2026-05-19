@@ -37,18 +37,14 @@ export function OnboardingPreviewPane({
 		<div className="flex h-full w-full items-center justify-center px-8 py-10">
 			<div className="w-full max-w-md space-y-3">
 				<PreviewHeading />
-				<motion.div
-					className="w-full"
-					layout
-					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				>
+				<div className="w-full">
 					<PreviewCard
 						businessDraft={businessDraft}
 						focus={focus}
 						isOwnerIdVerified={isOwnerIdVerified}
 						publicDraft={publicDraft}
 					/>
-				</motion.div>
+				</div>
 			</div>
 		</div>
 	);
@@ -81,16 +77,13 @@ function PreviewCard({
 	const name = publicDraft.name.trim() || "Your organization";
 
 	return (
-		<motion.div
-			className="overflow-hidden rounded-3xl border border-border bg-background p-6 text-foreground"
-			layout
-		>
-			<motion.div className="space-y-4" layout>
+		<div className="overflow-hidden rounded-3xl border border-border bg-background p-6 text-foreground">
+			<div className="space-y-4">
 				<DialogHeaderPreview name={name} />
 				<FocusSection focused={focus === "public"}>
 					<IdentityCard name={name} publicDraft={publicDraft} />
 				</FocusSection>
-				<motion.div className="flex flex-col gap-2" layout>
+				<div className="flex flex-col gap-2">
 					<FocusSection focused={focus === "owner-id"}>
 						<VerificationStatusCallout verified={isOwnerIdVerified} />
 					</FocusSection>
@@ -103,19 +96,16 @@ function PreviewCard({
 					<FocusSection focused={focus === "public"}>
 						<PolicyLinks publicDraft={publicDraft} />
 					</FocusSection>
-				</motion.div>
-			</motion.div>
-		</motion.div>
+				</div>
+			</div>
+		</div>
 	);
 }
 
 function DialogHeaderPreview({ name }: { name: string }) {
 	return (
 		<div className="space-y-2">
-			<AnimatedText
-				className="font-medium text-foreground text-lg"
-				value={`About ${name}`}
-			/>
+			<p className="font-medium text-foreground text-lg">{`About ${name}`}</p>
 			<p className="text-muted-foreground text-sm">
 				To help protect you, we&apos;re showing you some information about the
 				organization requesting this check.
@@ -140,7 +130,6 @@ function FocusSection({
 					? "ring-2 ring-foreground/15 ring-offset-2 ring-offset-background"
 					: "",
 			)}
-			layout
 			transition={{ duration: 0.3, ease: "easeOut" }}
 		>
 			{children}
@@ -160,11 +149,8 @@ function IdentityCard({
 	const logo = publicDraft.logoPreview;
 
 	return (
-		<motion.div className="flex items-start gap-3 p-2" layout>
-			<motion.div
-				className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted"
-				layout
-			>
+		<div className="flex items-start gap-3 p-2">
+			<div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
 				<AnimatePresence mode="popLayout">
 					{logo ? (
 						<motion.img
@@ -192,17 +178,18 @@ function IdentityCard({
 						</motion.span>
 					)}
 				</AnimatePresence>
-			</motion.div>
-			<motion.div className="min-w-0 flex-1 space-y-0.5" layout>
-				<AnimatedText
+			</div>
+			<div className="min-w-0 flex-1 space-y-0.5">
+				<p
 					className={cn(
 						"font-medium text-base",
 						publicDraft.name.trim()
 							? "text-foreground"
 							: "text-muted-foreground italic",
 					)}
-					value={name}
-				/>
+				>
+					{name}
+				</p>
 				<AnimatePresence mode="popLayout">
 					{description ? (
 						<motion.p
@@ -228,8 +215,8 @@ function IdentityCard({
 						</motion.p>
 					)}
 				</AnimatePresence>
-			</motion.div>
-		</motion.div>
+			</div>
+		</div>
 	);
 }
 
@@ -322,15 +309,11 @@ function DetailsList({
 	];
 
 	return (
-		<motion.dl
-			className="divide-y divide-border/60 rounded-xl border border-border bg-muted/40 px-4 py-1 text-sm"
-			layout
-		>
+		<dl className="divide-y divide-border/60 rounded-xl border border-border bg-muted/40 px-4 py-1 text-sm">
 			{items.map((item) => (
-				<motion.div
+				<div
 					className="flex items-center justify-between gap-4 py-2.5"
 					key={item.key}
-					layout
 				>
 					<dt className="text-muted-foreground">{item.label}</dt>
 					<dd
@@ -341,11 +324,11 @@ function DetailsList({
 								: "text-muted-foreground/60 italic",
 						)}
 					>
-						<AnimatedText className="inline" value={item.value} />
+						{item.value}
 					</dd>
-				</motion.div>
+				</div>
 			))}
-		</motion.dl>
+		</dl>
 	);
 }
 
@@ -385,9 +368,9 @@ function PolicyLinks({
 	];
 
 	return (
-		<motion.ul className="flex flex-col gap-2" layout>
+		<ul className="flex flex-col gap-2">
 			{links.map((link) => (
-				<motion.li key={link.key} layout>
+				<li key={link.key}>
 					<div
 						className={cn(
 							"group flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors",
@@ -416,9 +399,9 @@ function PolicyLinks({
 							)}
 						/>
 					</div>
-				</motion.li>
+				</li>
 			))}
-		</motion.ul>
+		</ul>
 	);
 }
 
@@ -438,33 +421,5 @@ function ArrowUpRightIcon(props: SVGProps<SVGSVGElement>) {
 			<path d="M7 17 17 7" />
 			<path d="M7 7h10v10" />
 		</svg>
-	);
-}
-
-/**
- * Text that crossfades when its `value` changes. Keeps the layout stable
- * (the text just morphs) so the surrounding card doesn't jiggle while the
- * user types. We key on the whole value so it fades on every change.
- */
-function AnimatedText({
-	className,
-	value,
-}: {
-	className?: string;
-	value: string;
-}) {
-	return (
-		<AnimatePresence initial={false} mode="popLayout">
-			<motion.p
-				animate={{ opacity: 1, y: 0 }}
-				className={className}
-				exit={{ opacity: 0, y: -3 }}
-				initial={{ opacity: 0, y: 3 }}
-				key={value}
-				transition={{ duration: 0.18 }}
-			>
-				{value}
-			</motion.p>
-		</AnimatePresence>
 	);
 }

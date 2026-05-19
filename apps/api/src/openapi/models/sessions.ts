@@ -72,6 +72,12 @@ export const Session = z
 			.describe(
 				"The URL to redirect to after the verification session is completed, if provided by the integrator.",
 			),
+		webhook_endpoint_id: z
+			.union([z.string(), z.array(z.string())])
+			.nullable()
+			.describe(
+				"The webhook endpoint or endpoint list selected for this session, or null when events fan out to all enabled subscribed endpoints.",
+			),
 		verification_url: z
 			.string()
 			.url()
@@ -130,6 +136,7 @@ export const Session = z
 					},
 				},
 				redirect_url: "https://example.com/redirect",
+				webhook_endpoint_id: null,
 				verification_url:
 					"https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
 				expires_at: "2025-01-01T00:00:00Z",

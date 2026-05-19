@@ -29,13 +29,13 @@ import {
 	EMPTY_ENDPOINT_DELIVERY_STATS,
 	type EndpointDeliveryStats,
 	getEndpointDisplayName,
-	getEndpointSecondaryLabel,
 	getEventSubscriptionSummary,
 	TAB_OPTIONS,
 	type WebhooksTab,
 } from "@/app/webhooks/utils";
 import { RelativeTime } from "@/components/relative-time";
 import {
+	EndpointLabels,
 	QueryErrorAlert,
 	ResponseCodeBadge,
 	SectionMessage,
@@ -205,12 +205,21 @@ export function EndpointListCard({
 
 	return (
 		<div className="overflow-x-auto rounded-md border border-border/70">
-			<Table className="w-full table-fixed">
+			<Table className="w-full min-w-[980px] table-fixed">
+				<colgroup>
+					<col className="w-[36%]" />
+					<col className="w-[16%]" />
+					<col className="w-[18%]" />
+					<col className="w-24" />
+					<col className="w-40" />
+					<col className="w-14" />
+				</colgroup>
 				<TableHeader className="bg-muted/30">
 					<TableRow>
 						<TableHead>Destination</TableHead>
+						<TableHead>Labels</TableHead>
 						<TableHead>Listening to</TableHead>
-						<TableHead>Status</TableHead>
+						<TableHead className="whitespace-nowrap">Status</TableHead>
 						<TableHead>Last delivery</TableHead>
 						<TableHead className="w-14 text-right">
 							<span className="sr-only">More actions</span>
@@ -222,36 +231,42 @@ export function EndpointListCard({
 						const deliveryStats =
 							deliveryStatsByEndpoint[endpoint.id] ??
 							EMPTY_ENDPOINT_DELIVERY_STATS;
+						const endpointName = endpoint.name?.trim();
 
 						return (
 							<TableRow key={endpoint.id}>
-								<TableCell className="w-[42%]">
-									<div className="min-w-0 space-y-0.5">
+								<TableCell className="align-middle">
+									<div className="min-w-0 space-y-1.5">
 										<Link
 											className="block truncate font-medium transition-colors hover:text-foreground/80 hover:underline"
 											params={{ endpoint: endpoint.id }}
 											to="/webhooks/$endpoint"
 										>
-											{getEndpointDisplayName(endpoint)}
+											{endpointName || endpoint.url}
 										</Link>
-										<div className="truncate text-muted-foreground text-xs">
-											{getEndpointSecondaryLabel(endpoint)}
-										</div>
+										{endpointName ? (
+											<div className="break-all text-muted-foreground text-xs">
+												{endpoint.url}
+											</div>
+										) : null}
 									</div>
 								</TableCell>
-								<TableCell className="w-[24%]">
+								<TableCell className="align-middle">
+									<EndpointLabels labels={endpoint.labels} />
+								</TableCell>
+								<TableCell className="align-middle">
 									<div className="font-medium text-sm">
 										{getEventSubscriptionSummary(
 											endpoint.subscribed_event_types,
 										)}
 									</div>
 								</TableCell>
-								<TableCell className="w-[14%]">
+								<TableCell className="align-middle">
 									<StatusBadge
 										status={endpoint.enabled ? "active" : "disabled"}
 									/>
 								</TableCell>
-								<TableCell className="w-[16%]">
+								<TableCell className="align-middle">
 									<div className="flex items-center gap-2">
 										<div className="truncate text-muted-foreground text-sm tabular-nums">
 											{deliveryStats.lastAttemptAt ? (
@@ -286,17 +301,31 @@ export function EndpointsTabContent({
 	deliveryStatsByEndpoint,
 	endpointError,
 	endpoints,
+	hasNextPage,
+	hasPreviousPage,
+	isFetchingPage,
 	isMutatingEndpointId,
 	onDeleteEndpoint,
+	onNextPage,
+	onPreviousPage,
 	onToggleEndpointEnabled,
+	pageLabel,
 }: {
 	deliveryStatsByEndpoint: Record<string, EndpointDeliveryStats>;
 	endpointError: unknown;
 	endpoints: WebhookEndpoint[];
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+	isFetchingPage: boolean;
 	isMutatingEndpointId: string | null;
 	onDeleteEndpoint: (endpoint: WebhookEndpoint) => Promise<void>;
+	onNextPage: () => void;
+	onPreviousPage: () => void;
 	onToggleEndpointEnabled: (endpoint: WebhookEndpoint) => Promise<void>;
+	pageLabel: string;
 }) {
+	const showPagination = hasPreviousPage || hasNextPage;
+
 	return (
 		<div className="space-y-6">
 			<QueryErrorAlert
@@ -312,6 +341,32 @@ export function EndpointsTabContent({
 				onDeleteEndpoint={onDeleteEndpoint}
 				onToggleEndpointEnabled={onToggleEndpointEnabled}
 			/>
+
+			{showPagination ? (
+				<div className="flex flex-wrap items-center justify-end gap-3">
+					<span className="text-muted-foreground text-sm tabular-nums">
+						{pageLabel}
+					</span>
+					<div className="flex items-center gap-2">
+						<Button
+							disabled={!hasPreviousPage || isFetchingPage}
+							onClick={onPreviousPage}
+							type="button"
+							variant="outline"
+						>
+							Previous
+						</Button>
+						<Button
+							disabled={!hasNextPage || isFetchingPage}
+							onClick={onNextPage}
+							type="button"
+							variant="outline"
+						>
+							{isFetchingPage ? "Loading..." : "Next"}
+						</Button>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

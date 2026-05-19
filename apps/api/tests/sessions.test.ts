@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { db } from "@kayle-id/database/drizzle";
 import { verification_attempts } from "@kayle-id/database/schema/core";
+import { webhook_endpoints } from "@kayle-id/database/schema/webhooks";
 import type z from "zod";
 import type { Session } from "@/openapi/models/sessions";
 import { generateId } from "@/utils/generate-id";
@@ -44,6 +45,7 @@ describe("/v1/sessions", () => {
 		// by not providing it, when the session is completed, it will
 		//  default to the Kayle ID's success page
 		expect(data?.redirect_url).toBeNull();
+		expect(data?.webhook_endpoint_id).toBeNull();
 		expect(data?.verification_url).toBeDefined();
 		expect(data?.contract_version).toBe(1);
 		expect(data?.share_fields).toBeDefined();
@@ -52,6 +54,117 @@ describe("/v1/sessions", () => {
 		// Store the created session ID for later use
 		createdSessionId = data.id;
 	});
+
+	test.serial(
+		"Can create a session targeted to one webhook endpoint",
+		async () => {
+			const endpointId = generateId({ type: "whe" });
+			await db.insert(webhook_endpoints).values({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				url: "https://example.com/webhooks/session-target",
+			});
+
+			const response = await v1.request("/sessions", {
+				body: JSON.stringify({
+					webhook_endpoint_id: endpointId,
+				}),
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+			});
+
+			expect(response.status).toBe(200);
+			const { data } = (await response.json()) as {
+				data: z.infer<typeof Session>;
+			};
+			expect(data.webhook_endpoint_id).toBe(endpointId);
+		},
+	);
+
+	test.serial(
+		"Can create a session targeted to multiple webhook endpoints",
+		async () => {
+			const endpointIds = [
+				generateId({ type: "whe" }),
+				generateId({ type: "whe" }),
+			];
+			await db.insert(webhook_endpoints).values(
+				endpointIds.map((endpointId, index) => ({
+					id: endpointId,
+					organizationId: TEST_DATA?.organizationId ?? "",
+					url: `https://example.com/webhooks/session-target-${index}`,
+				})),
+			);
+
+			const response = await v1.request("/sessions", {
+				body: JSON.stringify({
+					webhook_endpoint_id: endpointIds,
+				}),
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+			});
+
+			expect(response.status).toBe(200);
+			const { data } = (await response.json()) as {
+				data: z.infer<typeof Session>;
+			};
+			expect(data.webhook_endpoint_id).toEqual(endpointIds);
+		},
+	);
+
+	test.serial(
+		"Rejects unknown, foreign, and disabled webhook endpoint targets",
+		async () => {
+			const disabledEndpointId = generateId({ type: "whe" });
+			await db.insert(webhook_endpoints).values({
+				id: disabledEndpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				enabled: false,
+				url: "https://example.com/webhooks/session-disabled",
+			});
+
+			const foreignData = await setup();
+			const foreignEndpointId = generateId({ type: "whe" });
+			await db.insert(webhook_endpoints).values({
+				id: foreignEndpointId,
+				organizationId: foreignData.organizationId,
+				url: "https://example.com/webhooks/session-foreign",
+			});
+
+			try {
+				for (const endpointId of [
+					generateId({ type: "whe" }),
+					disabledEndpointId,
+					foreignEndpointId,
+				]) {
+					const response = await v1.request("/sessions", {
+						body: JSON.stringify({
+							webhook_endpoint_id: endpointId,
+						}),
+						method: "POST",
+						headers: {
+							Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+							"Content-Type": "application/json",
+						},
+					});
+
+					expect(response.status).toBe(400);
+					const payload = (await response.json()) as {
+						error: { code: string };
+					};
+					expect(payload.error.code).toBe("WEBHOOK_ENDPOINT_UNAVAILABLE");
+				}
+			} finally {
+				await teardown(foreignData);
+			}
+		},
+	);
 
 	/**
 	 * Test whether we can receive a list of sessions

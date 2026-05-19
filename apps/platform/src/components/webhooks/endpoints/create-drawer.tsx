@@ -21,6 +21,7 @@ import {
 	type CreateEndpointSubmission,
 	type CreateEndpointSubmissionResult,
 	getCreateEndpointInitialPublicKey,
+	parseEndpointLabels,
 	toggleEventSelection,
 	WEBHOOK_PAYLOAD_RETENTION_OPTIONS,
 } from "@/app/webhooks/utils";
@@ -38,6 +39,7 @@ export function CreateEndpointDrawer({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
 	const [enabled, setEnabled] = useState(true);
+	const [labelsInput, setLabelsInput] = useState("");
 	const [name, setName] = useState("");
 	const [
 		undeliveredPayloadRetentionHours,
@@ -57,6 +59,7 @@ export function CreateEndpointDrawer({
 		setIsSubmitting(false);
 		setIsMoreOptionsOpen(false);
 		setEnabled(true);
+		setLabelsInput("");
 		setName("");
 		setUndeliveredPayloadRetentionHours(
 			DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
@@ -89,6 +92,7 @@ export function CreateEndpointDrawer({
 					publicKeyInput,
 					shouldConfigurePublicKey,
 				}),
+				labels: parseEndpointLabels(labelsInput),
 				name: name.trim() || null,
 				subscribedEventTypes: selectedEventTypes,
 				undeliveredPayloadRetentionHours,
@@ -157,6 +161,16 @@ export function CreateEndpointDrawer({
 							onChange={(event) => setName(event.target.value)}
 							placeholder="Primary production webhook"
 							value={name}
+						/>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="create-webhook-labels">Labels</Label>
+						<Input
+							id="create-webhook-labels"
+							onChange={(event) => setLabelsInput(event.target.value)}
+							placeholder="production, identity"
+							value={labelsInput}
 						/>
 					</div>
 

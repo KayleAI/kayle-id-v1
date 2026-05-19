@@ -108,6 +108,7 @@ export const verification_sessions = pgTable(
 		contractVersion: integer("contract_version").default(1).notNull(),
 		shareFields: jsonb("share_fields").default({}).notNull(),
 		redirectUrl: text("redirect_url"),
+		webhookEndpointIds: jsonb("webhook_endpoint_ids").$type<string[]>(),
 		/**
 		 * HMAC-SHA256 of the one-shot cancel token issued at session creation.
 		 *

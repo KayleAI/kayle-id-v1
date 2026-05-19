@@ -228,6 +228,13 @@ export function buildDemoWebhookUrl({
 	return url.toString();
 }
 
+function getDemoRunLabel(runId: string): string {
+	const labelId = runId.startsWith("demo_")
+		? runId.slice("demo_".length)
+		: runId;
+	return `run:${labelId}`;
+}
+
 export async function createDemoWebhookEndpoint({
 	bindings,
 	runId,
@@ -250,6 +257,7 @@ export async function createDemoWebhookEndpoint({
 		body: {
 			url: buildDemoWebhookUrl({ runId, token }),
 			enabled: true,
+			labels: ["demo", getDemoRunLabel(runId)],
 			subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 		},
 	});
@@ -285,30 +293,37 @@ export async function createDemoWebhookEncryptionKey({
 	});
 }
 
-export async function disableDemoWebhookEndpoint({
+export async function deleteDemoWebhookEndpoint({
 	bindings,
 	endpointId,
 }: {
 	bindings: DemoBindings;
 	endpointId: string;
 }): Promise<void> {
-	await requestApi({
-		bindings,
-		method: "PATCH",
-		path: `/v1/webhooks/endpoints/${endpointId}`,
-		useAuth: true,
-		body: {
-			enabled: false,
-		},
-	});
+	try {
+		await requestApi({
+			bindings,
+			method: "DELETE",
+			path: `/v1/webhooks/endpoints/${endpointId}`,
+			useAuth: true,
+		});
+	} catch (error) {
+		if (error instanceof DemoApiError && error.status === 404) {
+			return;
+		}
+
+		throw error;
+	}
 }
 
 export function createDemoSession({
 	bindings,
 	shareFields,
+	webhookEndpointId,
 }: {
 	bindings: DemoBindings;
 	shareFields: DemoRequestedShareFields | undefined;
+	webhookEndpointId: string;
 }): Promise<{
 	id: string;
 	share_fields: DemoSessionShareFields;
@@ -323,7 +338,10 @@ export function createDemoSession({
 		method: "POST",
 		path: "/v1/sessions",
 		useAuth: true,
-		body: shareFields ? { share_fields: shareFields } : {},
+		body: {
+			...(shareFields ? { share_fields: shareFields } : {}),
+			webhook_endpoint_id: webhookEndpointId,
+		},
 	});
 }
 

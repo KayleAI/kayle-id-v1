@@ -154,6 +154,22 @@ async function getMappedWebhookDelivery(
 	return delivery ? mapWebhookDeliveryRowToResponse(delivery) : null;
 }
 
+async function getWebhookEndpointTargetIdsForSession(
+	sessionId: string,
+): Promise<string[] | null> {
+	const [session] = await db
+		.select({
+			webhookEndpointIds: verification_sessions.webhookEndpointIds,
+		})
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, sessionId))
+		.limit(1);
+
+	return session?.webhookEndpointIds?.length
+		? session.webhookEndpointIds
+		: null;
+}
+
 type DeliveryAttemptContext = {
 	delivery: typeof webhook_deliveries.$inferSelect;
 	endpoint: typeof webhook_endpoints.$inferSelect;
@@ -481,13 +497,18 @@ async function createWebhookDeliveriesForEvent({
 	eventType,
 	organizationId,
 	payload,
+	webhookEndpointIds,
 }: {
 	eventId: string;
 	eventType: SupportedWebhookEventType;
 	organizationId: string;
 	payload: WebhookPayload;
+	webhookEndpointIds?: string[] | null;
 }): Promise<string[]> {
 	const serializedPayload = JSON.stringify(payload);
+	const targetEndpointIds = webhookEndpointIds?.length
+		? webhookEndpointIds
+		: null;
 	const candidateEndpoints = await db
 		.select()
 		.from(webhook_endpoints)
@@ -495,6 +516,9 @@ async function createWebhookDeliveriesForEvent({
 			and(
 				eq(webhook_endpoints.organizationId, organizationId),
 				eq(webhook_endpoints.enabled, true),
+				...(targetEndpointIds
+					? [inArray(webhook_endpoints.id, targetEndpointIds)]
+					: []),
 			),
 		);
 
@@ -612,6 +636,7 @@ export async function createWebhookDeliveriesForVerificationSucceeded({
 		.select({
 			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
 			status: verification_sessions.status,
+			webhookEndpointIds: verification_sessions.webhookEndpointIds,
 		})
 		.from(verification_sessions)
 		.where(eq(verification_sessions.id, manifest.sessionId))
@@ -630,6 +655,7 @@ export async function createWebhookDeliveriesForVerificationSucceeded({
 			eventId,
 			manifest,
 		}),
+		webhookEndpointIds: session?.webhookEndpointIds ?? null,
 	});
 }
 
@@ -711,7 +737,7 @@ export async function scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
 	};
 }
 
-export function createWebhookDeliveriesForVerificationAttemptFailed({
+export async function createWebhookDeliveriesForVerificationAttemptFailed({
 	attemptId,
 	contractVersion,
 	eventId,
@@ -726,6 +752,9 @@ export function createWebhookDeliveriesForVerificationAttemptFailed({
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
+	const webhookEndpointIds =
+		await getWebhookEndpointTargetIdsForSession(sessionId);
+
 	return createWebhookDeliveriesForEvent({
 		eventId,
 		eventType: "verification.attempt.failed",
@@ -737,10 +766,11 @@ export function createWebhookDeliveriesForVerificationAttemptFailed({
 			failureCode,
 			sessionId,
 		}),
+		webhookEndpointIds,
 	});
 }
 
-export function createWebhookDeliveriesForVerificationSessionExpired({
+export async function createWebhookDeliveriesForVerificationSessionExpired({
 	contractVersion,
 	eventId,
 	organizationId,
@@ -751,6 +781,9 @@ export function createWebhookDeliveriesForVerificationSessionExpired({
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
+	const webhookEndpointIds =
+		await getWebhookEndpointTargetIdsForSession(sessionId);
+
 	return createWebhookDeliveriesForEvent({
 		eventId,
 		eventType: "verification.session.expired",
@@ -760,10 +793,11 @@ export function createWebhookDeliveriesForVerificationSessionExpired({
 			eventId,
 			sessionId,
 		}),
+		webhookEndpointIds,
 	});
 }
 
-export function createWebhookDeliveriesForVerificationSessionCancelled({
+export async function createWebhookDeliveriesForVerificationSessionCancelled({
 	contractVersion,
 	eventId,
 	organizationId,
@@ -774,6 +808,9 @@ export function createWebhookDeliveriesForVerificationSessionCancelled({
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
+	const webhookEndpointIds =
+		await getWebhookEndpointTargetIdsForSession(sessionId);
+
 	return createWebhookDeliveriesForEvent({
 		eventId,
 		eventType: "verification.session.cancelled",
@@ -783,6 +820,7 @@ export function createWebhookDeliveriesForVerificationSessionCancelled({
 			eventId,
 			sessionId,
 		}),
+		webhookEndpointIds,
 	});
 }
 

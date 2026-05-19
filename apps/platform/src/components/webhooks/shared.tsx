@@ -17,8 +17,10 @@ import {
 } from "@/app/webhooks/utils";
 
 export function StatusBadge({
+	className,
 	status,
 }: {
+	className?: string;
 	status: DeliveryStatus | "active" | "disabled" | "inactive";
 }) {
 	return (
@@ -26,11 +28,32 @@ export function StatusBadge({
 			className={cn(
 				"px-2.5 py-1 text-xs capitalize",
 				getStatusBadgeClass(status),
+				className,
 			)}
 			variant="outline"
 		>
 			{status.replace("_", " ")}
 		</Badge>
+	);
+}
+
+export function EndpointLabels({ labels }: { labels: string[] }) {
+	if (labels.length === 0) {
+		return <span className="text-muted-foreground text-xs">No labels</span>;
+	}
+
+	return (
+		<div className="flex flex-wrap gap-1.5">
+			{labels.map((label) => (
+				<Badge
+					className="border-border bg-muted/40 px-2 py-0.5 font-normal text-muted-foreground text-xs"
+					key={label}
+					variant="outline"
+				>
+					{label}
+				</Badge>
+			))}
+		</div>
 	);
 }
 

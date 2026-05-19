@@ -143,6 +143,7 @@ export type CreateVerificationSessionInput = {
 	shareFields: ShareFields;
 	contractVersion: number;
 	isAgeOnly: boolean;
+	webhookEndpointIds: string[] | null;
 };
 
 async function insertVerificationSessionRow(
@@ -163,6 +164,7 @@ async function insertVerificationSessionRow(
 			contractVersion: input.contractVersion,
 			cancelTokenHash,
 			isAgeOnly: input.isAgeOnly,
+			webhookEndpointIds: input.webhookEndpointIds,
 		})
 		.returning();
 

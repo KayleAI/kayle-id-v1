@@ -4,21 +4,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AppHeading } from "@/components/app-shell/heading";
 import { Loading } from "@/components/loading";
+import { RelativeTime } from "@/components/relative-time";
 import { DeliveriesTabContent } from "@/components/webhooks/deliveries/tab";
-import {
-	EventAttachedEndpointsCard,
-	EventOverviewCard,
-} from "@/components/webhooks/events/detail-cards";
 import { getErrorMessage } from "@/components/webhooks/shared";
 import {
-	listWebhookDeliveries,
+	getWebhookEvent,
 	listWebhookEndpoints,
-	listWebhookEvents,
-	replayWebhookEvent,
 	retryWebhookDelivery,
 } from "./api";
 import {
-	getDeliveriesForEvent,
+	formatCountLabel,
+	getAttachedEndpointIds,
 	getEndpointsById,
 	getEventTriggerLabel,
 } from "./utils";
@@ -27,15 +23,11 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 	const queryClient = useQueryClient();
 
 	const eventsQuery = useQuery({
-		queryKey: ["webhooks", "events"],
-		queryFn: () =>
-			listWebhookEvents({
-				limit: 100,
-			}),
+		queryKey: ["webhooks", "events", "detail", eventId],
+		queryFn: () => getWebhookEvent(eventId),
 	});
 
-	const event =
-		eventsQuery.data?.data.find((item) => item.id === eventId) ?? null;
+	const event = eventsQuery.data ?? null;
 
 	const endpointsQuery = useQuery({
 		enabled: Boolean(event),
@@ -46,35 +38,15 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 			}),
 	});
 
-	const deliveriesQuery = useQuery({
-		enabled: Boolean(event),
-		queryKey: ["webhooks", "deliveries"],
-		queryFn: () =>
-			listWebhookDeliveries({
-				limit: 100,
-			}),
-	});
-
-	const replayEventMutation = useMutation({
-		mutationFn: replayWebhookEvent,
-	});
 	const retryDeliveryMutation = useMutation({
 		mutationFn: retryWebhookDelivery,
 	});
 
 	const endpoints = endpointsQuery.data?.data ?? [];
 	const endpointsById = getEndpointsById(endpoints);
-	const eventDeliveries = event
-		? getDeliveriesForEvent(deliveriesQuery.data?.data ?? [], event.id)
-		: [];
 
 	function refreshWebhookQueries(): Promise<void> {
 		return queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-	}
-
-	async function handleReplayEvent(targetEventId: string): Promise<void> {
-		await replayEventMutation.mutateAsync(targetEventId);
-		await refreshWebhookQueries();
 	}
 
 	async function handleRetryDelivery(deliveryId: string): Promise<void> {
@@ -136,6 +108,8 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 		);
 	}
 
+	const attachedEndpointCount = getAttachedEndpointIds(event).length;
+
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<div className="mb-4">
@@ -153,36 +127,26 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 
 			<AppHeading title={event.type} />
 
-			<div className="mt-3 flex flex-wrap items-center gap-3">
+			<div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground text-sm">
 				<span className="text-muted-foreground text-sm">
 					{getEventTriggerLabel(event)}
 				</span>
-				<span className="break-all font-mono text-muted-foreground text-xs">
-					{event.id}
+				<span className="tabular-nums">
+					{formatCountLabel(attachedEndpointCount, "endpoint")}
+				</span>
+				<span className="tabular-nums">
+					<RelativeTime iso={event.created_at} />
 				</span>
 			</div>
 
-			<div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.55fr)]">
-				<EventAttachedEndpointsCard
-					endpointsById={endpointsById}
-					error={endpointsQuery.error}
-					event={event}
-				/>
-				<EventOverviewCard
-					event={event}
-					isReplaying={replayEventMutation.isPending}
-					onReplayEvent={handleReplayEvent}
-				/>
-			</div>
-
 			<div className="mt-8 space-y-3">
-				<h2 className="font-medium text-sm">Delivery history</h2>
+				<h2 className="font-medium text-sm">Deliveries</h2>
 				<DeliveriesTabContent
 					context="event"
-					deliveries={eventDeliveries}
+					deliveries={event.deliveries}
 					endpointsById={endpointsById}
-					error={deliveriesQuery.error}
-					isLoading={deliveriesQuery.isLoading}
+					error={endpointsQuery.error}
+					isLoading={endpointsQuery.isLoading && endpoints.length === 0}
 					isRetrying={retryDeliveryMutation.isPending}
 					onRetryDelivery={handleRetryDelivery}
 				/>

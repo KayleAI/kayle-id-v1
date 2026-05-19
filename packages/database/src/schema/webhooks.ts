@@ -35,6 +35,7 @@ export const webhook_endpoints = pgTable(
 			.notNull()
 			.references(() => auth_organizations.id, { onDelete: "cascade" }),
 		name: text("name"),
+		labels: jsonb("labels").$type<string[]>().default([]).notNull(),
 		url: text("url").notNull(),
 		enabled: boolean("enabled").default(true).notNull(),
 		subscribedEventTypes: jsonb("subscribed_event_types")

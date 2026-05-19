@@ -200,6 +200,72 @@ describe("/v1/webhooks/events", () => {
 	);
 
 	test.serial(
+		"GET / paginates newest events without dropping ties",
+		async () => {
+			const createdAt = new Date("9999-01-01T00:00:00.000Z");
+			const eventIds = Array.from(
+				{ length: 4 },
+				() => `evt_${crypto.randomUUID()}`,
+			);
+
+			await db.insert(coreEvents).values(
+				eventIds.map((eventId, index) => ({
+					id: eventId,
+					organizationId: TEST_DATA?.organizationId ?? "",
+					createdAt,
+					type:
+						index % 2 === 0
+							? "verification.attempt.succeeded"
+							: "verification.attempt.failed",
+					triggerId: `va_events_page_${index}`,
+					triggerType: "verification_attempt",
+				})),
+			);
+
+			const firstPage = await app.request("/v1/webhooks/events?limit=2", {
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "GET",
+			});
+			expect(firstPage.status).toBe(200);
+			const firstPayload = (await firstPage.json()) as {
+				data: Array<{ id: string }>;
+				pagination: { has_more: boolean; next_cursor: string | null };
+			};
+			expect(firstPayload.pagination.has_more).toBeTrue();
+			expect(firstPayload.pagination.next_cursor).toBeString();
+
+			const secondPage = await app.request(
+				`/v1/webhooks/events?limit=2&starting_after=${firstPayload.pagination.next_cursor}`,
+				{
+					headers: {
+						Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					},
+					method: "GET",
+				},
+			);
+			expect(secondPage.status).toBe(200);
+			const secondPayload = (await secondPage.json()) as {
+				data: Array<{ id: string }>;
+			};
+			const pagedIds = [
+				...firstPayload.data.map((event) => event.id),
+				...secondPayload.data.map((event) => event.id),
+			];
+			const seen = new Set(pagedIds);
+
+			expect(pagedIds).toEqual([...eventIds].sort().reverse());
+			for (const eventId of eventIds) {
+				expect(seen.has(eventId)).toBeTrue();
+			}
+			expect(seen.size).toBe(
+				firstPayload.data.length + secondPayload.data.length,
+			);
+		},
+	);
+
+	test.serial(
 		"POST /:event_id/replay requeues existing deliveries for the event",
 		async () => {
 			const seeded = await seedWebhookEvent();

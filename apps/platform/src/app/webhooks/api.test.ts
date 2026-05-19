@@ -6,6 +6,7 @@ import {
 	createWebhookKey,
 	deactivateWebhookKey,
 	deleteWebhookEndpoint,
+	getWebhookEvent,
 	listWebhookEndpoints,
 	parseJwkInput,
 	parsePublicKeyInput,
@@ -145,6 +146,37 @@ describe("webhook api helpers", () => {
 		);
 	});
 
+	test("gets a webhook event with the expected event path", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			mockJsonResponse({
+				data: {
+					id: "evt_123",
+					type: "verification.attempt.succeeded",
+					trigger_id: "va_123",
+					trigger_type: "verification_attempt",
+					created_at: "2026-05-19T00:00:00.000Z",
+					deliveries: [],
+				},
+				error: null,
+			}),
+		);
+
+		globalThis.fetch = fetchMock as typeof fetch;
+
+		await expect(getWebhookEvent("evt_123")).resolves.toMatchObject({
+			id: "evt_123",
+			deliveries: [],
+		});
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			"/api/webhooks/events/evt_123",
+			expect.objectContaining({
+				credentials: "include",
+				method: "GET",
+			}),
+		);
+	});
+
 	test("creates keys as RSA OAEP webhook encryption keys", async () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			mockJsonResponse({
@@ -206,6 +238,7 @@ describe("webhook api helpers", () => {
 						id: "whe_123",
 						organization_id: "org_123",
 						name: "Primary production webhook",
+						labels: ["production", "identity"],
 						url: "https://example.com/webhooks/kayle",
 						enabled: true,
 						subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
@@ -223,8 +256,10 @@ describe("webhook api helpers", () => {
 
 		await createWebhookEndpoint({
 			enabled: true,
+			labels: ["production", "identity"],
 			name: "Primary production webhook",
 			subscribedEventTypes: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
+			undeliveredPayloadRetentionHours: 72,
 			url: "https://example.com/webhooks/kayle",
 		});
 
@@ -240,8 +275,10 @@ describe("webhook api helpers", () => {
 		const [, requestOptions] = fetchMock.mock.calls[0] ?? [];
 		expect(JSON.parse(String(requestOptions?.body))).toEqual({
 			enabled: true,
+			labels: ["production", "identity"],
 			name: "Primary production webhook",
 			subscribed_event_types: SUPPORTED_WEBHOOK_EVENT_TYPES,
+			undelivered_payload_retention_hours: 72,
 			url: "https://example.com/webhooks/kayle",
 		});
 	});

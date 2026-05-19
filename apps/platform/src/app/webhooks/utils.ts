@@ -10,6 +10,7 @@ import {
 	type WebhookEncryptionKey,
 	type WebhookEndpoint,
 	type WebhookEvent,
+	type WebhookEventDelivery,
 } from "./api";
 import {
 	EMPTY_ENDPOINT_DELIVERY_STATS,
@@ -21,7 +22,7 @@ import {
 import { type DeliveryTrendPoint, getEndpointDeliveryTrend } from "./trend";
 
 export type WebhooksTab = "endpoints" | "events";
-export type EndpointDetailTab = "overview" | "performance" | "deliveries";
+export type EndpointDetailTab = "overview" | "public-keys" | "deliveries";
 
 export type { DeliveryTrendPoint, EndpointDeliveryStats };
 export {
@@ -40,6 +41,7 @@ export interface CreateEndpointInitialPublicKey {
 export interface CreateEndpointSubmission {
 	enabled: boolean;
 	initialPublicKey: CreateEndpointInitialPublicKey | null;
+	labels: string[];
 	name: string | null;
 	subscribedEventTypes: string[];
 	undeliveredPayloadRetentionHours: number;
@@ -121,7 +123,7 @@ export function getEndpointDisplayName(
 export function getEndpointPageTitle(
 	endpoint: Pick<WebhookEndpoint, "name" | "url">,
 ): string {
-	return endpoint.name?.trim() || getEndpointHostLabel(endpoint.url);
+	return endpoint.name?.trim() || endpoint.url;
 }
 
 export function getEndpointSecondaryLabel(
@@ -132,10 +134,41 @@ export function getEndpointSecondaryLabel(
 		: getEndpointHostLabel(endpoint.url);
 }
 
+export function getEndpointLabelsInput(labels: string[]): string {
+	return labels.join(", ");
+}
+
+export function parseEndpointLabels(input: string): string[] {
+	const labels = input
+		.split(",")
+		.map((label) => label.trim())
+		.filter(Boolean);
+	const normalizedLabels = new Set<string>();
+
+	return labels.filter((label) => {
+		const normalized = label.toLowerCase();
+		if (normalizedLabels.has(normalized)) {
+			return false;
+		}
+		normalizedLabels.add(normalized);
+		return true;
+	});
+}
+
+export function getSuccessfulDeliveryFraction(
+	deliveries: Array<Pick<WebhookEventDelivery, "status">>,
+): string {
+	const successfulCount = deliveries.filter(
+		(delivery) => delivery.status === "succeeded",
+	).length;
+
+	return `${formatCount(successfulCount)}/${formatCount(deliveries.length)}`;
+}
+
 export function getEndpointPageSubtitle(
 	endpoint: Pick<WebhookEndpoint, "name" | "url">,
-): string {
-	return endpoint.url;
+): string | null {
+	return endpoint.name?.trim() ? endpoint.url : null;
 }
 
 export function getEndpointsById(
@@ -183,6 +216,7 @@ export function getRecentDeliveriesForEndpoint(
 export function isWebhookEndpointDirty({
 	endpoint,
 	endpointEnabled,
+	endpointLabelsInput,
 	endpointName,
 	endpointSubscribedEventTypes,
 	endpointUndeliveredPayloadRetentionHours,
@@ -190,6 +224,7 @@ export function isWebhookEndpointDirty({
 }: {
 	endpoint: WebhookEndpoint | null;
 	endpointEnabled: boolean;
+	endpointLabelsInput: string;
 	endpointName: string;
 	endpointSubscribedEventTypes: string[];
 	endpointUndeliveredPayloadRetentionHours: number;
@@ -201,6 +236,10 @@ export function isWebhookEndpointDirty({
 
 	return (
 		(endpoint.name ?? "") !== endpointName.trim() ||
+		!areEventSelectionsEqual(
+			endpoint.labels,
+			parseEndpointLabels(endpointLabelsInput),
+		) ||
 		endpoint.url !== endpointUrl ||
 		endpoint.enabled !== endpointEnabled ||
 		endpoint.undelivered_payload_retention_hours !==
@@ -314,26 +353,6 @@ export async function getCreateEndpointInitialPublicKey({
 		jwk: await parsePublicKeyInput(publicKeyInput),
 		keyId: publicKeyId.trim(),
 	};
-}
-
-export function getWebhookEventReplayDisabledReason(
-	event: WebhookEvent,
-): string | null {
-	if (event.deliveries.length === 0) {
-		return "This event has no deliveries to replay.";
-	}
-
-	const disabledReasons = event.deliveries
-		.map(getWebhookDeliveryRetryDisabledReason)
-		.filter((reason): reason is string => reason !== null);
-
-	if (disabledReasons.length === event.deliveries.length) {
-		return disabledReasons.includes("Delivery is already in progress.")
-			? "All attached deliveries are already in progress or unavailable."
-			: "All attached delivery payloads have expired or were scrubbed.";
-	}
-
-	return null;
 }
 
 export function getWebhookDeliveryRetryDisabledReason(

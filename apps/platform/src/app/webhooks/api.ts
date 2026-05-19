@@ -55,12 +55,14 @@ export function listWebhookEndpoints({
 
 export function createWebhookEndpoint({
 	enabled,
+	labels,
 	name,
 	subscribedEventTypes,
 	undeliveredPayloadRetentionHours,
 	url,
 }: {
 	enabled: boolean;
+	labels: string[];
 	name?: string | null;
 	subscribedEventTypes: string[];
 	undeliveredPayloadRetentionHours: number;
@@ -72,6 +74,7 @@ export function createWebhookEndpoint({
 		path: "/endpoints",
 		body: {
 			name,
+			labels,
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
@@ -84,6 +87,7 @@ export function createWebhookEndpoint({
 export function updateWebhookEndpoint({
 	endpointId,
 	enabled,
+	labels,
 	name,
 	subscribedEventTypes,
 	undeliveredPayloadRetentionHours,
@@ -91,6 +95,7 @@ export function updateWebhookEndpoint({
 }: {
 	endpointId: string;
 	enabled: boolean;
+	labels: string[];
 	name?: string | null;
 	subscribedEventTypes: string[];
 	undeliveredPayloadRetentionHours: number;
@@ -102,6 +107,7 @@ export function updateWebhookEndpoint({
 		path: `/endpoints/${endpointId}`,
 		body: {
 			name,
+			labels,
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
@@ -226,6 +232,14 @@ export function listWebhookEvents({
 			limit,
 			starting_after: startingAfter,
 		},
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
+	});
+}
+
+export function getWebhookEvent(eventId: string): Promise<WebhookEvent> {
+	return requestApiResource<WebhookEvent>({
+		basePath: WEBHOOKS_PATH,
+		path: `/events/${eventId}`,
 		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
 }

@@ -23,20 +23,60 @@ import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
+type NavTo = keyof FileRoutesByTo | string;
+
+const API_REFERENCE_URL = "https://docs.kayle.id/api-reference";
+const DOCUMENTATION_URL = "https://docs.kayle.id/";
+const ORGANIZATIONS_URL = "/organizations" satisfies keyof FileRoutesByTo;
+
+const topLevelNavigationItems: { label: string; to: NavTo }[] = [
+	{ label: "Organizations", to: ORGANIZATIONS_URL },
+];
+
 const navigationItems: {
 	section: string;
-	items: { to: keyof FileRoutesByTo; label: string; description: string }[];
+	items: { to: NavTo; label: string; description: string }[];
 }[] = [
 	{
-		section: "Company",
-		items: [],
+		section: "Product",
+		items: [
+			{
+				description: "Try Kayle ID verification flows end to end.",
+				label: "Demo",
+				to: "/demo",
+			},
+			{
+				description: "Implementation guides, concepts, and integration notes.",
+				label: "Docs",
+				to: DOCUMENTATION_URL,
+			},
+			{
+				description: "Endpoint reference for the Kayle ID API.",
+				label: "API Reference",
+				to: API_REFERENCE_URL,
+			},
+		],
 	},
 ];
+
+const DESKTOP_NAV_ITEM_CLASS =
+	"font-medium text-muted-foreground text-sm transition-colors duration-200 hover:text-foreground";
+
+const DESKTOP_NAV_TRIGGER_CLASS = cn(
+	DESKTOP_NAV_ITEM_CLASS,
+	"bg-transparent px-0 hover:bg-transparent focus:bg-transparent focus:text-foreground data-open:bg-transparent data-open:text-foreground data-open:hover:bg-transparent data-popup-open:bg-transparent data-popup-open:text-foreground data-popup-open:hover:bg-transparent",
+);
+
+function getExternalLinkProps(to: NavTo) {
+	return to.startsWith("https://")
+		? ({ rel: "noopener noreferrer", target: "_blank" } as const)
+		: {};
+}
 
 interface NavItemProps {
 	children: React.ReactNode;
 	className?: string;
-	to: keyof FileRoutesByTo;
+	to: NavTo;
 	variant?: "default" | "button";
 }
 
@@ -51,7 +91,11 @@ function NavItem({
 			<Button
 				className={cn(className)}
 				nativeButton={false}
-				render={<Link to={to}>{children}</Link>}
+				render={
+					<Link to={to} {...getExternalLinkProps(to)}>
+						{children}
+					</Link>
+				}
 				variant="default"
 			/>
 		);
@@ -59,8 +103,9 @@ function NavItem({
 
 	return (
 		<Link
-			className="font-medium text-muted-foreground text-sm transition-colors duration-200 hover:text-foreground"
+			className={DESKTOP_NAV_ITEM_CLASS}
 			to={to}
+			{...getExternalLinkProps(to)}
 		>
 			{children}
 		</Link>
@@ -79,7 +124,7 @@ const ListItem = ({
 	className?: string;
 	title: string;
 	children: React.ReactNode;
-	to: keyof FileRoutesByTo;
+	to: NavTo;
 	props?: React.ComponentPropsWithoutRef<"a">;
 }) => {
 	if (!to) {
@@ -97,6 +142,7 @@ const ListItem = ({
 						)}
 						ref={ref}
 						to={to}
+						{...getExternalLinkProps(to)}
 						{...props}
 					>
 						<div className="font-medium text-sm leading-none">{title}</div>
@@ -114,13 +160,14 @@ function MobileNavItem({
 	to,
 	children,
 }: {
-	to: keyof FileRoutesByTo;
+	to: NavTo;
 	children: React.ReactNode;
 }) {
 	return (
 		<Link
 			className="block text-lg text-muted-foreground transition-colors hover:text-foreground"
 			to={to}
+			{...getExternalLinkProps(to)}
 		>
 			{children}
 		</Link>
@@ -159,6 +206,15 @@ function MobileNavigation() {
 					<Link to="/">Kayle</Link>
 				</SheetTitle>
 				<nav className="mt-8 flex flex-col gap-4">
+					<div className="border-border border-b pb-4">
+						<ul className="flex flex-col gap-y-2">
+							{topLevelNavigationItems.map((item) => (
+								<MobileNavItem key={item.to} to={item.to}>
+									{item.label}
+								</MobileNavItem>
+							))}
+						</ul>
+					</div>
 					{navigationItems.map((item) => (
 						<div className="border-border border-b pb-4" key={item.section}>
 							<h3 className="font-medium text-muted-foreground text-sm">
@@ -198,26 +254,35 @@ export function Header() {
 						<Link to="/">
 							<Logo title="Kayle ID" />
 						</Link>
-						<NavigationMenu className="z-50 hidden lg:flex">
-							<NavigationMenuList>
-								{navigationItems.map((item) => (
-									<NavigationMenuItem key={item.section}>
-										<NavigationMenuTrigger>
-											{item.section}
-										</NavigationMenuTrigger>
-										<NavigationMenuContent>
-											<ul className="grid w-[400px] gap-1">
-												{item.items.map((i) => (
-													<ListItem key={i.to} title={i.label} to={i.to}>
-														{i.description}
-													</ListItem>
-												))}
-											</ul>
-										</NavigationMenuContent>
-									</NavigationMenuItem>
-								))}
-							</NavigationMenuList>
-						</NavigationMenu>
+						<div className="hidden items-center gap-6 lg:flex">
+							{topLevelNavigationItems.map((item) => (
+								<NavItem key={item.to} to={item.to}>
+									{item.label}
+								</NavItem>
+							))}
+							<NavigationMenu className="z-50">
+								<NavigationMenuList>
+									{navigationItems.map((item) => (
+										<NavigationMenuItem key={item.section}>
+											<NavigationMenuTrigger
+												className={DESKTOP_NAV_TRIGGER_CLASS}
+											>
+												{item.section}
+											</NavigationMenuTrigger>
+											<NavigationMenuContent>
+												<ul className="grid w-[400px] gap-1">
+													{item.items.map((i) => (
+														<ListItem key={i.to} title={i.label} to={i.to}>
+															{i.description}
+														</ListItem>
+													))}
+												</ul>
+											</NavigationMenuContent>
+										</NavigationMenuItem>
+									))}
+								</NavigationMenuList>
+							</NavigationMenu>
+						</div>
 					</div>
 
 					<div className="flex items-center gap-2">

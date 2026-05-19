@@ -127,7 +127,7 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 					</div>
 					<Link
 						className="font-medium text-foreground text-sm hover:underline"
-						to="/organizations/members"
+						to="/settings/organizations/members"
 					>
 						View all
 					</Link>

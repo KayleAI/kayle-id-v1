@@ -1,6 +1,6 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import type { Organization } from "@kayle-id/auth/types";
+import type { Organization, OrganizationRole } from "@kayle-id/auth/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
 import {
 	DropdownMenu,
@@ -23,7 +23,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@kayleai/ui/sidebar";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
 	ArrowUpRightIcon,
@@ -45,11 +45,6 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
-} from "@/app/organizations/api";
 import { SidebarVerificationWarning } from "./sidebar-verification-warning";
 
 const NAV_ITEMS = [
@@ -65,18 +60,7 @@ export function AppSidebar() {
 	const queryClient = useQueryClient();
 	const currentPath = routerState.location.pathname;
 
-	// Reuse the cached full-org query that the org pages also fetch — TanStack
-	// Query dedupes — so we can hide org-scoped sidebar items the caller isn't
-	// allowed to use without issuing a second request.
-	const { data: fullOrganization } = useQuery({
-		enabled: Boolean(activeOrganization?.id),
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const currentRole = fullOrganization?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
+	const currentRole = activeOrganization?.role as OrganizationRole | undefined;
 	const canViewAuditLogs = currentRole === "owner" || currentRole === "admin";
 
 	const handleSelectOrganization = async (
@@ -163,24 +147,26 @@ export function AppSidebar() {
 									<DropdownMenuLabel className="text-muted-foreground text-xs">
 										{orgName}
 									</DropdownMenuLabel>
-									<DropdownMenuItem render={<Link to="/organizations" />}>
+									<DropdownMenuItem
+										render={<Link to="/settings/organizations" />}
+									>
 										<BuildingIcon />
 										Overview
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/members" />}
+										render={<Link to="/settings/organizations/members" />}
 									>
 										<UsersIcon />
 										Members
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/public" />}
+										render={<Link to="/settings/organizations/public" />}
 									>
 										<GlobeIcon />
 										Public details
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/settings" />}
+										render={<Link to="/settings/organizations/settings" />}
 									>
 										<SettingsIcon />
 										Settings
@@ -234,7 +220,7 @@ export function AppSidebar() {
 									</>
 								) : null}
 								<DropdownMenuSeparator />
-								<DropdownMenuItem render={<Link to="/organizations/create" />}>
+								<DropdownMenuItem render={<Link to="/create-organization" />}>
 									<PlusIcon />
 									Create organization
 								</DropdownMenuItem>
@@ -267,10 +253,10 @@ export function AppSidebar() {
 									<SidebarMenuButton
 										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
 										isActive={currentPath.startsWith(
-											"/organizations/audit-logs",
+											"/settings/organizations/audit-logs",
 										)}
 										render={
-											<Link to="/organizations/audit-logs">
+											<Link to="/settings/organizations/audit-logs">
 												<ScrollTextIcon />
 												<span>Audit logs</span>
 											</Link>

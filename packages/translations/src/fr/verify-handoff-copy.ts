@@ -309,5 +309,30 @@ export const VERIFY_HANDOFF_COPY_FR: VerifyHandoffCopy = {
       "Vérification d’identité du propriétaire non effectuée",
     ownerNotVerifiedDescription:
       "Kayle ID n’a pas vérifié de manière indépendante les personnes qui dirigent cette organisation. Ne continuez que si vous faites confiance à cette demande.",
+
+    report: {
+      actionLabel: "Signaler l’organisation",
+      title: "Signaler {organization}",
+      description:
+        "Indiquez à Kayle ID pourquoi cette organisation doit être examinée. Les signalements ne sont envoyés qu’aux administrateurs Kayle.",
+      reasonLabel: "Raison",
+      reasonPlaceholder: "Sélectionnez une raison",
+      detailsLabel: "Plus de détails (facultatif)",
+      detailsPlaceholder:
+        "Ajoutez tout élément que Kayle devrait connaître lors de l’examen de cette organisation.",
+      submitLabel: "Envoyer le signalement",
+      submittingLabel: "Envoi…",
+      successMessage: "Signalement envoyé. Kayle va l’examiner.",
+      errorMessage: "Nous n’avons pas pu envoyer ce signalement. Réessayez.",
+      reasons: {
+        deceptiveUse: "Utilisation trompeuse",
+        discriminationOrEligibilityConcern:
+          "Préoccupation liée à la discrimination ou à l’éligibilité",
+        impersonation: "Usurpation d’identité",
+        missingFallbackOrAppeal: "Aucune voie alternative ou d’appel",
+        other: "Autre",
+        privacyConcern: "Préoccupation relative à la confidentialité",
+      },
+    },
   },
 };

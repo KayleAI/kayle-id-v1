@@ -3,7 +3,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { SelectOrganizations } from "@/auth/organizations/select";
 import { Loading } from "@/components/loading";
 
-export const Route = createFileRoute("/_auth/organizations/select")({
+export const Route = createFileRoute("/_auth/select-organization")({
 	component: SelectOrganizationLayout,
 });
 
@@ -19,7 +19,7 @@ function SelectOrganizationLayout() {
 	}
 
 	if (!organizations.length) {
-		return <Navigate to="/organizations/create" />;
+		return <Navigate to="/create-organization" />;
 	}
 
 	return <SelectOrganizations />;

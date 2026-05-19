@@ -291,5 +291,30 @@ export const VERIFY_HANDOFF_COPY = {
     ownerNotVerifiedTitle: "Owner ID check not completed",
     ownerNotVerifiedDescription:
       "Kayle ID has not independently verified the people running this organization. Only continue if you trust this request.",
+
+    report: {
+      actionLabel: "Report organization",
+      title: "Report {organization}",
+      description:
+        "Tell Kayle ID why this organization should be reviewed. Reports go only to Kayle administrators.",
+      reasonLabel: "Reason",
+      reasonPlaceholder: "Select a reason",
+      detailsLabel: "More details (optional)",
+      detailsPlaceholder:
+        "Add anything Kayle should know when reviewing this organization.",
+      submitLabel: "Submit report",
+      submittingLabel: "Submitting…",
+      successMessage: "Report submitted. Kayle will review it.",
+      errorMessage: "We couldn’t submit this report. Try again.",
+      reasons: {
+        deceptiveUse: "Deceptive use",
+        discriminationOrEligibilityConcern:
+          "Discrimination or eligibility concern",
+        impersonation: "Impersonation",
+        missingFallbackOrAppeal: "No fallback or appeal route",
+        other: "Other",
+        privacyConcern: "Privacy concern",
+      },
+    },
   },
 } as const;

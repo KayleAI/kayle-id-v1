@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
@@ -16,7 +17,6 @@ import {
 	listOrganizationDomains,
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
 	updateOrganization,
 	uploadOrganizationLogo,
 } from "./api";
@@ -504,7 +504,7 @@ function UnverifiedDomainNotice() {
 				<div className="mt-3">
 					<Link
 						className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
-						to="/organizations/domains"
+						to="/settings/organizations/domains"
 					>
 						Verify a domain
 					</Link>

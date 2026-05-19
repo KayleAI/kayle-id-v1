@@ -161,7 +161,7 @@ async function notifyTakeover({
 		.limit(1);
 	const owners = await listOrgOwnerEmails(previousOrganizationId);
 	const domainsUrl = new URL(
-		"/organizations/domains",
+		"/settings/organizations/domains",
 		env.PUBLIC_AUTH_URL,
 	).toString();
 

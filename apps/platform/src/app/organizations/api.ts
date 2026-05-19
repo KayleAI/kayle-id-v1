@@ -3,7 +3,7 @@ import {
 	type OrganizationMetadata,
 	parseStoredOrganizationMetadata,
 } from "@kayle-id/auth/organization-metadata";
-import type { Organization } from "@kayle-id/auth/types";
+import type { Organization, OrganizationRole } from "@kayle-id/auth/types";
 import {
 	type Pagination,
 	requestApiResource,
@@ -13,8 +13,6 @@ import {
 const ORG_DELETE_BASE_PATH = "/api/auth/orgs";
 
 export const ORGANIZATION_QUERY_KEY = ["organization"] as const;
-
-export type OrganizationRole = "owner" | "admin" | "member";
 
 export interface OrganizationMember {
 	createdAt: string;

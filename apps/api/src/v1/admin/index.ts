@@ -7,6 +7,7 @@ import {
 import { createMiddleware } from "hono/factory";
 import { forbidden, unauthorized } from "@/v1/auth";
 import costAnalytics from "./cost-analytics";
+import organizationReports from "./organization-reports";
 
 const admin = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -50,5 +51,6 @@ admin.get("/access", (c) =>
 );
 
 admin.route("/", costAnalytics);
+admin.route("/", organizationReports);
 
 export default admin;

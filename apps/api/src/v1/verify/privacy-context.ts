@@ -20,6 +20,7 @@ type PublicVerifySessionPrivacyOrganization = Pick<
 	| "organization_business_registration_number"
 	| "organization_business_type"
 	| "organization_description"
+	| "organization_id"
 	| "organization_logo"
 	| "organization_name"
 	| "organization_owner_id_check_completed"
@@ -134,6 +135,7 @@ export async function getPublicVerifySessionPrivacyContext({
 		status: session.status,
 		is_terminal: isTerminalSessionStatus(session.status),
 		has_withdrawn_consent: session.cancelTokenConsumedAt !== null,
+		organization_id: details.organization_id,
 		organization_name: details.organization_name,
 		organization_owner_id_check_completed:
 			details.organization_owner_id_check_completed,

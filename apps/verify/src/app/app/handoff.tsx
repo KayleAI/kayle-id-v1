@@ -141,7 +141,7 @@ function RpFallbackActions({ organization }: { organization: Organization }) {
 	}
 
 	return (
-		<div className="mt-6 rounded-xl border border-border bg-muted/40 p-4">
+		<div className="rounded-xl border border-border bg-muted/40 p-4">
 			<p className="font-medium text-foreground text-sm">
 				{fallbackCopy.title}
 			</p>

@@ -160,7 +160,7 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 				// `required: true`. The owner can't decline them, and we don't ask
 				// for identity fields we won't use (name, DOB, etc.).
 				const redirectUrl = new URL(
-					"/organizations",
+					"/settings/organizations",
 					getPublicHost(),
 				).toString();
 				const sessionResponse = await env.API.fetch("http://api/v1/sessions", {

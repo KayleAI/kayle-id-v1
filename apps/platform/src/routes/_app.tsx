@@ -21,7 +21,7 @@ function AppLayoutRoute() {
 	}
 
 	if (!activeOrganization) {
-		return <Navigate to="/organizations/select" />;
+		return <Navigate to="/select-organization" />;
 	}
 
 	return (

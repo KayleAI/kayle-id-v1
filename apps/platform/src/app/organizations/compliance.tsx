@@ -1,5 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { RP_INTEGRATION_TERMS_CANONICAL_TEXT } from "@kayle-id/auth/rp-integration-terms";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import {
@@ -42,7 +43,6 @@ import {
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	ORGANIZATION_RP_TERMS_QUERY_KEY,
-	type OrganizationRole,
 	updateOrganization,
 } from "./api";
 import { FormSection } from "./form-section";
@@ -750,7 +750,7 @@ function UnverifiedDomainNotice() {
 				<div className="mt-3">
 					<Link
 						className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
-						to="/organizations/domains"
+						to="/settings/organizations/domains"
 					>
 						Verify a domain
 					</Link>

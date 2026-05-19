@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Calendar } from "@kayleai/ui/calendar";
@@ -55,7 +56,6 @@ import {
 	listAuditLogs,
 	ORGANIZATION_AUDIT_LOGS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
 } from "./api";
 
 /**
@@ -363,12 +363,12 @@ function targetLinkFor(
 		case "verified_domain":
 		case "domain_challenge":
 		case "redirect_uri":
-			return "/organizations/domains";
+			return "/settings/organizations/domains";
 		case "member":
 		case "invitation":
-			return "/organizations/members";
+			return "/settings/organizations/members";
 		case "organization":
-			return "/organizations";
+			return "/settings/organizations";
 		default:
 			return null;
 	}

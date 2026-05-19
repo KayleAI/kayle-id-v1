@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	AlertDialog,
@@ -59,7 +60,6 @@ import {
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	ORGANIZATION_REDIRECT_URIS_QUERY_KEY,
-	type OrganizationRole,
 	removeRedirectUri,
 	removeVerifiedDomain,
 	startDnsDomainChallenge,

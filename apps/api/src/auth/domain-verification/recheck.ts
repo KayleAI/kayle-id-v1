@@ -94,7 +94,7 @@ export async function runDomainReverificationCron({
 				? formatDnsRecordValue(recheckToken)
 				: "kayle-id-verification=<re-issue from the Domains page>";
 			const domainsUrl = new URL(
-				"/organizations/domains",
+				"/settings/organizations/domains",
 				env.PUBLIC_AUTH_URL,
 			).toString();
 

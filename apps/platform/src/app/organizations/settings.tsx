@@ -1,5 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	AlertDialog,
@@ -36,7 +37,6 @@ import {
 	fetchFullOrganization,
 	leaveOrganization,
 	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
 	requestOrganizationDeletion,
 	updateOrganization,
 } from "./api";
@@ -153,7 +153,7 @@ function LeaveCard({
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
 			toast.success("You have left the organization");
-			navigate({ to: "/organizations/select" });
+			navigate({ to: "/select-organization" });
 		},
 		onError: (err) => {
 			toast.error(

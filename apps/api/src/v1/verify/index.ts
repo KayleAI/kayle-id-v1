@@ -18,7 +18,9 @@ import {
 } from "./consent-records";
 import { createVerifyJsonErrorResponse } from "./error-response";
 import { issueHandoffPayload } from "./handoff";
+import organizationReports from "./organization-reports";
 import { getPublicVerifySessionPrivacyContext } from "./privacy-context";
+import publicOrganizations from "./public-organizations";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { checkRedirectPermitted } from "./redirect-permitted";
 import { loadActiveVerifySession } from "./session-context";
@@ -38,6 +40,8 @@ const verify = new Hono<{ Bindings: CloudflareBindings }>();
 const sessionParamSchema = z.object({ id: sessionIdSchema });
 
 verify.route("/attest", attest);
+verify.route("/", publicOrganizations);
+verify.route("/", organizationReports);
 
 function validateSessionParam(
 	value: unknown,

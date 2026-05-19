@@ -987,6 +987,7 @@ export const auth = betterAuth({
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
+            role: auth_organization_members.role,
             pendingDeletionAt: auth_organizations.pending_deletion_at,
             pendingDeletionRequestedAt:
               auth_organizations.pending_deletion_requested_at,
@@ -1017,6 +1018,7 @@ export const auth = betterAuth({
           name: row.name,
           slug: row.slug,
           logo: row.logo,
+          role: row.role as "owner" | "admin" | "member",
           pendingDeletionAt: row.pendingDeletionAt
             ? row.pendingDeletionAt.toISOString()
             : null,

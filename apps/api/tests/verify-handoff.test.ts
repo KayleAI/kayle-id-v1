@@ -94,6 +94,7 @@ type VerifySessionStatusResponse = {
 
 type VerifySessionDetailsResponse = {
 	data: {
+		organization_id: string;
 		organization_name: string | null;
 		organization_owner_id_check_completed: boolean;
 		organization_verified_apex_domains: string[];
@@ -126,6 +127,7 @@ type VerifySessionPrivacyContextResponse = {
 		status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 		is_terminal: boolean;
 		has_withdrawn_consent: boolean;
+		organization_id: string;
 		organization_name: string;
 		organization_owner_id_check_completed: boolean;
 		organization_verified_apex_domains: string[];

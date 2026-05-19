@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { requestCancelVerifySession } from "@/config/handoff";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { type Organization, OrganizationName } from "./app/organization-name";
+import { OrganizationReportAction } from "./app/organization-report-dialog";
 import { getPlatformNameLabel } from "./app/platform-name";
 
 export type PrivacyRequestRouteContext =
@@ -14,6 +15,7 @@ export type PrivacyRequestRouteContext =
 			status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
 			is_terminal: boolean;
 			has_withdrawn_consent: boolean;
+			organization_id: string;
 			organization_name: string | null;
 			organization_owner_id_check_completed: boolean;
 			organization_verified_apex_domains: string[];
@@ -123,6 +125,7 @@ function getPrivacyOrganization(
 	}
 
 	return {
+		id: context.organization_id,
 		name: context.organization_name,
 		ownerIdCheckCompleted: context.organization_owner_id_check_completed,
 		verifiedApexDomains: context.organization_verified_apex_domains,
@@ -365,6 +368,12 @@ export function PrivacyRequestPage({
 					>
 						{privacyCopy.learnMoreLink}
 					</Button>
+					{organization ? (
+						<OrganizationReportAction
+							organization={organization}
+							sessionId={sessionId}
+						/>
+					) : null}
 				</div>
 			</div>
 		</div>

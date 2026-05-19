@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@kayleai/ui/dialog", async () => {
@@ -17,10 +18,20 @@ vi.mock("@kayleai/ui/dialog", async () => {
 		},
 	});
 
-	function Dialog({ children }: { children: React.ReactNode }) {
-		const [open, setOpen] = React.useState(false);
+	function Dialog({
+		children,
+		onOpenChange,
+		open,
+	}: {
+		children: React.ReactNode;
+		onOpenChange?: (open: boolean) => void;
+		open?: boolean;
+	}) {
+		const [internalOpen, setInternalOpen] = React.useState(false);
+		const isOpen = open ?? internalOpen;
+		const setOpen = onOpenChange ?? setInternalOpen;
 		return (
-			<DialogContext.Provider value={{ open, setOpen }}>
+			<DialogContext.Provider value={{ open: isOpen, setOpen }}>
 				{children}
 			</DialogContext.Provider>
 		);
@@ -62,16 +73,50 @@ vi.mock("@kayleai/ui/dialog", async () => {
 			<h2>{children}</h2>
 		),
 		DialogDescription: PassThrough,
-		DialogFooter: () => null,
+		DialogFooter: ({ children }: { children?: React.ReactNode }) => (
+			<div>{children}</div>
+		),
 	};
 });
 
+vi.mock("@kayleai/ui/button", () => ({
+	Button: ({
+		children,
+		className,
+		disabled,
+		onClick,
+		render,
+		type = "button",
+	}: {
+		children: React.ReactNode;
+		className?: string;
+		disabled?: boolean;
+		onClick?: () => void;
+		render?: React.ReactNode;
+		type?: "button" | "submit";
+	}) =>
+		render ? (
+			render
+		) : (
+			<button
+				className={className}
+				disabled={disabled}
+				onClick={onClick}
+				type={type}
+			>
+				{children}
+			</button>
+		),
+}));
+
 import { type Organization, OrganizationName } from "./organization-name";
+import { buildOrganizationReportUrl } from "./organization-report-dialog";
 
 function createOrganization(
 	overrides: Partial<Organization> = {},
 ): Organization {
 	return {
+		id: "00000000-0000-4000-8000-000000000123",
 		name: "Acme Corp",
 		ownerIdCheckCompleted: true,
 		verifiedApexDomains: ["acme.example"],
@@ -96,6 +141,7 @@ function createOrganization(
 
 afterEach(() => {
 	cleanup();
+	vi.unstubAllGlobals();
 });
 
 describe("OrganizationName", () => {
@@ -121,6 +167,29 @@ describe("OrganizationName", () => {
 		expect(screen.getByText("Acme Corporation Ltd")).not.toBeNull();
 		expect(screen.getByText("United Kingdom")).not.toBeNull();
 		expect(screen.getByText("12345678")).not.toBeNull();
+	});
+
+	test("links to the platform report page from the about dialog footer", () => {
+		render(
+			<OrganizationName
+				organization={createOrganization()}
+				sessionId="vs_session123"
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
+
+		const reportLink = screen.getByRole("link", {
+			name: "Report organization",
+		});
+
+		expect(reportLink.getAttribute("href")).toBe(
+			buildOrganizationReportUrl({
+				orgId: "00000000-0000-4000-8000-000000000123",
+				sessionId: "vs_session123",
+				sourceHostname: window.location.hostname,
+			}),
+		);
 	});
 
 	test("shows the verified callout when the organization is verified", () => {

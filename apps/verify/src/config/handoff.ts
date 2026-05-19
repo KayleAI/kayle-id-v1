@@ -32,6 +32,7 @@ export type VerifySessionShareField = {
 export type VerifySessionShareFields = Record<string, VerifySessionShareField>;
 
 export type VerifySessionDetailsPayload = {
+	organization_id: string;
 	organization_name: string;
 	organization_owner_id_check_completed: boolean;
 	organization_verified_apex_domains: string[];

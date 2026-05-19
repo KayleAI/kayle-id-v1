@@ -12,9 +12,11 @@ import {
 } from "@kayleai/ui/dialog";
 import type { SVGProps } from "react";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
+import { OrganizationReportAction } from "./organization-report-dialog";
 import { getPlatformNameLabel } from "./platform-name";
 
 export type Organization = {
+	id: string;
 	name: string | null;
 	ownerIdCheckCompleted: boolean;
 	/**
@@ -104,6 +106,7 @@ type OrganizationNameProps = {
 	organization: Organization;
 	dim?: boolean;
 	isAgeOnly?: boolean;
+	sessionId?: null | string;
 };
 
 /**
@@ -117,6 +120,7 @@ export function OrganizationName({
 	organization,
 	dim = false,
 	isAgeOnly = false,
+	sessionId = null,
 }: OrganizationNameProps) {
 	const platformName = getPlatformNameLabel(organization.name);
 	const triggerClassName = dim
@@ -164,7 +168,13 @@ export function OrganizationName({
 					<OrganizationPolicyLinks organization={organization} />
 				</div>
 
-				<DialogFooter showCloseButton />
+				<DialogFooter className="sm:justify-between" showCloseButton>
+					<OrganizationReportAction
+						organization={organization}
+						sessionId={sessionId}
+						variant="ghost"
+					/>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

@@ -1,36 +1,33 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { cn } from "@kayleai/ui/utils/cn";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
-import {
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
-} from "./api";
+import { fetchFullOrganization, ORGANIZATION_QUERY_KEY } from "./api";
 
 interface TabDefinition {
 	href:
-		| "/organizations"
-		| "/organizations/members"
-		| "/organizations/settings"
-		| "/organizations/public"
-		| "/organizations/business"
-		| "/organizations/compliance"
-		| "/organizations/domains";
+		| "/settings/organizations"
+		| "/settings/organizations/members"
+		| "/settings/organizations/settings"
+		| "/settings/organizations/public"
+		| "/settings/organizations/business"
+		| "/settings/organizations/compliance"
+		| "/settings/organizations/domains";
 	label: string;
 	requiresRole?: "admin";
 }
 
 const TABS: readonly TabDefinition[] = [
-	{ href: "/organizations", label: "Overview" },
-	{ href: "/organizations/members", label: "Members" },
-	{ href: "/organizations/public", label: "Public details" },
-	{ href: "/organizations/compliance", label: "Compliance" },
-	{ href: "/organizations/business", label: "Business" },
-	{ href: "/organizations/domains", label: "Domains" },
-	{ href: "/organizations/settings", label: "Settings" },
+	{ href: "/settings/organizations", label: "Overview" },
+	{ href: "/settings/organizations/members", label: "Members" },
+	{ href: "/settings/organizations/public", label: "Public details" },
+	{ href: "/settings/organizations/compliance", label: "Compliance" },
+	{ href: "/settings/organizations/business", label: "Business" },
+	{ href: "/settings/organizations/domains", label: "Domains" },
+	{ href: "/settings/organizations/settings", label: "Settings" },
 ] as const;
 
 interface OrganizationPageLayoutProps {
@@ -84,8 +81,8 @@ export function OrganizationPageLayout({
 				<ul className="-mb-px flex flex-wrap gap-x-6">
 					{visibleTabs.map((tab) => {
 						const isActive =
-							tab.href === "/organizations"
-								? currentPath === "/organizations"
+							tab.href === "/settings/organizations"
+								? currentPath === "/settings/organizations"
 								: currentPath === tab.href;
 
 						return (

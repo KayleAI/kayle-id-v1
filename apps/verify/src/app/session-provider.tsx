@@ -44,6 +44,7 @@ type SessionContextType = {
 const EMPTY_SHARE_FIELDS: VerifySessionShareFields = {};
 
 const EMPTY_ORGANIZATION: Organization = {
+	id: "",
 	name: null,
 	ownerIdCheckCompleted: false,
 	verifiedApexDomains: [],
@@ -147,6 +148,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				}
 
 				setOrganization({
+					id: details.organization_id,
 					name: details.organization_name,
 					ownerIdCheckCompleted: details.organization_owner_id_check_completed,
 					verifiedApexDomains: details.organization_verified_apex_domains,

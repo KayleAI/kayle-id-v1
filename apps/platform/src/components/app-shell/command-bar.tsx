@@ -85,7 +85,11 @@ const PAGES = [
 	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 	{ title: "API Keys", url: "/api-keys", icon: Key },
 	{ title: "Webhooks", url: "/webhooks", icon: WebhookIcon },
-	{ title: "Organization", url: "/organizations", icon: BuildingIcon },
+	{
+		title: "Organization",
+		url: "/settings/organizations",
+		icon: BuildingIcon,
+	},
 ] as const;
 
 export function AppCommandBar() {

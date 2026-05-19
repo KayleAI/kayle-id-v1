@@ -14,9 +14,6 @@ import { NotFound } from "@/components/not-found";
 
 export const Route = createFileRoute("/onboarding")({
 	component: OnboardingRoute,
-	// When a child route fails to match or throws, render the full-screen
-	// NotFound / Error views in place of the onboarding shell rather than
-	// inside the floating card's Outlet.
 	notFoundComponent: NotFound,
 	errorComponent: OnboardingErrorView,
 });
@@ -62,7 +59,7 @@ function OnboardingRoute() {
 		return <Navigate search={{ email: undefined }} to="/sign-in" />;
 	}
 	if (!activeOrganization) {
-		return <Navigate to="/organizations/select" />;
+		return <Navigate to="/select-organization" />;
 	}
 
 	// Onboarding "page" surface: solid white in light mode, solid black in

@@ -15,6 +15,7 @@ import { isPublicVerifySessionHidden } from "./public-session-visibility";
 import { resolvePublicShareFields } from "./public-share-fields";
 
 export type PublicVerifySessionDetails = {
+	organization_id: string;
 	organization_name: string;
 	organization_owner_id_check_completed: boolean;
 	/**
@@ -129,6 +130,7 @@ export async function getPublicVerifySessionDetails({
 	const shareFields = resolvePublicShareFields(session.shareFields);
 
 	return {
+		organization_id: session.organizationId,
 		organization_name: session.organizationName,
 		organization_owner_id_check_completed:
 			session.organizationVerifiedAt !== null,

@@ -113,6 +113,7 @@ function createSessionDetails(
 	overrides: Partial<VerifySessionDetailsPayload> = {},
 ): VerifySessionDetailsPayload {
 	return {
+		organization_id: "00000000-0000-4000-8000-000000000123",
 		organization_name: "Test Organization",
 		organization_owner_id_check_completed: true,
 		organization_verified_apex_domains: ["test.example"],

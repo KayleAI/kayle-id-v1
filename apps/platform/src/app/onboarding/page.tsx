@@ -4,12 +4,12 @@ import {
 	getOrganizationBusinessDetailsStatus,
 	getOrganizationPublicDetailsStatus,
 } from "@kayle-id/auth/organization-onboarding";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Skeleton } from "@kayleai/ui/skeleton";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
-import type { OrganizationRole } from "@/app/organizations/api";
 import type { BusinessDetailsDraftValues } from "@/app/organizations/business";
 import type { ComplianceDraftValues } from "@/app/organizations/compliance";
 import type { PublicDetailsDraftValues } from "@/app/organizations/public-details";

@@ -1,7 +1,7 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { Card, CardContent } from "@kayleai/ui/card";
 import { Link, Navigate } from "@tanstack/react-router";
-import { ChartBarIcon } from "lucide-react";
+import { ChartBarIcon, FlagIcon } from "lucide-react";
 import { AppHeading } from "@/components/app-shell/heading";
 
 const ADMIN_TOOLS: ReadonlyArray<{
@@ -16,6 +16,13 @@ const ADMIN_TOOLS: ReadonlyArray<{
 		description:
 			"Estimated Cloudflare spend by feature, resource, day, and organization.",
 		Icon: ChartBarIcon,
+	},
+	{
+		to: "/admin/organization-reports",
+		title: "Organization reports",
+		description:
+			"Review reports submitted against organizations using Kayle ID.",
+		Icon: FlagIcon,
 	},
 ];
 

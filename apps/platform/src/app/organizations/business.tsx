@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Button } from "@kayleai/ui/button";
 import { Input } from "@kayleai/ui/input";
@@ -19,7 +20,6 @@ import {
 	fetchFullOrganization,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationBusinessType,
-	type OrganizationRole,
 	updateOrganizationBusinessDetails,
 } from "./api";
 import { FormSection } from "./form-section";

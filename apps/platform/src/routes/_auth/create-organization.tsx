@@ -3,7 +3,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { CreateOrganization } from "@/auth/organizations/create";
 import { Loading } from "@/components/loading";
 
-export const Route = createFileRoute("/_auth/organizations/create")({
+export const Route = createFileRoute("/_auth/create-organization")({
 	component: CreateOrganizationLayout,
 });
 

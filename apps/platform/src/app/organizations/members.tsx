@@ -1,4 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
 import { Badge } from "@kayleai/ui/badge";
@@ -47,7 +48,6 @@ import {
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationInvitation,
 	type OrganizationMember,
-	type OrganizationRole,
 	reinstateOrganizationMember,
 	suspendOrganizationMember,
 	updateOrganizationMemberRole,

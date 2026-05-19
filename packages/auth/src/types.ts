@@ -3,6 +3,9 @@ import type { client } from "./client";
 export type AuthContext = typeof client.$Infer.Session;
 export type Session = AuthContext["session"];
 export type User = AuthContext["user"];
+
+export type OrganizationRole = "owner" | "admin" | "member";
+
 export interface Organization {
   id: string;
   logo: string | null;
@@ -10,6 +13,7 @@ export interface Organization {
   pendingDeletionAt: string | null;
   pendingDeletionRequestedAt: string | null;
   pendingDeletionRequestedBy: string | null;
+  role: OrganizationRole;
   slug: string;
   verificationTermsAcceptedAt: string | null;
   verificationTermsAcceptedBy: string | null;

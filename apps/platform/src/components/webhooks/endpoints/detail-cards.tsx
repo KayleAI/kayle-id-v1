@@ -409,7 +409,7 @@ export function EndpointKeysCard({
 	} else {
 		content = (
 			<div className="overflow-x-auto">
-				<Table className="min-w-[46rem] table-fixed">
+				<Table className="min-w-184 table-fixed">
 					<colgroup>
 						<col className="w-[38%]" />
 						<col className="w-[18%]" />

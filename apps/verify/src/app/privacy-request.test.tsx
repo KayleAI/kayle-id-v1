@@ -59,10 +59,20 @@ vi.mock("@kayleai/ui/dialog", async () => {
 		setOpen: () => {},
 	});
 
-	function Dialog({ children }: { children: React.ReactNode }) {
-		const [open, setOpen] = React.useState(false);
+	function Dialog({
+		children,
+		onOpenChange,
+		open,
+	}: {
+		children: React.ReactNode;
+		onOpenChange?: (open: boolean) => void;
+		open?: boolean;
+	}) {
+		const [internalOpen, setInternalOpen] = React.useState(false);
+		const isOpen = open ?? internalOpen;
+		const setOpen = onOpenChange ?? setInternalOpen;
 		return (
-			<DialogContext.Provider value={{ open, setOpen }}>
+			<DialogContext.Provider value={{ open: isOpen, setOpen }}>
 				{children}
 			</DialogContext.Provider>
 		);
@@ -104,7 +114,9 @@ vi.mock("@kayleai/ui/dialog", async () => {
 			<h2>{children}</h2>
 		),
 		DialogDescription: PassThrough,
-		DialogFooter: () => null,
+		DialogFooter: ({ children }: { children?: React.ReactNode }) => (
+			<div>{children}</div>
+		),
 	};
 });
 
@@ -117,6 +129,7 @@ vi.mock("@/config/handoff", () => ({
 		requestCancelVerifySessionMock(sessionId, cancelToken),
 }));
 
+import { buildOrganizationReportUrl } from "./app/organization-report-dialog";
 import {
 	buildPrivacyRequestMailtoHref,
 	buildPrivacyRequestPath,
@@ -134,6 +147,7 @@ function createFoundContext(
 		has_withdrawn_consent: false,
 		is_terminal: false,
 		latest_attempt_id: "va_attempt123",
+		organization_id: "00000000-0000-4000-8000-000000000123",
 		organization_business_jurisdiction: null,
 		organization_business_name: null,
 		organization_business_registration_number: null,
@@ -405,6 +419,22 @@ describe("PrivacyRequestPage", () => {
 			screen.getByRole("heading", { name: "About Test Organization" }),
 		).not.toBeNull();
 		expect(screen.getByText("Test Organization Ltd")).not.toBeNull();
+	});
+
+	test("links to the platform report page from privacy options", () => {
+		renderPrivacyRequestPage();
+
+		const reportLink = screen.getByRole("link", {
+			name: "Report organization",
+		});
+
+		expect(reportLink.getAttribute("href")).toBe(
+			buildOrganizationReportUrl({
+				orgId: "00000000-0000-4000-8000-000000000123",
+				sessionId: "vs_session123",
+				sourceHostname: window.location.hostname,
+			}),
+		);
 	});
 
 	test("explains terminal checks with undelivered result webhooks", () => {

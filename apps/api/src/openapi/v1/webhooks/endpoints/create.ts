@@ -7,7 +7,10 @@ import {
 } from "@kayle-id/config/webhook-events";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
-import { CreatedWebhookEndpoint } from "@/openapi/models/webhook";
+import {
+	CreatedWebhookEndpoint,
+	WebhookEndpointLabels,
+} from "@/openapi/models/webhook";
 
 const ALLOW_LOOPBACK_URLS = process.env.NODE_ENV !== "production";
 
@@ -27,6 +30,9 @@ export const createWebhookEndpoint = createRoute({
 								.max(120)
 								.optional()
 								.describe("An optional display name for the webhook endpoint."),
+							labels: WebhookEndpointLabels.optional().describe(
+								"Optional tag-style purpose labels for this endpoint.",
+							),
 							url: safeWebhookUrl({ allowLoopback: ALLOW_LOOPBACK_URLS })
 								.describe(
 									"The URL of the webhook endpoint. Must use https:// (http:// is only accepted for localhost in development).",

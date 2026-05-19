@@ -12,7 +12,7 @@ import {
 	webhook_endpoints,
 } from "@kayle-id/database/schema/webhooks";
 import { file } from "bun";
-import { eq, isNotNull } from "drizzle-orm";
+import { eq, inArray, isNotNull } from "drizzle-orm";
 import { compactDecrypt, exportJWK, importPKCS8, importSPKI } from "jose";
 import {
 	attemptWebhookDelivery,
@@ -116,6 +116,40 @@ async function seedPendingWebhookDelivery({
 	});
 
 	return deliveryId;
+}
+
+async function seedWebhookEndpointWithKey({
+	context,
+	eventTypes,
+	publicJwk,
+}: {
+	context: string;
+	eventTypes: string[];
+	publicJwk: Awaited<ReturnType<typeof exportJWK>>;
+}): Promise<string> {
+	const endpointId = `whe_${context}_${crypto.randomUUID()}`;
+	const signingSecretCiphertext = await encryptWebhookSigningSecret({
+		plaintext: `whsec_${context}`,
+		secret: env.AUTH_SECRET,
+	});
+
+	await db.insert(webhook_endpoints).values({
+		id: endpointId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		signingSecretCiphertext,
+		subscribedEventTypes: eventTypes,
+		url: `https://example.com/webhooks/${context}`,
+	});
+	await db.insert(webhook_encryption_keys).values({
+		id: `whk_${context}_${crypto.randomUUID()}`,
+		webhookEndpointId: endpointId,
+		keyId: `rsa-key-${context}`,
+		algorithm: "RSA-OAEP-256",
+		keyType: "RSA",
+		jwk: publicJwk,
+	});
+
+	return endpointId;
 }
 
 test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypted delivery for subscribed endpoints", async () => {
@@ -228,6 +262,136 @@ test("createWebhookDeliveriesForVerificationSucceeded creates a pending encrypte
 	expect(decodedPayload.metadata.verification_session_id).toBe(
 		"vs_delivery_pending",
 	);
+});
+
+test("untargeted session events fan out to all subscribed endpoints", async () => {
+	const publicKeyText = await file(
+		new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url),
+	).text();
+	const publicJwk = await exportJWK(
+		await importSPKI(publicKeyText, "RSA-OAEP-256"),
+	);
+	const sessionId = `vs_delivery_fanout_${crypto.randomUUID()}`;
+	const endpointIds = [
+		await seedWebhookEndpointWithKey({
+			context: "fanout_a",
+			eventTypes: ["verification.attempt.succeeded"],
+			publicJwk,
+		}),
+		await seedWebhookEndpointWithKey({
+			context: "fanout_b",
+			eventTypes: ["verification.attempt.succeeded"],
+			publicJwk,
+		}),
+	];
+
+	await db.insert(verification_sessions).values({
+		id: sessionId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		shareFields: {},
+		status: "created",
+	});
+	const [event] = await db
+		.insert(events)
+		.values({
+			id: `evt_delivery_fanout_${crypto.randomUUID()}`,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			type: "verification.attempt.succeeded",
+			triggerId: "va_delivery_fanout",
+			triggerType: "verification_attempt",
+		})
+		.returning();
+
+	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
+		attemptId: "va_delivery_fanout",
+		eventId: event.id,
+		manifest: {
+			claims: {
+				family_name: "DOE",
+			},
+			contractVersion: 1,
+			selectedFieldKeys: ["family_name"],
+			sessionId,
+		},
+		organizationId: TEST_DATA?.organizationId ?? "",
+	});
+
+	expect(deliveryIds).toHaveLength(2);
+	const deliveries = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(inArray(webhook_deliveries.id, deliveryIds));
+	expect(
+		deliveries.map((delivery) => delivery.webhookEndpointId).sort(),
+	).toEqual([...endpointIds].sort());
+});
+
+test("targeted session events only create deliveries for selected endpoints", async () => {
+	const publicKeyText = await file(
+		new URL("../../../../tests/secrets/rsa_public.pem", import.meta.url),
+	).text();
+	const publicJwk = await exportJWK(
+		await importSPKI(publicKeyText, "RSA-OAEP-256"),
+	);
+	const sessionId = `vs_delivery_targeted_${crypto.randomUUID()}`;
+	const selectedEndpointIds = [
+		await seedWebhookEndpointWithKey({
+			context: "targeted_a",
+			eventTypes: ["verification.attempt.succeeded"],
+			publicJwk,
+		}),
+		await seedWebhookEndpointWithKey({
+			context: "targeted_b",
+			eventTypes: ["verification.attempt.succeeded"],
+			publicJwk,
+		}),
+	];
+	await seedWebhookEndpointWithKey({
+		context: "targeted_c",
+		eventTypes: ["verification.attempt.succeeded"],
+		publicJwk,
+	});
+
+	await db.insert(verification_sessions).values({
+		id: sessionId,
+		organizationId: TEST_DATA?.organizationId ?? "",
+		shareFields: {},
+		status: "created",
+		webhookEndpointIds: selectedEndpointIds,
+	});
+	const [event] = await db
+		.insert(events)
+		.values({
+			id: `evt_delivery_targeted_${crypto.randomUUID()}`,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			type: "verification.attempt.succeeded",
+			triggerId: "va_delivery_targeted",
+			triggerType: "verification_attempt",
+		})
+		.returning();
+
+	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
+		attemptId: "va_delivery_targeted",
+		eventId: event.id,
+		manifest: {
+			claims: {
+				family_name: "DOE",
+			},
+			contractVersion: 1,
+			selectedFieldKeys: ["family_name"],
+			sessionId,
+		},
+		organizationId: TEST_DATA?.organizationId ?? "",
+	});
+
+	expect(deliveryIds).toHaveLength(2);
+	const deliveries = await db
+		.select()
+		.from(webhook_deliveries)
+		.where(inArray(webhook_deliveries.id, deliveryIds));
+	expect(
+		deliveries.map((delivery) => delivery.webhookEndpointId).sort(),
+	).toEqual([...selectedEndpointIds].sort());
 });
 
 test("createWebhookDeliveriesForVerificationSucceeded skips delivery after privacy withdrawal", async () => {

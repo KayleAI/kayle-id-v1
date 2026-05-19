@@ -96,6 +96,7 @@ export async function issueHandoffPayload(
 				shareFields: verification_sessions.shareFields,
 				status: verification_sessions.status,
 				updatedAt: verification_sessions.updatedAt,
+				webhookEndpointIds: verification_sessions.webhookEndpointIds,
 			},
 		})
 		.from(verification_sessions)

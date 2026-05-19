@@ -104,7 +104,7 @@ export function InfoCard({
   const hasButtons = Boolean(buttons?.primary || buttons?.secondary);
 
   return (
-    <div className="relative flex w-full flex-col items-center justify-center">
+    <div className="relative flex h-full w-full flex-col items-center justify-center">
       <div className={cn("w-full max-w-md space-y-8")}>
         {/* Header */}
         <div>

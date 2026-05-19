@@ -1,5 +1,11 @@
 import { Tabs, TabsContent } from "@kayleai/ui/tabs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
@@ -31,6 +37,11 @@ import {
 export { WebhookEndpointPage } from "./endpoint-detail-page";
 export { WebhookEventPage } from "./event-detail-page";
 
+const WEBHOOK_ENDPOINT_PAGE_SIZE = 20;
+const WEBHOOK_EVENT_PAGE_SIZE = 20;
+
+type WebhookEventPage = Awaited<ReturnType<typeof listWebhookEvents>>;
+
 interface WebhooksPageProps {
 	activeTab?: WebhooksTab;
 	onActiveTabChange?: (tab: WebhooksTab) => void;
@@ -44,23 +55,47 @@ export function WebhooksPage({
 	const queryClient = useQueryClient();
 	const [internalActiveTab, setInternalActiveTab] =
 		useState<WebhooksTab>("endpoints");
+	const [endpointPageIndex, setEndpointPageIndex] = useState(0);
+	const [endpointPageCursors, setEndpointPageCursors] = useState<
+		Array<string | null>
+	>([null]);
 	const activeTab = activeTabProp ?? internalActiveTab;
+	const endpointStartingAfter = endpointPageCursors[endpointPageIndex] ?? null;
 
 	const endpointsQuery = useQuery({
-		queryKey: ["webhooks", "endpoints"],
+		placeholderData: (previousData) => previousData,
+		queryKey: [
+			"webhooks",
+			"endpoints",
+			{
+				limit: WEBHOOK_ENDPOINT_PAGE_SIZE,
+				startingAfter: endpointStartingAfter,
+			},
+		],
 		queryFn: () =>
 			listWebhookEndpoints({
-				limit: 50,
+				limit: WEBHOOK_ENDPOINT_PAGE_SIZE,
+				startingAfter: endpointStartingAfter,
 			}),
 	});
 
 	const endpoints = endpointsQuery.data?.data ?? [];
 
-	const eventsQuery = useQuery({
-		queryKey: ["webhooks", "events"],
-		queryFn: () =>
+	const eventsQuery = useInfiniteQuery<
+		WebhookEventPage,
+		Error,
+		InfiniteData<WebhookEventPage, string | null>,
+		readonly unknown[],
+		string | null
+	>({
+		getNextPageParam: (lastPage) =>
+			lastPage.pagination.has_more ? lastPage.pagination.next_cursor : null,
+		initialPageParam: null as string | null,
+		queryKey: ["webhooks", "events", "list"],
+		queryFn: ({ pageParam }) =>
 			listWebhookEvents({
-				limit: 50,
+				limit: WEBHOOK_EVENT_PAGE_SIZE,
+				startingAfter: pageParam,
 			}),
 	});
 
@@ -85,9 +120,13 @@ export function WebhooksPage({
 		mutationFn: deleteWebhookEndpoint,
 	});
 
-	const events = eventsQuery.data?.data ?? [];
+	const events = eventsQuery.data?.pages.flatMap((page) => page.data) ?? [];
 	const deliveries = deliveriesQuery.data?.data ?? [];
 	const endpointDeliveryStats = getEndpointDeliveryStats(deliveries);
+	const hasNextEndpointPage = Boolean(
+		endpointsQuery.data?.pagination.has_more &&
+			endpointsQuery.data.pagination.next_cursor,
+	);
 
 	function refreshWebhookQueries(): Promise<void> {
 		return queryClient.invalidateQueries({ queryKey: ["webhooks"] });
@@ -98,11 +137,29 @@ export function WebhooksPage({
 		onActiveTabChange?.(nextTab);
 	}
 
+	function handleNextEndpointPage(): void {
+		const nextCursor = endpointsQuery.data?.pagination.next_cursor;
+		if (!nextCursor) {
+			return;
+		}
+
+		setEndpointPageCursors((currentValue) => [
+			...currentValue.slice(0, endpointPageIndex + 1),
+			nextCursor,
+		]);
+		setEndpointPageIndex((currentValue) => currentValue + 1);
+	}
+
+	function handlePreviousEndpointPage(): void {
+		setEndpointPageIndex((currentValue) => Math.max(0, currentValue - 1));
+	}
+
 	async function handleCreateEndpoint(
 		input: CreateEndpointSubmission,
 	): Promise<CreateEndpointSubmissionResult> {
 		const result = await createEndpointMutation.mutateAsync({
 			enabled: input.enabled,
+			labels: input.labels,
 			name: input.name,
 			subscribedEventTypes: input.subscribedEventTypes,
 			undeliveredPayloadRetentionHours: input.undeliveredPayloadRetentionHours,
@@ -143,6 +200,7 @@ export function WebhooksPage({
 		await updateEndpointMutation.mutateAsync({
 			endpointId: endpoint.id,
 			enabled: !endpoint.enabled,
+			labels: endpoint.labels,
 			name: endpoint.name,
 			subscribedEventTypes: endpoint.subscribed_event_types,
 			undeliveredPayloadRetentionHours:
@@ -194,9 +252,15 @@ export function WebhooksPage({
 						deliveryStatsByEndpoint={endpointDeliveryStats}
 						endpointError={endpointsQuery.error}
 						endpoints={endpoints}
+						hasNextPage={hasNextEndpointPage}
+						hasPreviousPage={endpointPageIndex > 0}
+						isFetchingPage={endpointsQuery.isFetching}
 						isMutatingEndpointId={mutatingEndpointId}
 						onDeleteEndpoint={handleDeleteEndpoint}
+						onNextPage={handleNextEndpointPage}
+						onPreviousPage={handlePreviousEndpointPage}
 						onToggleEndpointEnabled={handleToggleEndpointEnabled}
+						pageLabel={`Page ${endpointPageIndex + 1}`}
 					/>
 				</TabsContent>
 
@@ -204,7 +268,12 @@ export function WebhooksPage({
 					<EventsTabContent
 						error={eventsQuery.error}
 						events={events}
+						hasNextPage={eventsQuery.hasNextPage}
+						isFetchingNextPage={eventsQuery.isFetchingNextPage}
 						isLoading={eventsQuery.isLoading}
+						onLoadMore={() => {
+							void eventsQuery.fetchNextPage();
+						}}
 					/>
 				</TabsContent>
 			</Tabs>

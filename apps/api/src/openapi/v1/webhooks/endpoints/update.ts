@@ -8,6 +8,7 @@ import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
 import {
 	WebhookEndpoint,
+	WebhookEndpointLabels,
 	WebhookResourceIdParam,
 } from "@/openapi/models/webhook";
 
@@ -35,6 +36,9 @@ export const updateWebhookEndpoint = createRoute({
 								.nullable()
 								.optional()
 								.describe("Updated display name for the webhook endpoint."),
+							labels: WebhookEndpointLabels.optional().describe(
+								"Updated tag-style purpose labels for the endpoint.",
+							),
 							url: safeWebhookUrl({ allowLoopback: ALLOW_LOOPBACK_URLS })
 								.optional()
 								.describe(
@@ -58,13 +62,14 @@ export const updateWebhookEndpoint = createRoute({
 						.refine(
 							(body) =>
 								body.name !== undefined ||
+								body.labels !== undefined ||
 								body.url !== undefined ||
 								body.enabled !== undefined ||
 								body.subscribed_event_types !== undefined ||
 								body.undelivered_payload_retention_hours !== undefined,
 							{
 								message:
-									"At least one of `name`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
+									"At least one of `name`, `labels`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
 							},
 						)
 						.openapi("UpdateWebhookEndpointRequest"),
@@ -97,7 +102,7 @@ export const updateWebhookEndpoint = createRoute({
 							error: {
 								code: "BAD_REQUEST",
 								message: "Bad request.",
-								hint: "At least one of `name`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
+								hint: "At least one of `name`, `labels`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
 								docs: "https://kayle.id/docs/api/webhooks/endpoints#update",
 							},
 						},

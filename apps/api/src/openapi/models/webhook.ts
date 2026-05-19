@@ -8,12 +8,56 @@ import {
 
 const WEBHOOK_RESOURCE_ID_MAX_LENGTH = 128;
 const WEBHOOK_RESOURCE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const WEBHOOK_ENDPOINT_LABEL_MAX_COUNT = 8;
+const WEBHOOK_ENDPOINT_LABEL_MAX_LENGTH = 40;
 
 export const WebhookResourceIdParam = z
 	.string()
 	.min(1)
 	.max(WEBHOOK_RESOURCE_ID_MAX_LENGTH)
 	.regex(WEBHOOK_RESOURCE_ID_PATTERN);
+
+export const WebhookEndpointLabels = z
+	.array(z.string().transform((label) => label.trim()))
+	.max(WEBHOOK_ENDPOINT_LABEL_MAX_COUNT)
+	.superRefine((labels, ctx) => {
+		const seen = new Set<string>();
+
+		for (const [index, label] of labels.entries()) {
+			if (label.length === 0) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Labels must be non-empty strings.",
+					path: [index],
+				});
+				continue;
+			}
+
+			if (label.length > WEBHOOK_ENDPOINT_LABEL_MAX_LENGTH) {
+				ctx.addIssue({
+					code: "custom",
+					message: `Labels must be ${WEBHOOK_ENDPOINT_LABEL_MAX_LENGTH} characters or fewer.`,
+					path: [index],
+				});
+				continue;
+			}
+
+			const normalized = label.toLowerCase();
+			if (seen.has(normalized)) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Labels must be unique case-insensitively.",
+					path: [index],
+				});
+				continue;
+			}
+
+			seen.add(normalized);
+		}
+	})
+	.describe(
+		"Endpoint labels used as tag-style purpose markers. Labels are trimmed, case-insensitively unique, max 8 labels, max 40 characters each.",
+	);
 
 export const WebhookDelivery = z
 	.object({
@@ -87,6 +131,9 @@ export const WebhookEndpoint = z
 			.string()
 			.nullable()
 			.describe("An optional display name for the webhook endpoint."),
+		labels: WebhookEndpointLabels.describe(
+			"Tag-style purpose labels for this endpoint.",
+		),
 		url: z.string().url().describe("The URL of the webhook endpoint"),
 		enabled: z.boolean().describe("Whether the webhook endpoint is enabled"),
 		subscribed_event_types: z

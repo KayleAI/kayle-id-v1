@@ -55,6 +55,10 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 		updates.name = body.name?.trim() ?? null;
 	}
 
+	if (body.labels !== undefined) {
+		updates.labels = body.labels;
+	}
+
 	if (body.url !== undefined) {
 		updates.url = body.url;
 	}
@@ -80,7 +84,7 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 				error: {
 					code: "BAD_REQUEST",
 					message: "Bad request.",
-					hint: "At least one of `name`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
+					hint: "At least one of `name`, `labels`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
 					docs: "https://kayle.id/docs/api/webhooks/endpoints#update",
 				},
 			},

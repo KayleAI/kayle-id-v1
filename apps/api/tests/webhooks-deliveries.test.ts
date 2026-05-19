@@ -181,6 +181,79 @@ describe("/v1/webhooks/deliveries", () => {
 		expect(retryPayload.data.next_attempt_at).toBeNull();
 	});
 
+	test("lists deliveries newest first without dropping tied timestamps", async () => {
+		const endpointId = `whe_delivery_page_${crypto.randomUUID()}`;
+		const createdAt = new Date("9999-01-01T00:00:00.000Z");
+		await db.insert(webhook_endpoints).values({
+			id: endpointId,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			url: "https://example.com/webhooks/delivery-page",
+		});
+
+		const eventRows = Array.from({ length: 4 }, (_, index) => ({
+			id: `evt_delivery_page_${crypto.randomUUID()}`,
+			organizationId: TEST_DATA?.organizationId ?? "",
+			type: "verification.attempt.succeeded",
+			triggerId: `va_delivery_page_${index}`,
+			triggerType: "verification_attempt",
+		}));
+		await db.insert(events).values(eventRows);
+
+		const deliveryIds = eventRows.map(
+			(event) => `whd_delivery_page_${event.id.slice(-36)}`,
+		);
+		await db.insert(webhook_deliveries).values(
+			eventRows.map((event, index) => ({
+				id: deliveryIds[index] ?? `whd_delivery_page_${index}`,
+				createdAt,
+				eventId: event.id,
+				status: "pending" as const,
+				webhookEndpointId: endpointId,
+			})),
+		);
+
+		const firstPage = await app.request("/v1/webhooks/deliveries?limit=2", {
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+			},
+			method: "GET",
+		});
+		expect(firstPage.status).toBe(200);
+		const firstPayload = (await firstPage.json()) as {
+			data: Array<{ id: string }>;
+			pagination: { has_more: boolean; next_cursor: string | null };
+		};
+		expect(firstPayload.pagination.has_more).toBeTrue();
+		expect(firstPayload.pagination.next_cursor).toBeString();
+
+		const secondPage = await app.request(
+			`/v1/webhooks/deliveries?limit=2&starting_after=${firstPayload.pagination.next_cursor}`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "GET",
+			},
+		);
+		expect(secondPage.status).toBe(200);
+		const secondPayload = (await secondPage.json()) as {
+			data: Array<{ id: string }>;
+		};
+		const pagedIds = [
+			...firstPayload.data.map((delivery) => delivery.id),
+			...secondPayload.data.map((delivery) => delivery.id),
+		];
+		const seen = new Set(pagedIds);
+
+		expect(pagedIds).toEqual([...deliveryIds].sort().reverse());
+		for (const deliveryId of deliveryIds) {
+			expect(seen.has(deliveryId)).toBeTrue();
+		}
+		expect(seen.size).toBe(
+			firstPayload.data.length + secondPayload.data.length,
+		);
+	});
+
 	test("rejects retry after the encrypted payload has expired", async () => {
 		const deliveryId = await seedDelivery();
 

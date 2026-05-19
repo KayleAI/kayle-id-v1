@@ -2,7 +2,9 @@ import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
 import { afterEach, expect, test, vi } from "vitest";
 import {
 	buildDemoWebhookUrl,
+	createDemoSession,
 	createDemoWebhookEndpoint,
+	deleteDemoWebhookEndpoint,
 	getPublicDemoSessionStatus,
 } from "./api";
 
@@ -86,6 +88,7 @@ test("createDemoWebhookEndpoint subscribes the demo to every supported public ev
 	expect(requestInit?.method).toBe("POST");
 	expect(JSON.parse(String(requestInit?.body))).toEqual({
 		enabled: true,
+		labels: ["demo", "run:123"],
 		subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 		url: "http://127.0.0.1:3001/api/demo/webhooks/demo_123/token_123",
 	});
@@ -113,6 +116,96 @@ test("createDemoWebhookEndpoint rejects malformed upstream success responses", a
 		message: "Unexpected upstream response.",
 		status: 200,
 	});
+});
+
+test("deleteDemoWebhookEndpoint deletes the demo endpoint", async () => {
+	const fetchMock = vi.fn().mockResolvedValue(
+		Response.json({
+			data: {
+				message: "Webhook endpoint deleted.",
+				status: "success",
+			},
+			error: null,
+		}),
+	);
+
+	await deleteDemoWebhookEndpoint({
+		bindings: {
+			API: {
+				fetch: fetchMock,
+			},
+			KAYLE_DEMO_API_KEY: "demo_api_key",
+		},
+		endpointId: "whe_demo_test",
+	});
+
+	expect(fetchMock).toHaveBeenCalledWith(
+		"http://api/v1/webhooks/endpoints/whe_demo_test",
+		expect.objectContaining({
+			method: "DELETE",
+		}),
+	);
+});
+
+test("deleteDemoWebhookEndpoint treats already-deleted endpoints as clean", async () => {
+	const fetchMock = vi.fn().mockResolvedValue(
+		Response.json(
+			{
+				data: null,
+				error: {
+					code: "NOT_FOUND",
+					message: "Webhook endpoint not found.",
+				},
+			},
+			{ status: 404 },
+		),
+	);
+
+	await expect(
+		deleteDemoWebhookEndpoint({
+			bindings: {
+				API: {
+					fetch: fetchMock,
+				},
+				KAYLE_DEMO_API_KEY: "demo_api_key",
+			},
+			endpointId: "whe_demo_missing",
+		}),
+	).resolves.toBeUndefined();
+});
+
+test("createDemoSession targets the demo run webhook endpoint", async () => {
+	const fetchMock = vi.fn().mockResolvedValue(
+		Response.json({
+			data: {
+				id: "vs_demo_test",
+				share_fields: {},
+				verification_url: "https://verify.kayle.id/vs_demo_test",
+			},
+			error: null,
+		}),
+	);
+
+	await createDemoSession({
+		bindings: {
+			API: {
+				fetch: fetchMock,
+			},
+			KAYLE_DEMO_API_KEY: "demo_api_key",
+		},
+		shareFields: undefined,
+		webhookEndpointId: "whe_demo_test",
+	});
+
+	expect(fetchMock).toHaveBeenCalledWith(
+		"http://api/v1/sessions",
+		expect.objectContaining({
+			body: JSON.stringify({
+				webhook_endpoint_id: "whe_demo_test",
+			}),
+			method: "POST",
+		}),
+	);
 });
 
 test("getPublicDemoSessionStatus returns null for missing public sessions", async () => {

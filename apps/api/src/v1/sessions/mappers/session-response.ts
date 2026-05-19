@@ -16,6 +16,16 @@ function buildVerificationUrl(id: string, cancelToken?: string) {
 	return url.toString();
 }
 
+function mapWebhookEndpointTarget(
+	ids: string[] | null,
+): string | string[] | null {
+	if (!ids || ids.length === 0) {
+		return null;
+	}
+
+	return ids.length === 1 ? ids[0] : ids;
+}
+
 export function mapAttemptRowToResponse(
 	attempt: typeof verification_attempts.$inferSelect,
 ) {
@@ -52,6 +62,7 @@ export function mapSessionRowToResponse({
 		contract_version: row.contractVersion,
 		share_fields: row.shareFields as ShareFields,
 		redirect_url: row.redirectUrl ?? null,
+		webhook_endpoint_id: mapWebhookEndpointTarget(row.webhookEndpointIds),
 		verification_url: buildVerificationUrl(row.id, cancelToken),
 		expires_at: row.expiresAt.toISOString(),
 		completed_at: row.completedAt ? row.completedAt.toISOString() : null,

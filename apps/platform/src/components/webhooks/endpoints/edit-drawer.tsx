@@ -16,6 +16,7 @@ import { showAsyncToast } from "../shared";
 
 export function EditEndpointDrawer({
 	endpointEnabled,
+	endpointLabelsInput,
 	endpointName,
 	endpointSubscribedEventTypes,
 	endpointUndeliveredPayloadRetentionHours,
@@ -23,6 +24,7 @@ export function EditEndpointDrawer({
 	isDirty,
 	isSaving,
 	onEndpointEnabledChange,
+	onEndpointLabelsInputChange,
 	onEndpointNameChange,
 	onEndpointUndeliveredPayloadRetentionHoursChange,
 	onToggleEndpointEventType,
@@ -31,6 +33,7 @@ export function EditEndpointDrawer({
 	onSaveEndpoint,
 }: {
 	endpointEnabled: boolean;
+	endpointLabelsInput: string;
 	endpointName: string;
 	endpointSubscribedEventTypes: string[];
 	endpointUndeliveredPayloadRetentionHours: number;
@@ -38,6 +41,7 @@ export function EditEndpointDrawer({
 	isDirty: boolean;
 	isSaving: boolean;
 	onEndpointEnabledChange: (enabled: boolean) => void;
+	onEndpointLabelsInputChange: (value: string) => void;
 	onEndpointNameChange: (value: string) => void;
 	onEndpointUndeliveredPayloadRetentionHoursChange: (hours: number) => void;
 	onToggleEndpointEventType: (eventType: string) => void;
@@ -64,7 +68,7 @@ export function EditEndpointDrawer({
 		>
 			<SheetTrigger
 				render={
-					<Button type="button" variant="outline">
+					<Button size="sm" type="button" variant="outline">
 						Edit destination
 					</Button>
 				}
@@ -90,6 +94,19 @@ export function EditEndpointDrawer({
 							onChange={(event) => onEndpointNameChange(event.target.value)}
 							placeholder="Primary production webhook"
 							value={endpointName}
+						/>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="webhook-labels">Labels</Label>
+						<Input
+							className="h-11"
+							id="webhook-labels"
+							onChange={(event) =>
+								onEndpointLabelsInputChange(event.target.value)
+							}
+							placeholder="production, identity"
+							value={endpointLabelsInput}
 						/>
 					</div>
 

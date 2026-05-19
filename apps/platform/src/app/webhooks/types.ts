@@ -7,6 +7,7 @@ export interface WebhookEndpoint {
 	disabled_at: string | null;
 	enabled: boolean;
 	id: string;
+	labels: string[];
 	name: string | null;
 	organization_id: string;
 	subscribed_event_types: string[];

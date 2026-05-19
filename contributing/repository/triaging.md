@@ -14,7 +14,7 @@ Use one of the issue templates (`.github/ISSUE_TEMPLATE/`):
 - **Bug report** for anything that's broken, regressed, or behaves differently from documented behaviour.
 - **Feature request** for new functionality.
 
-For security issues, do not open a public issue — see [SECURITY.md](https://kayle.id/security) and email `security@kayle.id` instead.
+For security issues, do not open a public issue or pull request — see [SECURITY.md](../../SECURITY.md) and email `security@kayle.id` instead.
 
 ## Triage labels
 

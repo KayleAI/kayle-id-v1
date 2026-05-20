@@ -26,7 +26,7 @@ export async function buildBetterAuthRequest({
 		headers: sourceHeaders,
 		internalToken,
 	});
-	const nextRequest = new Request(url ?? request.url, request);
+	const nextRequest = new Request(url?.toString() ?? request.url, request);
 
 	stripClientProxyHeaders(nextRequest.headers);
 

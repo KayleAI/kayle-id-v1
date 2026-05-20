@@ -3,24 +3,21 @@ import XCTest
 
 final class QRCodePayloadTests: XCTestCase {
   private static let validSessionId = "vs_" + String(repeating: "a", count: 64)
-  private static let validAttemptId = "va_" + String(repeating: "b", count: 64)
   private static let validMobileWriteToken = String(repeating: "c", count: 64)
   private static let validCancelToken = String(repeating: "d", count: 48)
 
   private func makeJSON(
     v: Int = 1,
     sessionId: String? = nil,
-    attemptId: String? = nil,
     mobileWriteToken: String? = nil,
     expiresAt: String = "2099-01-01T00:00:00Z",
     extra: String = ""
   ) -> String {
     let sessionId = sessionId ?? Self.validSessionId
-    let attemptId = attemptId ?? Self.validAttemptId
     let mobileWriteToken = mobileWriteToken ?? Self.validMobileWriteToken
 
     return """
-    {"v":\(v),"session_id":"\(sessionId)","attempt_id":"\(attemptId)","mobile_write_token":"\(mobileWriteToken)","expires_at":"\(expiresAt)"\(extra)}
+    {"v":\(v),"session_id":"\(sessionId)","mobile_write_token":"\(mobileWriteToken)","expires_at":"\(expiresAt)"\(extra)}
     """
   }
 
@@ -29,7 +26,6 @@ final class QRCodePayloadTests: XCTestCase {
     let parsed = try QRCodePayload.parse(from: qr)
 
     XCTAssertEqual(parsed.sessionId, Self.validSessionId)
-    XCTAssertEqual(parsed.attemptId, Self.validAttemptId)
     XCTAssertEqual(parsed.mobileWriteToken, Self.validMobileWriteToken)
     XCTAssertTrue(parsed.isValid)
   }
@@ -42,7 +38,7 @@ final class QRCodePayloadTests: XCTestCase {
     let qr = "kayle-id://\(encoded ?? "")"
     let parsed = try QRCodePayload.parse(from: qr)
 
-    XCTAssertEqual(parsed.attemptId, Self.validAttemptId)
+    XCTAssertEqual(parsed.sessionId, Self.validSessionId)
     XCTAssertTrue(parsed.isValid)
   }
 
@@ -74,17 +70,17 @@ final class QRCodePayloadTests: XCTestCase {
     let qr = "kayle-id://\(makeJSON(expiresAt: "2099-01-01T00:00:00.000Z"))"
     let parsed = try QRCodePayload.parse(from: qr)
 
-    XCTAssertEqual(parsed.attemptId, Self.validAttemptId)
+    XCTAssertEqual(parsed.sessionId, Self.validSessionId)
     XCTAssertTrue(parsed.isValid)
   }
 
-  func testMissingAttemptIdIsInvalid() {
-    let missingAttemptJSON =
+  func testMissingSessionIdIsInvalid() {
+    let missingSessionJSON =
       """
-      {"v":1,"session_id":"\(Self.validSessionId)","mobile_write_token":"\(Self.validMobileWriteToken)","expires_at":"2099-01-01T00:00:00Z"}
+      {"v":1,"mobile_write_token":"\(Self.validMobileWriteToken)","expires_at":"2099-01-01T00:00:00Z"}
       """
 
-    let qr = "kayle-id://\(missingAttemptJSON)"
+    let qr = "kayle-id://\(missingSessionJSON)"
 
     XCTAssertThrowsError(try QRCodePayload.parse(from: qr))
   }
@@ -124,14 +120,6 @@ final class QRCodePayloadTests: XCTestCase {
 
   func testMalformedSessionIdIsInvalid() throws {
     let qr = "kayle-id://\(makeJSON(sessionId: "vs_../../session"))"
-
-    let parsed = try QRCodePayload.parse(from: qr)
-
-    XCTAssertFalse(parsed.isValid)
-  }
-
-  func testMalformedAttemptIdIsInvalid() throws {
-    let qr = "kayle-id://\(makeJSON(attemptId: "va_attempt123"))"
 
     let parsed = try QRCodePayload.parse(from: qr)
 

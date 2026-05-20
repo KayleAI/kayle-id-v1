@@ -1,9 +1,9 @@
 import {
-	createWebhookDeliveriesForVerificationSucceeded,
+	createWebhookDeliveriesForVerificationSessionSucceededWithManifest,
 	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
 import { resolveVerifyErrorMessage } from "./error-response";
-import { markAttemptSucceeded } from "./outcome";
+import { markSessionSucceeded } from "./outcome";
 import { validateAndBuildShareManifest } from "./share-manifest";
 import type { VerifySocketContext } from "./socket-context";
 
@@ -23,7 +23,7 @@ export async function handleShareSelectionMessage(
 		sessionIdPresent: Boolean(payload.sessionId),
 	});
 
-	if (!(state.helloReceived && state.attemptId && state.shareRequestSent)) {
+	if (!(state.helloReceived && state.sessionId && state.shareRequestSent)) {
 		transport.sendError(
 			"PHASE_OUT_OF_ORDER",
 			resolveVerifyErrorMessage("PHASE_OUT_OF_ORDER"),
@@ -67,14 +67,13 @@ export async function handleShareSelectionMessage(
 		throw new Error("face_score_required_for_share_success");
 	}
 
-	const successResult = await markAttemptSucceeded({
+	const successResult = await markSessionSucceeded({
 		session,
-		attemptId: state.attemptId,
 		faceScore: state.confirmedFaceScore,
 		selectedFieldKeys: result.manifest.selectedFieldKeys,
 	});
 
-	if (!successResult.attemptSucceededEventId) {
+	if (!successResult.sessionSucceededEventId) {
 		transport.sendError(
 			"SESSION_EXPIRED",
 			resolveVerifyErrorMessage("SESSION_EXPIRED"),
@@ -83,12 +82,12 @@ export async function handleShareSelectionMessage(
 	}
 
 	state.shareManifest = result.manifest;
-	const deliveryIds = await createWebhookDeliveriesForVerificationSucceeded({
-		attemptId: state.attemptId,
-		eventId: successResult.attemptSucceededEventId,
-		manifest: result.manifest,
-		organizationId: session.organizationId,
-	});
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionSucceededWithManifest({
+			eventId: successResult.sessionSucceededEventId,
+			manifest: result.manifest,
+			organizationId: session.organizationId,
+		});
 
 	transport.sendShareReady(result.shareReady);
 	context.log.set({

@@ -37,21 +37,30 @@ A session moves through these statuses:
 
 | Status        | Meaning |
 |---------------|---------|
-| `created`     | The session exists. No attempt has been claimed yet. |
-| `in_progress` | A mobile or web client is actively performing the Kayle check. |
-| `completed`   | An attempt was confirmed, **or** the maximum number of attempts was exhausted without a confirmed attempt. |
-| `expired`     | 60 minutes elapsed since creation without a terminal attempt. |
+| `created`     | The session exists. The mobile client has not authenticated yet. |
+| `in_progress` | A mobile client is actively performing the Kayle check. |
+| `succeeded`   | All Kayle checks confirmed and the user consented to share at least all required fields. |
+| `failed`      | A check exhausted its retry budget, or a hard-kill code (anti-cloning attestation) terminated the session. |
+| `expired`     | 60 minutes elapsed since creation without a terminal outcome. |
 | `cancelled`   | The session was cancelled by you or by the user. |
 
-Sessions expire 60 minutes after `created_at`. A scheduled job sweeps expired sessions and emits `verification.session.expired` for any that didn't reach `completed` or `cancelled` first.
+Sessions expire 60 minutes after `created_at`. A scheduled job sweeps expired sessions and emits `verification.session.expired` for any that didn't reach a terminal status first.
 
-## Attempts
+## Retries
 
-Inside a session, each interactive run by the user is an **attempt** (`va_...`). An attempt has its own status — `in_progress`, `succeeded`, `failed`, `cancelled` — and, on failure, a `failure_code` you can match on. See [Document checks](/verifications/document-checks#failure-codes) for the codes.
+A session has per-check retry budgets — not a single whole-session budget. When a user fails NFC, they don't have to re-scan MRZ; when they fail liveness, they don't have to re-tap the chip.
 
-A session allows up to **three attempts**. After the third not-confirmed terminal attempt, the session moves to `completed` and no further attempts are accepted.
+| Check | Budget |
+|---|---|
+| MRZ scan | Unlimited (purely client-side OCR; the server never sees a failed MRZ scan) |
+| NFC chip read | 3 retries |
+| Liveness capture | 3 retries |
 
-You can fetch attempts attached to a session with `?include_attempts=true` on `GET /v1/sessions/:id`, or list across sessions via `GET /v1/sessions/attempts`.
+Retries happen entirely inside the mobile app — the user does not re-scan the handoff QR code, and your server is not notified per retry. Only the terminal outcome fires a webhook. The `verification.session.failed` payload's `data.nfc_tries_used` and `data.liveness_tries_used` tell you which check exhausted.
+
+`document_anti_cloning_attestation_failed` is a hard-kill: the session terminates immediately, regardless of retry counters.
+
+The session response exposes the live counters on `nfc_tries_used` and `liveness_tries_used` so you can render an "attempts remaining" UI without subscribing to webhooks.
 
 ## Creating a session
 
@@ -98,4 +107,4 @@ curl "https://api.kayle.id/v1/sessions?status=completed&limit=50" \
 
 ## What you don't see
 
-The session object never includes raw document data, MRZ fields, the on-chip portrait, selfies, or the face match score. Those are computed and discarded inside the verification pipeline. The consented claims surface only in the `verification.attempt.succeeded` webhook payload.
+The session object never includes raw document data, MRZ fields, the on-chip portrait, selfies, or the face match score. Those are computed and discarded inside the verification pipeline. The consented claims surface only in the `verification.session.succeeded` webhook payload.

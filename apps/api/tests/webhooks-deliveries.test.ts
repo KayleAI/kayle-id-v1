@@ -44,7 +44,7 @@ afterAll(async () => {
 async function seedDelivery(): Promise<string> {
 	const seeded = await seedWebhookEventWithDelivery({
 		context: "delivery",
-		eventType: "verification.attempt.succeeded",
+		eventType: "verification.session.succeeded",
 		organizationId: TEST_DATA?.organizationId ?? "",
 		signingSecretPlaintext: "whsec_delivery_route_secret",
 		url: "https://example.com/webhooks/deliveries",
@@ -193,7 +193,7 @@ describe("/v1/webhooks/deliveries", () => {
 		const eventRows = Array.from({ length: 4 }, (_, index) => ({
 			id: `evt_delivery_page_${crypto.randomUUID()}`,
 			organizationId: TEST_DATA?.organizationId ?? "",
-			type: "verification.attempt.succeeded",
+			type: "verification.session.succeeded",
 			triggerId: `va_delivery_page_${index}`,
 			triggerType: "verification_attempt",
 		}));

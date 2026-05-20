@@ -198,7 +198,7 @@ test("verifyLiveness does not log upstream response bodies on HTTP errors", asyn
 		env: {
 			BIOMETRIC_VERIFIER: {
 				fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-					const request = new Request(input, init);
+					const request = new Request(input as string, init as RequestInit);
 					if (new URL(request.url).pathname === "/health") {
 						return Promise.resolve(readyVerifierHealthResponse());
 					}
@@ -238,7 +238,7 @@ test("verifyLiveness logs safe invalid JSON errors without raw parser messages",
 		env: {
 			BIOMETRIC_VERIFIER: {
 				fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-					const request = new Request(input, init);
+					const request = new Request(input as string, init as RequestInit);
 					if (new URL(request.url).pathname === "/health") {
 						return Promise.resolve(readyVerifierHealthResponse());
 					}

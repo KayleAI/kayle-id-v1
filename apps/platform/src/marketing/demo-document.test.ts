@@ -12,7 +12,7 @@ import {
 test("parseDemoDecryptedWebhook reads claims and selected field keys", () => {
 	const parsed = parseDemoDecryptedWebhook(
 		JSON.stringify({
-			type: "verification.attempt.succeeded",
+			type: "verification.session.succeeded",
 			data: {
 				claims: {
 					document_number: "123456789",
@@ -34,7 +34,7 @@ test("parseDemoDecryptedWebhook reads claims and selected field keys", () => {
 		},
 		contractVersion: 1,
 		selectedFieldKeys: ["document_number", "family_name"],
-		type: "verification.attempt.succeeded",
+		type: "verification.session.succeeded",
 		verificationSessionId: "vs_demo_test",
 	});
 });
@@ -145,7 +145,7 @@ test("buildDemoDocumentPreview includes machine readable zone for passports", ()
 test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	const preview = buildDemoWebhookEventPreview(
 		JSON.stringify({
-			type: "verification.attempt.failed",
+			type: "verification.session.failed",
 			data: {
 				failure_code: "document_authenticity_failed",
 			},
@@ -161,13 +161,12 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 		contractVersion: 1,
 		description:
 			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
-		eventType: "verification.attempt.failed",
+		eventType: "verification.session.failed",
 		failureCode: "document_authenticity_failed",
 		failureDescription:
 			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
 		failureTitle: "Document check not confirmed",
-		title: "Attempt Failed",
-		verificationAttemptId: "va_demo_test",
+		title: "Session Failed",
 		verificationSessionId: "vs_demo_test",
 	});
 });
@@ -175,7 +174,7 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => {
 	const preview = buildDemoWebhookEventPreview(
 		JSON.stringify({
-			type: "verification.attempt.failed",
+			type: "verification.session.failed",
 			data: {
 				failure_code: "unexpected_failure_code",
 			},
@@ -186,12 +185,11 @@ test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => 
 		contractVersion: null,
 		description:
 			"A Kayle check attempt was not confirmed with Unexpected Failure Code.",
-		eventType: "verification.attempt.failed",
+		eventType: "verification.session.failed",
 		failureCode: "unexpected_failure_code",
 		failureDescription: null,
 		failureTitle: null,
-		title: "Attempt Failed",
-		verificationAttemptId: null,
+		title: "Session Failed",
 		verificationSessionId: null,
 	});
 });

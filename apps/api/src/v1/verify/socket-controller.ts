@@ -7,8 +7,8 @@ import {
 	markRequestLogForManualEmit,
 } from "@/logging";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
-import { releaseAttemptConnection } from "./attempt-connection";
 import { MAX_FRAME_BYTES, resetTransferState } from "./data-payload";
+import { releaseSessionConnection } from "./session-connection";
 import type { ActiveVerifySessionContext } from "./session-context";
 import {
 	createVerifySocketState,
@@ -184,10 +184,10 @@ export function startVerifySocketSession(
 			});
 		}
 
-		if (context.state.attemptId) {
+		if (context.state.sessionId) {
 			context.scheduleTask(
-				releaseAttemptConnection({
-					attemptId: context.state.attemptId,
+				releaseSessionConnection({
+					sessionId: context.state.sessionId,
 					ownerId: connectionOwnerId,
 				}),
 			);

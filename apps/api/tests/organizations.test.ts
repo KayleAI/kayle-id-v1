@@ -568,7 +568,7 @@ describe("Organization Endpoints", () => {
 				return Promise.resolve({
 					key,
 				} as R2Object);
-			}) as StorageBinding["put"],
+			}) as unknown as StorageBinding["put"],
 		} as StorageBinding;
 
 		const response = await app.request("/v1/auth/orgs", {
@@ -640,7 +640,7 @@ describe("Organization Endpoints", () => {
 				return Promise.resolve({
 					key,
 				} as R2Object);
-			}) as StorageBinding["put"],
+			}) as unknown as StorageBinding["put"],
 		} as StorageBinding;
 
 		try {

@@ -61,7 +61,7 @@ export interface WebhookEvent {
 	deliveries: WebhookEventDelivery[];
 	id: string;
 	trigger_id: string;
-	trigger_type: "verification_session" | "verification_attempt";
+	trigger_type: "verification_session";
 	type: string;
 }
 

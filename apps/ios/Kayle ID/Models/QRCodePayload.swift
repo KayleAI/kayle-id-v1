@@ -30,24 +30,20 @@ struct QRCodePayload: Codable {
 
   let v: Int?
   let sessionId: String
-  let attemptId: String
   let mobileWriteToken: String
   let expiresAt: Date
   let cancelToken: String?
   /// Base64url-encoded server-derived challenge for the App Attest hello
-  /// assertion. Populated by `POST /v1/verify/session/:id/handoff` once the
-  /// server adds the field; older handoff responses or QR codes that pre-date
-  /// the App Attest gate may omit it.
+  /// assertion. HMAC-derived from `sessionId + AUTH_SECRET`; deterministic so
+  /// it survives reconnects, unpredictable to anyone without the secret.
   let attestHelloChallenge: String?
   /// Base64url-encoded server-derived challenge for the App Attest NFC
-  /// payload assertion. Same lifecycle as `attestHelloChallenge`; both are
-  /// HMAC-derived from `attemptId + AUTH_SECRET` and survive reconnects.
+  /// payload assertion. Same lifecycle as `attestHelloChallenge`.
   let attestNfcChallenge: String?
 
   enum CodingKeys: String, CodingKey {
     case v
     case sessionId = "session_id"
-    case attemptId = "attempt_id"
     case mobileWriteToken = "mobile_write_token"
     case expiresAt = "expires_at"
     case cancelToken = "cancel_token"
@@ -58,7 +54,6 @@ struct QRCodePayload: Codable {
   init(
     v: Int?,
     sessionId: String,
-    attemptId: String,
     mobileWriteToken: String,
     expiresAt: Date,
     cancelToken: String? = nil,
@@ -67,7 +62,6 @@ struct QRCodePayload: Codable {
   ) {
     self.v = v
     self.sessionId = sessionId
-    self.attemptId = attemptId
     self.mobileWriteToken = mobileWriteToken
     self.expiresAt = expiresAt
     self.cancelToken = cancelToken
@@ -79,7 +73,6 @@ struct QRCodePayload: Codable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     v = try container.decodeIfPresent(Int.self, forKey: .v)
     sessionId = try container.decode(String.self, forKey: .sessionId)
-    attemptId = try container.decode(String.self, forKey: .attemptId)
     mobileWriteToken = try container.decode(String.self, forKey: .mobileWriteToken)
     cancelToken = try container.decodeIfPresent(String.self, forKey: .cancelToken)
     attestHelloChallenge = try container.decodeIfPresent(
@@ -144,7 +137,6 @@ struct QRCodePayload: Codable {
 
     return isSupportedVersion &&
       Self.isGeneratedId(sessionId, prefix: "vs_") &&
-      Self.isGeneratedId(attemptId, prefix: "va_") &&
       Self.isLowercaseHex(mobileWriteToken, length: Self.mobileWriteTokenLength) &&
       Self.isValidCancelToken(cancelToken) &&
       expiresAt.timeIntervalSinceNow >= -expirySkewToleranceSeconds

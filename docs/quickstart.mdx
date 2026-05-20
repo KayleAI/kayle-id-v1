@@ -35,8 +35,8 @@ This guide takes you from zero to a working verification in about ten minutes. Y
       -d '{
         "url": "https://example.ngrok.app/webhooks/kayle",
         "subscribed_event_types": [
-          "verification.attempt.succeeded",
-          "verification.attempt.failed",
+          "verification.session.succeeded",
+          "verification.session.failed",
           "verification.session.expired",
           "verification.session.cancelled"
         ]
@@ -110,11 +110,11 @@ This guide takes you from zero to a working verification in about ten minutes. Y
 
     ```json
     {
-      "type": "verification.attempt.succeeded",
+      "type": "verification.session.succeeded",
       "metadata": {
         "contract_version": 1,
         "event_id": "evt_...",
-        "verification_attempt_id": "va_...",
+
         "verification_session_id": "vs_..."
       },
       "data": {

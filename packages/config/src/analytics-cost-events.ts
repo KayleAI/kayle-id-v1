@@ -90,11 +90,6 @@ const COST_EVENT_BLOB_ORDER = [
 export type CostFeature = (typeof COST_FEATURES)[keyof typeof COST_FEATURES];
 
 export interface EmitCostEventInput {
-  /**
-   * Deprecated. Accepted for old call sites but intentionally redacted before
-   * writing to Analytics Engine.
-   */
-  readonly attemptId?: string | null;
   /** The `KAYLE_ID_ANALYTICS` binding from `env`. Missing → no-op. */
   readonly dataset: AnalyticsEngineDatasetLike | undefined | null;
   /**

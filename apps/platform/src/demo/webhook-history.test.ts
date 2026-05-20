@@ -11,7 +11,7 @@ import {
 const legacyWebhook = {
 	body: "legacy",
 	delivery_id: "whd_legacy",
-	event_type: "verification.attempt.failed" as const,
+	event_type: "verification.session.failed" as const,
 	received_at: "2026-04-19T10:00:00.000Z",
 	signature_header: "sig_legacy",
 };

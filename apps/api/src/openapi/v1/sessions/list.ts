@@ -10,7 +10,14 @@ export const listSessions = createRoute({
 	request: {
 		query: z.object({
 			status: z
-				.enum(["created", "in_progress", "completed", "expired", "cancelled"])
+				.enum([
+					"created",
+					"in_progress",
+					"succeeded",
+					"failed",
+					"expired",
+					"cancelled",
+				])
 				.optional()
 				.describe("Filter sessions by status."),
 			created_from: z
@@ -40,12 +47,6 @@ export const listSessions = createRoute({
 				.optional()
 				.describe(
 					"Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-				),
-			include_attempts: z.coerce
-				.boolean()
-				.optional()
-				.describe(
-					"When true, includes the `attempts` array for each session. When false or omitted, attempts are not returned.",
 				),
 		}),
 	},

@@ -152,8 +152,8 @@ describe("DemoRunMailbox cleanup", () => {
 			new Request("https://demo.internal/session-status", {
 				body: JSON.stringify({
 					completed_at: "2026-05-09T12:00:00.000Z",
+					failure_code: null,
 					is_terminal: true,
-					latest_attempt: null,
 					redirect_url: null,
 					session_id: "vs_demo_expired",
 					status: "expired",

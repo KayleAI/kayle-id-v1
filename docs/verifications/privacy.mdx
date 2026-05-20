@@ -60,12 +60,12 @@ For a confirmed Kayle check, the cleartext you receive after decryption contains
 
 ```json
 {
-  "type": "verification.attempt.succeeded",
+  "type": "verification.session.succeeded",
   "data": {
     "claims": { "date_of_birth": "1995-04-12", "kayle_document_id": "kdid_..." },
     "selected_field_keys": ["date_of_birth", "kayle_document_id"]
   },
-  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+  "metadata": { "verification_session_id": "vs_...", "event_id": "evt_...", "contract_version": 1 }
 }
 ```
 
@@ -73,9 +73,9 @@ For a not-confirmed Kayle check, you receive the failure code, no claims:
 
 ```json
 {
-  "type": "verification.attempt.failed",
+  "type": "verification.session.failed",
   "data": { "failure_code": "selfie_face_mismatch" },
-  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+  "metadata": { "verification_session_id": "vs_...", "event_id": "evt_...", "contract_version": 1 }
 }
 ```
 

@@ -72,11 +72,11 @@ function seedWebhookEvent(): Promise<{
 	endpointId: string;
 	eventId: string;
 }> {
-	return seedWebhookEventWithType("verification.attempt.succeeded");
+	return seedWebhookEventWithType("verification.session.succeeded");
 }
 
 function seedWebhookEventWithType(
-	eventType: "verification.attempt.failed" | "verification.attempt.succeeded",
+	eventType: "verification.session.failed" | "verification.session.succeeded",
 ): Promise<{
 	deliveryId: string;
 	endpointId: string;
@@ -215,8 +215,8 @@ describe("/v1/webhooks/events", () => {
 					createdAt,
 					type:
 						index % 2 === 0
-							? "verification.attempt.succeeded"
-							: "verification.attempt.failed",
+							? "verification.session.succeeded"
+							: "verification.session.failed",
 					triggerId: `va_events_page_${index}`,
 					triggerType: "verification_attempt",
 				})),
@@ -330,7 +330,7 @@ describe("/v1/webhooks/events", () => {
 		"POST /:event_id/replay requeues failed attempt event deliveries",
 		async () => {
 			const seeded = await seedWebhookEventWithType(
-				"verification.attempt.failed",
+				"verification.session.failed",
 			);
 
 			await db

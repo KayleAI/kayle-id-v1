@@ -34,7 +34,6 @@ export type PrivacyRequestRouteContext =
 				fallback_idv_url: string | null;
 				support_email: string | null;
 			};
-			latest_attempt_id: string | null;
 			result_webhook_deliveries: {
 				total_count: number;
 				succeeded_count: number;
@@ -47,7 +46,6 @@ export type PrivacyRequestRouteContext =
 	  };
 
 type PrivacyRequestMailtoInput = {
-	attemptId: string | null;
 	email: string;
 	organizationName: string | null;
 	sessionId: string;
@@ -70,7 +68,6 @@ export function buildPrivacyRequestPath({
 }
 
 export function buildPrivacyRequestMailtoHref({
-	attemptId,
 	email,
 	organizationName,
 	sessionId,
@@ -80,7 +77,6 @@ export function buildPrivacyRequestMailtoHref({
 		"",
 		"Request type: withdrawal, deletion, or data access",
 		`Session ID: ${sessionId}`,
-		`Latest attempt ID: ${attemptId ?? "not available"}`,
 		`Organization: ${organizationName ?? "not available"}`,
 		"",
 		"I do not have a Kayle ID account for this check.",
@@ -211,7 +207,6 @@ export function PrivacyRequestPage({
 		}
 
 		return buildPrivacyRequestMailtoHref({
-			attemptId: context.latest_attempt_id,
 			email: supportEmail,
 			organizationName: context.organization_name,
 			sessionId,
@@ -361,19 +356,23 @@ export function PrivacyRequestPage({
 						</section>
 					) : null}
 
-					<Button
-						nativeButton={false}
-						render={<a href="https://kayle.id">{privacyCopy.learnMoreLink}</a>}
-						variant="outline"
-					>
-						{privacyCopy.learnMoreLink}
-					</Button>
-					{organization ? (
-						<OrganizationReportAction
-							organization={organization}
-							sessionId={sessionId}
-						/>
-					) : null}
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							nativeButton={false}
+							render={
+								<a href="https://kayle.id">{privacyCopy.learnMoreLink}</a>
+							}
+							variant="outline"
+						>
+							{privacyCopy.learnMoreLink}
+						</Button>
+						{organization ? (
+							<OrganizationReportAction
+								organization={organization}
+								sessionId={sessionId}
+							/>
+						) : null}
+					</div>
 				</div>
 			</div>
 		</div>

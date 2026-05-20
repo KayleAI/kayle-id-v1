@@ -88,14 +88,14 @@ export function resolveAppAttestEnvironment(
 }
 
 export async function verifyHelloAttestation({
-	attemptId,
+	sessionId,
 	deviceId,
 	appVersion,
 	attestKeyId,
 	helloAssertion,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	deviceId: string;
 	appVersion: string;
 	attestKeyId: string;
@@ -108,14 +108,14 @@ export async function verifyHelloAttestation({
 	}
 
 	const challenge = await deriveAttestHelloChallenge({
-		attemptId,
+		sessionId,
 		authSecret,
 	});
 
 	const clientDataHash = await sha256(
 		concat(
 			textBytes("attest:hello:"),
-			textBytes(attemptId),
+			textBytes(sessionId),
 			textBytes(deviceId),
 			textBytes(appVersion),
 			challenge,
@@ -156,12 +156,12 @@ export async function verifyHelloAttestation({
 }
 
 export async function verifyNfcAttestation({
-	attemptId,
+	sessionId,
 	attestKeyId,
 	transfer,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	attestKeyId: string;
 	transfer: VerifyTransferState;
 	authSecret: string;
@@ -185,12 +185,12 @@ export async function verifyNfcAttestation({
 	}
 
 	const challenge = await deriveAttestNfcChallenge({
-		attemptId,
+		sessionId,
 		authSecret,
 	});
 
 	const clientDataHash = await buildNfcClientDataHash({
-		attemptId,
+		sessionId,
 		challenge,
 		transfer,
 	});
@@ -235,16 +235,16 @@ export async function verifyNfcAttestation({
 // The exact byte order here is part of the wire contract — the iOS client
 // must build clientDataHash from the same components in the same order, or
 // every NFC assertion will fail. Both sides hash the same `attest:nfc:`
-// label, attemptId, the SHA-256 of every uploaded artifact (or the SHA-256
-// of an empty buffer when the artifact is absent), and the per-attempt
+// label, sessionId, the SHA-256 of every uploaded artifact (or the SHA-256
+// of an empty buffer when the artifact is absent), and the per-session
 // challenge.
 
 async function buildNfcClientDataHash({
-	attemptId,
+	sessionId,
 	challenge,
 	transfer,
 }: {
-	attemptId: string;
+	sessionId: string;
 	challenge: Uint8Array;
 	transfer: VerifyTransferState;
 }): Promise<Uint8Array> {
@@ -263,7 +263,7 @@ async function buildNfcClientDataHash({
 	return await sha256(
 		concat(
 			textBytes("attest:nfc:"),
-			textBytes(attemptId),
+			textBytes(sessionId),
 			dg1Hash,
 			dg2Hash,
 			dg14Hash,

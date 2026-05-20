@@ -1,7 +1,4 @@
-import type {
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import type { verification_sessions } from "@kayle-id/database/schema/core";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 
 function buildVerificationUrl(id: string, cancelToken?: string) {
@@ -26,29 +23,11 @@ function mapWebhookEndpointTarget(
 	return ids.length === 1 ? ids[0] : ids;
 }
 
-export function mapAttemptRowToResponse(
-	attempt: typeof verification_attempts.$inferSelect,
-) {
-	return {
-		id: attempt.id,
-		session_id: attempt.verificationSessionId,
-		status: attempt.status,
-		failure_code: attempt.failureCode ?? null,
-		completed_at: attempt.completedAt
-			? attempt.completedAt.toISOString()
-			: null,
-		created_at: attempt.createdAt.toISOString(),
-		updated_at: attempt.updatedAt.toISOString(),
-	};
-}
-
 export function mapSessionRowToResponse({
 	row,
-	attempts,
 	cancelToken,
 }: {
 	row: typeof verification_sessions.$inferSelect;
-	attempts?: (typeof verification_attempts.$inferSelect)[];
 	/**
 	 * Plaintext cancel token for the verify browser / native app. Only set on
 	 * the create-session response — never re-derivable from a stored row, since
@@ -59,6 +38,9 @@ export function mapSessionRowToResponse({
 	return {
 		id: row.id,
 		status: row.status,
+		failure_code: row.failureCode ?? null,
+		nfc_tries_used: row.nfcTriesUsed,
+		liveness_tries_used: row.livenessTriesUsed,
 		contract_version: row.contractVersion,
 		share_fields: row.shareFields as ShareFields,
 		redirect_url: row.redirectUrl ?? null,
@@ -69,10 +51,5 @@ export function mapSessionRowToResponse({
 		created_at: row.createdAt.toISOString(),
 		updated_at: row.updatedAt.toISOString(),
 		...(cancelToken ? { cancel_token: cancelToken } : {}),
-		...(attempts
-			? {
-					attempts: attempts.map(mapAttemptRowToResponse),
-				}
-			: {}),
 	};
 }

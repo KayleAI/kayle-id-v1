@@ -66,22 +66,7 @@ export async function recordVerifySessionConsent({
 		.select({
 			organizationName: auth_organizations.name,
 			pendingDeletionAt: auth_organizations.pending_deletion_at,
-			session: {
-				cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
-				cancelTokenHash: verification_sessions.cancelTokenHash,
-				completedAt: verification_sessions.completedAt,
-				contractVersion: verification_sessions.contractVersion,
-				createdAt: verification_sessions.createdAt,
-				expiresAt: verification_sessions.expiresAt,
-				id: verification_sessions.id,
-				isAgeOnly: verification_sessions.isAgeOnly,
-				organizationId: verification_sessions.organizationId,
-				redirectUrl: verification_sessions.redirectUrl,
-				shareFields: verification_sessions.shareFields,
-				status: verification_sessions.status,
-				updatedAt: verification_sessions.updatedAt,
-				webhookEndpointIds: verification_sessions.webhookEndpointIds,
-			},
+			session: verification_sessions,
 		})
 		.from(verification_sessions)
 		.innerJoin(
@@ -157,7 +142,6 @@ export async function recordVerifySessionConsent({
 		id: consentId,
 		organizationId: session.organizationId,
 		verificationSessionId: session.id,
-		verificationAttemptId: null,
 		consentedAt: now,
 		consentUiVersion: CONSENT_UI_VERSION,
 		termsVersion: TERMS_VERSION,

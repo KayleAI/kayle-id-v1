@@ -1,21 +1,19 @@
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
 import type {
-	VerificationAttemptFailedCode,
-	VerificationAttemptFailedPayload,
 	VerificationSessionCancelledPayload,
 	VerificationSessionExpiredPayload,
-	VerificationSucceededPayload,
+	VerificationSessionFailedCode,
+	VerificationSessionFailedPayload,
+	VerificationSessionSucceededPayload,
 } from "./types";
 
-export function buildVerificationSucceededPayload({
-	attemptId,
+export function buildVerificationSessionSucceededPayload({
 	eventId,
 	manifest,
 }: {
-	attemptId: string;
 	eventId: string;
 	manifest: VerifyShareManifest;
-}): VerificationSucceededPayload {
+}): VerificationSessionSucceededPayload {
 	return {
 		data: {
 			claims: manifest.claims,
@@ -24,37 +22,39 @@ export function buildVerificationSucceededPayload({
 		metadata: {
 			contract_version: manifest.contractVersion,
 			event_id: eventId,
-			verification_attempt_id: attemptId,
 			verification_session_id: manifest.sessionId,
 		},
-		type: "verification.attempt.succeeded",
+		type: "verification.session.succeeded",
 	};
 }
 
-export function buildVerificationAttemptFailedPayload({
-	attemptId,
+export function buildVerificationSessionFailedPayload({
 	contractVersion,
 	eventId,
 	failureCode,
+	nfcTriesUsed,
+	livenessTriesUsed,
 	sessionId,
 }: {
-	attemptId: string;
 	contractVersion: number;
 	eventId: string;
-	failureCode: VerificationAttemptFailedCode;
+	failureCode: VerificationSessionFailedCode;
+	nfcTriesUsed: number;
+	livenessTriesUsed: number;
 	sessionId: string;
-}): VerificationAttemptFailedPayload {
+}): VerificationSessionFailedPayload {
 	return {
 		data: {
 			failure_code: failureCode,
+			nfc_tries_used: nfcTriesUsed,
+			liveness_tries_used: livenessTriesUsed,
 		},
 		metadata: {
 			contract_version: contractVersion,
 			event_id: eventId,
-			verification_attempt_id: attemptId,
 			verification_session_id: sessionId,
 		},
-		type: "verification.attempt.failed",
+		type: "verification.session.failed",
 	};
 }
 

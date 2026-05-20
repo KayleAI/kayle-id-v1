@@ -112,6 +112,43 @@ export function resetTransferState(state: VerifyTransferState): void {
 	state.bytesReceived = 0;
 }
 
+/**
+ * Wipe NFC-related fields and chunk slots, leaving liveness untouched. Used
+ * on `nfc_complete → nfc_reading` rewind so the next chip read overwrites the
+ * not-confirmed artifacts cleanly instead of mixing chunks across attempts.
+ */
+export function resetNfcTransferState(state: VerifyTransferState): void {
+	state.dg1 = undefined;
+	state.dg2 = undefined;
+	state.sod = undefined;
+	state.dg14 = undefined;
+	state.dg15 = undefined;
+	state.activeAuthChallenge = undefined;
+	state.activeAuthSignature = undefined;
+	state.chipAuthTranscript = undefined;
+	state.nfcAttestAssertion = undefined;
+	for (const key of Array.from(state.chunks.keys())) {
+		const parsed = parseChunkKey(key);
+		if (parsed && parsed.kind !== LIVENESS_VIDEO_KIND) {
+			state.chunks.delete(key);
+		}
+	}
+}
+
+/**
+ * Wipe liveness-related fields and chunk slots, leaving NFC untouched. Used on
+ * `liveness_complete → liveness_capturing` rewind.
+ */
+export function resetLivenessTransferState(state: VerifyTransferState): void {
+	state.livenessVideo = undefined;
+	for (const key of Array.from(state.chunks.keys())) {
+		const parsed = parseChunkKey(key);
+		if (parsed && parsed.kind === LIVENESS_VIDEO_KIND) {
+			state.chunks.delete(key);
+		}
+	}
+}
+
 function isNonNegativeInteger(value: number): boolean {
 	return Number.isInteger(value) && value >= 0;
 }

@@ -195,7 +195,9 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       reasonCode: "",
       reasonMessage: "",
       retryAllowed: false,
-      remainingAttempts: 0
+      failedCheck: .none,
+      remainingNfcRetries: 3,
+      remainingLivenessRetries: 3
     )
 
     XCTAssertTrue(isConfirmedCheck(checkResult))
@@ -209,7 +211,9 @@ final class VerifyWebSocketAuthPolicyTests: XCTestCase {
       reasonCode: "selfie_face_mismatch",
       reasonMessage: "Selfie evidence did not match the document photo.",
       retryAllowed: true,
-      remainingAttempts: 2
+      failedCheck: .liveness,
+      remainingNfcRetries: 3,
+      remainingLivenessRetries: 2
     )
 
     XCTAssertFalse(isConfirmedCheck(checkResult))

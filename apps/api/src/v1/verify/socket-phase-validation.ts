@@ -1,6 +1,6 @@
 import { logEvent } from "@kayle-id/config/logging";
 import { db } from "@kayle-id/database/drizzle";
-import { verification_attempts } from "@kayle-id/database/schema/core";
+import { verification_sessions } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import { triggerWebhookDeliveryWorkflows } from "@/v1/webhooks/deliveries/service";
 import { isAttestationGateEnabled, verifyNfcAttestation } from "./attest-gate";
@@ -15,7 +15,13 @@ import {
 import { resolveFaceMatchThresholdFromDg1 } from "./dg1-claims";
 import { parseDg14 } from "./dg14-parser";
 import { resolveVerifyErrorMessage } from "./error-response";
-import { MAX_FAILED_ATTEMPTS, markAttemptFailed } from "./outcome";
+import { markCheckFailed } from "./outcome";
+import {
+	failedCheckForCode,
+	MAX_LIVENESS_RETRIES,
+	MAX_NFC_RETRIES,
+	type NegativeFailureCode,
+} from "./retry-limits";
 import type { VerifySocketContext } from "./socket-context";
 import {
 	deriveActiveAuthChallenge,
@@ -101,27 +107,17 @@ function buildMissingNfcDataMessage(
 	};
 }
 
-async function completeAttemptWithNegativeSignal({
-	attemptId,
+async function completeCheckWithNegativeSignal({
 	code,
 	context,
 	riskScore,
 }: {
-	attemptId: string;
-	code:
-		| "document_anti_cloning_attestation_failed"
-		| "document_authenticity_failed"
-		| "document_active_authentication_failed"
-		| "document_chip_authentication_failed"
-		| "document_data_invalid"
-		| "liveness_failed"
-		| "selfie_face_mismatch";
+	code: NegativeFailureCode;
 	context: VerifySocketContext;
 	riskScore: number;
 }) {
-	const result = await markAttemptFailed({
+	const result = await markCheckFailed({
 		session: context.session,
-		attemptId,
 		failureCode: code,
 		riskScore,
 	});
@@ -135,23 +131,26 @@ async function completeAttemptWithNegativeSignal({
 		);
 	}
 
+	const failedCheck = failedCheckForCode(code);
+
 	return {
 		outcome: "not_confirmed" as const,
 		reasonCode: code,
 		reasonMessage: resolveVerifyErrorMessage(code),
 		retryAllowed: !result.terminalized,
-		remainingAttempts: Math.max(0, MAX_FAILED_ATTEMPTS - result.failedAttempts),
+		failedCheck,
+		remainingNfcRetries: result.remainingNfcRetries,
+		remainingLivenessRetries: result.remainingLivenessRetries,
 	};
 }
 
 async function resolveLivenessCheckResult(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 	result: LivenessVerificationResult,
 ) {
 	if (!result.livenessPassed) {
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "liveness_failed",
 			context,
 			riskScore: 1,
@@ -161,11 +160,12 @@ async function resolveLivenessCheckResult(
 			failure_code: checkResult.reasonCode,
 			liveness_reason: result.reason ?? null,
 			liveness_score: result.livenessScore,
-			remaining_attempts: checkResult.remainingAttempts,
 			retry_allowed: checkResult.retryAllowed,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -175,8 +175,7 @@ async function resolveLivenessCheckResult(
 	// failure for the user-visible checkResult so the messaging stays
 	// consistent; the specific `pad_*` reason survives in telemetry.
 	if (!result.padPassed) {
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "liveness_failed",
 			context,
 			riskScore: 1,
@@ -186,11 +185,12 @@ async function resolveLivenessCheckResult(
 			failure_code: checkResult.reasonCode,
 			liveness_reason: result.reason ?? null,
 			pad_score: result.padScore,
-			remaining_attempts: checkResult.remainingAttempts,
 			retry_allowed: checkResult.retryAllowed,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -201,7 +201,7 @@ async function resolveLivenessCheckResult(
 		if (result.faceMatchPassed && result.usedFallback) {
 			logEvent(context.log, {
 				details: {
-					attempt_id: attemptId,
+					session_id: sessionId,
 					face_match_score: result.faceMatchScore,
 					node_env: process.env.NODE_ENV ?? null,
 				},
@@ -210,8 +210,7 @@ async function resolveLivenessCheckResult(
 			});
 		}
 
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "selfie_face_mismatch",
 			context,
 			riskScore: result.usedFallback ? 1 : 1 - (result.faceMatchScore ?? 0),
@@ -219,11 +218,12 @@ async function resolveLivenessCheckResult(
 		context.log.set({
 			event: "verify.ws.not_confirmed",
 			failure_code: checkResult.reasonCode,
-			remaining_attempts: checkResult.remainingAttempts,
 			retry_allowed: checkResult.retryAllowed,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -237,7 +237,9 @@ async function resolveLivenessCheckResult(
 		reasonCode: "",
 		reasonMessage: "",
 		retryAllowed: false,
-		remainingAttempts: 0,
+		failedCheck: "none" as const,
+		remainingNfcRetries: MAX_NFC_RETRIES,
+		remainingLivenessRetries: MAX_LIVENESS_RETRIES,
 	};
 }
 
@@ -247,13 +249,13 @@ type FaceMatchThresholdResult =
 
 function resolveFaceMatchThreshold(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 ): FaceMatchThresholdResult {
 	const dg1 = context.state.transfer.dg1;
 
 	if (!dg1) {
 		logEvent(context.log, {
-			details: { attempt_id: attemptId },
+			details: { session_id: sessionId },
 			event: "verify.ws.face_match_threshold_dg1_missing",
 			level: "warn",
 		});
@@ -271,7 +273,7 @@ function resolveFaceMatchThreshold(
 	} catch (error) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				error:
 					error instanceof Error
 						? error.message
@@ -285,18 +287,18 @@ function resolveFaceMatchThreshold(
 }
 
 async function runActiveAuthValidation({
-	attemptId,
+	sessionId,
 	context,
 	sodDeclaresDg15,
 }: {
-	attemptId: string;
+	sessionId: string;
 	context: VerifySocketContext;
 	sodDeclaresDg15: boolean;
 }) {
 	if (!sodDeclaresDg15) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				reason: "sod_no_dg15",
 			},
 			event: "verify.ws.active_auth_skipped",
@@ -310,25 +312,26 @@ async function runActiveAuthValidation({
 	if (!(dg15 && activeAuthChallenge && activeAuthSignature)) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				reason: "active_auth_artifacts_missing",
 			},
 			event: "verify.ws.active_auth_failed",
 		});
 
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "document_active_authentication_failed",
 			context,
 			riskScore: 1,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
 	const expectedChallenge = await deriveActiveAuthChallenge({
-		attemptId,
+		sessionId,
 		authSecret: context.env.AUTH_SECRET as string,
 	});
 
@@ -347,7 +350,7 @@ async function runActiveAuthValidation({
 			details: {
 				active_auth_algorithm: result.algorithm,
 				active_auth_hash_algorithm: result.hashAlgorithm,
-				attempt_id: attemptId,
+				session_id: sessionId,
 			},
 			event: "verify.ws.active_auth_succeeded",
 		});
@@ -358,19 +361,20 @@ async function runActiveAuthValidation({
 		details: {
 			active_auth_detail: result.detail ?? null,
 			active_auth_reason: result.reason,
-			attempt_id: attemptId,
+			session_id: sessionId,
 		},
 		event: "verify.ws.active_auth_failed",
 	});
 
-	const checkResult = await completeAttemptWithNegativeSignal({
-		attemptId,
+	const checkResult = await completeCheckWithNegativeSignal({
 		code: "document_active_authentication_failed",
 		context,
 		riskScore: 1,
 	});
 	context.transport.sendCheckResult(checkResult);
-	context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	if (!checkResult.retryAllowed) {
+		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	}
 	return checkResult;
 }
 
@@ -436,11 +440,11 @@ function chipAuthSummaryDetails(summary: Dg14ChipAuthSummary) {
 }
 
 async function runChipAuthValidation({
-	attemptId,
+	sessionId,
 	context,
 	sodDeclaresDg14,
 }: {
-	attemptId: string;
+	sessionId: string;
 	context: VerifySocketContext;
 	sodDeclaresDg14: boolean;
 }) {
@@ -449,7 +453,7 @@ async function runChipAuthValidation({
 	if (!sodDeclaresDg14) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				reason: "sod_no_dg14",
 			},
 			event: "verify.ws.chip_auth_skipped",
@@ -462,7 +466,7 @@ async function runChipAuthValidation({
 	if (summary.declaration === "none") {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				...chipAuthSummaryDetails(summary),
 				reason: "dg14_has_no_chip_auth",
 				transcript_uploaded: chipAuthTranscript !== undefined,
@@ -477,7 +481,7 @@ async function runChipAuthValidation({
 		// token to verify server-side. Skip and let any subsequent AA path run.
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				...chipAuthSummaryDetails(summary),
 				reason: "dg14_v1_only",
 				transcript_uploaded: chipAuthTranscript !== undefined,
@@ -490,21 +494,22 @@ async function runChipAuthValidation({
 	if (!(dg14 && chipAuthTranscript)) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				...chipAuthSummaryDetails(summary),
 				reason: "chip_auth_artifacts_missing",
 			},
 			event: "verify.ws.chip_auth_failed",
 		});
 
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "document_chip_authentication_failed",
 			context,
 			riskScore: 1,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -516,7 +521,7 @@ async function runChipAuthValidation({
 	if (result.ok) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				chip_auth_algorithm: result.algorithm,
 				chip_auth_key_agreement: result.keyAgreement,
 				...chipAuthSummaryDetails(summary),
@@ -529,7 +534,7 @@ async function runChipAuthValidation({
 
 	logEvent(context.log, {
 		details: {
-			attempt_id: attemptId,
+			session_id: sessionId,
 			...chipAuthSummaryDetails(summary),
 			chip_auth_detail: result.detail ?? null,
 			chip_auth_reason: result.reason,
@@ -538,22 +543,23 @@ async function runChipAuthValidation({
 		event: "verify.ws.chip_auth_failed",
 	});
 
-	const checkResult = await completeAttemptWithNegativeSignal({
-		attemptId,
+	const checkResult = await completeCheckWithNegativeSignal({
 		code: "document_chip_authentication_failed",
 		context,
 		riskScore: 1,
 	});
 	context.transport.sendCheckResult(checkResult);
-	context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	if (!checkResult.retryAllowed) {
+		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	}
 	return checkResult;
 }
 
 async function runAttestationValidation({
-	attemptId,
+	sessionId,
 	context,
 }: {
-	attemptId: string;
+	sessionId: string;
 	context: VerifySocketContext;
 }) {
 	if (!isAttestationGateEnabled(context.env)) {
@@ -562,7 +568,7 @@ async function runAttestationValidation({
 		// an anti-cloning anchor until the flag flips.
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				assertion_present:
 					(context.state.transfer.nfcAttestAssertion?.length ?? 0) > 0,
 			},
@@ -571,33 +577,34 @@ async function runAttestationValidation({
 		return null;
 	}
 
-	const [attempt] = await db
-		.select({ mobileAttestKeyId: verification_attempts.mobileAttestKeyId })
-		.from(verification_attempts)
-		.where(eq(verification_attempts.id, attemptId))
+	const [sessionRow] = await db
+		.select({ mobileAttestKeyId: verification_sessions.mobileAttestKeyId })
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, context.session.id))
 		.limit(1);
 
-	const attestKeyId = attempt?.mobileAttestKeyId ?? null;
+	const attestKeyId = sessionRow?.mobileAttestKeyId ?? null;
 	if (!attestKeyId) {
 		logEvent(context.log, {
-			details: { attempt_id: attemptId, reason: "key_missing_on_attempt" },
+			details: { session_id: sessionId, reason: "key_missing_on_attempt" },
 			event: "verify.ws.attest_failed",
 			level: "warn",
 		});
 
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "document_anti_cloning_attestation_failed",
 			context,
 			riskScore: 1,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
 	const result = await verifyNfcAttestation({
-		attemptId,
+		sessionId,
 		attestKeyId,
 		authSecret: context.env.AUTH_SECRET as string,
 		transfer: context.state.transfer,
@@ -606,7 +613,7 @@ async function runAttestationValidation({
 	if (result.ok) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				attest_key_id: attestKeyId,
 				attest_counter: result.counter,
 			},
@@ -617,7 +624,7 @@ async function runAttestationValidation({
 
 	logEvent(context.log, {
 		details: {
-			attempt_id: attemptId,
+			session_id: sessionId,
 			attest_key_id: attestKeyId,
 			reason: result.code,
 			detail: result.detail ?? null,
@@ -626,20 +633,21 @@ async function runAttestationValidation({
 		level: "warn",
 	});
 
-	const checkResult = await completeAttemptWithNegativeSignal({
-		attemptId,
+	const checkResult = await completeCheckWithNegativeSignal({
 		code: "document_anti_cloning_attestation_failed",
 		context,
 		riskScore: 1,
 	});
 	context.transport.sendCheckResult(checkResult);
-	context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	if (!checkResult.retryAllowed) {
+		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+	}
 	return checkResult;
 }
 
 export async function runPhaseValidation(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 	nextPhase: "nfc_complete" | "liveness_complete",
 ) {
 	if (nextPhase === "nfc_complete") {
@@ -650,7 +658,7 @@ export async function runPhaseValidation(
 		}
 
 		const attestCheckResult = await runAttestationValidation({
-			attemptId,
+			sessionId,
 			context,
 		});
 		if (attestCheckResult) {
@@ -667,7 +675,7 @@ export async function runPhaseValidation(
 		if (!authenticity.ok) {
 			logEvent(context.log, {
 				details: {
-					attempt_id: attemptId,
+					session_id: sessionId,
 					crl_status: authenticity.crlStatus,
 					dg14_uploaded: dg14 !== undefined,
 					dg15_uploaded: dg15 !== undefined,
@@ -679,20 +687,21 @@ export async function runPhaseValidation(
 				event: "verify.ws.passive_auth_failed",
 			});
 
-			const checkResult = await completeAttemptWithNegativeSignal({
-				attemptId,
+			const checkResult = await completeCheckWithNegativeSignal({
 				code: "document_authenticity_failed",
 				context,
 				riskScore: 1,
 			});
 			context.transport.sendCheckResult(checkResult);
-			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+			if (!checkResult.retryAllowed) {
+				context.transport.closeAfterCheckResult(checkResult.reasonCode);
+			}
 			return checkResult;
 		}
 
 		logEvent(context.log, {
 			details: {
-				attempt_id: attemptId,
+				session_id: sessionId,
 				crl_status: authenticity.crlStatus,
 				dg14_uploaded: dg14 !== undefined,
 				dg15_uploaded: dg15 !== undefined,
@@ -706,7 +715,7 @@ export async function runPhaseValidation(
 		});
 
 		const chipAuthCheckResult = await runChipAuthValidation({
-			attemptId,
+			sessionId,
 			context,
 			sodDeclaresDg14: authenticity.sodDeclares.dg14,
 		});
@@ -716,7 +725,7 @@ export async function runPhaseValidation(
 		}
 
 		return await runActiveAuthValidation({
-			attemptId,
+			sessionId,
 			context,
 			sodDeclaresDg15: authenticity.sodDeclares.dg15,
 		});
@@ -728,7 +737,7 @@ export async function runPhaseValidation(
 		return null;
 	}
 
-	const thresholdResult = resolveFaceMatchThreshold(context, attemptId);
+	const thresholdResult = resolveFaceMatchThreshold(context, sessionId);
 
 	if (!thresholdResult.ok) {
 		// PA already validated DG1 by hash, so reaching here means the inner
@@ -737,8 +746,7 @@ export async function runPhaseValidation(
 		// `document_data_invalid` so it doesn't get conflated with a real
 		// authenticity rejection; `face_match_threshold_reason` discriminates
 		// the variant in telemetry.
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "document_data_invalid",
 			context,
 			riskScore: 1,
@@ -747,11 +755,12 @@ export async function runPhaseValidation(
 			event: "verify.ws.not_confirmed",
 			failure_code: checkResult.reasonCode,
 			face_match_threshold_reason: thresholdResult.reason,
-			remaining_attempts: checkResult.remainingAttempts,
 			retry_allowed: checkResult.retryAllowed,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -762,18 +771,19 @@ export async function runPhaseValidation(
 	const challengeNonce = context.state.livenessChallengeNonce;
 	if (!challengeNonce) {
 		logEvent(context.log, {
-			details: { attempt_id: attemptId },
+			details: { session_id: sessionId },
 			event: "verify.ws.liveness_challenge_nonce_missing",
 			level: "warn",
 		});
-		const checkResult = await completeAttemptWithNegativeSignal({
-			attemptId,
+		const checkResult = await completeCheckWithNegativeSignal({
 			code: "liveness_failed",
 			context,
 			riskScore: 1,
 		});
 		context.transport.sendCheckResult(checkResult);
-		context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		if (!checkResult.retryAllowed) {
+			context.transport.closeAfterCheckResult(checkResult.reasonCode);
+		}
 		return checkResult;
 	}
 
@@ -784,12 +794,12 @@ export async function runPhaseValidation(
 		faceMatchThreshold: threshold,
 		env: context.env,
 		organizationId: context.session.organizationId,
-		attemptId,
+		sessionId,
 		logger: context.log,
 	});
 	logEvent(context.log, {
 		details: {
-			attempt_id: attemptId,
+			session_id: sessionId,
 			face_match_passed: result.faceMatchPassed,
 			face_match_score: result.faceMatchScore,
 			face_match_threshold: threshold,
@@ -803,5 +813,5 @@ export async function runPhaseValidation(
 		event: "verify.ws.liveness_evaluated",
 	});
 
-	return resolveLivenessCheckResult(context, attemptId, result);
+	return resolveLivenessCheckResult(context, sessionId, result);
 }

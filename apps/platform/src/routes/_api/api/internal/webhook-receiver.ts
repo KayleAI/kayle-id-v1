@@ -167,7 +167,7 @@ export const Route = createFileRoute("/_api/api/internal/webhook-receiver")({
 					return refuse("Webhook body is not valid JSON.", 400);
 				}
 
-				if (envelope.type !== "verification.attempt.succeeded") {
+				if (envelope.type !== "verification.session.succeeded") {
 					return ack();
 				}
 

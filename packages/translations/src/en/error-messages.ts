@@ -34,11 +34,6 @@ export const ERROR_MESSAGES = {
     description: "This connection is missing credentials. Please try again.",
   },
 
-  ATTEMPT_NOT_FOUND: {
-    title: "Session not found",
-    description: "This session is no longer available. Start again.",
-  },
-
   HANDOFF_TOKEN_INVALID: {
     title: "Invalid QR code",
     description: "This code isn’t valid. Scan a new one from your browser.",
@@ -98,7 +93,7 @@ export const ERROR_MESSAGES = {
     description: "Review and accept the required consent steps to continue.",
   },
 
-  ATTEMPT_CONNECTION_ACTIVE: {
+  SESSION_CONNECTION_ACTIVE: {
     title: "Already open",
     description:
       "This session is active elsewhere. Continue there or try again later.",

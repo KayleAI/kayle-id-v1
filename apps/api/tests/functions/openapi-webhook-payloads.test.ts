@@ -42,13 +42,13 @@ test("OpenAPI documents actual webhook delivery payloads", async () => {
 	};
 
 	expect(document.webhooks).toBeDefined();
-	expect(document.webhooks?.["verification.attempt.succeeded"]).toBeDefined();
-	expect(document.webhooks?.["verification.attempt.failed"]).toBeDefined();
+	expect(document.webhooks?.["verification.session.succeeded"]).toBeDefined();
+	expect(document.webhooks?.["verification.session.failed"]).toBeDefined();
 	expect(document.webhooks?.["verification.session.expired"]).toBeDefined();
 	expect(document.webhooks?.["verification.session.cancelled"]).toBeDefined();
 
 	const failedPayloadRef =
-		document.webhooks?.["verification.attempt.failed"]?.post?.requestBody
+		document.webhooks?.["verification.session.failed"]?.post?.requestBody
 			?.content?.["application/json"]?.schema?.$ref;
 
 	expect(failedPayloadRef).toBe(

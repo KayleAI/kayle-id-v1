@@ -99,12 +99,12 @@ function wait(ms: number): Promise<void> {
 async function waitForBiometricVerifierReady({
 	verifierBinding,
 	verifierSecret,
-	attemptId,
+	sessionId,
 	logger,
 }: {
 	verifierBinding: BiometricVerifierServiceBinding;
 	verifierSecret: string;
-	attemptId?: string;
+	sessionId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<boolean> {
 	const startedAt = Date.now();
@@ -139,7 +139,7 @@ async function waitForBiometricVerifierReady({
 					if (attempt > 1) {
 						logEvent(logger, {
 							details: {
-								attempt_id: attemptId ?? null,
+								session_id: sessionId ?? null,
 								duration_ms: Date.now() - startedAt,
 								ready_attempts: attempt,
 							},
@@ -160,7 +160,7 @@ async function waitForBiometricVerifierReady({
 
 	logEvent(logger, {
 		details: {
-			attempt_id: attemptId ?? null,
+			session_id: sessionId ?? null,
 			duration_ms: Date.now() - startedAt,
 			error_code: "biometric_verifier_not_ready",
 			last_status: lastStatus,
@@ -181,7 +181,7 @@ async function requestBiometricVerifier({
 	verifierSecret,
 	env,
 	organizationId,
-	attemptId,
+	sessionId,
 	logger,
 }: {
 	dg2Image: Uint8Array;
@@ -192,7 +192,7 @@ async function requestBiometricVerifier({
 	verifierSecret: string;
 	env: unknown;
 	organizationId?: string;
-	attemptId?: string;
+	sessionId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<LivenessVerificationResult> {
 	const startedAt = Date.now();
@@ -201,7 +201,7 @@ async function requestBiometricVerifier({
 		const ready = await waitForBiometricVerifierReady({
 			verifierBinding,
 			verifierSecret,
-			attemptId,
+			sessionId,
 			logger,
 		});
 
@@ -235,7 +235,7 @@ async function requestBiometricVerifier({
 		if (!response.ok) {
 			logEvent(logger, {
 				details: {
-					attempt_id: attemptId ?? null,
+					session_id: sessionId ?? null,
 					error_code: "biometric_verifier_http_error",
 					status: response.status,
 					duration_ms: Date.now() - startedAt,
@@ -250,7 +250,7 @@ async function requestBiometricVerifier({
 			logSafeError(logger, {
 				code: "biometric_verifier_invalid_json",
 				details: {
-					attempt_id: attemptId ?? null,
+					session_id: sessionId ?? null,
 					duration_ms: Date.now() - startedAt,
 				},
 				error,
@@ -269,7 +269,7 @@ async function requestBiometricVerifier({
 		if (!payload.success) {
 			logEvent(logger, {
 				details: {
-					attempt_id: attemptId ?? null,
+					session_id: sessionId ?? null,
 					duration_ms: Date.now() - startedAt,
 					error_code: "biometric_verifier_invalid_response",
 					issue_count: payload.error.issues.length,
@@ -283,7 +283,7 @@ async function requestBiometricVerifier({
 		const durationMs = Date.now() - startedAt;
 		logEvent(logger, {
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				duration_ms: durationMs,
 				face_match_passed: payload.data.faceMatchPassed,
 				face_match_score: payload.data.faceMatchScore,
@@ -314,7 +314,7 @@ async function requestBiometricVerifier({
 		logSafeError(logger, {
 			code: "biometric_verifier_request_failed",
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				duration_ms: Date.now() - startedAt,
 			},
 			error,
@@ -359,11 +359,11 @@ async function requestBiometricVerifier({
  */
 export async function prewarmBiometricVerifier({
 	env,
-	attemptId,
+	sessionId,
 	logger,
 }: {
 	env: unknown;
-	attemptId?: string;
+	sessionId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<void> {
 	const verifierBinding = resolveBiometricVerifierServiceBinding(env);
@@ -390,7 +390,7 @@ export async function prewarmBiometricVerifier({
 
 		logEvent(logger, {
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				duration_ms: Date.now() - startedAt,
 				status: response.status,
 			},
@@ -400,7 +400,7 @@ export async function prewarmBiometricVerifier({
 		logSafeError(logger, {
 			code: "biometric_verifier_prewarm_failed",
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				duration_ms: Date.now() - startedAt,
 			},
 			error,
@@ -417,7 +417,7 @@ export function verifyLiveness({
 	faceMatchThreshold,
 	env,
 	organizationId,
-	attemptId,
+	sessionId,
 	logger,
 }: {
 	dg2Image: Uint8Array;
@@ -426,7 +426,7 @@ export function verifyLiveness({
 	faceMatchThreshold?: number;
 	env: unknown;
 	organizationId?: string;
-	attemptId?: string;
+	sessionId?: string;
 	logger?: ApiRequestLogger;
 }): Promise<LivenessVerificationResult> {
 	const verifierBinding = resolveBiometricVerifierServiceBinding(env);
@@ -435,7 +435,7 @@ export function verifyLiveness({
 	if (!verifierBinding) {
 		logEvent(logger, {
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				error_code: "biometric_verifier_config_missing",
 				dg2_bytes: dg2Image.length,
 				video_bytes: video.length,
@@ -456,7 +456,7 @@ export function verifyLiveness({
 		// signal local and makes the logs unambiguous.
 		logEvent(logger, {
 			details: {
-				attempt_id: attemptId ?? null,
+				session_id: sessionId ?? null,
 				error_code: "biometric_verifier_secret_missing",
 			},
 			event: "verify.biometric_verifier.misconfigured",
@@ -477,7 +477,7 @@ export function verifyLiveness({
 		challengeNonce,
 		faceMatchThreshold,
 		organizationId,
-		attemptId,
+		sessionId,
 		logger,
 	});
 }

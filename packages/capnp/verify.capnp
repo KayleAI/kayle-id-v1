@@ -1,7 +1,7 @@
 @0xef7e0b8fbd1f2ab3;
 
 struct ClientHello {
-  attemptId @0 :Text;
+  sessionId @0 :Text;
   mobileWriteToken @1 :Text;
   deviceId @2 :Text;
   appVersion @3 :Text;
@@ -10,7 +10,7 @@ struct ClientHello {
   # rejects with HELLO_ATTEST_KEY_UNKNOWN in that case once the gate is on.
   attestKeyId @4 :Text;
   # CBOR-encoded App Attest assertion { signature, authenticatorData } over
-  # SHA-256("attest:hello:" + attemptId + deviceId + appVersion + challenge).
+  # SHA-256("attest:hello:" + sessionId + deviceId + appVersion + challenge).
   helloAssertion @5 :Data;
   # Soft-signal bitfield from RuntimeIntegrity: bit 0 = debugger attached,
   # bit 1 = DCAppAttestService swizzled. Server adds bits to riskScore but
@@ -24,7 +24,7 @@ struct PhaseUpdate {
   # CBOR-encoded App Attest assertion bound to the NFC-completion artifacts.
   # Populated only when `phase = "nfc_complete"`. clientDataHash covers
   # SHA-256 of every uploaded artifact (DG1/2/14/15?/SOD/CA-transcript?/AA-sig?)
-  # plus attemptId and the per-attempt nfc challenge.
+  # plus sessionId and the per-session nfc challenge.
   attestAssertion @2 :Data;
 }
 
@@ -79,12 +79,24 @@ enum CheckOutcome {
   notConfirmed @1;
 }
 
+# The check that produced the outcome. Lets the client decide which step
+# to rewind to without re-deriving it from `reasonCode` prefixes.
+enum CheckKind {
+  mrz @0;
+  nfc @1;
+  liveness @2;
+  # `none` only appears on a confirmed outcome.
+  none @3;
+}
+
 struct ServerCheckResult {
   outcome @0 :CheckOutcome;
   reasonCode @1 :Text;
   reasonMessage @2 :Text;
   retryAllowed @3 :Bool;
-  remainingAttempts @4 :UInt32;
+  failedCheck @4 :CheckKind;
+  remainingNfcRetries @5 :UInt32;
+  remainingLivenessRetries @6 :UInt32;
 }
 
 struct ShareRequestField {

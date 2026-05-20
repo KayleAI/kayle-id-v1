@@ -85,7 +85,7 @@ test("verifyLiveness uses the biometric verifier HTTP contract", async () => {
 
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			const pathname = new URL(request.url).pathname;
 			requestPaths.push(pathname);
 
@@ -165,7 +165,7 @@ test("verifyLiveness waits for verifier readiness before uploading video", async
 
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			const pathname = new URL(request.url).pathname;
 			requestPaths.push(pathname);
 
@@ -258,7 +258,7 @@ test("verifyLiveness fails closed when the verifier binding is set but the secre
 
 test("verifyLiveness fails closed when the verifier returns invalid JSON", async () => {
 	globalThis.fetch = createMockFetch(async (input, init) => {
-		const request = new Request(input, init);
+		const request = new Request(input as string, init as RequestInit);
 		if (new URL(request.url).pathname === "/health") {
 			return readyVerifierHealthResponse();
 		}
@@ -321,7 +321,7 @@ test("verifyLiveness emits a container_active cost event on success", async () =
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			if (new URL(request.url).pathname === "/health") {
 				return readyVerifierHealthResponse();
 			}
@@ -335,7 +335,7 @@ test("verifyLiveness emits a container_active cost event on success", async () =
 		video: new Uint8Array([0x02]),
 		env: envForVerifierCall({ verifierBinding, analytics: dataset }),
 		organizationId: "org-abc",
-		attemptId: "attempt-1",
+		sessionId: "attempt-1",
 	});
 
 	expect(points).toHaveLength(1);
@@ -352,7 +352,7 @@ test("verifyLiveness still emits a container_active cost event on HTTP error", a
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			if (new URL(request.url).pathname === "/health") {
 				return readyVerifierHealthResponse();
 			}
@@ -377,7 +377,7 @@ test("verifyLiveness still emits a container_active cost event on invalid JSON",
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			if (new URL(request.url).pathname === "/health") {
 				return readyVerifierHealthResponse();
 			}
@@ -404,7 +404,7 @@ test("verifyLiveness still emits a container_active cost event on schema mismatc
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
 		async fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			if (new URL(request.url).pathname === "/health") {
 				return readyVerifierHealthResponse();
 			}
@@ -431,7 +431,7 @@ test("verifyLiveness still emits a container_active cost event when the binding 
 	const { dataset, points } = createCapturingAnalytics();
 	const verifierBinding = {
 		fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
-			const request = new Request(input, init);
+			const request = new Request(input as string, init as RequestInit);
 			if (new URL(request.url).pathname === "/health") {
 				return readyVerifierHealthResponse();
 			}

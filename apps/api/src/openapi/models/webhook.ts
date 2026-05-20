@@ -263,7 +263,7 @@ export const WebhookEvent = z
 		type: z
 			.string()
 			.describe(
-				'The type of the event (e.g. "verification.attempt.succeeded").',
+				'The type of the event (e.g. "verification.session.succeeded").',
 			),
 		trigger_type: z
 			.enum(["verification_session", "verification_attempt"])
@@ -279,22 +279,6 @@ export const WebhookEvent = z
 			.describe("Deliveries associated with this event."),
 	})
 	.openapi("Webhook Event");
-
-const WebhookAttemptMetadata = z
-	.object({
-		contract_version: z
-			.number()
-			.int()
-			.describe("Contract version the session was created against."),
-		event_id: z.string().describe("Unique webhook event ID."),
-		verification_attempt_id: z
-			.string()
-			.describe("The verification attempt that triggered this event."),
-		verification_session_id: z
-			.string()
-			.describe("The verification session this event belongs to."),
-	})
-	.openapi("Webhook Attempt Metadata");
 
 const WebhookSessionMetadata = z
 	.object({
@@ -317,8 +301,8 @@ const WebhookClaimValue = z
 
 export const VerificationAttemptSucceededWebhookPayload = z
 	.object({
-		type: z.literal("verification.attempt.succeeded"),
-		metadata: WebhookAttemptMetadata,
+		type: z.literal("verification.session.succeeded"),
+		metadata: WebhookSessionMetadata,
 		data: z.object({
 			claims: z
 				.record(z.string(), WebhookClaimValue)
@@ -334,8 +318,8 @@ export const VerificationAttemptSucceededWebhookPayload = z
 
 export const VerificationAttemptFailedWebhookPayload = z
 	.object({
-		type: z.literal("verification.attempt.failed"),
-		metadata: WebhookAttemptMetadata,
+		type: z.literal("verification.session.failed"),
+		metadata: WebhookSessionMetadata,
 		data: z.object({
 			failure_code: z
 				.enum([
@@ -348,7 +332,23 @@ export const VerificationAttemptFailedWebhookPayload = z
 					"selfie_face_mismatch",
 				])
 				.describe(
-					"Reason Kayle could not confirm the attempt. Failed-attempt payloads do not include claims, biometrics, or risk scores.",
+					"Reason Kayle could not confirm the session. Failed-session payloads do not include claims, biometrics, or risk scores.",
+				),
+			nfc_tries_used: z
+				.number()
+				.int()
+				.min(0)
+				.max(3)
+				.describe(
+					"How many NFC chip-read retries the session consumed before terminalizing.",
+				),
+			liveness_tries_used: z
+				.number()
+				.int()
+				.min(0)
+				.max(3)
+				.describe(
+					"How many liveness retries the session consumed before terminalizing.",
 				),
 		}),
 	})
@@ -374,18 +374,18 @@ export const webhookPayloadOpenApiDefinitions = [
 	{
 		description:
 			"Delivered as a JWE-encrypted POST body when Kayle confirms an attempt.",
-		path: "verification.attempt.succeeded",
+		path: "verification.session.succeeded",
 		refId: "VerificationAttemptSucceededWebhookPayload",
 		schema: VerificationAttemptSucceededWebhookPayload,
-		summary: "verification.attempt.succeeded payload",
+		summary: "verification.session.succeeded payload",
 	},
 	{
 		description:
 			"Delivered as a JWE-encrypted POST body when Kayle cannot confirm an attempt. This payload contains no claims, biometrics, face scores, or risk scores.",
-		path: "verification.attempt.failed",
+		path: "verification.session.failed",
 		refId: "VerificationAttemptFailedWebhookPayload",
 		schema: VerificationAttemptFailedWebhookPayload,
-		summary: "verification.attempt.failed payload",
+		summary: "verification.session.failed payload",
 	},
 	{
 		description:

@@ -2,16 +2,32 @@ import { recordAuditLog } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	events,
-	verification_attempts,
 	verification_consents,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
-import { createWebhookDeliveriesForVerificationAttemptFailed } from "@/v1/webhooks/deliveries/service";
+import {
+	createWebhookDeliveriesForVerificationSessionFailed,
+	createWebhookDeliveriesForVerificationSessionSucceeded,
+} from "@/v1/webhooks/deliveries/service";
+import {
+	type CheckKind,
+	failedCheckForCode,
+	isHardKillCode,
+	MAX_LIVENESS_RETRIES,
+	MAX_NFC_RETRIES,
+	type NegativeFailureCode,
+} from "./retry-limits";
 import { ACTIVE_SESSION_STATUSES } from "./status";
 
-export const MAX_FAILED_ATTEMPTS = 3;
+export type { CheckKind, NegativeFailureCode } from "./retry-limits";
+export {
+	failedCheckForCode,
+	isHardKillCode,
+	MAX_LIVENESS_RETRIES,
+	MAX_NFC_RETRIES,
+} from "./retry-limits";
 
 class SessionTransitionSkippedError extends Error {
 	constructor() {
@@ -36,110 +52,167 @@ function normalizeRiskScore(score: number): number {
 	return Math.max(0, Math.min(1, score));
 }
 
-export async function markAttemptFailed({
+export type MarkCheckFailedResult = {
+	terminalized: boolean;
+	deliveryIds: string[];
+	nfcTriesUsed: number;
+	livenessTriesUsed: number;
+	remainingNfcRetries: number;
+	remainingLivenessRetries: number;
+};
+
+/**
+ * Record a check failure. NFC and liveness failures increment a per-check
+ * counter and rewind the phase so the user can retry inside the same session.
+ * MRZ failures (`document_data_invalid`) and hard-kill codes never increment;
+ * MRZ is unlimited, hard-kill terminates immediately via `markSessionFailed`.
+ */
+export async function markCheckFailed({
 	session,
-	attemptId,
 	failureCode,
 	riskScore,
 }: {
 	session: SessionContext;
-	attemptId: string;
-	failureCode:
-		| "document_anti_cloning_attestation_failed"
-		| "document_authenticity_failed"
-		| "document_active_authentication_failed"
-		| "document_chip_authentication_failed"
-		| "document_data_invalid"
-		| "liveness_failed"
-		| "selfie_face_mismatch";
+	failureCode: NegativeFailureCode;
 	riskScore: number;
-}): Promise<{
-	deliveryIds: string[];
-	failedAttempts: number;
-	terminalized: boolean;
-}> {
-	const now = new Date();
+}): Promise<MarkCheckFailedResult> {
+	if (isHardKillCode(failureCode)) {
+		const terminalResult = await markSessionFailed({
+			session,
+			failureCode,
+			riskScore,
+		});
+		return {
+			terminalized: true,
+			deliveryIds: terminalResult.deliveryIds,
+			nfcTriesUsed: terminalResult.nfcTriesUsed,
+			livenessTriesUsed: terminalResult.livenessTriesUsed,
+			remainingNfcRetries: Math.max(
+				0,
+				MAX_NFC_RETRIES - terminalResult.nfcTriesUsed,
+			),
+			remainingLivenessRetries: Math.max(
+				0,
+				MAX_LIVENESS_RETRIES - terminalResult.livenessTriesUsed,
+			),
+		};
+	}
 
-	let result: {
-		attemptFailedEventId: string;
-		failedAttempts: number;
+	const check: CheckKind = failedCheckForCode(failureCode);
+
+	if (check === "mrz") {
+		// MRZ failures are unlimited and purely a phase rewind; no counter,
+		// no audit log, no webhook.
+		await db
+			.update(verification_sessions)
+			.set({
+				currentPhase: "mrz_scanning",
+				phaseUpdatedAt: new Date(),
+				riskScore: sql`greatest(${verification_sessions.riskScore}, ${normalizeRiskScore(riskScore)})`,
+			})
+			.where(eq(verification_sessions.id, session.id));
+
+		const [row] = await db
+			.select({
+				nfcTriesUsed: verification_sessions.nfcTriesUsed,
+				livenessTriesUsed: verification_sessions.livenessTriesUsed,
+			})
+			.from(verification_sessions)
+			.where(eq(verification_sessions.id, session.id));
+
+		const nfcTriesUsed = row?.nfcTriesUsed ?? 0;
+		const livenessTriesUsed = row?.livenessTriesUsed ?? 0;
+		return {
+			terminalized: false,
+			deliveryIds: [],
+			nfcTriesUsed,
+			livenessTriesUsed,
+			remainingNfcRetries: Math.max(0, MAX_NFC_RETRIES - nfcTriesUsed),
+			remainingLivenessRetries: Math.max(
+				0,
+				MAX_LIVENESS_RETRIES - livenessTriesUsed,
+			),
+		};
+	}
+
+	const now = new Date();
+	const checkColumn =
+		check === "nfc"
+			? verification_sessions.nfcTriesUsed
+			: verification_sessions.livenessTriesUsed;
+	const checkColumnName =
+		check === "nfc" ? "nfc_tries_used" : "liveness_tries_used";
+	const rewindPhase = check === "nfc" ? "nfc_reading" : "liveness_capturing";
+	const maxRetries = check === "nfc" ? MAX_NFC_RETRIES : MAX_LIVENESS_RETRIES;
+
+	type IncrementResult = {
+		nfcTriesUsed: number;
+		livenessTriesUsed: number;
 		terminalized: boolean;
 	};
+
+	let txResult: IncrementResult & { sessionFailedEventId: string | null };
 	try {
-		result = await db.transaction(async (tx) => {
-			const attemptFailedEventId = generateId({
-				type: "evt",
-			});
-
-			await tx
-				.update(verification_attempts)
+		txResult = await db.transaction(async (tx) => {
+			const [incremented] = await tx
+				.update(verification_sessions)
 				.set({
-					status: "failed",
-					failureCode,
-					riskScore: normalizeRiskScore(riskScore),
-					completedAt: now,
-				})
-				.where(eq(verification_attempts.id, attemptId));
+					[checkColumnName]: sql`${checkColumn} + 1`,
+					currentPhase: rewindPhase,
+					phaseUpdatedAt: now,
+					riskScore: sql`greatest(${verification_sessions.riskScore}, ${normalizeRiskScore(riskScore)})`,
+				} as Record<string, unknown>)
+				.where(
+					and(
+						eq(verification_sessions.id, session.id),
+						eq(verification_sessions.organizationId, session.organizationId),
+						inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+					),
+				)
+				.returning({
+					nfcTriesUsed: verification_sessions.nfcTriesUsed,
+					livenessTriesUsed: verification_sessions.livenessTriesUsed,
+				});
 
-			await tx.insert(events).values({
-				id: attemptFailedEventId,
-				organizationId: session.organizationId,
-				type: "verification.attempt.failed",
-				triggerId: attemptId,
-				triggerType: "verification_attempt",
-			});
+			if (!incremented) {
+				throw new SessionTransitionSkippedError();
+			}
 
 			await recordAuditLog(
 				{
 					actorType: "system",
 					organizationId: session.organizationId,
-					event: "session.attempt.failed",
+					event: "session.check.failed",
 					targetId: session.id,
 					targetType: "verification_session",
-					metadata: { failure_code: failureCode, attempt_id: attemptId },
+					metadata: { failure_code: failureCode, failed_check: check },
 				},
 				tx,
 			);
 
-			const failedAttempts = await tx
-				.select({
-					id: verification_attempts.id,
-				})
-				.from(verification_attempts)
-				.where(
-					and(
-						eq(verification_attempts.verificationSessionId, session.id),
-						eq(verification_attempts.status, "failed"),
-					),
-				);
+			const checkTriesUsed =
+				check === "nfc"
+					? incremented.nfcTriesUsed
+					: incremented.livenessTriesUsed;
+			const exhausted = checkTriesUsed >= maxRetries;
 
-			const exhaustedRetryLimit = failedAttempts.length >= MAX_FAILED_ATTEMPTS;
-
-			if (exhaustedRetryLimit) {
-				// Session-level terminal failure: the retry budget is exhausted and
-				// no attempt succeeded. Webhooks are still keyed to the failed
-				// attempt; the session outcome is retained as an audit log.
-				await recordAuditLog(
-					{
-						actorType: "system",
-						organizationId: session.organizationId,
-						event: "session.failed",
-						targetId: session.id,
-						targetType: "verification_session",
-						metadata: {
-							failure_code: failureCode,
-							failed_attempts: failedAttempts.length,
-						},
-					},
-					tx,
-				);
+			if (!exhausted) {
+				return {
+					nfcTriesUsed: incremented.nfcTriesUsed,
+					livenessTriesUsed: incremented.livenessTriesUsed,
+					terminalized: false,
+					sessionFailedEventId: null,
+				};
 			}
 
-			const [updatedSession] = await tx
+			// Per-check budget exhausted → session-level failure.
+			const sessionFailedEventId = generateId({ type: "evt" });
+			const [terminated] = await tx
 				.update(verification_sessions)
 				.set({
-					status: exhaustedRetryLimit ? "completed" : "created",
-					completedAt: exhaustedRetryLimit ? now : null,
+					status: "failed",
+					failureCode,
+					completedAt: now,
 				})
 				.where(
 					and(
@@ -153,39 +226,186 @@ export async function markAttemptFailed({
 					status: verification_sessions.status,
 				});
 
-			const sessionStillActive = Boolean(updatedSession);
-			if (!sessionStillActive) {
+			if (!terminated) {
 				throw new SessionTransitionSkippedError();
 			}
 
-			if (updatedSession) {
-				session.status = updatedSession.status;
-				session.completedAt = updatedSession.completedAt;
-			}
+			await tx.insert(events).values({
+				id: sessionFailedEventId,
+				organizationId: session.organizationId,
+				type: "verification.session.failed",
+				triggerId: session.id,
+				triggerType: "verification_session",
+			});
+
+			await recordAuditLog(
+				{
+					actorType: "system",
+					organizationId: session.organizationId,
+					event: "session.failed",
+					targetId: session.id,
+					targetType: "verification_session",
+					metadata: {
+						failure_code: failureCode,
+						failed_check: check,
+						nfc_tries_used: incremented.nfcTriesUsed,
+						liveness_tries_used: incremented.livenessTriesUsed,
+					},
+				},
+				tx,
+			);
+
+			session.status = terminated.status;
+			session.completedAt = terminated.completedAt;
 
 			return {
-				attemptFailedEventId,
-				failedAttempts: failedAttempts.length,
-				terminalized: exhaustedRetryLimit,
+				nfcTriesUsed: incremented.nfcTriesUsed,
+				livenessTriesUsed: incremented.livenessTriesUsed,
+				terminalized: true,
+				sessionFailedEventId,
 			};
 		});
 	} catch (error) {
 		if (error instanceof SessionTransitionSkippedError) {
 			return {
-				deliveryIds: [],
-				failedAttempts: MAX_FAILED_ATTEMPTS,
 				terminalized: true,
+				deliveryIds: [],
+				nfcTriesUsed: maxRetries,
+				livenessTriesUsed: maxRetries,
+				remainingNfcRetries: 0,
+				remainingLivenessRetries: 0,
 			};
 		}
 		throw error;
 	}
 
-	const deliveryIds = await createWebhookDeliveriesForVerificationAttemptFailed(
-		{
-			attemptId,
+	let deliveryIds: string[] = [];
+	if (txResult.terminalized && txResult.sessionFailedEventId) {
+		deliveryIds = await createWebhookDeliveriesForVerificationSessionFailed({
 			contractVersion: session.contractVersion,
-			eventId: result.attemptFailedEventId,
+			eventId: txResult.sessionFailedEventId,
 			failureCode,
+			nfcTriesUsed: txResult.nfcTriesUsed,
+			livenessTriesUsed: txResult.livenessTriesUsed,
+			organizationId: session.organizationId,
+			sessionId: session.id,
+		});
+	}
+
+	return {
+		terminalized: txResult.terminalized,
+		deliveryIds,
+		nfcTriesUsed: txResult.nfcTriesUsed,
+		livenessTriesUsed: txResult.livenessTriesUsed,
+		remainingNfcRetries: Math.max(0, MAX_NFC_RETRIES - txResult.nfcTriesUsed),
+		remainingLivenessRetries: Math.max(
+			0,
+			MAX_LIVENESS_RETRIES - txResult.livenessTriesUsed,
+		),
+	};
+}
+
+/**
+ * Terminalize a session with a failure status. Used by hard-kill paths
+ * (attestation failure) and by callers that want to fail the session without
+ * crediting a per-check retry.
+ */
+export async function markSessionFailed({
+	session,
+	failureCode,
+	riskScore,
+}: {
+	session: SessionContext;
+	failureCode: NegativeFailureCode;
+	riskScore: number;
+}): Promise<{
+	deliveryIds: string[];
+	nfcTriesUsed: number;
+	livenessTriesUsed: number;
+}> {
+	const now = new Date();
+
+	let txResult: {
+		sessionFailedEventId: string;
+		nfcTriesUsed: number;
+		livenessTriesUsed: number;
+	};
+	try {
+		txResult = await db.transaction(async (tx) => {
+			const [terminated] = await tx
+				.update(verification_sessions)
+				.set({
+					status: "failed",
+					failureCode,
+					riskScore: sql`greatest(${verification_sessions.riskScore}, ${normalizeRiskScore(riskScore)})`,
+					completedAt: now,
+				})
+				.where(
+					and(
+						eq(verification_sessions.id, session.id),
+						eq(verification_sessions.organizationId, session.organizationId),
+						inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+					),
+				)
+				.returning({
+					completedAt: verification_sessions.completedAt,
+					status: verification_sessions.status,
+					nfcTriesUsed: verification_sessions.nfcTriesUsed,
+					livenessTriesUsed: verification_sessions.livenessTriesUsed,
+				});
+
+			if (!terminated) {
+				throw new SessionTransitionSkippedError();
+			}
+
+			const sessionFailedEventId = generateId({ type: "evt" });
+			await tx.insert(events).values({
+				id: sessionFailedEventId,
+				organizationId: session.organizationId,
+				type: "verification.session.failed",
+				triggerId: session.id,
+				triggerType: "verification_session",
+			});
+
+			await recordAuditLog(
+				{
+					actorType: "system",
+					organizationId: session.organizationId,
+					event: "session.failed",
+					targetId: session.id,
+					targetType: "verification_session",
+					metadata: {
+						failure_code: failureCode,
+						nfc_tries_used: terminated.nfcTriesUsed,
+						liveness_tries_used: terminated.livenessTriesUsed,
+					},
+				},
+				tx,
+			);
+
+			session.status = terminated.status;
+			session.completedAt = terminated.completedAt;
+
+			return {
+				sessionFailedEventId,
+				nfcTriesUsed: terminated.nfcTriesUsed,
+				livenessTriesUsed: terminated.livenessTriesUsed,
+			};
+		});
+	} catch (error) {
+		if (error instanceof SessionTransitionSkippedError) {
+			return { deliveryIds: [], nfcTriesUsed: 0, livenessTriesUsed: 0 };
+		}
+		throw error;
+	}
+
+	const deliveryIds = await createWebhookDeliveriesForVerificationSessionFailed(
+		{
+			contractVersion: session.contractVersion,
+			eventId: txResult.sessionFailedEventId,
+			failureCode,
+			nfcTriesUsed: txResult.nfcTriesUsed,
+			livenessTriesUsed: txResult.livenessTriesUsed,
 			organizationId: session.organizationId,
 			sessionId: session.id,
 		},
@@ -193,19 +413,17 @@ export async function markAttemptFailed({
 
 	return {
 		deliveryIds,
-		failedAttempts: result.failedAttempts,
-		terminalized: result.terminalized,
+		nfcTriesUsed: txResult.nfcTriesUsed,
+		livenessTriesUsed: txResult.livenessTriesUsed,
 	};
 }
 
-export async function markAttemptSucceeded({
+export async function markSessionSucceeded({
 	session,
-	attemptId,
 	selectedFieldKeys = [],
 	...scoreInput
 }: {
 	session: SessionContext;
-	attemptId: string;
 	selectedFieldKeys?: string[];
 } & (
 	| {
@@ -218,10 +436,12 @@ export async function markAttemptSucceeded({
 	  }
 )): Promise<
 	| {
-			attemptSucceededEventId: string;
+			sessionSucceededEventId: string;
+			deliveryIds: string[];
 	  }
 	| {
-			attemptSucceededEventId: null;
+			sessionSucceededEventId: null;
+			deliveryIds: string[];
 	  }
 > {
 	const now = new Date();
@@ -234,7 +454,10 @@ export async function markAttemptSucceeded({
 		const [completedSession] = await tx
 			.update(verification_sessions)
 			.set({
-				status: "completed",
+				status: "succeeded",
+				failureCode: null,
+				riskScore,
+				selectedShareFieldKeys: selectedFieldKeys,
 				completedAt: now,
 			})
 			.where(
@@ -250,39 +473,22 @@ export async function markAttemptSucceeded({
 			});
 
 		if (!completedSession) {
-			return {
-				attemptSucceededEventId: null,
-			};
+			return { sessionSucceededEventId: null };
 		}
 
 		await tx
-			.update(verification_attempts)
-			.set({
-				status: "succeeded",
-				failureCode: null,
-				riskScore,
-				selectedShareFieldKeys: selectedFieldKeys,
-				completedAt: now,
-			})
-			.where(eq(verification_attempts.id, attemptId));
-
-		await tx
 			.update(verification_consents)
-			.set({
-				selectedClaimKeys: selectedFieldKeys,
-			})
-			.where(eq(verification_consents.verificationAttemptId, attemptId));
+			.set({ selectedClaimKeys: selectedFieldKeys })
+			.where(eq(verification_consents.verificationSessionId, session.id));
 
-		const attemptSucceededEventId = generateId({
-			type: "evt",
-		});
+		const sessionSucceededEventId = generateId({ type: "evt" });
 
 		await tx.insert(events).values({
-			id: attemptSucceededEventId,
+			id: sessionSucceededEventId,
 			organizationId: session.organizationId,
-			type: "verification.attempt.succeeded",
-			triggerId: attemptId,
-			triggerType: "verification_attempt",
+			type: "verification.session.succeeded",
+			triggerId: session.id,
+			triggerType: "verification_session",
 		});
 
 		await recordAuditLog(
@@ -292,20 +498,31 @@ export async function markAttemptSucceeded({
 				event: "session.succeeded",
 				targetId: session.id,
 				targetType: "verification_session",
-				metadata: { attempt_id: attemptId },
+				metadata: {},
 			},
 			tx,
 		);
 
-		return {
-			attemptSucceededEventId,
-		};
+		return { sessionSucceededEventId };
 	});
 
-	if (result.attemptSucceededEventId) {
-		session.status = "completed";
-		session.completedAt = now;
+	if (!result.sessionSucceededEventId) {
+		return { sessionSucceededEventId: null, deliveryIds: [] };
 	}
 
-	return result;
+	session.status = "succeeded";
+	session.completedAt = now;
+
+	const deliveryIds =
+		await createWebhookDeliveriesForVerificationSessionSucceeded({
+			contractVersion: session.contractVersion,
+			eventId: result.sessionSucceededEventId,
+			organizationId: session.organizationId,
+			sessionId: session.id,
+		});
+
+	return {
+		sessionSucceededEventId: result.sessionSucceededEventId,
+		deliveryIds,
+	};
 }

@@ -16,14 +16,14 @@ import {
 describe("verify codec", () => {
 	test("round-trips hello payload", () => {
 		const bytes = encodeClientHello({
-			attemptId: "va_123",
+			sessionId: "vs_123",
 			mobileWriteToken: "token_123",
 			deviceId: "device_123",
 			appVersion: "verify-web",
 		});
 
 		const decoded = decodeClientMessage(bytes);
-		expect(decoded?.hello?.attemptId).toBe("va_123");
+		expect(decoded?.hello?.sessionId).toBe("vs_123");
 		expect(decoded?.hello?.mobileWriteToken).toBe("token_123");
 		expect(decoded?.hello?.deviceId).toBe("device_123");
 		expect(decoded?.hello?.appVersion).toBe("verify-web");
@@ -78,7 +78,9 @@ describe("verify codec", () => {
 			reasonCode: "selfie_face_mismatch",
 			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
-			remainingAttempts: 2,
+			failedCheck: "liveness",
+			remainingNfcRetries: 3,
+			remainingLivenessRetries: 2,
 		});
 		const decodedCheckResult = decodeServerMessage(checkResultBytes);
 		expect(decodedCheckResult?.checkResult).toEqual({
@@ -86,7 +88,9 @@ describe("verify codec", () => {
 			reasonCode: "selfie_face_mismatch",
 			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
-			remainingAttempts: 2,
+			failedCheck: "liveness",
+			remainingNfcRetries: 3,
+			remainingLivenessRetries: 2,
 		});
 
 		const shareRequestBytes = encodeServerShareRequest({

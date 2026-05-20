@@ -203,7 +203,7 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 				}
 
 				// 3. Stash the session_id → target_org_id mapping. The webhook handler
-				// reads this on `verification.attempt.succeeded` to know which org's
+				// reads this on `verification.session.succeeded` to know which org's
 				// `verified_at` to flip via the trust-token finalize endpoint. Store
 				// the initiating owner too so finalization can re-check ownership at
 				// webhook time instead of trusting a stale session start.

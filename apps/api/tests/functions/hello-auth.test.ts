@@ -5,11 +5,11 @@ import {
 	hashMobileWriteToken,
 } from "@/v1/verify/token-crypto";
 
-function createAttempt(
+function createSession(
 	overrides: Partial<
-		Parameters<typeof resolveHelloAuthState>[0]["attempt"]
+		Parameters<typeof resolveHelloAuthState>[0]["session"]
 	> = {},
-): Parameters<typeof resolveHelloAuthState>[0]["attempt"] {
+): Parameters<typeof resolveHelloAuthState>[0]["session"] {
 	return {
 		currentPhase: "handoff",
 		id: "va_test",
@@ -23,12 +23,12 @@ function createAttempt(
 }
 
 test("resolveHelloAuthState rejects an invalid mobile write token", async () => {
-	const attempt = createAttempt({
+	const session = createSession({
 		mobileWriteTokenHash: await hashMobileWriteToken("valid-token"),
 	});
 
 	const result = await resolveHelloAuthState({
-		attempt,
+		session,
 		deviceId: "device-a",
 		mobileWriteToken: "wrong-token",
 		nowMs: Date.now(),
@@ -42,14 +42,14 @@ test("resolveHelloAuthState rejects an invalid mobile write token", async () => 
 
 test("resolveHelloAuthState resumes a consumed token from the same device", async () => {
 	const deviceId = "device-a";
-	const attempt = createAttempt({
+	const session = createSession({
 		mobileHelloDeviceIdHash: await hashMobileDeviceId(deviceId),
 		mobileWriteTokenConsumedAt: new Date(),
 		mobileWriteTokenHash: await hashMobileWriteToken("valid-token"),
 	});
 
 	const result = await resolveHelloAuthState({
-		attempt,
+		session,
 		deviceId,
 		mobileWriteToken: "valid-token",
 		nowMs: Date.now(),
@@ -59,14 +59,14 @@ test("resolveHelloAuthState resumes a consumed token from the same device", asyn
 });
 
 test("resolveHelloAuthState rejects a consumed token from a different device", async () => {
-	const attempt = createAttempt({
+	const session = createSession({
 		mobileHelloDeviceIdHash: await hashMobileDeviceId("device-a"),
 		mobileWriteTokenConsumedAt: new Date(),
 		mobileWriteTokenHash: await hashMobileWriteToken("valid-token"),
 	});
 
 	const result = await resolveHelloAuthState({
-		attempt,
+		session,
 		deviceId: "device-b",
 		mobileWriteToken: "valid-token",
 		nowMs: Date.now(),

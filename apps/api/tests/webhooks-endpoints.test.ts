@@ -9,7 +9,7 @@ import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
 const UPDATED_WEBHOOK_EVENT_TYPES = [
-	"verification.attempt.failed",
+	"verification.session.failed",
 	"verification.session.expired",
 ] as const;
 

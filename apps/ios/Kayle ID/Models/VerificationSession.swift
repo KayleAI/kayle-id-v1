@@ -57,6 +57,13 @@ final class VerificationSession: ObservableObject {
   /// instead of leaving the "Uploading…" overlay stuck on screen.
   @Published var livenessCaptureGeneration = UUID()
   @Published var checkResult: VerifyServerCheckResult?
+  /// Per-check retry counters surfaced by the server. Initialized to the
+  /// full budget; updated from every `checkResult` frame the server sends.
+  @Published var remainingNfcRetries: Int = 3
+  @Published var remainingLivenessRetries: Int = 3
+  /// The check that produced the most recent not-confirmed `checkResult`.
+  /// Drives which retry action the completion UI surfaces.
+  @Published var failedCheck: VerifyCheckKind = .none
   @Published var shareRequest: VerifyShareRequest?
   @Published var selectedShareFieldKeys = Set<String>()
   @Published var shareSelectionErrorMessage: String?
@@ -132,8 +139,8 @@ final class VerificationSession: ObservableObject {
 
     let initializationToken = UUID()
     initializationCancellationToken = initializationToken
-    teardownAttemptState(clearPayload: true)
-    try await bootstrapAttempt(
+    teardownSessionState(clearPayload: true)
+    try await bootstrapSession(
       with: payload,
       initializationToken: initializationToken
     )
@@ -277,20 +284,20 @@ final class VerificationSession: ObservableObject {
   }
 
   /// Handle an error during verification.
-  func handleError(_ error: Error, forAttemptId attemptId: String? = nil) {
-    handleError(error, forAttemptId: attemptId, attemptReconnect: true)
+  func handleError(_ error: Error, forSessionId sessionId: String? = nil) {
+    handleError(error, forSessionId: sessionId, attemptReconnect: true)
   }
 
   private func handleError(
     _ error: Error,
-    forAttemptId attemptId: String?,
+    forSessionId sessionId: String?,
     attemptReconnect: Bool
   ) {
-    if let attemptId {
+    if let sessionId {
       guard
-        shouldHandleAttemptScopedEvent(
-          currentAttemptId: payload?.attemptId,
-          eventAttemptId: attemptId
+        shouldHandleSessionScopedEvent(
+          currentSessionId: payload?.sessionId,
+          eventSessionId: sessionId
         )
       else {
         return
@@ -325,13 +332,13 @@ final class VerificationSession: ObservableObject {
       isVerificationStepReconnectable(step)
     {
       if !isReconnecting {
-        scheduleReconnect(forAttemptId: attemptId ?? activePayload.attemptId)
+        scheduleReconnect(forSessionId: sessionId ?? activePayload.sessionId)
       }
       return
     }
 
     let resolvedError = resolveDisplayError(error)
-    let terminalAttemptId = attemptId ?? payload?.attemptId
+    let terminalSessionId = sessionId ?? payload?.sessionId
     reconnectTask?.cancel()
     reconnectTask = nil
     isReconnecting = false
@@ -345,27 +352,27 @@ final class VerificationSession: ObservableObject {
       guard let self else { return }
       await updatePhase(.error, error: resolvedError.localizedDescription)
       await waitForPendingPhaseUpdates()
-      guard let terminalAttemptId else { return }
+      guard let terminalSessionId else { return }
 
       guard
-        shouldHandleAttemptScopedEvent(
-          currentAttemptId: self.payload?.attemptId,
-          eventAttemptId: terminalAttemptId
+        shouldHandleSessionScopedEvent(
+          currentSessionId: self.payload?.sessionId,
+          eventSessionId: terminalSessionId
         )
       else {
         return
       }
 
-      self.closeActiveAttemptConnection()
+      self.closeActiveSessionConnection()
     }
   }
 
-  func handleRetryError(_ error: Error, forAttemptId attemptId: String? = nil) {
-    if let attemptId {
+  func handleRetryError(_ error: Error, forSessionId sessionId: String? = nil) {
+    if let sessionId {
       guard
-        shouldHandleAttemptScopedEvent(
-          currentAttemptId: payload?.attemptId,
-          eventAttemptId: attemptId
+        shouldHandleSessionScopedEvent(
+          currentSessionId: payload?.sessionId,
+          eventSessionId: sessionId
         )
       else {
         return
@@ -383,22 +390,81 @@ final class VerificationSession: ObservableObject {
   /// Reset the session for a new verification attempt.
   func reset() {
     step = .welcome
-    teardownAttemptState(clearPayload: true)
+    teardownSessionState(clearPayload: true)
   }
 
-  func retryVerification() async throws {
-    guard let currentPayload = payload else {
+  /// Re-scan the MRZ on the existing WebSocket. The server's phase machine
+  /// already rewound to `mrz_scanning` when `document_data_invalid` fired;
+  /// we send a phase update to roll the in-memory server state back too, then
+  /// move the UI to the MRZ scan step. The WebSocket stays open across the
+  /// retry — no new handoff, no reconnect.
+  func retryMRZ() async throws {
+    guard payload != nil, webSocketService != nil else {
       throw VerificationError.notInitialized
     }
-
     errorMessage = nil
-    isRetryingVerification = true
-    let nextPayload = try await fetchFreshHandoffPayload(
-      sessionId: currentPayload.sessionId
-    )
-
-    try await bootstrapAttempt(with: nextPayload)
+    checkResult = nil
+    mrzResult = nil
+    nfcResult = nil
+    hasRFIDSymbol = nil
+    livenessVideoURL = nil
+    livenessVideoBytes = nil
+    livenessChallenge = nil
+    resetNFCUploadState()
+    await updatePhase(.mrzScanning)
     moveToStep(.mrz)
+  }
+
+  /// Re-read the NFC chip after a not-confirmed `document_*` failure. Gated on
+  /// `remainingNfcRetries > 0`; the server enforces the same bound. MRZ stays
+  /// because the BAC key derived from it is still valid for the next chip
+  /// read. The phase update rewinds the server's per-socket transfer state
+  /// and in-memory phase pointer so the next NFC chunk stream lands cleanly.
+  func retryNFC() async throws {
+    guard remainingNfcRetries > 0 else {
+      throw VerificationError.notInitialized
+    }
+    guard payload != nil, webSocketService != nil else {
+      throw VerificationError.notInitialized
+    }
+    errorMessage = nil
+    checkResult = nil
+    nfcResult = nil
+    hasRFIDSymbol = nil
+    resetNFCUploadState()
+    await updatePhase(.nfcReading)
+    moveToStep(.rfidCheck)
+  }
+
+  /// Re-capture liveness after a not-confirmed `liveness_failed` or
+  /// `selfie_face_mismatch`. Gated on `remainingLivenessRetries > 0`. MRZ and
+  /// NFC artifacts survive — the server keeps DG1/DG2/SOD in its per-socket
+  /// transfer state so face match still has the chip portrait available. The
+  /// phase update rewinds the server's liveness transfer slot.
+  func retryLiveness() async throws {
+    guard remainingLivenessRetries > 0 else {
+      throw VerificationError.notInitialized
+    }
+    guard payload != nil, webSocketService != nil else {
+      throw VerificationError.notInitialized
+    }
+    errorMessage = nil
+    checkResult = nil
+    livenessVideoURL = nil
+    livenessVideoBytes = nil
+    // Keep `livenessChallenge` set — the server's `deriveLivenessChallenge`
+    // is HMAC-deterministic per session id, so the re-sent challenge on the
+    // rewind carries the same nonce we already hold. Clearing it would just
+    // create a race where the engine sits in `.framing` with a nil nonce
+    // until the new WS message lands — to the user that looks like the
+    // camera "won't detect my face" even though Vision is finding it.
+    livenessUploadStarted = false
+    livenessUploadComplete = false
+    livenessUploadCancelled = false
+    cancelLivenessUploadWaiters()
+    livenessCaptureGeneration = UUID()
+    await updatePhase(.livenessCapturing)
+    moveToStep(.livenessIntro)
   }
 
   func cancelVerification() async throws {
@@ -431,17 +497,7 @@ final class VerificationSession: ObservableObject {
     resetNFCUploadState()
   }
 
-  private func fetchFreshHandoffPayload(sessionId: String) async throws -> QRCodePayload {
-    let nextPayload = try await APIService.fetchHandoffPayload(sessionId: sessionId)
-
-    guard nextPayload.isValid else {
-      throw QRCodePayloadError.invalidPayload
-    }
-
-    return nextPayload
-  }
-
-  private func bootstrapAttempt(
+  private func bootstrapSession(
     with payload: QRCodePayload,
     initializationToken: UUID? = nil
   ) async throws {
@@ -474,7 +530,7 @@ final class VerificationSession: ObservableObject {
       service: service
     )
     let activeWebSocketService = webSocketService
-    resetAttemptState(clearPayload: false)
+    resetSessionState(clearPayload: false)
     activeWebSocketService?.disconnect()
     self.payload = payload
     webSocketService = service
@@ -502,13 +558,12 @@ final class VerificationSession: ObservableObject {
     for payload: QRCodePayload
   ) -> VerifyWebSocketService {
     let baseURL = APIService.baseURL(from: payload.sessionId)
-    let attemptId = payload.attemptId
+    let sessionId = payload.sessionId
     let attestChallenge = payload.attestHelloChallenge
       .flatMap { Data(base64URLEncodedString: $0) }
 
     return VerifyWebSocketService(
       sessionId: payload.sessionId,
-      attemptId: payload.attemptId,
       mobileWriteToken: payload.mobileWriteToken,
       baseURL: baseURL,
       attestHelloChallenge: attestChallenge,
@@ -516,23 +571,23 @@ final class VerificationSession: ObservableObject {
         Task { @MainActor [weak self] in
           guard let self else { return }
           guard
-            shouldHandleAttemptScopedEvent(
-              currentAttemptId: self.payload?.attemptId,
-              eventAttemptId: attemptId
+            shouldHandleSessionScopedEvent(
+              currentSessionId: self.payload?.sessionId,
+              eventSessionId: sessionId
             )
           else {
             return
           }
-          self.handleError(socketError, forAttemptId: attemptId)
+          self.handleError(socketError, forSessionId: sessionId)
         }
       },
       onShareRequest: { [weak self] shareRequest in
         Task { @MainActor [weak self] in
           guard
             let self,
-            shouldHandleAttemptScopedEvent(
-              currentAttemptId: self.payload?.attemptId,
-              eventAttemptId: attemptId
+            shouldHandleSessionScopedEvent(
+              currentSessionId: self.payload?.sessionId,
+              eventSessionId: sessionId
             )
           else {
             return
@@ -544,9 +599,9 @@ final class VerificationSession: ObservableObject {
         Task { @MainActor [weak self] in
           guard
             let self,
-            shouldHandleAttemptScopedEvent(
-              currentAttemptId: self.payload?.attemptId,
-              eventAttemptId: attemptId
+            shouldHandleSessionScopedEvent(
+              currentSessionId: self.payload?.sessionId,
+              eventSessionId: sessionId
             )
           else {
             return
@@ -558,9 +613,9 @@ final class VerificationSession: ObservableObject {
         Task { @MainActor [weak self] in
           guard
             let self,
-            shouldHandleAttemptScopedEvent(
-              currentAttemptId: self.payload?.attemptId,
-              eventAttemptId: attemptId
+            shouldHandleSessionScopedEvent(
+              currentSessionId: self.payload?.sessionId,
+              eventSessionId: sessionId
             )
           else {
             return
@@ -571,7 +626,7 @@ final class VerificationSession: ObservableObject {
     )
   }
 
-  private func resetAttemptState(clearPayload: Bool) {
+  private func resetSessionState(clearPayload: Bool) {
     if clearPayload {
       payload = nil
     }
@@ -603,15 +658,15 @@ final class VerificationSession: ObservableObject {
     reconnectTask = nil
   }
 
-  private func teardownAttemptState(clearPayload: Bool) {
+  private func teardownSessionState(clearPayload: Bool) {
     let activeWebSocketService = webSocketService
     let activeInitializingService = initializingWebSocketService
-    resetAttemptState(clearPayload: clearPayload)
+    resetSessionState(clearPayload: clearPayload)
     activeWebSocketService?.disconnect()
     activeInitializingService?.disconnect()
   }
 
-  private func closeActiveAttemptConnection() {
+  private func closeActiveSessionConnection() {
     let activeWebSocketService = webSocketService
     webSocketService = nil
     pendingPhaseUpdateTask?.cancel()
@@ -623,7 +678,7 @@ final class VerificationSession: ObservableObject {
     activeWebSocketService?.disconnect()
   }
 
-  private func scheduleReconnect(forAttemptId attemptId: String) {
+  private func scheduleReconnect(forSessionId sessionId: String) {
     reconnectTask?.cancel()
     isReconnecting = true
 
@@ -640,7 +695,7 @@ final class VerificationSession: ObservableObject {
 
         guard
           let activePayload = self.payload,
-          activePayload.attemptId == attemptId
+          activePayload.sessionId == sessionId
         else {
           self.isReconnecting = false
           return
@@ -694,7 +749,7 @@ final class VerificationSession: ObservableObject {
       self.reconnectTask = nil
       self.handleError(
         lastError ?? VerifyWebSocketError.reconnectFailed,
-        forAttemptId: attemptId,
+        forSessionId: sessionId,
         attemptReconnect: false
       )
     }
@@ -719,12 +774,12 @@ final class VerificationSession: ObservableObject {
     // chunks in flight over the previous socket are gone; clear upload
     // bookkeeping so the next retap streams cleanly. mrzResult, nfcResult,
     // and activeAuthChallenge survive because the AA challenge is
-    // deterministic per attemptId — the chip-signed bytes in nfcResult are
+    // deterministic per sessionId — the chip-signed bytes in nfcResult are
     // still valid against the re-derived expectedChallenge. livenessVideoURL
     // does NOT survive: an interrupted liveness session must be restarted
     // from scratch, so the user is sent back through the capture flow rather
     // than resuming against stale partial state. The pose challenge survives
-    // because deriveLivenessChallenge is deterministic per attemptId — the
+    // because deriveLivenessChallenge is deterministic per sessionId — the
     // server will re-issue the same sequence on the new socket.
     resetNFCUploadState()
     livenessVideoURL = nil
@@ -765,13 +820,22 @@ final class VerificationSession: ObservableObject {
 
   private func handleCheckResult(_ checkResult: VerifyServerCheckResult) {
     self.checkResult = checkResult
+    self.remainingNfcRetries = checkResult.remainingNfcRetries
+    self.remainingLivenessRetries = checkResult.remainingLivenessRetries
+    self.failedCheck = checkResult.failedCheck
     errorMessage = nil
     shareSelectionErrorMessage = nil
     isSubmittingShareSelection = false
     livenessUploadCancelled = isNotConfirmedCheck(checkResult)
 
     if isNotConfirmedCheck(checkResult) {
-      closeActiveAttemptConnection()
+      // Mirror the server: keep the WebSocket open when the user still has
+      // retries for this check, close it only on terminal outcomes. The
+      // retry methods reuse the live socket to send a phase-rewind message
+      // and resume capture without re-handshaking the handoff token.
+      if !checkResult.retryAllowed {
+        closeActiveSessionConnection()
+      }
       shareRequest = nil
       selectedShareFieldKeys = []
       moveToStep(.complete)
@@ -858,7 +922,7 @@ final class VerificationSession: ObservableObject {
       if let shareReady = response.shareReady {
         selectedShareFieldKeys = Set(shareReady.selectedFieldKeys)
         isSubmittingShareSelection = false
-        closeActiveAttemptConnection()
+        closeActiveSessionConnection()
         moveToStep(.complete)
         return
       }
@@ -1169,11 +1233,11 @@ final class VerificationSession: ObservableObject {
     }
 
     do {
-      let attemptId = payload?.attemptId ?? ""
+      let sessionId = payload?.sessionId ?? ""
       let baseURL = APIService.baseURL(from: payload?.sessionId ?? "")
       return try await AppAttestService.shared.nfcPayloadAssertion(
         baseURL: baseURL,
-        attemptId: attemptId,
+        sessionId: sessionId,
         challenge: challenge,
         digests: digests
       )

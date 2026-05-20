@@ -13,14 +13,6 @@ export const getSession = createRoute({
 				"The ID of the verification session to retrieve (e.g. vs_...).",
 			),
 		}),
-		query: z.object({
-			include_attempts: z.coerce
-				.boolean()
-				.optional()
-				.describe(
-					"When true, includes the `attempts` array for the session. When false or omitted, attempts are not returned.",
-				),
-		}),
 	},
 	tags: ["Sessions"],
 	summary: "Get a session by ID",

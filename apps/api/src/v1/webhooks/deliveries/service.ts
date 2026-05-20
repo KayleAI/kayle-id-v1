@@ -13,11 +13,7 @@ import { parseSafeUrl } from "@kayle-id/config/safe-url";
 import type { SupportedWebhookEventType } from "@kayle-id/config/webhook-events";
 import { MAX_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
-import {
-	events,
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import { events, verification_sessions } from "@kayle-id/database/schema/core";
 import {
 	webhook_deliveries,
 	webhook_delivery_attempts,
@@ -44,14 +40,14 @@ import {
 	decryptWebhookSigningSecret,
 } from "@/v1/webhooks/signing-secret";
 import {
-	buildVerificationAttemptFailedPayload,
 	buildVerificationSessionCancelledPayload,
 	buildVerificationSessionExpiredPayload,
-	buildVerificationSucceededPayload,
+	buildVerificationSessionFailedPayload,
+	buildVerificationSessionSucceededPayload,
 } from "./payloads";
 import type {
 	DeliveryRowResponse,
-	VerificationAttemptFailedCode,
+	VerificationSessionFailedCode,
 	WebhookPayload,
 } from "./types";
 import {
@@ -220,20 +216,7 @@ async function getSessionPrivacyStateForDeliveryEvent({
 	cancelTokenConsumedAt: Date | null;
 	status: string;
 } | null> {
-	if (triggerType === "verification_session") {
-		const [row] = await db
-			.select({
-				cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
-				status: verification_sessions.status,
-			})
-			.from(verification_sessions)
-			.where(eq(verification_sessions.id, triggerId))
-			.limit(1);
-
-		return row ?? null;
-	}
-
-	if (triggerType !== "verification_attempt") {
+	if (triggerType !== "verification_session") {
 		return null;
 	}
 
@@ -242,12 +225,8 @@ async function getSessionPrivacyStateForDeliveryEvent({
 			cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
 			status: verification_sessions.status,
 		})
-		.from(verification_attempts)
-		.innerJoin(
-			verification_sessions,
-			eq(verification_sessions.id, verification_attempts.verificationSessionId),
-		)
-		.where(eq(verification_attempts.id, triggerId))
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, triggerId))
 		.limit(1);
 
 	return row ?? null;
@@ -621,13 +600,11 @@ async function createWebhookDeliveriesForEvent({
 	return createdDeliveryIds;
 }
 
-export async function createWebhookDeliveriesForVerificationSucceeded({
-	attemptId,
+export async function createWebhookDeliveriesForVerificationSessionSucceededWithManifest({
 	eventId,
 	manifest,
 	organizationId,
 }: {
-	attemptId: string;
 	eventId: string;
 	manifest: VerifyShareManifest;
 	organizationId: string;
@@ -648,15 +625,32 @@ export async function createWebhookDeliveriesForVerificationSucceeded({
 
 	return createWebhookDeliveriesForEvent({
 		eventId,
-		eventType: "verification.attempt.succeeded",
+		eventType: "verification.session.succeeded",
 		organizationId,
-		payload: buildVerificationSucceededPayload({
-			attemptId,
+		payload: buildVerificationSessionSucceededPayload({
 			eventId,
 			manifest,
 		}),
 		webhookEndpointIds: session?.webhookEndpointIds ?? null,
 	});
+}
+
+/**
+ * Stub used by `markSessionSucceeded` when the share manifest is not available
+ * at the call site (e.g. age-only flows). Real claim payloads come from the
+ * shareSelection success path which uses the manifest variant above.
+ */
+export async function createWebhookDeliveriesForVerificationSessionSucceeded(_input: {
+	contractVersion: number;
+	eventId: string;
+	organizationId: string;
+	sessionId: string;
+}): Promise<string[]> {
+	// markSessionSucceeded does not build the claim payload — that happens in the
+	// shareSelection completion path via the manifest-aware variant. This stub
+	// exists so callers can ignore the manifest plumbing and return an empty list
+	// when no follow-up is needed.
+	return [];
 }
 
 export type WebhookPayloadPrivacyScrubResult = {
@@ -674,18 +668,13 @@ export async function scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
 	organizationId: string;
 	sessionId: string;
 }): Promise<WebhookPayloadPrivacyScrubResult> {
-	const attemptRows = await db
-		.select({ id: verification_attempts.id })
-		.from(verification_attempts)
-		.where(eq(verification_attempts.verificationSessionId, sessionId));
-	const triggerIds = [sessionId, ...attemptRows.map((attempt) => attempt.id)];
 	const eventRows = await db
 		.select({ id: events.id })
 		.from(events)
 		.where(
 			and(
 				eq(events.organizationId, organizationId),
-				inArray(events.triggerId, triggerIds),
+				eq(events.triggerId, sessionId),
 			),
 		);
 
@@ -737,18 +726,20 @@ export async function scrubWebhookPayloadsForVerificationSessionPrivacyRequest({
 	};
 }
 
-export async function createWebhookDeliveriesForVerificationAttemptFailed({
-	attemptId,
+export async function createWebhookDeliveriesForVerificationSessionFailed({
 	contractVersion,
 	eventId,
 	failureCode,
+	nfcTriesUsed,
+	livenessTriesUsed,
 	organizationId,
 	sessionId,
 }: {
-	attemptId: string;
 	contractVersion: number;
 	eventId: string;
-	failureCode: VerificationAttemptFailedCode;
+	failureCode: VerificationSessionFailedCode;
+	nfcTriesUsed: number;
+	livenessTriesUsed: number;
 	organizationId: string;
 	sessionId: string;
 }): Promise<string[]> {
@@ -757,13 +748,14 @@ export async function createWebhookDeliveriesForVerificationAttemptFailed({
 
 	return createWebhookDeliveriesForEvent({
 		eventId,
-		eventType: "verification.attempt.failed",
+		eventType: "verification.session.failed",
 		organizationId,
-		payload: buildVerificationAttemptFailedPayload({
-			attemptId,
+		payload: buildVerificationSessionFailedPayload({
 			contractVersion,
 			eventId,
 			failureCode,
+			nfcTriesUsed,
+			livenessTriesUsed,
 			sessionId,
 		}),
 		webhookEndpointIds,

@@ -10,7 +10,7 @@ import type { VerifyShareManifest } from "./share-manifest";
 
 export type VerifySocketState = {
 	confirmedFaceScore: number | null;
-	attemptId: string | null;
+	sessionId: string | null;
 	currentPhase: string | null;
 	helloReceived: boolean;
 	livenessChallengeNonce: Uint8Array | null;
@@ -28,8 +28,8 @@ export type VerifySocketTransport = {
 	sendLivenessChallenge: (challenge: VerifyServerLivenessChallenge) => void;
 	sendAuthErrorAndClose: (
 		code:
-			| "ATTEMPT_CONNECTION_ACTIVE"
-			| "ATTEMPT_NOT_FOUND"
+			| "SESSION_CONNECTION_ACTIVE"
+			| "SESSION_NOT_FOUND"
 			| "HANDOFF_DEVICE_MISMATCH"
 			| "HANDOFF_TOKEN_CONSUMED"
 			| "HANDOFF_TOKEN_EXPIRED"
@@ -63,7 +63,7 @@ export type VerifySocketContext = {
 export function createVerifySocketState(): VerifySocketState {
 	return {
 		confirmedFaceScore: null,
-		attemptId: null,
+		sessionId: null,
 		currentPhase: null,
 		helloReceived: false,
 		livenessChallengeNonce: null,

@@ -303,11 +303,11 @@ export function toggleEventSelection(
 }
 
 export function getWebhookEventTypeDescription(eventType: string): string {
-	if (eventType === "verification.attempt.succeeded") {
+	if (eventType === "verification.session.succeeded") {
 		return "Dispatch confirmed Kayle check attempts to this endpoint.";
 	}
 
-	if (eventType === "verification.attempt.failed") {
+	if (eventType === "verification.session.failed") {
 		return "Dispatch not-confirmed Kayle check attempts to this endpoint.";
 	}
 

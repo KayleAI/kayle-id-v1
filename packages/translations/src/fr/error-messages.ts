@@ -36,11 +36,6 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "Cette connexion n’a pas d’identifiants. Veuillez réessayer.",
   },
 
-  ATTEMPT_NOT_FOUND: {
-    title: "Session introuvable",
-    description: "Cette session n’est plus disponible. Recommencez.",
-  },
-
   HANDOFF_TOKEN_INVALID: {
     title: "Code QR invalide",
     description:
@@ -103,7 +98,7 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
       "Vérifiez et acceptez les étapes de consentement requises pour continuer.",
   },
 
-  ATTEMPT_CONNECTION_ACTIVE: {
+  SESSION_CONNECTION_ACTIVE: {
     title: "Déjà ouverte",
     description:
       "Cette session est active ailleurs. Continuez-y ou réessayez plus tard.",

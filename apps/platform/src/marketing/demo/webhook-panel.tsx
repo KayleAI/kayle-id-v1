@@ -67,7 +67,7 @@ function getWebhookPanelState({
 
 	return {
 		title:
-			selectedWebhook.event_type === "verification.attempt.succeeded"
+			selectedWebhook.event_type === "verification.session.succeeded"
 				? "Document unavailable"
 				: "Webhook event unavailable",
 		description: "The result arrived, but it could not be formatted cleanly.",
@@ -142,18 +142,25 @@ function WebhookResultSummary({
 		: null;
 	const progressLabel = getDemoProgressLabel(run);
 	const summary = (() => {
+		// Prefer the event-level title (e.g. "Session Succeeded", "Session
+		// Cancelled") whenever the webhook decoded cleanly. The eventPreview
+		// is built from the same decrypted payload that produced the document
+		// preview, so we always have it available alongside the document data
+		// for a successful run.
+		if (eventPreview) {
+			return {
+				description: documentPreview
+					? "The webhook signature was checked, decrypted locally, and mapped into the selected document fields below."
+					: eventPreview.description,
+				title: eventPreview.title,
+			};
+		}
+
 		if (documentPreview) {
 			return {
 				description:
 					"The webhook signature was checked, decrypted locally, and mapped into the selected document fields below.",
 				title: "Confirmed document signal",
-			};
-		}
-
-		if (eventPreview) {
-			return {
-				description: eventPreview.description,
-				title: eventPreview.title,
 			};
 		}
 
@@ -189,11 +196,6 @@ function WebhookResultSummary({
 						</p>
 					)}
 				</div>
-				{eventLabel ? (
-					<p className="shrink-0 font-mono text-muted-foreground text-xs">
-						{eventLabel}
-					</p>
-				) : null}
 			</div>
 		</div>
 	);
@@ -294,7 +296,7 @@ export function WebhookPanel({
 
 	return (
 		<>
-			{mode === "document" && !(documentPreview || eventPreview) ? (
+			{!(documentPreview || eventPreview) ? (
 				<WebhookResultSummary
 					hasDetails={content !== null}
 					documentPreview={documentPreview}

@@ -1,11 +1,7 @@
 import type { RouteHandler } from "@hono/zod-openapi";
-import type { verification_attempts } from "@kayle-id/database/schema/core";
 import type { listSessions } from "@/openapi/v1/sessions/list";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
-import {
-	getAttemptsBySessionIds,
-	listVerificationSessions,
-} from "@/v1/sessions/repo/session-repo";
+import { listVerificationSessions } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 
 export const listSessionsHandler: RouteHandler<
@@ -29,34 +25,7 @@ export const listSessionsHandler: RouteHandler<
 	const pageRows = hasMore ? rows.slice(0, limit) : rows;
 	const nextCursor = hasMore ? (pageRows.at(-1)?.id ?? null) : null;
 
-	let attemptsBySessionId: Record<
-		string,
-		(typeof verification_attempts.$inferSelect)[]
-	> = {};
-	if (query.include_attempts && pageRows.length > 0) {
-		const attempts = await getAttemptsBySessionIds(
-			pageRows.map((row) => row.id),
-		);
-		attemptsBySessionId = attempts.reduce<
-			Record<string, (typeof verification_attempts.$inferSelect)[]>
-		>((acc, attempt) => {
-			const key = attempt.verificationSessionId;
-			if (!acc[key]) {
-				acc[key] = [];
-			}
-			acc[key].push(attempt);
-			return acc;
-		}, {});
-	}
-
-	const data = pageRows.map((row) =>
-		mapSessionRowToResponse({
-			row,
-			attempts: query.include_attempts
-				? (attemptsBySessionId[row.id] ?? [])
-				: undefined,
-		}),
-	);
+	const data = pageRows.map((row) => mapSessionRowToResponse({ row }));
 
 	return c.json(
 		{

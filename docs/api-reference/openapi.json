@@ -34,7 +34,7 @@
       }
     },
     "schemas": {
-      "Webhook Attempt Metadata": {
+      "Webhook Session Metadata": {
         "type": "object",
         "properties": {
           "contract_version": {
@@ -45,31 +45,22 @@
             "type": "string",
             "description": "Unique webhook event ID."
           },
-          "verification_attempt_id": {
-            "type": "string",
-            "description": "The verification attempt that triggered this event."
-          },
           "verification_session_id": {
             "type": "string",
             "description": "The verification session this event belongs to."
           }
         },
-        "required": [
-          "contract_version",
-          "event_id",
-          "verification_attempt_id",
-          "verification_session_id"
-        ]
+        "required": ["contract_version", "event_id", "verification_session_id"]
       },
       "VerificationAttemptSucceededWebhookPayload": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["verification.attempt.succeeded"]
+            "enum": ["verification.session.succeeded"]
           },
           "metadata": {
-            "$ref": "#/components/schemas/Webhook Attempt Metadata"
+            "$ref": "#/components/schemas/Webhook Session Metadata"
           },
           "data": {
             "type": "object",
@@ -113,10 +104,10 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["verification.attempt.failed"]
+            "enum": ["verification.session.failed"]
           },
           "metadata": {
-            "$ref": "#/components/schemas/Webhook Attempt Metadata"
+            "$ref": "#/components/schemas/Webhook Session Metadata"
           },
           "data": {
             "type": "object",
@@ -132,31 +123,29 @@
                   "liveness_failed",
                   "selfie_face_mismatch"
                 ],
-                "description": "Reason Kayle could not confirm the attempt. Failed-attempt payloads do not include claims, biometrics, or risk scores."
+                "description": "Reason Kayle could not confirm the session. Failed-session payloads do not include claims, biometrics, or risk scores."
+              },
+              "nfc_tries_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many NFC chip-read retries the session consumed before terminalizing."
+              },
+              "liveness_tries_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many liveness retries the session consumed before terminalizing."
               }
             },
-            "required": ["failure_code"]
+            "required": [
+              "failure_code",
+              "nfc_tries_used",
+              "liveness_tries_used"
+            ]
           }
         },
         "required": ["type", "metadata", "data"]
-      },
-      "Webhook Session Metadata": {
-        "type": "object",
-        "properties": {
-          "contract_version": {
-            "type": "integer",
-            "description": "Contract version the session was created against."
-          },
-          "event_id": {
-            "type": "string",
-            "description": "Unique webhook event ID."
-          },
-          "verification_session_id": {
-            "type": "string",
-            "description": "The verification session this event belongs to."
-          }
-        },
-        "required": ["contract_version", "event_id", "verification_session_id"]
       },
       "VerificationSessionExpiredWebhookPayload": {
         "type": "object",
@@ -408,7 +397,7 @@
           },
           "type": {
             "type": "string",
-            "description": "The type of the event (e.g. \"verification.attempt.succeeded\")."
+            "description": "The type of the event (e.g. \"verification.session.succeeded\")."
           },
           "trigger_type": {
             "type": "string",
@@ -525,6 +514,28 @@
               "required": ["required", "reason"]
             },
             "description": "Optional map of requested share fields keyed by claim key. Each entry must include `required` (boolean) and `reason` (non-empty string, max 200)."
+          },
+          "webhook_endpoint_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "minItems": 1,
+                "maxItems": 25
+              }
+            ],
+            "description": "Optional webhook endpoint ID or endpoint ID list to target for this session. When omitted, events fan out to every enabled subscribed endpoint."
           }
         }
       },
@@ -630,6 +641,14 @@
             "type": ["string", "null"],
             "description": "An optional display name for the webhook endpoint."
           },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "Tag-style purpose labels for this endpoint."
+          },
           "url": {
             "type": "string",
             "format": "uri",
@@ -644,13 +663,13 @@
             "items": {
               "type": "string",
               "enum": [
-                "verification.attempt.succeeded",
-                "verification.attempt.failed",
+                "verification.session.succeeded",
+                "verification.session.failed",
                 "verification.session.expired",
                 "verification.session.cancelled"
               ]
             },
-            "description": "The event types this endpoint is subscribed to. Supported values: verification.attempt.succeeded, verification.attempt.failed, verification.session.expired, verification.session.cancelled."
+            "description": "The event types this endpoint is subscribed to. Supported values: verification.session.succeeded, verification.session.failed, verification.session.expired, verification.session.cancelled."
           },
           "undelivered_payload_retention_hours": {
             "anyOf": [
@@ -691,6 +710,7 @@
           "id",
           "organization_id",
           "name",
+          "labels",
           "url",
           "enabled",
           "subscribed_event_types",
@@ -721,6 +741,14 @@
             "maxLength": 120,
             "description": "An optional display name for the webhook endpoint."
           },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "Optional tag-style purpose labels for this endpoint."
+          },
           "url": {
             "type": "string",
             "maxLength": 2048,
@@ -736,8 +764,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "verification.attempt.succeeded",
-                "verification.attempt.failed",
+                "verification.session.succeeded",
+                "verification.session.failed",
                 "verification.session.expired",
                 "verification.session.cancelled"
               ]
@@ -944,6 +972,14 @@
             "maxLength": 120,
             "description": "Updated display name for the webhook endpoint."
           },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "Updated tag-style purpose labels for the endpoint."
+          },
           "url": {
             "type": "string",
             "maxLength": 2048,
@@ -958,8 +994,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "verification.attempt.succeeded",
-                "verification.attempt.failed",
+                "verification.session.succeeded",
+                "verification.session.failed",
                 "verification.session.expired",
                 "verification.session.cancelled"
               ]
@@ -8493,15 +8529,15 @@
             "schema": {
               "type": "string",
               "enum": [
-                "verification.attempt.succeeded",
-                "verification.attempt.failed",
+                "verification.session.succeeded",
+                "verification.session.failed",
                 "verification.session.expired",
                 "verification.session.cancelled"
               ],
-              "description": "Filter events by type (e.g. \"verification.attempt.succeeded\")."
+              "description": "Filter events by type (e.g. \"verification.session.succeeded\")."
             },
             "required": false,
-            "description": "Filter events by type (e.g. \"verification.attempt.succeeded\").",
+            "description": "Filter events by type (e.g. \"verification.session.succeeded\").",
             "name": "type",
             "in": "query"
           },
@@ -8819,217 +8855,6 @@
         }
       }
     },
-    "/v1/sessions/attempts": {
-      "get": {
-        "tags": ["Sessions"],
-        "summary": "List verification attempts",
-        "description": "List verification attempts for the authenticated organization, optionally filtered by session and status.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^vs_[A-Za-z0-9]{64}$",
-              "description": "Filter attempts by verification session ID (e.g. vs_...)."
-            },
-            "required": false,
-            "description": "Filter attempts by verification session ID (e.g. vs_...).",
-            "name": "session_id",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": ["in_progress", "succeeded", "failed", "cancelled"],
-              "description": "Filter attempts by status."
-            },
-            "required": false,
-            "description": "Filter attempts by status.",
-            "name": "status",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "description": "Maximum number of attempts to return. Defaults to 10 if not specified."
-            },
-            "required": false,
-            "description": "Maximum number of attempts to return. Defaults to 10 if not specified.",
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^va_[A-Za-z0-9]{64}$",
-              "description": "Cursor of the last item from the previous page. When provided, the next page of results will be returned."
-            },
-            "required": false,
-            "description": "Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
-            "name": "starting_after",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful operation.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "description": "The ID of the verification attempt"
-                          },
-                          "session_id": {
-                            "type": "string",
-                            "description": "The ID of the verification session this attempt belongs to"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "in_progress",
-                              "succeeded",
-                              "failed",
-                              "cancelled"
-                            ],
-                            "description": "The status of the verification attempt"
-                          },
-                          "failure_code": {
-                            "type": ["string", "null"],
-                            "enum": [
-                              "session_expired",
-                              "session_cancelled",
-                              "document_authenticity_failed",
-                              "document_active_authentication_failed",
-                              "document_chip_authentication_failed",
-                              "document_anti_cloning_attestation_failed",
-                              "document_data_invalid",
-                              "liveness_failed",
-                              "selfie_face_mismatch"
-                            ],
-                            "description": "The code of the failure reason"
-                          },
-                          "completed_at": {
-                            "type": ["string", "null"],
-                            "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
-                          },
-                          "created_at": {
-                            "type": "string",
-                            "description": "The time the verification attempt was created"
-                          },
-                          "updated_at": {
-                            "type": "string",
-                            "description": "The time the verification attempt was last updated"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "session_id",
-                          "status",
-                          "failure_code",
-                          "completed_at",
-                          "created_at",
-                          "updated_at"
-                        ]
-                      }
-                    },
-                    "error": {
-                      "type": "null"
-                    },
-                    "pagination": {
-                      "$ref": "#/components/schemas/Pagination"
-                    }
-                  },
-                  "required": ["data", "error", "pagination"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "null",
-                      "description": "Empty data object."
-                    },
-                    "error": {
-                      "type": ["object", "null"],
-                      "properties": {
-                        "code": {
-                          "type": "string",
-                          "description": "The error code"
-                        },
-                        "message": {
-                          "type": "string",
-                          "description": "The error message"
-                        },
-                        "hint": {
-                          "type": "string",
-                          "description": "A hint to help the user fix the error"
-                        },
-                        "docs": {
-                          "type": "string",
-                          "description": "A link to the documentation for the error"
-                        }
-                      },
-                      "required": ["code", "message", "hint", "docs"]
-                    },
-                    "pagination": {
-                      "type": "object",
-                      "properties": {
-                        "limit": {
-                          "type": "number"
-                        },
-                        "has_more": {
-                          "type": "boolean",
-                          "enum": [false]
-                        },
-                        "next_cursor": {
-                          "type": "null"
-                        }
-                      },
-                      "required": ["limit", "has_more", "next_cursor"]
-                    }
-                  },
-                  "required": ["data", "error", "pagination"],
-                  "example": {
-                    "data": null,
-                    "error": {
-                      "code": "BAD_REQUEST",
-                      "message": "Bad request.",
-                      "hint": "You must provide at least one filter: `session_id` or `status`.",
-                      "docs": "https://kayle.id/docs/api/sessions/attempts"
-                    },
-                    "pagination": {
-                      "limit": 10,
-                      "has_more": false,
-                      "next_cursor": null
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/sessions": {
       "get": {
         "tags": ["Sessions"],
@@ -9046,7 +8871,8 @@
               "enum": [
                 "created",
                 "in_progress",
-                "completed",
+                "succeeded",
+                "failed",
                 "expired",
                 "cancelled"
               ],
@@ -9101,16 +8927,6 @@
             "description": "Cursor of the last item from the previous page. When provided, the next page of results will be returned.",
             "name": "starting_after",
             "in": "query"
-          },
-          {
-            "schema": {
-              "type": ["boolean", "null"],
-              "description": "When true, includes the `attempts` array for each session. When false or omitted, attempts are not returned."
-            },
-            "required": false,
-            "description": "When true, includes the `attempts` array for each session. When false or omitted, attempts are not returned.",
-            "name": "include_attempts",
-            "in": "query"
           }
         ],
         "responses": {
@@ -9135,11 +8951,37 @@
                             "enum": [
                               "created",
                               "in_progress",
-                              "completed",
+                              "succeeded",
+                              "failed",
                               "expired",
                               "cancelled"
                             ],
                             "description": "The status of the verification session"
+                          },
+                          "failure_code": {
+                            "type": ["string", "null"],
+                            "enum": [
+                              "document_authenticity_failed",
+                              "document_active_authentication_failed",
+                              "document_chip_authentication_failed",
+                              "document_anti_cloning_attestation_failed",
+                              "document_data_invalid",
+                              "liveness_failed",
+                              "selfie_face_mismatch"
+                            ],
+                            "description": "Terminal failure code when status='failed'. Null in any other state."
+                          },
+                          "nfc_tries_used": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3,
+                            "description": "Number of NFC chip-read failures the session has consumed. The session terminalizes on the 3rd failure."
+                          },
+                          "liveness_tries_used": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3,
+                            "description": "Number of liveness check failures the session has consumed. The session terminalizes on the 3rd failure."
                           },
                           "contract_version": {
                             "type": "integer",
@@ -9172,6 +9014,23 @@
                             "type": ["string", "null"],
                             "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                           },
+                          "webhook_endpoint_id": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The webhook endpoint or endpoint list selected for this session, or null when events fan out to all enabled subscribed endpoints."
+                          },
                           "verification_url": {
                             "type": "string",
                             "format": "uri",
@@ -9179,7 +9038,7 @@
                           },
                           "cancel_token": {
                             "type": "string",
-                            "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation — store it server-side if you intend to surface a cancel link from your dashboard or email; the verify URL already includes it for browser/native cancel flows."
+                            "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation."
                           },
                           "expires_at": {
                             "type": "string",
@@ -9187,7 +9046,7 @@
                           },
                           "completed_at": {
                             "type": ["string", "null"],
-                            "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
+                            "description": "The time the verification session reached a terminal state (i.e., succeeded, failed, expired or cancelled), or null if not yet terminal."
                           },
                           "created_at": {
                             "type": "string",
@@ -9196,77 +9055,18 @@
                           "updated_at": {
                             "type": "string",
                             "description": "The time the verification session was last updated"
-                          },
-                          "attempts": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "string",
-                                  "description": "The ID of the verification attempt"
-                                },
-                                "session_id": {
-                                  "type": "string",
-                                  "description": "The ID of the verification session this attempt belongs to"
-                                },
-                                "status": {
-                                  "type": "string",
-                                  "enum": [
-                                    "in_progress",
-                                    "succeeded",
-                                    "failed",
-                                    "cancelled"
-                                  ],
-                                  "description": "The status of the verification attempt"
-                                },
-                                "failure_code": {
-                                  "type": ["string", "null"],
-                                  "enum": [
-                                    "session_expired",
-                                    "session_cancelled",
-                                    "document_authenticity_failed",
-                                    "document_active_authentication_failed",
-                                    "document_chip_authentication_failed",
-                                    "document_anti_cloning_attestation_failed",
-                                    "document_data_invalid",
-                                    "liveness_failed",
-                                    "selfie_face_mismatch"
-                                  ],
-                                  "description": "The code of the failure reason"
-                                },
-                                "completed_at": {
-                                  "type": ["string", "null"],
-                                  "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
-                                },
-                                "created_at": {
-                                  "type": "string",
-                                  "description": "The time the verification attempt was created"
-                                },
-                                "updated_at": {
-                                  "type": "string",
-                                  "description": "The time the verification attempt was last updated"
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "session_id",
-                                "status",
-                                "failure_code",
-                                "completed_at",
-                                "created_at",
-                                "updated_at"
-                              ]
-                            },
-                            "description": "The verification attempts for the session. Only included when explicitly requested."
                           }
                         },
                         "required": [
                           "id",
                           "status",
+                          "failure_code",
+                          "nfc_tries_used",
+                          "liveness_tries_used",
                           "contract_version",
                           "share_fields",
                           "redirect_url",
+                          "webhook_endpoint_id",
                           "verification_url",
                           "expires_at",
                           "completed_at",
@@ -9277,6 +9077,9 @@
                           {
                             "id": "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                             "status": "created",
+                            "failure_code": null,
+                            "nfc_tries_used": 0,
+                            "liveness_tries_used": 0,
                             "contract_version": 1,
                             "share_fields": {
                               "document_type_code": {
@@ -9296,6 +9099,7 @@
                               }
                             },
                             "redirect_url": "https://example.com/redirect",
+                            "webhook_endpoint_id": null,
                             "verification_url": "https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                             "expires_at": "2025-01-01T00:00:00Z",
                             "completed_at": null,
@@ -9381,18 +9185,6 @@
             "bearerAuth": []
           }
         ],
-        "parameters": [
-          {
-            "schema": {
-              "type": ["boolean", "null"],
-              "description": "When true, includes the `attempts` array on the created session. Attempts will be empty on creation."
-            },
-            "required": false,
-            "description": "When true, includes the `attempts` array on the created session. Attempts will be empty on creation.",
-            "name": "include_attempts",
-            "in": "query"
-          }
-        ],
         "requestBody": {
           "required": false,
           "content": {
@@ -9423,11 +9215,37 @@
                           "enum": [
                             "created",
                             "in_progress",
-                            "completed",
+                            "succeeded",
+                            "failed",
                             "expired",
                             "cancelled"
                           ],
                           "description": "The status of the verification session"
+                        },
+                        "failure_code": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "document_authenticity_failed",
+                            "document_active_authentication_failed",
+                            "document_chip_authentication_failed",
+                            "document_anti_cloning_attestation_failed",
+                            "document_data_invalid",
+                            "liveness_failed",
+                            "selfie_face_mismatch"
+                          ],
+                          "description": "Terminal failure code when status='failed'. Null in any other state."
+                        },
+                        "nfc_tries_used": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3,
+                          "description": "Number of NFC chip-read failures the session has consumed. The session terminalizes on the 3rd failure."
+                        },
+                        "liveness_tries_used": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3,
+                          "description": "Number of liveness check failures the session has consumed. The session terminalizes on the 3rd failure."
                         },
                         "contract_version": {
                           "type": "integer",
@@ -9460,6 +9278,23 @@
                           "type": ["string", "null"],
                           "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                         },
+                        "webhook_endpoint_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The webhook endpoint or endpoint list selected for this session, or null when events fan out to all enabled subscribed endpoints."
+                        },
                         "verification_url": {
                           "type": "string",
                           "format": "uri",
@@ -9467,7 +9302,7 @@
                         },
                         "cancel_token": {
                           "type": "string",
-                          "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation — store it server-side if you intend to surface a cancel link from your dashboard or email; the verify URL already includes it for browser/native cancel flows."
+                          "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation."
                         },
                         "expires_at": {
                           "type": "string",
@@ -9475,7 +9310,7 @@
                         },
                         "completed_at": {
                           "type": ["string", "null"],
-                          "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
+                          "description": "The time the verification session reached a terminal state (i.e., succeeded, failed, expired or cancelled), or null if not yet terminal."
                         },
                         "created_at": {
                           "type": "string",
@@ -9484,77 +9319,18 @@
                         "updated_at": {
                           "type": "string",
                           "description": "The time the verification session was last updated"
-                        },
-                        "attempts": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "description": "The ID of the verification attempt"
-                              },
-                              "session_id": {
-                                "type": "string",
-                                "description": "The ID of the verification session this attempt belongs to"
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "in_progress",
-                                  "succeeded",
-                                  "failed",
-                                  "cancelled"
-                                ],
-                                "description": "The status of the verification attempt"
-                              },
-                              "failure_code": {
-                                "type": ["string", "null"],
-                                "enum": [
-                                  "session_expired",
-                                  "session_cancelled",
-                                  "document_authenticity_failed",
-                                  "document_active_authentication_failed",
-                                  "document_chip_authentication_failed",
-                                  "document_anti_cloning_attestation_failed",
-                                  "document_data_invalid",
-                                  "liveness_failed",
-                                  "selfie_face_mismatch"
-                                ],
-                                "description": "The code of the failure reason"
-                              },
-                              "completed_at": {
-                                "type": ["string", "null"],
-                                "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
-                              },
-                              "created_at": {
-                                "type": "string",
-                                "description": "The time the verification attempt was created"
-                              },
-                              "updated_at": {
-                                "type": "string",
-                                "description": "The time the verification attempt was last updated"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "session_id",
-                              "status",
-                              "failure_code",
-                              "completed_at",
-                              "created_at",
-                              "updated_at"
-                            ]
-                          },
-                          "description": "The verification attempts for the session. Only included when explicitly requested."
                         }
                       },
                       "required": [
                         "id",
                         "status",
+                        "failure_code",
+                        "nfc_tries_used",
+                        "liveness_tries_used",
                         "contract_version",
                         "share_fields",
                         "redirect_url",
+                        "webhook_endpoint_id",
                         "verification_url",
                         "expires_at",
                         "completed_at",
@@ -9565,6 +9341,9 @@
                         {
                           "id": "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                           "status": "created",
+                          "failure_code": null,
+                          "nfc_tries_used": 0,
+                          "liveness_tries_used": 0,
                           "contract_version": 1,
                           "share_fields": {
                             "document_type_code": {
@@ -9584,6 +9363,7 @@
                             }
                           },
                           "redirect_url": "https://example.com/redirect",
+                          "webhook_endpoint_id": null,
                           "verification_url": "https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                           "expires_at": "2025-01-01T00:00:00Z",
                           "completed_at": null,
@@ -9797,16 +9577,6 @@
             "description": "The ID of the verification session to retrieve (e.g. vs_...).",
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": ["boolean", "null"],
-              "description": "When true, includes the `attempts` array for the session. When false or omitted, attempts are not returned."
-            },
-            "required": false,
-            "description": "When true, includes the `attempts` array for the session. When false or omitted, attempts are not returned.",
-            "name": "include_attempts",
-            "in": "query"
           }
         ],
         "responses": {
@@ -9829,11 +9599,37 @@
                           "enum": [
                             "created",
                             "in_progress",
-                            "completed",
+                            "succeeded",
+                            "failed",
                             "expired",
                             "cancelled"
                           ],
                           "description": "The status of the verification session"
+                        },
+                        "failure_code": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "document_authenticity_failed",
+                            "document_active_authentication_failed",
+                            "document_chip_authentication_failed",
+                            "document_anti_cloning_attestation_failed",
+                            "document_data_invalid",
+                            "liveness_failed",
+                            "selfie_face_mismatch"
+                          ],
+                          "description": "Terminal failure code when status='failed'. Null in any other state."
+                        },
+                        "nfc_tries_used": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3,
+                          "description": "Number of NFC chip-read failures the session has consumed. The session terminalizes on the 3rd failure."
+                        },
+                        "liveness_tries_used": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3,
+                          "description": "Number of liveness check failures the session has consumed. The session terminalizes on the 3rd failure."
                         },
                         "contract_version": {
                           "type": "integer",
@@ -9866,6 +9662,23 @@
                           "type": ["string", "null"],
                           "description": "The URL to redirect to after the verification session is completed, if provided by the integrator."
                         },
+                        "webhook_endpoint_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The webhook endpoint or endpoint list selected for this session, or null when events fan out to all enabled subscribed endpoints."
+                        },
                         "verification_url": {
                           "type": "string",
                           "format": "uri",
@@ -9873,7 +9686,7 @@
                         },
                         "cancel_token": {
                           "type": "string",
-                          "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation — store it server-side if you intend to surface a cancel link from your dashboard or email; the verify URL already includes it for browser/native cancel flows."
+                          "description": "One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation."
                         },
                         "expires_at": {
                           "type": "string",
@@ -9881,7 +9694,7 @@
                         },
                         "completed_at": {
                           "type": ["string", "null"],
-                          "description": "The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal."
+                          "description": "The time the verification session reached a terminal state (i.e., succeeded, failed, expired or cancelled), or null if not yet terminal."
                         },
                         "created_at": {
                           "type": "string",
@@ -9890,77 +9703,18 @@
                         "updated_at": {
                           "type": "string",
                           "description": "The time the verification session was last updated"
-                        },
-                        "attempts": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "description": "The ID of the verification attempt"
-                              },
-                              "session_id": {
-                                "type": "string",
-                                "description": "The ID of the verification session this attempt belongs to"
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "in_progress",
-                                  "succeeded",
-                                  "failed",
-                                  "cancelled"
-                                ],
-                                "description": "The status of the verification attempt"
-                              },
-                              "failure_code": {
-                                "type": ["string", "null"],
-                                "enum": [
-                                  "session_expired",
-                                  "session_cancelled",
-                                  "document_authenticity_failed",
-                                  "document_active_authentication_failed",
-                                  "document_chip_authentication_failed",
-                                  "document_anti_cloning_attestation_failed",
-                                  "document_data_invalid",
-                                  "liveness_failed",
-                                  "selfie_face_mismatch"
-                                ],
-                                "description": "The code of the failure reason"
-                              },
-                              "completed_at": {
-                                "type": ["string", "null"],
-                                "description": "The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)"
-                              },
-                              "created_at": {
-                                "type": "string",
-                                "description": "The time the verification attempt was created"
-                              },
-                              "updated_at": {
-                                "type": "string",
-                                "description": "The time the verification attempt was last updated"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "session_id",
-                              "status",
-                              "failure_code",
-                              "completed_at",
-                              "created_at",
-                              "updated_at"
-                            ]
-                          },
-                          "description": "The verification attempts for the session. Only included when explicitly requested."
                         }
                       },
                       "required": [
                         "id",
                         "status",
+                        "failure_code",
+                        "nfc_tries_used",
+                        "liveness_tries_used",
                         "contract_version",
                         "share_fields",
                         "redirect_url",
+                        "webhook_endpoint_id",
                         "verification_url",
                         "expires_at",
                         "completed_at",
@@ -9971,6 +9725,9 @@
                         {
                           "id": "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                           "status": "created",
+                          "failure_code": null,
+                          "nfc_tries_used": 0,
+                          "liveness_tries_used": 0,
                           "contract_version": 1,
                           "share_fields": {
                             "document_type_code": {
@@ -9990,6 +9747,7 @@
                             }
                           },
                           "redirect_url": "https://example.com/redirect",
+                          "webhook_endpoint_id": null,
                           "verification_url": "https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
                           "expires_at": "2025-01-01T00:00:00Z",
                           "completed_at": null,
@@ -11648,7 +11406,7 @@
                     "error": {
                       "code": "BAD_REQUEST",
                       "message": "Bad request.",
-                      "hint": "At least one of `name`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
+                      "hint": "At least one of `name`, `labels`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
                       "docs": "https://kayle.id/docs/api/webhooks/endpoints#update"
                     }
                   }
@@ -12036,15 +11794,15 @@
             "schema": {
               "type": "string",
               "enum": [
-                "verification.attempt.succeeded",
-                "verification.attempt.failed",
+                "verification.session.succeeded",
+                "verification.session.failed",
                 "verification.session.expired",
                 "verification.session.cancelled"
               ],
-              "description": "Filter events by type (e.g. \"verification.attempt.succeeded\")."
+              "description": "Filter events by type (e.g. \"verification.session.succeeded\")."
             },
             "required": false,
-            "description": "Filter events by type (e.g. \"verification.attempt.succeeded\").",
+            "description": "Filter events by type (e.g. \"verification.session.succeeded\").",
             "name": "type",
             "in": "query"
           },
@@ -12632,10 +12390,10 @@
     }
   },
   "webhooks": {
-    "verification.attempt.succeeded": {
+    "verification.session.succeeded": {
       "post": {
         "tags": ["Webhook payloads"],
-        "summary": "verification.attempt.succeeded payload",
+        "summary": "verification.session.succeeded payload",
         "description": "Delivered as a JWE-encrypted POST body when Kayle confirms an attempt. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
         "requestBody": {
           "required": true,
@@ -12655,10 +12413,10 @@
         }
       }
     },
-    "verification.attempt.failed": {
+    "verification.session.failed": {
       "post": {
         "tags": ["Webhook payloads"],
-        "summary": "verification.attempt.failed payload",
+        "summary": "verification.session.failed payload",
         "description": "Delivered as a JWE-encrypted POST body when Kayle cannot confirm an attempt. This payload contains no claims, biometrics, face scores, or risk scores. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
         "requestBody": {
           "required": true,

@@ -15,6 +15,7 @@
       "!**/.wrangler",
       "!**/.wrangler-out",
       "!**/cloudflare-env.d.ts",
+      "!apps/biometric-verifier/tests/fixtures/*.json",
       "!**/routeTree.gen.ts",
       "!**/.css"
     ]

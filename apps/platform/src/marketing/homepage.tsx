@@ -73,7 +73,7 @@ export function Homepage() {
 					Verify your users' identity or confirm their age with one coherent
 					flow — with only the details you need, end-to-end-encrypted.
 				</p>
-				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+				<div className="mt-6 flex flex-row items-center justify-center gap-3">
 					<Button
 						nativeButton={false}
 						render={<Link to={ctaTo}>Get Started</Link>}

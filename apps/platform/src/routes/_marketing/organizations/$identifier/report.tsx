@@ -3,7 +3,9 @@ import { ReportOrganizationPage } from "@/app/organizations/public/report";
 import { parseReportRouteSearch } from "@/app/organizations/public/report-search-params";
 import { fetchReportableOrganizationForRoute } from "@/lib/api/public-organizations-route";
 
-export const Route = createFileRoute("/organizations/$identifier/report")({
+export const Route = createFileRoute(
+	"/_marketing/organizations/$identifier/report",
+)({
 	component: ReportOrganizationRoute,
 	validateSearch: parseReportRouteSearch,
 	loader: async ({ params }) =>

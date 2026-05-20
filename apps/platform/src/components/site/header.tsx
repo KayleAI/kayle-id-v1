@@ -46,7 +46,7 @@ const navigationItems: {
 				to: "/demo",
 			},
 			{
-				description: "Implementation guides, concepts, and integration notes.",
+				description: "Guides, concepts, and more about Kayle ID.",
 				label: "Docs",
 				to: DOCUMENTATION_URL,
 			},
@@ -191,7 +191,7 @@ function MobileNavigation() {
 	return (
 		<Sheet onOpenChange={setOpen} open={open}>
 			<SheetTrigger
-				render={() => (
+				render={
 					<button
 						aria-label="Open menu"
 						className="rounded-lg p-2 transition-colors hover:bg-muted lg:hidden"
@@ -199,7 +199,7 @@ function MobileNavigation() {
 					>
 						<Menu className="size-6" />
 					</button>
-				)}
+				}
 			/>
 			<SheetContent className="w-full sm:max-w-sm" side="right">
 				<SheetTitle>

@@ -14,7 +14,6 @@ import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as LegalRouteImport } from './routes/_legal'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as OrganizationsIndexRouteImport } from './routes/organizations/index'
 import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as OnboardingPublicRouteImport } from './routes/onboarding/public'
@@ -31,13 +30,12 @@ import { Route as AuthSelectOrganizationRouteImport } from './routes/_auth/selec
 import { Route as AuthCreateOrganizationRouteImport } from './routes/_auth/create-organization'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
-import { Route as OrganizationsIdentifierIndexRouteImport } from './routes/organizations/$identifier/index'
+import { Route as MarketingOrganizationsIndexRouteImport } from './routes/_marketing/organizations/index'
 import { Route as MarketingDemoIndexRouteImport } from './routes/_marketing/demo.index'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
 import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
-import { Route as OrganizationsIdentifierReportRouteImport } from './routes/organizations/$identifier/report'
 import { Route as MarketingDemoIdRouteImport } from './routes/_marketing/demo.id'
 import { Route as MarketingDemoAgeRouteImport } from './routes/_marketing/demo.age'
 import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
@@ -46,8 +44,10 @@ import { Route as AppAdminCostAnalyticsRouteImport } from './routes/_app/admin/c
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
 import { Route as ApiApiOrganizationsRouteImport } from './routes/_api/api/organizations'
+import { Route as MarketingOrganizationsIdentifierIndexRouteImport } from './routes/_marketing/organizations/$identifier/index'
 import { Route as AppSettingsOrganizationsIndexRouteImport } from './routes/_app/settings/organizations/index'
 import { Route as AppAdminOrganizationReportsIndexRouteImport } from './routes/_app/admin/organization-reports/index'
+import { Route as MarketingOrganizationsIdentifierReportRouteImport } from './routes/_marketing/organizations/$identifier/report'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
 import { Route as AppSettingsOrganizationsSettingsRouteImport } from './routes/_app/settings/organizations/settings'
 import { Route as AppSettingsOrganizationsPublicRouteImport } from './routes/_app/settings/organizations/public'
@@ -85,11 +85,6 @@ const AuthRoute = AuthRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrganizationsIndexRoute = OrganizationsIndexRouteImport.update({
-  id: '/organizations/',
-  path: '/organizations/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
@@ -172,11 +167,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
-const OrganizationsIdentifierIndexRoute =
-  OrganizationsIdentifierIndexRouteImport.update({
-    id: '/organizations/$identifier/',
-    path: '/organizations/$identifier/',
-    getParentRoute: () => rootRouteImport,
+const MarketingOrganizationsIndexRoute =
+  MarketingOrganizationsIndexRouteImport.update({
+    id: '/organizations/',
+    path: '/organizations/',
+    getParentRoute: () => MarketingRoute,
   } as any)
 const MarketingDemoIndexRoute = MarketingDemoIndexRouteImport.update({
   id: '/demo/',
@@ -203,12 +198,6 @@ const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAccountRoute,
 } as any)
-const OrganizationsIdentifierReportRoute =
-  OrganizationsIdentifierReportRouteImport.update({
-    id: '/organizations/$identifier/report',
-    path: '/organizations/$identifier/report',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const MarketingDemoIdRoute = MarketingDemoIdRouteImport.update({
   id: '/demo/id',
   path: '/demo/id',
@@ -250,6 +239,12 @@ const ApiApiOrganizationsRoute = ApiApiOrganizationsRouteImport.update({
   path: '/api/organizations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketingOrganizationsIdentifierIndexRoute =
+  MarketingOrganizationsIdentifierIndexRouteImport.update({
+    id: '/organizations/$identifier/',
+    path: '/organizations/$identifier/',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const AppSettingsOrganizationsIndexRoute =
   AppSettingsOrganizationsIndexRouteImport.update({
     id: '/settings/organizations/',
@@ -261,6 +256,12 @@ const AppAdminOrganizationReportsIndexRoute =
     id: '/admin/organization-reports/',
     path: '/admin/organization-reports/',
     getParentRoute: () => AppRoute,
+  } as any)
+const MarketingOrganizationsIdentifierReportRoute =
+  MarketingOrganizationsIdentifierReportRouteImport.update({
+    id: '/organizations/$identifier/report',
+    path: '/organizations/$identifier/report',
+    getParentRoute: () => MarketingRoute,
   } as any)
 const AppWebhooksEventsEventRoute = AppWebhooksEventsEventRouteImport.update({
   id: '/webhooks/events/$event',
@@ -376,7 +377,6 @@ export interface FileRoutesByFullPath {
   '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
   '/onboarding/public': typeof OnboardingPublicRoute
   '/onboarding/': typeof OnboardingIndexRoute
-  '/organizations/': typeof OrganizationsIndexRoute
   '/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
@@ -385,13 +385,12 @@ export interface FileRoutesByFullPath {
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
-  '/organizations/$identifier/report': typeof OrganizationsIdentifierReportRoute
   '/account/': typeof AppAccountIndexRoute
   '/admin/': typeof AppAdminIndexRoute
   '/api-keys/': typeof AppApiKeysIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
   '/demo/': typeof MarketingDemoIndexRoute
-  '/organizations/$identifier/': typeof OrganizationsIdentifierIndexRoute
+  '/organizations/': typeof MarketingOrganizationsIndexRoute
   '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
@@ -409,8 +408,10 @@ export interface FileRoutesByFullPath {
   '/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
   '/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
   '/admin/organization-reports/': typeof AppAdminOrganizationReportsIndexRoute
   '/settings/organizations/': typeof AppSettingsOrganizationsIndexRoute
+  '/organizations/$identifier/': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
@@ -428,7 +429,6 @@ export interface FileRoutesByTo {
   '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
   '/onboarding/public': typeof OnboardingPublicRoute
   '/onboarding': typeof OnboardingIndexRoute
-  '/organizations': typeof OrganizationsIndexRoute
   '/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
@@ -437,13 +437,12 @@ export interface FileRoutesByTo {
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
-  '/organizations/$identifier/report': typeof OrganizationsIdentifierReportRoute
   '/account': typeof AppAccountIndexRoute
   '/admin': typeof AppAdminIndexRoute
   '/api-keys': typeof AppApiKeysIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/demo': typeof MarketingDemoIndexRoute
-  '/organizations/$identifier': typeof OrganizationsIdentifierIndexRoute
+  '/organizations': typeof MarketingOrganizationsIndexRoute
   '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
@@ -461,8 +460,10 @@ export interface FileRoutesByTo {
   '/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
   '/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
   '/admin/organization-reports': typeof AppAdminOrganizationReportsIndexRoute
   '/settings/organizations': typeof AppSettingsOrganizationsIndexRoute
+  '/organizations/$identifier': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -487,7 +488,6 @@ export interface FileRoutesById {
   '/onboarding/public': typeof OnboardingPublicRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/onboarding/': typeof OnboardingIndexRoute
-  '/organizations/': typeof OrganizationsIndexRoute
   '/_api/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
@@ -496,13 +496,12 @@ export interface FileRoutesById {
   '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
   '/_marketing/demo/age': typeof MarketingDemoAgeRoute
   '/_marketing/demo/id': typeof MarketingDemoIdRoute
-  '/organizations/$identifier/report': typeof OrganizationsIdentifierReportRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_marketing/demo/': typeof MarketingDemoIndexRoute
-  '/organizations/$identifier/': typeof OrganizationsIdentifierIndexRoute
+  '/_marketing/organizations/': typeof MarketingOrganizationsIndexRoute
   '/_api/api/admin/$': typeof ApiApiAdminSplatRoute
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
@@ -520,8 +519,10 @@ export interface FileRoutesById {
   '/_app/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
   '/_app/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/_marketing/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
   '/_app/admin/organization-reports/': typeof AppAdminOrganizationReportsIndexRoute
   '/_app/settings/organizations/': typeof AppSettingsOrganizationsIndexRoute
+  '/_marketing/organizations/$identifier/': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -543,7 +544,6 @@ export interface FileRouteTypes {
     | '/onboarding/owner-id'
     | '/onboarding/public'
     | '/onboarding/'
-    | '/organizations/'
     | '/api/organizations'
     | '/api/start-org-verification'
     | '/account/security'
@@ -552,13 +552,12 @@ export interface FileRouteTypes {
     | '/webhooks/$endpoint'
     | '/demo/age'
     | '/demo/id'
-    | '/organizations/$identifier/report'
     | '/account/'
     | '/admin/'
     | '/api-keys/'
     | '/webhooks/'
     | '/demo/'
-    | '/organizations/$identifier/'
+    | '/organizations/'
     | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
@@ -576,8 +575,10 @@ export interface FileRouteTypes {
     | '/settings/organizations/public'
     | '/settings/organizations/settings'
     | '/webhooks/events/$event'
+    | '/organizations/$identifier/report'
     | '/admin/organization-reports/'
     | '/settings/organizations/'
+    | '/organizations/$identifier/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -595,7 +596,6 @@ export interface FileRouteTypes {
     | '/onboarding/owner-id'
     | '/onboarding/public'
     | '/onboarding'
-    | '/organizations'
     | '/api/organizations'
     | '/api/start-org-verification'
     | '/account/security'
@@ -604,13 +604,12 @@ export interface FileRouteTypes {
     | '/webhooks/$endpoint'
     | '/demo/age'
     | '/demo/id'
-    | '/organizations/$identifier/report'
     | '/account'
     | '/admin'
     | '/api-keys'
     | '/webhooks'
     | '/demo'
-    | '/organizations/$identifier'
+    | '/organizations'
     | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
@@ -628,8 +627,10 @@ export interface FileRouteTypes {
     | '/settings/organizations/public'
     | '/settings/organizations/settings'
     | '/webhooks/events/$event'
+    | '/organizations/$identifier/report'
     | '/admin/organization-reports'
     | '/settings/organizations'
+    | '/organizations/$identifier'
   id:
     | '__root__'
     | '/_app'
@@ -653,7 +654,6 @@ export interface FileRouteTypes {
     | '/onboarding/public'
     | '/_marketing/'
     | '/onboarding/'
-    | '/organizations/'
     | '/_api/api/organizations'
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
@@ -662,13 +662,12 @@ export interface FileRouteTypes {
     | '/_app/webhooks/$endpoint'
     | '/_marketing/demo/age'
     | '/_marketing/demo/id'
-    | '/organizations/$identifier/report'
     | '/_app/account/'
     | '/_app/admin/'
     | '/_app/api-keys/'
     | '/_app/webhooks/'
     | '/_marketing/demo/'
-    | '/organizations/$identifier/'
+    | '/_marketing/organizations/'
     | '/_api/api/admin/$'
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
@@ -686,8 +685,10 @@ export interface FileRouteTypes {
     | '/_app/settings/organizations/public'
     | '/_app/settings/organizations/settings'
     | '/_app/webhooks/events/$event'
+    | '/_marketing/organizations/$identifier/report'
     | '/_app/admin/organization-reports/'
     | '/_app/settings/organizations/'
+    | '/_marketing/organizations/$identifier/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -696,11 +697,8 @@ export interface RootRouteChildren {
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
   OnboardingRoute: typeof OnboardingRouteWithChildren
-  OrganizationsIndexRoute: typeof OrganizationsIndexRoute
   ApiApiOrganizationsRoute: typeof ApiApiOrganizationsRouteWithChildren
   ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
-  OrganizationsIdentifierReportRoute: typeof OrganizationsIdentifierReportRoute
-  OrganizationsIdentifierIndexRoute: typeof OrganizationsIdentifierIndexRoute
   ApiApiAdminSplatRoute: typeof ApiApiAdminSplatRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
@@ -745,13 +743,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/organizations/': {
-      id: '/organizations/'
-      path: '/organizations'
-      fullPath: '/organizations/'
-      preLoaderRoute: typeof OrganizationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding/': {
@@ -866,12 +857,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
-    '/organizations/$identifier/': {
-      id: '/organizations/$identifier/'
-      path: '/organizations/$identifier'
-      fullPath: '/organizations/$identifier/'
-      preLoaderRoute: typeof OrganizationsIdentifierIndexRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_marketing/organizations/': {
+      id: '/_marketing/organizations/'
+      path: '/organizations'
+      fullPath: '/organizations/'
+      preLoaderRoute: typeof MarketingOrganizationsIndexRouteImport
+      parentRoute: typeof MarketingRoute
     }
     '/_marketing/demo/': {
       id: '/_marketing/demo/'
@@ -907,13 +898,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/'
       preLoaderRoute: typeof AppAccountIndexRouteImport
       parentRoute: typeof AppAccountRoute
-    }
-    '/organizations/$identifier/report': {
-      id: '/organizations/$identifier/report'
-      path: '/organizations/$identifier/report'
-      fullPath: '/organizations/$identifier/report'
-      preLoaderRoute: typeof OrganizationsIdentifierReportRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_marketing/demo/id': {
       id: '/_marketing/demo/id'
@@ -971,6 +955,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApiOrganizationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_marketing/organizations/$identifier/': {
+      id: '/_marketing/organizations/$identifier/'
+      path: '/organizations/$identifier'
+      fullPath: '/organizations/$identifier/'
+      preLoaderRoute: typeof MarketingOrganizationsIdentifierIndexRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/settings/organizations/': {
       id: '/_app/settings/organizations/'
       path: '/settings/organizations'
@@ -984,6 +975,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/organization-reports/'
       preLoaderRoute: typeof AppAdminOrganizationReportsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_marketing/organizations/$identifier/report': {
+      id: '/_marketing/organizations/$identifier/report'
+      path: '/organizations/$identifier/report'
+      fullPath: '/organizations/$identifier/report'
+      preLoaderRoute: typeof MarketingOrganizationsIdentifierReportRouteImport
+      parentRoute: typeof MarketingRoute
     }
     '/_app/webhooks/events/$event': {
       id: '/_app/webhooks/events/$event'
@@ -1207,6 +1205,9 @@ interface MarketingRouteChildren {
   MarketingDemoAgeRoute: typeof MarketingDemoAgeRoute
   MarketingDemoIdRoute: typeof MarketingDemoIdRoute
   MarketingDemoIndexRoute: typeof MarketingDemoIndexRoute
+  MarketingOrganizationsIndexRoute: typeof MarketingOrganizationsIndexRoute
+  MarketingOrganizationsIdentifierReportRoute: typeof MarketingOrganizationsIdentifierReportRoute
+  MarketingOrganizationsIdentifierIndexRoute: typeof MarketingOrganizationsIdentifierIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
@@ -1214,6 +1215,11 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingDemoAgeRoute: MarketingDemoAgeRoute,
   MarketingDemoIdRoute: MarketingDemoIdRoute,
   MarketingDemoIndexRoute: MarketingDemoIndexRoute,
+  MarketingOrganizationsIndexRoute: MarketingOrganizationsIndexRoute,
+  MarketingOrganizationsIdentifierReportRoute:
+    MarketingOrganizationsIdentifierReportRoute,
+  MarketingOrganizationsIdentifierIndexRoute:
+    MarketingOrganizationsIdentifierIndexRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
@@ -1257,11 +1263,8 @@ const rootRouteChildren: RootRouteChildren = {
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
   OnboardingRoute: OnboardingRouteWithChildren,
-  OrganizationsIndexRoute: OrganizationsIndexRoute,
   ApiApiOrganizationsRoute: ApiApiOrganizationsRouteWithChildren,
   ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
-  OrganizationsIdentifierReportRoute: OrganizationsIdentifierReportRoute,
-  OrganizationsIdentifierIndexRoute: OrganizationsIdentifierIndexRoute,
   ApiApiAdminSplatRoute: ApiApiAdminSplatRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,

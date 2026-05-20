@@ -1,5 +1,6 @@
 import { Button } from "@kayle-id/ui/components/button";
 import { Input } from "@kayle-id/ui/components/input";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { Link } from "@tanstack/react-router";
 import {
 	AlertCircle,
@@ -200,18 +201,14 @@ function OrganizationsPaginationControls({
 	);
 }
 
-export function PublicOrganizationsSearchPage({
-	error,
-	onSearch,
-	organizations,
-	pagination,
+function OrganizationsSearchPageShell({
+	children,
 	query,
+	onSearch,
 }: {
-	error: null | string;
-	onSearch: (query: string) => void;
-	organizations: PublicOrganization[];
-	pagination: PublicOrganizationsPagination;
+	children: ReactNode;
 	query: string;
+	onSearch?: (query: string) => void;
 }) {
 	const [draftQuery, setDraftQuery] = useState(query);
 	const searchId = useId();
@@ -222,7 +219,7 @@ export function PublicOrganizationsSearchPage({
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		onSearch(draftQuery.trim());
+		onSearch?.(draftQuery.trim());
 	};
 
 	return (
@@ -264,14 +261,70 @@ export function PublicOrganizationsSearchPage({
 					</div>
 				</section>
 
-				<SearchResultsSection
-					error={error}
-					organizations={organizations}
-					pagination={pagination}
-					query={query}
-				/>
+				{children}
 			</main>
 		</PublicPageShell>
+	);
+}
+
+function OrganizationResultCardSkeleton() {
+	return (
+		<div className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card/70 p-5">
+			<div className="flex items-center gap-4">
+				<Skeleton className="size-12 shrink-0 rounded-2xl" />
+				<div className="min-w-0 flex-1 space-y-2">
+					<Skeleton className="h-5 w-2/5 rounded-md" />
+					<Skeleton className="h-4 w-4/5 rounded-md" />
+				</div>
+				<Skeleton className="mt-1 size-5 shrink-0 rounded-md" />
+			</div>
+		</div>
+	);
+}
+
+const SKELETON_ROW_COUNT = 6;
+
+export function PublicOrganizationsSearchPageSkeleton({
+	query = "",
+}: {
+	query?: string;
+} = {}) {
+	return (
+		<OrganizationsSearchPageShell query={query}>
+			<div className="mt-8 flex flex-col gap-1" aria-busy="true">
+				{Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
+					<OrganizationResultCardSkeleton
+						// biome-ignore lint/suspicious/noArrayIndexKey: stable skeleton list
+						key={index}
+					/>
+				))}
+			</div>
+		</OrganizationsSearchPageShell>
+	);
+}
+
+export function PublicOrganizationsSearchPage({
+	error,
+	onSearch,
+	organizations,
+	pagination,
+	query,
+}: {
+	error: null | string;
+	onSearch: (query: string) => void;
+	organizations: PublicOrganization[];
+	pagination: PublicOrganizationsPagination;
+	query: string;
+}) {
+	return (
+		<OrganizationsSearchPageShell onSearch={onSearch} query={query}>
+			<SearchResultsSection
+				error={error}
+				organizations={organizations}
+				pagination={pagination}
+				query={query}
+			/>
+		</OrganizationsSearchPageShell>
 	);
 }
 

@@ -5,18 +5,10 @@ import {
 	ShieldQuestion,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Footer } from "@/components/site/footer";
-import { Header } from "@/components/site/header";
 import type { PublicOrganization } from "@/lib/api/public-organizations";
 
 export function PublicPageShell({ children }: { children: ReactNode }) {
-	return (
-		<div className="min-h-dvh bg-background text-foreground">
-			<Header />
-			<main className="isolate pt-16">{children}</main>
-			<Footer />
-		</div>
-	);
+	return <>{children}</>;
 }
 
 export function formatOrganizationWebsite(value: string | null): string | null {

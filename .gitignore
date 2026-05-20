@@ -14,6 +14,7 @@ logs
 .turbo
 
 drizzle-gateway-volume
+database/kayle-id/migrations/**/snapshot.json
 
 temp/
 

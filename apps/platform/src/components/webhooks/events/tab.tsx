@@ -14,8 +14,9 @@ import {
 	getEventTriggerLabel,
 	getSuccessfulDeliveryFraction,
 } from "@/app/webhooks/utils";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
-import { LoadingState, QueryErrorAlert, SectionMessage } from "../shared";
+import { LoadingState, SectionMessage } from "../shared";
 
 export function EventsTabContent({
 	error,

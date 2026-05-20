@@ -16,13 +16,13 @@ import {
 	formatCount,
 	getEventSubscriptionSummary,
 } from "@/app/webhooks/utils";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import { CreateKeyDialog } from "../keys/create-dialog";
 import {
 	EndpointLabels,
 	LoadingState,
-	QueryErrorAlert,
 	StatusBadge,
 	showAsyncToast,
 } from "../shared";

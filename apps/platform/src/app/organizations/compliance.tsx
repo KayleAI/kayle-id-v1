@@ -38,6 +38,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	acceptRpIntegrationTerms,
@@ -786,17 +787,11 @@ export function OrganizationCompliancePage() {
 			description="Controller, lawful basis, and consumer-protection settings required before production identity checks."
 			title="Compliance"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load compliance settings</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading compliance settings.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading compliance settings."
+				title="Failed to load compliance settings"
+			/>
 			{showUnverifiedNotice ? (
 				<div className="mb-6">
 					<UnverifiedDomainNotice />

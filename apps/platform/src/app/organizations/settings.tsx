@@ -37,6 +37,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
@@ -567,17 +568,11 @@ export function OrganizationSettingsPage() {
 			description="Internal organization settings."
 			title="Settings"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load settings</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading settings.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading settings."
+				title="Failed to load settings"
+			/>
 			{isLoading ? <SettingsSkeleton /> : null}
 			{data && !isError ? (
 				<SettingsBody

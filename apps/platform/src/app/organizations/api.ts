@@ -5,8 +5,12 @@ import {
 } from "@kayle-id/auth/organization-metadata";
 import type { Organization, OrganizationRole } from "@kayle-id/auth/types";
 import { requestApiResource } from "@/utils/api-client";
+import {
+	type BetterAuthResult,
+	unwrapBetterAuthResult,
+} from "@/utils/better-auth";
 
-const ORG_DELETE_BASE_PATH = "/api/auth/orgs";
+const ORG_BASE_PATH = "/api/auth/orgs";
 
 export const ORGANIZATION_QUERY_KEY = ["organization"] as const;
 
@@ -15,11 +19,8 @@ export interface OrganizationMember {
 	id: string;
 	organizationId: string;
 	role: OrganizationRole;
-	/**
-	 * ISO 8601 timestamp set when the membership has been suspended. Suspended
-	 * rows are kept for audit-log attribution but the user has no access to
-	 * the organization. `null` means the membership is active.
-	 */
+	// Suspended rows are kept for audit-log attribution but the user has no
+	// access to the organization. `null` means the membership is active.
 	suspendedAt: string | null;
 	suspendedBy: string | null;
 	user: {
@@ -60,18 +61,6 @@ export interface FullOrganization extends Organization {
 	metadata: OrganizationMetadata | null;
 }
 
-interface BetterAuthResult<T> {
-	data: T | null;
-	error: { code?: string; message?: string; status?: number } | null;
-}
-
-function unwrap<T>(result: BetterAuthResult<T>, fallback: string): T {
-	if (result.error || result.data === null || result.data === undefined) {
-		throw new Error(result.error?.message ?? fallback);
-	}
-	return result.data;
-}
-
 function toIsoStringOrNull(value: unknown): string | null {
 	if (value === null || value === undefined) {
 		return null;
@@ -85,12 +74,23 @@ function toIsoStringOrNull(value: unknown): string | null {
 	return null;
 }
 
+function readStringOrNull(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+function readBusinessType(value: unknown): OrganizationBusinessType | null {
+	return value === "sole" || value === "business" ? value : null;
+}
+
 export async function fetchFullOrganization(): Promise<FullOrganization> {
 	const result =
 		(await client.organization.getFullOrganization()) as BetterAuthResult<
 			Record<string, unknown>
 		>;
-	const data = unwrap(result, "Failed to load organization details");
+	const data = unwrapBetterAuthResult(
+		result,
+		"Failed to load organization details",
+	);
 
 	return {
 		...(data as unknown as Organization),
@@ -98,18 +98,16 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 		pendingDeletionRequestedAt: toIsoStringOrNull(
 			data.pendingDeletionRequestedAt,
 		),
-		pendingDeletionRequestedBy:
-			typeof data.pendingDeletionRequestedBy === "string"
-				? data.pendingDeletionRequestedBy
-				: null,
+		pendingDeletionRequestedBy: readStringOrNull(
+			data.pendingDeletionRequestedBy,
+		),
 		verifiedAt: toIsoStringOrNull(data.verifiedAt),
 		verificationTermsAcceptedAt: toIsoStringOrNull(
 			data.verificationTermsAcceptedAt,
 		),
-		verificationTermsAcceptedBy:
-			typeof data.verificationTermsAcceptedBy === "string"
-				? data.verificationTermsAcceptedBy
-				: null,
+		verificationTermsAcceptedBy: readStringOrNull(
+			data.verificationTermsAcceptedBy,
+		),
 		createdAt:
 			typeof data.createdAt === "string"
 				? data.createdAt
@@ -120,20 +118,12 @@ export async function fetchFullOrganization(): Promise<FullOrganization> {
 			(data.invitations as OrganizationInvitation[] | undefined) ?? [],
 		members: (data.members as OrganizationMember[] | undefined) ?? [],
 		metadata: parseStoredOrganizationMetadata(data.metadata),
-		businessType:
-			data.businessType === "sole" || data.businessType === "business"
-				? data.businessType
-				: null,
-		businessName:
-			typeof data.businessName === "string" ? data.businessName : null,
-		businessJurisdiction:
-			typeof data.businessJurisdiction === "string"
-				? data.businessJurisdiction
-				: null,
-		businessRegistrationNumber:
-			typeof data.businessRegistrationNumber === "string"
-				? data.businessRegistrationNumber
-				: null,
+		businessType: readBusinessType(data.businessType),
+		businessName: readStringOrNull(data.businessName),
+		businessJurisdiction: readStringOrNull(data.businessJurisdiction),
+		businessRegistrationNumber: readStringOrNull(
+			data.businessRegistrationNumber,
+		),
 	};
 }
 
@@ -154,22 +144,17 @@ export interface BusinessDetailsResponse {
 export async function updateOrganizationBusinessDetails(
 	input: UpdateBusinessDetailsInput,
 ): Promise<BusinessDetailsResponse> {
+	const body: Record<string, unknown> = {};
+	if (input.businessType !== undefined) body.business_type = input.businessType;
+	if (input.businessName !== undefined) body.business_name = input.businessName;
+	if (input.businessJurisdiction !== undefined)
+		body.business_jurisdiction = input.businessJurisdiction;
+	if (input.businessRegistrationNumber !== undefined)
+		body.business_registration_number = input.businessRegistrationNumber;
+
 	return await requestApiResource<BusinessDetailsResponse>({
-		basePath: ORG_DELETE_BASE_PATH,
-		body: {
-			...(input.businessType !== undefined
-				? { business_type: input.businessType }
-				: {}),
-			...(input.businessName !== undefined
-				? { business_name: input.businessName }
-				: {}),
-			...(input.businessJurisdiction !== undefined
-				? { business_jurisdiction: input.businessJurisdiction }
-				: {}),
-			...(input.businessRegistrationNumber !== undefined
-				? { business_registration_number: input.businessRegistrationNumber }
-				: {}),
-		},
+		basePath: ORG_BASE_PATH,
+		body,
 		method: "POST",
 		path: "/business-details",
 		unexpectedMessage: "Failed to update business details.",
@@ -191,7 +176,7 @@ export async function updateOrganization(
 		data: input as { logo?: string; metadata?: Record<string, unknown> },
 		organizationId,
 	})) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to update organization");
+	unwrapBetterAuthResult(result, "Failed to update organization");
 }
 
 export async function inviteOrganizationMember(input: {
@@ -201,7 +186,7 @@ export async function inviteOrganizationMember(input: {
 	const result = (await client.organization.inviteMember(
 		input,
 	)) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to invite member");
+	unwrapBetterAuthResult(result, "Failed to invite member");
 }
 
 export async function cancelOrganizationInvitation(
@@ -210,42 +195,44 @@ export async function cancelOrganizationInvitation(
 	const result = (await client.organization.cancelInvitation({
 		invitationId,
 	})) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to cancel invitation");
+	unwrapBetterAuthResult(result, "Failed to cancel invitation");
 }
 
-/**
- * Suspend a member of the active organization. The membership row is kept
- * (so audit-log entries continue attributing past actions to the user) but
- * the user loses all access to the org. Replaces the previous "remove member"
- * flow — direct hard-delete via better-auth is now blocked at the API edge.
- */
-export async function suspendOrganizationMember(input: {
-	memberId: string;
-}): Promise<void> {
-	const response = await fetch(`/api/auth/orgs/members/${input.memberId}`, {
+async function rawOrgFetch(
+	path: string,
+	method: "POST" | "DELETE",
+	fallback: string,
+): Promise<void> {
+	const response = await fetch(`${ORG_BASE_PATH}${path}`, {
 		credentials: "include",
-		method: "DELETE",
+		method,
 	});
 	if (!response.ok) {
 		const body = await response.text();
-		throw new Error(body || "Failed to suspend member.");
+		throw new Error(body || fallback);
 	}
+}
+
+// Suspend (not delete) a member to preserve audit-log attribution. Direct
+// hard-delete via better-auth is blocked at the API edge.
+export async function suspendOrganizationMember(input: {
+	memberId: string;
+}): Promise<void> {
+	await rawOrgFetch(
+		`/members/${input.memberId}`,
+		"DELETE",
+		"Failed to suspend member.",
+	);
 }
 
 export async function reinstateOrganizationMember(input: {
 	memberId: string;
 }): Promise<void> {
-	const response = await fetch(
-		`/api/auth/orgs/members/${input.memberId}/reinstate`,
-		{
-			credentials: "include",
-			method: "POST",
-		},
+	await rawOrgFetch(
+		`/members/${input.memberId}/reinstate`,
+		"POST",
+		"Failed to reinstate member.",
 	);
-	if (!response.ok) {
-		const body = await response.text();
-		throw new Error(body || "Failed to reinstate member.");
-	}
 }
 
 export async function updateOrganizationMemberRole(input: {
@@ -255,36 +242,22 @@ export async function updateOrganizationMemberRole(input: {
 	const result = (await client.organization.updateMemberRole(
 		input,
 	)) as BetterAuthResult<unknown>;
-	unwrap(result, "Failed to update member role");
+	unwrapBetterAuthResult(result, "Failed to update member role");
 }
 
-/**
- * Leave the active organization. The caller's membership is suspended, not
- * deleted, so audit-log attribution is preserved. The last active owner
- * cannot leave.
- *
- * The `_organizationId` argument is kept for call-site parity with the
- * previous better-auth-backed implementation; the server reads the active
- * organization off the session.
- */
+// The server reads the active organization off the session. The argument is
+// kept for call-site parity with the previous better-auth implementation.
 export async function leaveOrganization(
 	_organizationId: string,
 ): Promise<void> {
-	const response = await fetch("/api/auth/orgs/members/leave", {
-		credentials: "include",
-		method: "POST",
-	});
-	if (!response.ok) {
-		const body = await response.text();
-		throw new Error(body || "Failed to leave organization.");
-	}
+	await rawOrgFetch("/members/leave", "POST", "Failed to leave organization.");
 }
 
 export async function requestOrganizationDeletion(
 	organizationId: string,
 ): Promise<{ sentToEmail: string }> {
 	return await requestApiResource<{ sentToEmail: string }>({
-		basePath: ORG_DELETE_BASE_PATH,
+		basePath: ORG_BASE_PATH,
 		body: { organizationId },
 		method: "POST",
 		path: "/request-delete",
@@ -297,7 +270,7 @@ export async function confirmOrganizationDeletion(
 	code: string,
 ): Promise<{ pendingDeletionAt: string }> {
 	return await requestApiResource<{ pendingDeletionAt: string }>({
-		basePath: ORG_DELETE_BASE_PATH,
+		basePath: ORG_BASE_PATH,
 		body: { organizationId, code },
 		method: "POST",
 		path: "/confirm-delete",
@@ -309,7 +282,7 @@ export async function cancelOrganizationDeletion(
 	organizationId: string,
 ): Promise<void> {
 	await requestApiResource<{ ok: true }>({
-		basePath: ORG_DELETE_BASE_PATH,
+		basePath: ORG_BASE_PATH,
 		body: { organizationId },
 		method: "POST",
 		path: "/cancel-delete",
@@ -325,7 +298,7 @@ export async function acceptVerificationTerms(organizationId: string): Promise<{
 		verificationTermsAcceptedAt: string;
 		verificationTermsAcceptedBy: string;
 	}>({
-		basePath: ORG_DELETE_BASE_PATH,
+		basePath: ORG_BASE_PATH,
 		body: { organizationId },
 		method: "POST",
 		path: "/accept-verification-terms",
@@ -360,7 +333,7 @@ export async function uploadOrganizationLogo({
 	data,
 }: UploadLogoInput): Promise<{ logo: string }> {
 	return requestApiResource<{ logo: string }>({
-		basePath: "/api/auth/orgs",
+		basePath: ORG_BASE_PATH,
 		body: { logo: { contentType, data } },
 		method: "POST",
 		path: "/logo",

@@ -4,11 +4,6 @@ import type { BusinessDetailsDraftValues } from "@/app/organizations/business";
 import type { ComplianceDraftValues } from "@/app/organizations/compliance";
 import type { PublicDetailsDraftValues } from "@/app/organizations/public-details";
 
-/**
- * The five wizard steps, in order. Slugs are URL-safe (hyphenated for the
- * owner-ID step). The intro is its own step with no associated form — it just
- * welcomes the user before they start filling things in.
- */
 export const ONBOARDING_STEP_ORDER = [
 	"intro",
 	"public",
@@ -30,11 +25,6 @@ export const ONBOARDING_STEP_HEADER_LABELS: Record<
 	"owner-id": "Owner ID Check",
 };
 
-/**
- * Context shared between the layout (`OnboardingPage`) and each child route.
- * The layout owns organization data + draft state + the advance handler;
- * each step reads what it needs via `useOnboardingContext`.
- */
 export interface OnboardingOutletContext {
 	canAcceptRpTerms: boolean;
 	canEdit: boolean;
@@ -72,11 +62,7 @@ export function useOnboardingContext(): OnboardingOutletContext {
 	return value;
 }
 
-/**
- * Map of URL → step. The bare `/onboarding` path is the intro itself —
- * we don't redirect to `/onboarding/intro`. Returns `"intro"` for any
- * unrecognized child route too, so the layout doesn't break on typos.
- */
+// `/onboarding` itself is the intro — falls back to "intro" for unknown subroutes.
 export function stepFromPathname(pathname: string): OnboardingRouteStep {
 	const trimmed = pathname.replace(/\/$/, "");
 	if (trimmed === "/onboarding") {
@@ -96,7 +82,6 @@ export function stepFromPathname(pathname: string): OnboardingRouteStep {
 	return "intro";
 }
 
-/** Inverse of `stepFromPathname` — used by the layout's nav handlers. */
 export function pathForStep(step: OnboardingRouteStep): string {
 	return step === "intro" ? "/onboarding" : `/onboarding/${step}`;
 }

@@ -30,12 +30,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@kayle-id/ui/components/table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
-import { getErrorMessage } from "@/utils/get-error-message";
+import { unwrapBetterAuthResult } from "@/utils/better-auth";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
@@ -49,28 +51,30 @@ interface PasskeyRow {
 
 async function listPasskeys(): Promise<PasskeyRow[]> {
 	const result = await client.passkey.listUserPasskeys();
-	if (result?.error) {
-		throw new Error(result.error.message ?? "Failed to load passkeys.");
-	}
-	return (result?.data ?? []) as PasskeyRow[];
+	return unwrapBetterAuthResult(
+		result,
+		"Failed to load passkeys.",
+	) as PasskeyRow[];
 }
 
 export function PasskeysList() {
-	const queryClient = useQueryClient();
 	const { data, isLoading, isError, error } = useQuery({
 		queryKey: PASSKEYS_QUERY_KEY,
 		queryFn: listPasskeys,
 	});
 
-	const deleteMutation = useMutation({
-		mutationFn: async (id: string) => {
+	const deleteMutation = useToastMutation<void, string>({
+		mutationFn: async (id) => {
 			const result = await client.passkey.deletePasskey({ id });
 			if (result?.error) {
 				throw new Error(result.error.message ?? "Failed to delete passkey.");
 			}
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: PASSKEYS_QUERY_KEY });
+		invalidate: [PASSKEYS_QUERY_KEY],
+		messages: {
+			loading: "Removing passkey…",
+			success: "Passkey removed",
+			error: "Failed to remove passkey",
 		},
 	});
 
@@ -91,14 +95,11 @@ export function PasskeysList() {
 				</div>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				{isError ? (
-					<Alert variant="destructive">
-						<AlertTitle>Failed to load passkeys</AlertTitle>
-						<AlertDescription>
-							{getErrorMessage(error, "Please try again.")}
-						</AlertDescription>
-					</Alert>
-				) : null}
+				<QueryErrorAlert
+					error={isError ? error : null}
+					fallback="Please try again."
+					title="Failed to load passkeys"
+				/>
 
 				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
@@ -157,14 +158,7 @@ export function PasskeysList() {
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											onClick={() =>
-												toast.promise(deleteMutation.mutateAsync(passkey.id), {
-													loading: "Removing passkey…",
-													success: "Passkey removed",
-													error: (err) =>
-														getErrorMessage(err, "Failed to remove passkey"),
-												})
-											}
+											onClick={() => deleteMutation.trigger(passkey.id)}
 											size="icon"
 											variant="ghost"
 										>

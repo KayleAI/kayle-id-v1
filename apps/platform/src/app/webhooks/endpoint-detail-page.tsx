@@ -15,6 +15,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeftIcon, ShieldAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Loading } from "@/components/loading";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { DeliveriesTabContent } from "@/components/webhooks/deliveries/tab";
 import {
 	EndpointDetailsPanel,
@@ -23,7 +24,7 @@ import {
 } from "@/components/webhooks/endpoints/detail-cards";
 import { EditEndpointDrawer } from "@/components/webhooks/endpoints/edit-drawer";
 import { EndpointActionsMenu } from "@/components/webhooks/endpoints/list";
-import { getErrorMessage, QueryErrorAlert } from "@/components/webhooks/shared";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	createWebhookKey,
 	deactivateWebhookKey,

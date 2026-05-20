@@ -29,11 +29,9 @@ import {
 } from "./shell-context";
 import { useOnboardingStatus } from "./use-onboarding-status";
 
-/**
- * Layout shell for /onboarding/*. Owns the org query, the live form draft
- * state, and the Continue/Back navigation. Each child route at
- * /onboarding/<slug> renders its own step body via `<Outlet />`.
- */
+// Layout shell for /onboarding/*. Owns the org query, the live form draft
+// state, and the Continue/Back navigation. Each child route at
+// /onboarding/<slug> renders its own step body via `<Outlet />`.
 export function OnboardingPage() {
 	const { activeOrganization, user } = useAuth();
 	const navigate = useNavigate();
@@ -436,5 +434,4 @@ function OnboardingBody({ children }: { children: ReactNode }) {
 	);
 }
 
-/** Re-exports so step route files can pull the type without circular imports. */
 export type { OnboardingOutletContext, OnboardingRouteStep };

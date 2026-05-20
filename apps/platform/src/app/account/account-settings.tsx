@@ -37,11 +37,13 @@ import {
 import { Input } from "@kayle-id/ui/components/input";
 import { Label } from "@kayle-id/ui/components/label";
 import { Separator } from "@kayle-id/ui/components/separator";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { unwrapBetterAuthResult } from "@/utils/better-auth";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 import {
 	listOwnedOrganizations,
 	OWNED_ORGS_QUERY_KEY,
@@ -82,8 +84,8 @@ export function AccountSettingsPage() {
 		setPendingImage(undefined);
 	}, [user?.name, user?.image]);
 
-	const updateMutation = useMutation({
-		mutationFn: async (input: UpdateProfileInput) => {
+	const updateMutation = useToastMutation<void, UpdateProfileInput>({
+		mutationFn: async (input) => {
 			const payload: { name?: string; image?: string | null } = {};
 			if (input.name !== user?.name) {
 				payload.name = input.name;
@@ -91,16 +93,17 @@ export function AccountSettingsPage() {
 			if (input.image !== undefined) {
 				payload.image = input.image;
 			}
-
 			const result = await client.updateUser(payload);
-
-			if (result.error) {
-				throw new Error(result.error.message ?? "Failed to update profile");
-			}
+			unwrapBetterAuthResult(result, "Failed to update profile");
 		},
 		onSuccess: async () => {
 			await refresh();
 			setPendingImage(undefined);
+		},
+		messages: {
+			loading: "Updating profile...",
+			success: "Profile updated",
+			error: "Failed to update profile",
 		},
 	});
 
@@ -152,18 +155,10 @@ export function AccountSettingsPage() {
 		if (!hasProfileChanges || !trimmedName) {
 			return;
 		}
-
-		toast.promise(
-			updateMutation.mutateAsync({
-				name: trimmedName,
-				image: imageChanged ? pendingImage : undefined,
-			}),
-			{
-				loading: "Updating profile...",
-				success: "Profile updated",
-				error: (error) => getErrorMessage(error, "Failed to update profile"),
-			},
-		);
+		updateMutation.trigger({
+			name: trimmedName,
+			image: imageChanged ? pendingImage : undefined,
+		});
 	};
 
 	const initial = (
@@ -284,7 +279,7 @@ function EmailCard() {
 	const [isEditing, setIsEditing] = useState(false);
 	const [newEmail, setNewEmail] = useState("");
 
-	const sendVerificationMutation = useMutation({
+	const sendVerificationMutation = useToastMutation({
 		mutationFn: async () => {
 			if (!user?.email) {
 				throw new Error("No email address on file");
@@ -293,39 +288,34 @@ function EmailCard() {
 				email: user.email,
 				callbackURL: "/account",
 			});
-			if (result.error) {
-				throw new Error(
-					result.error.message ?? "Failed to send verification email",
-				);
-			}
+			unwrapBetterAuthResult(result, "Failed to send verification email");
+		},
+		messages: {
+			loading: "Sending verification email...",
+			success: "Verification email sent. Check your inbox.",
+			error: "Failed to send verification email",
 		},
 	});
 
-	const changeEmailMutation = useMutation({
-		mutationFn: async (next: string) => {
+	const changeEmailMutation = useToastMutation<string, string>({
+		mutationFn: async (next) => {
 			const result = await client.changeEmail({
 				newEmail: next,
 				callbackURL: "/account",
 			});
-			if (result.error) {
-				throw new Error(result.error.message ?? "Failed to change email");
-			}
+			unwrapBetterAuthResult(result, "Failed to change email");
 			return next;
 		},
 		onSuccess: () => {
 			setIsEditing(false);
 			setNewEmail("");
 		},
+		messages: {
+			loading: "Sending confirmation link...",
+			success: "Confirmation link sent. Click it to apply the change.",
+			error: "Failed to change email",
+		},
 	});
-
-	const handleResendVerification = () => {
-		toast.promise(sendVerificationMutation.mutateAsync(), {
-			loading: "Sending verification email...",
-			success: "Verification email sent. Check your inbox.",
-			error: (error) =>
-				getErrorMessage(error, "Failed to send verification email"),
-		});
-	};
 
 	const trimmedNewEmail = newEmail.trim().toLowerCase();
 	const newEmailValid = EMAIL_PATTERN.test(trimmedNewEmail);
@@ -336,15 +326,9 @@ function EmailCard() {
 
 	const handleEmailSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
-		if (!canSubmitEmail) {
-			return;
+		if (canSubmitEmail) {
+			changeEmailMutation.trigger(trimmedNewEmail);
 		}
-
-		toast.promise(changeEmailMutation.mutateAsync(trimmedNewEmail), {
-			loading: "Sending confirmation link...",
-			success: `Confirmation link sent to ${trimmedNewEmail}. Click it to apply the change.`,
-			error: (error) => getErrorMessage(error, "Failed to change email"),
-		});
 	};
 
 	const handleCancelEdit = () => {
@@ -453,7 +437,7 @@ function EmailCard() {
 						<div className="flex justify-end">
 							<Button
 								disabled={sendVerificationMutation.isPending}
-								onClick={handleResendVerification}
+								onClick={() => sendVerificationMutation.trigger()}
 								size="sm"
 								type="button"
 							>
@@ -482,16 +466,20 @@ function DeleteAccountCard() {
 		staleTime: 60_000,
 	});
 
-	const deleteMutation = useMutation({
+	const deleteMutation = useToastMutation({
 		mutationFn: async () => {
 			const result = await client.deleteUser({ callbackURL: "/" });
-			if (result.error) {
-				throw new Error(result.error.message ?? "Failed to delete account");
-			}
+			unwrapBetterAuthResult(result, "Failed to delete account");
 		},
 		onSuccess: () => {
 			setIsDialogOpen(false);
 			setConfirmation("");
+		},
+		messages: {
+			loading: "Sending confirmation link...",
+			success:
+				"Confirmation link sent to your inbox. Click it to permanently delete your account.",
+			error: "Failed to delete account",
 		},
 	});
 
@@ -503,15 +491,6 @@ function DeleteAccountCard() {
 		if (!next) {
 			setConfirmation("");
 		}
-	};
-
-	const handleConfirmDelete = () => {
-		toast.promise(deleteMutation.mutateAsync(), {
-			loading: "Sending confirmation link...",
-			success:
-				"Confirmation link sent to your inbox. Click it to permanently delete your account.",
-			error: (error) => getErrorMessage(error, "Failed to delete account"),
-		});
 	};
 
 	const expectedConfirmation = user?.email?.toLowerCase() ?? "";
@@ -610,7 +589,7 @@ function DeleteAccountCard() {
 						</AlertDialogCancel>
 						<AlertDialogAction
 							disabled={!confirmationMatches || deleteMutation.isPending}
-							onClick={handleConfirmDelete}
+							onClick={() => deleteMutation.trigger()}
 							variant="destructive"
 						>
 							{deleteMutation.isPending

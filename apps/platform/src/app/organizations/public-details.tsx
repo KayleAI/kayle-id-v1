@@ -15,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
@@ -540,17 +541,11 @@ export function OrganizationPublicDetailsPage() {
 			description="Manage what users see when they interact with your organization."
 			title="Public details"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load public details</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading public details.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading public details."
+				title="Failed to load public details"
+			/>
 			{showUnverifiedNotice ? (
 				<div className="mb-6">
 					<UnverifiedDomainNotice />

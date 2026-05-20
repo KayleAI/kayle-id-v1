@@ -16,7 +16,7 @@ import {
 	WebhooksToolbar,
 } from "@/components/webhooks/endpoints/list";
 import { EventsTabContent } from "@/components/webhooks/events/tab";
-import { getErrorMessage } from "@/components/webhooks/shared";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	createWebhookEndpoint,
 	createWebhookKey,

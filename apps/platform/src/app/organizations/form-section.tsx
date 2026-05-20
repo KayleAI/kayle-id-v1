@@ -9,11 +9,7 @@ import type { ReactNode } from "react";
 
 interface FormSectionProps {
 	children: ReactNode;
-	/**
-	 * When true, render as a plain section (no Card chrome) — used in the
-	 * onboarding wizard. When false (default), render the standard
-	 * Card/CardHeader/CardContent layout used on the standalone settings pages.
-	 */
+	// Plain section (no Card chrome) for the onboarding wizard.
 	compact?: boolean;
 	description?: ReactNode;
 	title?: ReactNode;

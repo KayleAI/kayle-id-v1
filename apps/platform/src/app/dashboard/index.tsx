@@ -1,9 +1,4 @@
 import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
-import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
@@ -15,7 +10,7 @@ import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";
 import { UnverifiedOrgBanner } from "@/app/organizations/unverified-org-banner";
 import { AppHeading } from "@/components/app-shell/heading";
-import { getErrorMessage } from "@/utils/get-error-message";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getSessionAnalyticsOverview } from "./api";
 import { clampIndex, getPeriodSummary } from "./chart-utils";
 import { BREAKDOWN_METRICS } from "./constants";
@@ -72,17 +67,11 @@ export function Dashboard() {
 
 			{shouldShowLoading ? <DashboardSkeleton /> : null}
 
-			{shouldShowError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load analytics</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							analyticsQuery.error,
-							"Something went wrong while loading dashboard analytics.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={shouldShowError ? analyticsQuery.error : null}
+				fallback="Something went wrong while loading dashboard analytics."
+				title="Failed to load analytics"
+			/>
 
 			{isEmpty ? (
 				<Empty className="border border-border/70 bg-muted/20">

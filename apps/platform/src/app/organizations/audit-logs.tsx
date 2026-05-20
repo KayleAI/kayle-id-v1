@@ -1,10 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import { Calendar } from "@kayle-id/ui/components/calendar";
 import {
@@ -55,8 +50,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
 import { AppHeading } from "@/components/app-shell/heading";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
-import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type AuditLogEntry,
 	type AuditLogPage,
@@ -67,13 +62,7 @@ import {
 	ORGANIZATION_QUERY_KEY,
 } from "./api";
 
-/**
- * Mirrors `react-day-picker`'s `DateRange` so we don't have to add the
- * transitive dependency to the platform's package.json. The shape exactly
- * matches the type the underlying `Calendar` component passes to `onSelect`
- * — `from` is required but its value can be `undefined`, mirroring the
- * upstream definition.
- */
+// Mirrors `react-day-picker`'s `DateRange` to avoid the transitive dependency.
 interface AuditDateRange {
 	from: Date | undefined;
 	to?: Date;
@@ -92,10 +81,7 @@ interface EventDescriptor {
 	label: string;
 }
 
-/**
- * Mapping from raw event names to a human-readable label and a high-level
- * category. Keep in sync with `AUDIT_LOG_EVENTS` in `packages/auth/src/audit-logs.ts`.
- */
+// Keep in sync with `AUDIT_LOG_EVENTS` in `packages/auth/src/audit-logs.ts`.
 const EVENT_DESCRIPTORS: readonly EventDescriptor[] = [
 	{ category: "Sessions", event: "session.created", label: "Session created" },
 	{
@@ -1269,17 +1255,11 @@ export function OrganizationAuditLogsPage() {
 						searchInput={searchInput}
 					/>
 
-					{auditQuery.isError ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to load audit logs</AlertTitle>
-							<AlertDescription>
-								{getErrorMessage(
-									auditQuery.error,
-									"Something went wrong while loading audit logs.",
-								)}
-							</AlertDescription>
-						</Alert>
-					) : null}
+					<QueryErrorAlert
+						error={auditQuery.isError ? auditQuery.error : null}
+						fallback="Something went wrong while loading audit logs."
+						title="Failed to load audit logs"
+					/>
 
 					{auditQuery.isLoading ? (
 						<AuditLogsSkeleton />

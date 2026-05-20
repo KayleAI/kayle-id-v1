@@ -1,9 +1,4 @@
 import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
-import {
 	Avatar,
 	AvatarFallback,
 	AvatarImage,
@@ -19,7 +14,7 @@ import {
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { getErrorMessage } from "@/utils/get-error-message";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
@@ -203,18 +198,11 @@ export function OrganizationOverviewPage() {
 			) : (
 				<UnverifiedOrgBanner />
 			)}
-			{isLoading || !data ? null : null}
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load organization</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading this organization.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading this organization."
+				title="Failed to load organization"
+			/>
 			{isLoading ? <OverviewSkeleton /> : null}
 			{data && !isError ? <OverviewBody organization={data} /> : null}
 		</OrganizationPageLayout>

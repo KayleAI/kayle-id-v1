@@ -1,8 +1,3 @@
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Badge } from "@kayle-id/ui/components/badge";
 import {
 	Empty,
@@ -20,8 +15,6 @@ import {
 	getStatusBadgeClass,
 } from "@/app/webhooks/utils";
 import { getErrorMessage } from "@/utils/get-error-message";
-
-export { getErrorMessage };
 
 export function StatusBadge({
 	className,
@@ -99,27 +92,6 @@ export function showAsyncToast(
 		success: messages.success,
 		error: (error) => getErrorMessage(error, messages.error),
 	});
-}
-
-export function QueryErrorAlert({
-	error,
-	fallback,
-	title,
-}: {
-	error: unknown;
-	fallback: string;
-	title: string;
-}) {
-	if (!error) {
-		return null;
-	}
-
-	return (
-		<Alert variant="destructive">
-			<AlertTitle>{title}</AlertTitle>
-			<AlertDescription>{getErrorMessage(error, fallback)}</AlertDescription>
-		</Alert>
-	);
 }
 
 export function LoadingState({

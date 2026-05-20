@@ -19,6 +19,7 @@ import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
@@ -356,17 +357,11 @@ export function OrganizationBusinessPage() {
 			description="The legal entity (or individual) behind the organization."
 			title="Business Details"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load business details</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading business details.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading business details."
+				title="Failed to load business details"
+			/>
 			{isLoading ? <BusinessSkeleton /> : null}
 			{data && !isError ? (
 				<BusinessDetailsForm canEdit={canEdit} organization={data} />

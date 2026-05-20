@@ -33,10 +33,10 @@ import {
 	TAB_OPTIONS,
 	type WebhooksTab,
 } from "@/app/webhooks/utils";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import {
 	EndpointLabels,
-	QueryErrorAlert,
 	ResponseCodeBadge,
 	SectionMessage,
 	StatusBadge,

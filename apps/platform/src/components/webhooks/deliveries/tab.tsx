@@ -18,10 +18,10 @@ import {
 	getWebhookDeliveryPayloadLabel,
 	getWebhookDeliveryRetryDisabledReason,
 } from "@/app/webhooks/utils";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import {
 	LoadingState,
-	QueryErrorAlert,
 	ResponseCodeBadge,
 	SectionMessage,
 	StatusBadge,

@@ -47,8 +47,10 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
@@ -88,46 +90,37 @@ function MemberRow({
 	currentUserRole: OrganizationRole | null;
 	member: OrganizationMember;
 }) {
-	const queryClient = useQueryClient();
-
 	const isSelf = member.userId === currentUserId;
 	const canManage =
 		!isSelf &&
 		(currentUserRole === "owner" ||
 			(currentUserRole === "admin" && member.role !== "owner"));
 
-	const suspendMutation = useMutation({
+	const suspend = useToastMutation({
 		mutationFn: () => suspendOrganizationMember({ memberId: member.id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
+			loading: "Suspending member...",
+			success: "Member suspended",
+			error: "Failed to suspend member",
 		},
 	});
 
-	const roleMutation = useMutation({
-		mutationFn: (role: OrganizationRole) =>
+	const updateRole = useToastMutation<void, OrganizationRole>({
+		mutationFn: (role) =>
 			updateOrganizationMemberRole({ memberId: member.id, role }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
+			loading: "Updating member role...",
+			success: "Member role updated",
+			error: "Failed to update member role",
 		},
 	});
 
 	const handleChangeRole = (role: OrganizationRole) => {
-		if (role === member.role) {
-			return;
+		if (role !== member.role) {
+			updateRole.trigger(role);
 		}
-		toast.promise(roleMutation.mutateAsync(role), {
-			loading: "Updating member role...",
-			success: "Member role updated",
-			error: (err) => getErrorMessage(err, "Failed to update member role"),
-		});
-	};
-
-	const handleSuspend = () => {
-		toast.promise(suspendMutation.mutateAsync(), {
-			loading: "Suspending member...",
-			success: "Member suspended",
-			error: (err) => getErrorMessage(err, "Failed to suspend member"),
-		});
 	};
 
 	return (
@@ -197,7 +190,7 @@ function MemberRow({
 								render={
 									<Button
 										className="flex w-full items-center justify-start"
-										onClick={handleSuspend}
+										onClick={() => suspend.trigger()}
 										variant="destructive"
 									/>
 								}
@@ -220,22 +213,15 @@ function SuspendedMemberRow({
 	canManage: boolean;
 	member: OrganizationMember;
 }) {
-	const queryClient = useQueryClient();
-
-	const reinstateMutation = useMutation({
+	const reinstate = useToastMutation({
 		mutationFn: () => reinstateOrganizationMember({ memberId: member.id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-		},
-	});
-
-	const handleReinstate = () => {
-		toast.promise(reinstateMutation.mutateAsync(), {
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
 			loading: "Reinstating member...",
 			success: "Member reinstated",
-			error: (err) => getErrorMessage(err, "Failed to reinstate member"),
-		});
-	};
+			error: "Failed to reinstate member",
+		},
+	});
 
 	return (
 		<TableRow>
@@ -272,8 +258,8 @@ function SuspendedMemberRow({
 			<TableCell className="text-right">
 				{canManage ? (
 					<Button
-						disabled={reinstateMutation.isPending}
-						onClick={handleReinstate}
+						disabled={reinstate.isPending}
+						onClick={() => reinstate.trigger()}
 						size="sm"
 						variant="outline"
 					>
@@ -293,22 +279,15 @@ function InvitationRow({
 	canManage: boolean;
 	invitation: OrganizationInvitation;
 }) {
-	const queryClient = useQueryClient();
-
-	const cancelMutation = useMutation({
+	const cancel = useToastMutation({
 		mutationFn: () => cancelOrganizationInvitation(invitation.id),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-		},
-	});
-
-	const handleCancel = () => {
-		toast.promise(cancelMutation.mutateAsync(), {
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
 			loading: "Cancelling invitation...",
 			success: "Invitation cancelled",
-			error: (err) => getErrorMessage(err, "Failed to cancel invitation"),
-		});
-	};
+			error: "Failed to cancel invitation",
+		},
+	});
 
 	return (
 		<TableRow>
@@ -326,8 +305,8 @@ function InvitationRow({
 			<TableCell className="text-right">
 				{canManage ? (
 					<Button
-						disabled={cancelMutation.isPending}
-						onClick={handleCancel}
+						disabled={cancel.isPending}
+						onClick={() => cancel.trigger()}
 						size="sm"
 						variant="outline"
 					>
@@ -616,17 +595,11 @@ export function OrganizationMembersPage() {
 			description="Manage who has access to your organization."
 			title="Members"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load members</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							error,
-							"Something went wrong while loading members.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading members."
+				title="Failed to load members"
+			/>
 			{isLoading ? <MembersSkeleton /> : null}
 			{data && !isError ? (
 				<MembersBody

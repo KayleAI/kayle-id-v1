@@ -6,7 +6,7 @@ import { AppHeading } from "@/components/app-shell/heading";
 import { Loading } from "@/components/loading";
 import { RelativeTime } from "@/components/relative-time";
 import { DeliveriesTabContent } from "@/components/webhooks/deliveries/tab";
-import { getErrorMessage } from "@/components/webhooks/shared";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	getWebhookEvent,
 	listWebhookEndpoints,

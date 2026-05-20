@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const requestCancelVerifySessionMock = vi.fn();
 
-vi.mock("@kayleai/ui/button", () => ({
+vi.mock("@kayle-id/ui/components/button", () => ({
 	Button: ({
 		children,
 		className,
@@ -44,11 +44,11 @@ vi.mock("@kayleai/ui/button", () => ({
 		),
 }));
 
-vi.mock("@kayleai/ui/logo", () => ({
+vi.mock("@kayle-id/ui/components/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
-vi.mock("@kayleai/ui/dialog", async () => {
+vi.mock("@kayle-id/ui/components/dialog", async () => {
 	const React = await import("react");
 	const { createPortal } = await import("react-dom");
 	const DialogContext = React.createContext<{

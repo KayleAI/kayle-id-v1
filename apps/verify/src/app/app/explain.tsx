@@ -1,6 +1,6 @@
 import { interpolate } from "@kayle-id/translations/i18n";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { useVerificationStore } from "../../stores/session";
 import { type Organization, OrganizationName } from "./organization-name";

@@ -16,7 +16,7 @@ vi.mock("./session-provider", () => ({
 	useSession: () => mockedUseSession(),
 }));
 
-vi.mock("@kayleai/ui/spinner", () => ({
+vi.mock("@kayle-id/ui/components/spinner", () => ({
 	Spinner: () => <div data-testid="session-loader-spinner" />,
 }));
 

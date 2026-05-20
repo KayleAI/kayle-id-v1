@@ -8,11 +8,11 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Button } from "@kayleai/ui/button";
-import { Checkbox } from "@kayleai/ui/checkbox";
-import { Label } from "@kayleai/ui/label";
-import { Logo } from "@kayleai/ui/logo";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Button } from "@kayle-id/ui/components/button";
+import { Checkbox } from "@kayle-id/ui/components/checkbox";
+import { Label } from "@kayle-id/ui/components/label";
+import { Logo } from "@kayle-id/ui/components/logo";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {

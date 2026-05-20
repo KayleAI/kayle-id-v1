@@ -1,6 +1,10 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -10,16 +14,16 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -27,17 +31,17 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@kayleai/ui/select";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/select";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -45,7 +49,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

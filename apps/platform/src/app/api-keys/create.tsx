@@ -1,7 +1,11 @@
 import type { CustomerApiKeyScope } from "@kayle-id/auth/permissions";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
-import { Checkbox } from "@kayleai/ui/checkbox";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Button } from "@kayle-id/ui/components/button";
+import { Checkbox } from "@kayle-id/ui/components/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -9,10 +13,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Textarea } from "@kayleai/ui/textarea";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
 import { useCopyToClipboard } from "@/utils/use-copy";

@@ -1,6 +1,6 @@
 import { sessionIdSchema } from "@api/shared/validation";
 import { getVerifyHandoffCopy } from "@kayle-id/translations/verify-handoff-copy";
-import { Layout } from "@kayleai/ui/layout";
+import { Layout } from "@kayle-id/ui/components/layout";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import {

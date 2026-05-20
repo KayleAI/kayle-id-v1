@@ -5,7 +5,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@kayleai/ui/button", () => ({
+vi.mock("@kayle-id/ui/components/button", () => ({
 	Button: ({
 		children,
 		onClick,
@@ -21,11 +21,11 @@ vi.mock("@kayleai/ui/button", () => ({
 	),
 }));
 
-vi.mock("@kayleai/ui/logo", () => ({
+vi.mock("@kayle-id/ui/components/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
-vi.mock("@kayleai/ui/dialog", () => ({
+vi.mock("@kayle-id/ui/components/dialog", () => ({
 	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	DialogTrigger: ({
 		children,

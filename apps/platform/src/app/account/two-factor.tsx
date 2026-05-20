@@ -1,15 +1,19 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -17,15 +21,15 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
 import {
 	InputOTP,
 	InputOTPGroup,
 	InputOTPSeparator,
 	InputOTPSlot,
-} from "@kayleai/ui/input-otp";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/input-otp";
+import { Label } from "@kayle-id/ui/components/label";
 import { CheckCircle2Icon, DownloadIcon, ShieldCheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useReducer, useState } from "react";

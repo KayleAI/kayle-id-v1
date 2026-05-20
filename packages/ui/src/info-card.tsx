@@ -1,6 +1,6 @@
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
-import { cn } from "@kayleai/ui/utils/cn";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import OctagonCheck from "./icons/octagon-check.tsx";

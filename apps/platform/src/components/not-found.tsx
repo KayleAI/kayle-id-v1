@@ -1,5 +1,5 @@
+import { Layout } from "@kayle-id/ui/components/layout";
 import { InfoCard } from "@kayle-id/ui/info-card";
-import { Layout } from "@kayleai/ui/layout";
 import type { NotFoundRouteProps } from "@tanstack/react-router";
 
 /**

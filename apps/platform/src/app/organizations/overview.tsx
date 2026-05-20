@@ -1,14 +1,22 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
-import { Badge } from "@kayleai/ui/badge";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
+import { Badge } from "@kayle-id/ui/components/badge";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/card";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {

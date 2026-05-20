@@ -1,13 +1,13 @@
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Sheet,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
-} from "@kayleai/ui/sheet";
-import { Switch } from "@kayleai/ui/switch";
+} from "@kayle-id/ui/components/sheet";
+import { Switch } from "@kayle-id/ui/components/switch";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { WEBHOOK_PAYLOAD_RETENTION_OPTIONS } from "@/app/webhooks/utils";

@@ -1,13 +1,13 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	InputOTP,
 	InputOTPGroup,
 	InputOTPSeparator,
 	InputOTPSlot,
-} from "@kayleai/ui/input-otp";
-import { Logo } from "@kayleai/ui/logo";
+} from "@kayle-id/ui/components/input-otp";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 

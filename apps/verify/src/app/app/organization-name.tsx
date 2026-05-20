@@ -1,6 +1,4 @@
 import { interpolate } from "@kayle-id/translations/i18n";
-import OctagonCheck from "@kayle-id/ui/icons/octagon-check";
-import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
 import {
 	Dialog,
 	DialogContent,
@@ -9,7 +7,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
+} from "@kayle-id/ui/components/dialog";
+import OctagonCheck from "@kayle-id/ui/icons/octagon-check";
+import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
 import type { SVGProps } from "react";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
 import { OrganizationReportAction } from "./organization-report-dialog";

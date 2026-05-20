@@ -1,5 +1,5 @@
-import { Button } from "@kayleai/ui/button";
-import { Label } from "@kayleai/ui/label";
+import { Button } from "@kayle-id/ui/components/button";
+import { Label } from "@kayle-id/ui/components/label";
 import { CopyIcon, ExternalLinkIcon } from "lucide-react";
 import type { DemoRunView } from "@/demo/types";
 import { useCopyToClipboard } from "@/utils/use-copy";

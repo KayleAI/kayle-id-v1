@@ -3,24 +3,24 @@ import {
 	ORGANIZATION_REPORT_REASONS,
 	ORGANIZATION_REPORT_STATUSES,
 } from "@kayle-id/config/organization-reports";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/card";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@kayleai/ui/select";
+} from "@kayle-id/ui/components/select";
 import {
 	Table,
 	TableBody,
@@ -28,9 +28,9 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
-import { Textarea } from "@kayleai/ui/textarea";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/table";
+import { Textarea } from "@kayle-id/ui/components/textarea";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
 import { ChevronLeftIcon, EyeIcon, SearchIcon } from "lucide-react";

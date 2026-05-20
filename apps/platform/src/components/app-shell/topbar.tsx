@@ -1,4 +1,4 @@
-import { SidebarTrigger } from "@kayleai/ui/sidebar";
+import { SidebarTrigger } from "@kayle-id/ui/components/sidebar";
 import { AppCommandBar } from "./command-bar";
 
 export function AppTopbar() {

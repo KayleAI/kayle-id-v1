@@ -1,7 +1,11 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -11,19 +15,23 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Button } from "@kayleai/ui/button";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Skeleton } from "@kayleai/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
+} from "@kayle-id/ui/components/card";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@kayle-id/ui/components/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";

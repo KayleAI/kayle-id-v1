@@ -1,4 +1,4 @@
-import { Layout } from "@kayleai/ui/layout";
+import { Layout } from "@kayle-id/ui/components/layout";
 import { useLoaderData } from "@tanstack/react-router";
 import { SessionApp } from "./app";
 import { SessionError } from "./error";

@@ -1,6 +1,6 @@
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Textarea } from "@kayleai/ui/textarea";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Textarea } from "@kayle-id/ui/components/textarea";
 import type { ChangeEvent } from "react";
 
 export function PublicKeyFields({

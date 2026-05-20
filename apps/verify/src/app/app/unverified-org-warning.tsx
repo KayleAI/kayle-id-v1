@@ -1,6 +1,6 @@
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
 import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
 import { useVerificationStore } from "../../stores/session";
 import { type Organization, OrganizationName } from "./organization-name";
 

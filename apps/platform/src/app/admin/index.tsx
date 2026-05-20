@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Card, CardContent } from "@kayleai/ui/card";
+import { Card, CardContent } from "@kayle-id/ui/components/card";
 import { Link, Navigate } from "@tanstack/react-router";
 import { ChartBarIcon, FlagIcon } from "lucide-react";
 import { AppHeading } from "@/components/app-shell/heading";

@@ -1,23 +1,27 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/empty";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";

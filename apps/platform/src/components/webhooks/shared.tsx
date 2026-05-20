@@ -1,13 +1,17 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Badge } from "@kayle-id/ui/components/badge";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/empty";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Loader2Icon, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { DeliveryStatus } from "@/app/webhooks/api";

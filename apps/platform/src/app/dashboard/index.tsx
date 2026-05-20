@@ -1,11 +1,15 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
+} from "@kayle-id/ui/components/empty";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";

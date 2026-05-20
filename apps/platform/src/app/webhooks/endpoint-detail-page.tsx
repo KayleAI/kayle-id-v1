@@ -2,10 +2,14 @@ import {
 	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 } from "@kayle-id/config/webhook-events";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Tabs, TabsContent } from "@kayle-id/ui/components/tabs";
 import { InfoCard } from "@kayle-id/ui/info-card";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Tabs, TabsContent } from "@kayleai/ui/tabs";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeftIcon, ShieldAlertIcon } from "lucide-react";

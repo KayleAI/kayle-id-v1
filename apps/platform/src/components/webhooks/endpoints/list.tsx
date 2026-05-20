@@ -1,11 +1,11 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
+} from "@kayle-id/ui/components/dropdown-menu";
 import {
 	Table,
 	TableBody,
@@ -13,8 +13,8 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/table";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import {
 	EllipsisVerticalIcon,

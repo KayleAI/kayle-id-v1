@@ -1,6 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";

@@ -1,7 +1,7 @@
 import { minAgeThreshold } from "@kayle-id/config/share-claims";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { cn } from "@kayleai/ui/utils/cn";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { DemoComposerActions } from "@/marketing/demo/composer-actions";
 import { DEFAULT_AGE_THRESHOLD } from "@/marketing/demo/constants";
 import { DemoNotice } from "@/marketing/demo/demo-notice";

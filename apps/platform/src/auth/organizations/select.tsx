@@ -1,8 +1,8 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { Organization } from "@kayle-id/auth/types";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 

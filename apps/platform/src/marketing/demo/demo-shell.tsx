@@ -1,4 +1,4 @@
-import { TooltipProvider } from "@kayleai/ui/tooltip";
+import { TooltipProvider } from "@kayle-id/ui/components/tooltip";
 import {
 	type ComponentType,
 	useCallback,

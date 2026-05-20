@@ -1,4 +1,4 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import type { ReactNode } from "react";
 import { demoStepOrder, getDemoStepNumber } from "@/marketing/demo/constants";
 import type { DemoStepId } from "@/marketing/demo-hooks";

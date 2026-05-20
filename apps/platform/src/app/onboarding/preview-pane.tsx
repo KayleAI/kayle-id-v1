@@ -1,6 +1,6 @@
 import OctagonCheck from "@kayle-id/ui/icons/octagon-check";
 import OctagonWarning from "@kayle-id/ui/icons/octagon-warning";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import type { SVGProps } from "react";
 import type { BusinessDetailsDraftValues } from "@/app/organizations/business";

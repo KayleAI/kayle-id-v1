@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";

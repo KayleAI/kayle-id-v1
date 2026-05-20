@@ -23,5 +23,50 @@
     "parser": {
       "tailwindDirectives": true
     }
-  }
+  },
+  "overrides": [
+    {
+      // shadcn/ui primitives — vendored from `shadcn/start-monorepo`. Patterns
+      // here (namespace React import, nested compound components, primitive-
+      // role mirroring on a11y wrappers) are intentional and shouldn't fail
+      // the linter.
+      "includes": ["packages/ui/src/components/**", "packages/ui/src/hooks/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off",
+            "noNoninteractiveElementInteractions": "off",
+            "noRedundantRoles": "off",
+            "useAriaPropsForRole": "off",
+            "useFocusableInteractive": "off",
+            "useKeyWithClickEvents": "off",
+            "useSemanticElements": "off"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          },
+          "correctness": {
+            "noNestedComponentDefinitions": "off",
+            "useExhaustiveDependencies": "off"
+          },
+          "performance": {
+            "noBarrelFile": "off",
+            "noNamespaceImport": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
+          "style": {
+            "noNestedTernary": "off",
+            "useConsistentTypeDefinitions": "off"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noDocumentCookie": "off",
+            "noDoubleEquals": "off"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Card, CardContent } from "@kayleai/ui/card";
+import { Card, CardContent } from "@kayle-id/ui/components/card";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";

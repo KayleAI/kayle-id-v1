@@ -1,7 +1,11 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { Organization, OrganizationRole } from "@kayle-id/auth/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -10,8 +14,8 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
-import { Logomark } from "@kayleai/ui/logo";
+} from "@kayle-id/ui/components/dropdown-menu";
+import { Logomark } from "@kayle-id/ui/components/logo";
 import {
 	Sidebar,
 	SidebarContent,
@@ -22,7 +26,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-} from "@kayleai/ui/sidebar";
+} from "@kayle-id/ui/components/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {

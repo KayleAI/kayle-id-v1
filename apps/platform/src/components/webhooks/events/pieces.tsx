@@ -1,5 +1,5 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -8,7 +8,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
+} from "@kayle-id/ui/components/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
 import {
 	getEventSubscriptionSummary,

@@ -2,18 +2,22 @@ import {
 	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 } from "@kayle-id/config/webhook-events";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Sheet,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
-} from "@kayleai/ui/sheet";
-import { Switch } from "@kayleai/ui/switch";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/sheet";
+import { Switch } from "@kayle-id/ui/components/switch";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { ChevronDownIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

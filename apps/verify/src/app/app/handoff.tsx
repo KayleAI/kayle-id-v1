@@ -1,5 +1,4 @@
 import { interpolate } from "@kayle-id/translations/i18n";
-import { InfoCard } from "@kayle-id/ui/info-card";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -9,7 +8,8 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
+} from "@kayle-id/ui/components/alert-dialog";
+import { InfoCard } from "@kayle-id/ui/info-card";
 import { useLoaderData } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";

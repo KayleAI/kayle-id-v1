@@ -1,5 +1,9 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +11,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
+} from "@kayle-id/ui/components/dialog";
 import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

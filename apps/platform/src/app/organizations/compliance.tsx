@@ -1,15 +1,19 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { RP_INTEGRATION_TERMS_CANONICAL_TEXT } from "@kayle-id/auth/rp-integration-terms";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogClose,
@@ -18,18 +22,18 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@kayleai/ui/select";
-import { Skeleton } from "@kayleai/ui/skeleton";
-import { Textarea } from "@kayleai/ui/textarea";
+} from "@kayle-id/ui/components/select";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
+import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";

@@ -1,4 +1,4 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { Loader2Icon } from "lucide-react";
 import type { SelectionResult } from "@/marketing/demo/types";
 

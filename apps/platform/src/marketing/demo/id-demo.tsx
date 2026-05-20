@@ -4,11 +4,15 @@ import {
 	CommandGroup,
 	CommandItem,
 	CommandList,
-} from "@kayleai/ui/command";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/command";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@kayle-id/ui/components/tooltip";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";

@@ -1,4 +1,4 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -6,8 +6,8 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/table";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { CopyIcon, EyeIcon, Loader2Icon, RefreshCwIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { WebhookEncryptionKey, WebhookEndpoint } from "@/app/webhooks/api";

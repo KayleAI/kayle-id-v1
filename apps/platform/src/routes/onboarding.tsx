@@ -1,8 +1,8 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
+import { Layout } from "@kayle-id/ui/components/layout";
+import { Toaster } from "@kayle-id/ui/components/sonner";
+import { TooltipProvider } from "@kayle-id/ui/components/tooltip";
 import { InfoCard } from "@kayle-id/ui/info-card";
-import { Layout } from "@kayleai/ui/layout";
-import { Toaster } from "@kayleai/ui/sonner";
-import { TooltipProvider } from "@kayleai/ui/tooltip";
 import {
 	createFileRoute,
 	type ErrorComponentProps,

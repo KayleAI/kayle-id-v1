@@ -1,5 +1,5 @@
-import { Button } from "@kayleai/ui/button";
-import { cn } from "@kayleai/ui/utils/cn";
+import { Button } from "@kayle-id/ui/components/button";
+import { cn } from "@kayle-id/ui/lib/utils";
 import type { ReactNode } from "react";
 
 interface DemoNoticeProps {

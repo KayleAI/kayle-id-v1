@@ -1,5 +1,5 @@
-import { Logo } from "@kayleai/ui/logo";
-import { cn } from "@kayleai/ui/utils/cn";
+import { Logo } from "@kayle-id/ui/components/logo";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { DiscordIcon } from "@/icons/discord";
 import { GithubIcon } from "@/icons/github";

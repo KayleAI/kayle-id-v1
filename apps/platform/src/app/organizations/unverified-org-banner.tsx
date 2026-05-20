@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import { useOnboardingStatus } from "@/app/onboarding/use-onboarding-status";
 

@@ -1,9 +1,17 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -11,17 +19,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
+} from "@kayle-id/ui/components/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/dropdown-menu";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -29,7 +37,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	EllipsisVerticalIcon,

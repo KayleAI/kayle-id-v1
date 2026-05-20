@@ -1,5 +1,5 @@
 import { ORGANIZATION_REPORT_REASONS } from "@kayle-id/config/organization-reports";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Loader2 } from "lucide-react";

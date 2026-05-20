@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader } from "@kayleai/ui/card";
-import { Skeleton } from "@kayleai/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@kayle-id/ui/components/card";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	ANALYTICS_CARD_CLASS,
 	DASHBOARD_SKELETON_CARD_KEYS,

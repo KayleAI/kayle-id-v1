@@ -1,5 +1,5 @@
 import type { OnboardingStepId } from "@kayle-id/auth/organization-onboarding";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2Icon } from "lucide-react";
 import {

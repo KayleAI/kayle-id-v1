@@ -1,13 +1,17 @@
 import { client } from "@kayle-id/auth/client";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -15,9 +19,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Table,
 	TableBody,
@@ -25,7 +29,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";

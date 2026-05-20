@@ -1,4 +1,8 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@kayle-id/ui/components/tooltip";
 import type { ComponentProps, MouseEventHandler } from "react";
 import { useMemo } from "react";
 import {

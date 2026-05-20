@@ -1,4 +1,4 @@
-import { Tabs, TabsContent } from "@kayleai/ui/tabs";
+import { Tabs, TabsContent } from "@kayle-id/ui/components/tabs";
 import {
 	type InfiniteData,
 	useInfiniteQuery,

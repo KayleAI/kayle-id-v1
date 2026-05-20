@@ -25,7 +25,7 @@ vi.mock("@/config/handoff", () => ({
 	}),
 }));
 
-vi.mock("@kayleai/ui/button", () => ({
+vi.mock("@kayle-id/ui/components/button", () => ({
 	Button: ({
 		children,
 		disabled,
@@ -52,7 +52,7 @@ vi.mock("@kayleai/ui/button", () => ({
 		),
 }));
 
-vi.mock("@kayleai/ui/checkbox", () => ({
+vi.mock("@kayle-id/ui/components/checkbox", () => ({
 	Checkbox: ({
 		checked,
 		id,
@@ -71,7 +71,7 @@ vi.mock("@kayleai/ui/checkbox", () => ({
 	),
 }));
 
-vi.mock("@kayleai/ui/label", () => ({
+vi.mock("@kayle-id/ui/components/label", () => ({
 	Label: ({
 		children,
 		htmlFor,
@@ -81,11 +81,11 @@ vi.mock("@kayleai/ui/label", () => ({
 	}) => <label htmlFor={htmlFor}>{children}</label>,
 }));
 
-vi.mock("@kayleai/ui/logo", () => ({
+vi.mock("@kayle-id/ui/components/logo", () => ({
 	Logo: () => <div>Kayle ID</div>,
 }));
 
-vi.mock("@kayleai/ui/alert-dialog", async () => {
+vi.mock("@kayle-id/ui/components/alert-dialog", async () => {
 	const react = await import("react");
 	const DialogContext = react.createContext<{
 		onOpenChange: (open: boolean) => void;
@@ -161,7 +161,7 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 	};
 });
 
-vi.mock("@kayleai/ui/dialog", () => ({
+vi.mock("@kayle-id/ui/components/dialog", () => ({
 	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	DialogTrigger: ({
 		children,

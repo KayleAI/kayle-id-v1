@@ -1,4 +1,4 @@
-import { SidebarInset, SidebarProvider } from "@kayleai/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@kayle-id/ui/components/sidebar";
 import { AppCommandProvider } from "./command-bar";
 import { AppSidebar } from "./sidebar";
 import { AppTopbar } from "./topbar";

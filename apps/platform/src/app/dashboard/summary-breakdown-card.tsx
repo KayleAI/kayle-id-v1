@@ -4,8 +4,8 @@ import {
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/card";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { formatMetric } from "./chart-utils";
 import {
 	ANALYTICS_CARD_CLASS,

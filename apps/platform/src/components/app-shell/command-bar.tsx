@@ -5,8 +5,8 @@ import {
 	CommandList,
 	CommandSeparator,
 	CommandShortcut,
-} from "@kayleai/ui/command";
-import { Kbd, KbdGroup } from "@kayleai/ui/kbd";
+} from "@kayle-id/ui/components/command";
+import { Kbd, KbdGroup } from "@kayle-id/ui/components/kbd";
 import { useNavigate } from "@tanstack/react-router";
 import { Command as CommandPrimitive } from "cmdk";
 import {

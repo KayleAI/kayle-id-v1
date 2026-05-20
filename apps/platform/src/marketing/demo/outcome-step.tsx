@@ -1,4 +1,8 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import { useMemo } from "react";
 import type { DemoRunView } from "@/demo/types";
 import { getDemoWebhookHistory } from "@/demo/webhook-history";

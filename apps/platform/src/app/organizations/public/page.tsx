@@ -1,5 +1,5 @@
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
 import { Link } from "@tanstack/react-router";
 import {
 	AlertCircle,

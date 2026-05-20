@@ -1,4 +1,4 @@
-import { Spinner } from "@kayleai/ui/spinner";
+import { Spinner } from "@kayle-id/ui/components/spinner";
 import { useDevice } from "@/utils/use-device";
 import {
 	canRenderWithoutSession,

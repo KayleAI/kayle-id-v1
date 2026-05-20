@@ -1,7 +1,7 @@
 import { client } from "@kayle-id/auth/client";
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { useNavigate } from "@tanstack/react-router";
 import { KeyRoundIcon } from "lucide-react";
 

@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@kayleai/ui/dialog", async () => {
+vi.mock("@kayle-id/ui/components/dialog", async () => {
 	const React = await import("react");
 	const { createPortal } = await import("react-dom");
 	const DialogContext = React.createContext<{
@@ -79,7 +79,7 @@ vi.mock("@kayleai/ui/dialog", async () => {
 	};
 });
 
-vi.mock("@kayleai/ui/button", () => ({
+vi.mock("@kayle-id/ui/components/button", () => ({
 	Button: ({
 		children,
 		className,

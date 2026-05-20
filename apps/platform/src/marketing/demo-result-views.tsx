@@ -2,7 +2,7 @@ import {
 	getClaimLabel,
 	parseAgeOverThreshold,
 } from "@kayle-id/config/share-claims";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import {
 	buildDemoWebhookEventPreview,

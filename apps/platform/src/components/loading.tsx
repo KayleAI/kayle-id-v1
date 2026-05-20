@@ -1,5 +1,5 @@
-import { Layout } from "@kayleai/ui/layout";
-import { Logo } from "@kayleai/ui/logo";
+import { Layout } from "@kayle-id/ui/components/layout";
+import { Logo } from "@kayle-id/ui/components/logo";
 
 function LoadingContent() {
 	return (

@@ -1,4 +1,4 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
 import type { Organization } from "./organization-name";
 

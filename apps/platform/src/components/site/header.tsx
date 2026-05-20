@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -10,14 +10,14 @@ import {
 	NavigationMenuLink,
 	NavigationMenuList,
 	NavigationMenuTrigger,
-} from "@kayleai/ui/navigation-menu";
+} from "@kayle-id/ui/components/navigation-menu";
 import {
 	Sheet,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
-} from "@kayleai/ui/sheet";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/sheet";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

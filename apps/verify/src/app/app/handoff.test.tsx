@@ -89,7 +89,7 @@ vi.mock("@/config/env", () => ({
 	getApiHttpBaseUrl: () => "https://api.example.test",
 }));
 
-vi.mock("@kayleai/ui/button", () => ({
+vi.mock("@kayle-id/ui/components/button", () => ({
 	Button: ({
 		children,
 		nativeButton = true,
@@ -115,7 +115,7 @@ vi.mock("@kayleai/ui/button", () => ({
 	},
 }));
 
-vi.mock("@kayleai/ui/alert-dialog", async () => {
+vi.mock("@kayle-id/ui/components/alert-dialog", async () => {
 	const react = await import("react");
 	const DialogContext = react.createContext<{
 		onOpenChange: (open: boolean) => void;
@@ -191,7 +191,7 @@ vi.mock("@kayleai/ui/alert-dialog", async () => {
 	};
 });
 
-vi.mock("@kayleai/ui/dialog", () => ({
+vi.mock("@kayle-id/ui/components/dialog", () => ({
 	Dialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	DialogTrigger: ({
 		children,

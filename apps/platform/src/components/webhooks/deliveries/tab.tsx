@@ -1,4 +1,4 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Table,
 	TableBody,
@@ -6,7 +6,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type {

@@ -1,6 +1,6 @@
 import { interpolate } from "@kayle-id/translations/i18n";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { requestCancelVerifySession } from "@/config/handoff";
 import { useVerifyHandoffCopy } from "@/i18n/provider";

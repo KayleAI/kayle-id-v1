@@ -1,9 +1,3 @@
-/* Re-scope the `dark:` variant so it does NOT fire inside a `.light`
- * subtree. Layouts that intentionally opt out of dark mode can wrap their
- * content in `<div class="light">`; combined with the `.light` variable
- * reset below, anything within renders as if `<html>` had no `.dark` at all.
- * The original variant in `@kayleai/ui/config.css` is `&:is(.dark *)`; this
- * one is identical except for the `:not(.light *)` exclusion. */
 @custom-variant dark (&:is(.dark *):not(.light *));
 
 @layer base {
@@ -26,12 +20,6 @@
     background: oklch(0.9 0.08 154.8);
   }
 
-  /* Dark-mode selection: the light-mint highlight from the base rule blows
-   * out against a dark surface and renders foreground text as white-on-
-   * light-mint, which is unreadable. Drop the L channel so the highlight
-   * reads as a dim emerald patch behind the white foreground. Same hue
-   * and chroma as the light-mode version so the brand colour relationship
-   * stays intact. */
   .dark :where(:not(.light, .light *))::selection {
     color: var(--foreground);
     background: oklch(0.35 0.12 154.8);
@@ -42,17 +30,10 @@
     scrollbar-width: thin;
   }
 
-  /* In dark mode `--secondary-foreground` is near-white, which makes the
-   * scrollbar thumb glare as a bright white bar. Drop to a mid-tone grey
-   * so it reads as chrome rather than content. */
   .dark :where(:not(.light, .light *)) {
     scrollbar-color: oklch(0.45 0 0) transparent;
   }
 
-  /* Restore the light-mode token values for any subtree wrapped in
-   * `.light`. These mirror the `:root` block in `@kayleai/ui/config.css`
-   * and override `.dark`'s cascade for descendants of the wrapper. Keep
-   * in sync if the upstream light palette changes. */
   .light {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);

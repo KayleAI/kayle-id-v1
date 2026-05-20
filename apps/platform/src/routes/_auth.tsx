@@ -1,4 +1,4 @@
-import { Layout } from "@kayleai/ui/layout";
+import { Layout } from "@kayle-id/ui/components/layout";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth")({

@@ -7,7 +7,7 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
+} from "@kayle-id/ui/components/alert-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";

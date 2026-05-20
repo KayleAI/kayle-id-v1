@@ -658,9 +658,9 @@ struct ContentView: View {
         activeCameraDrawer = nil
       },
       onError: { error in
-        let attemptId = session.payload?.attemptId
+        let sessionId = session.payload?.sessionId
         activeCameraDrawer = nil
-        session.handleError(error, forAttemptId: attemptId)
+        session.handleError(error, forSessionId: sessionId)
       }
     )
     .environmentObject(session)
@@ -714,12 +714,24 @@ struct ContentView: View {
   private func handleCompletionPrimaryAction() {
     if let checkResult = session.checkResult, isNotConfirmedCheck(checkResult), checkResult.retryAllowed {
       captureCurrentStepSnapshot()
-      let attemptId = session.payload?.attemptId
+      let sessionId = session.payload?.sessionId
       Task {
         do {
-          try await session.retryVerification()
+          switch checkResult.failedCheck {
+          case .mrz:
+            try await session.retryMRZ()
+          case .nfc:
+            try await session.retryNFC()
+          case .liveness:
+            try await session.retryLiveness()
+          case .none:
+            // Defensive: server reported retryAllowed=true without identifying
+            // the failed check. Fall through to MRZ rescan since that's the
+            // only unlimited-retry path.
+            try await session.retryMRZ()
+          }
         } catch {
-          session.handleRetryError(error, forAttemptId: attemptId)
+          session.handleRetryError(error, forSessionId: sessionId)
         }
       }
       return
@@ -903,7 +915,7 @@ struct ContentView: View {
   private func uploadNFCResult(_ result: DocumentReadResult) {
     session.nfcResult = result
     clearRetainedNFCUploadUI()
-    let attemptId = session.payload?.attemptId
+    let sessionId = session.payload?.sessionId
 
     Task {
       do {
@@ -919,7 +931,7 @@ struct ContentView: View {
         {
           return
         }
-        session.handleError(error, forAttemptId: attemptId)
+        session.handleError(error, forSessionId: sessionId)
       }
     }
   }
@@ -942,7 +954,7 @@ struct ContentView: View {
 
   private func cancelVerificationFlow() {
     captureCurrentStepSnapshot()
-    let attemptId = session.payload?.attemptId
+    let sessionId = session.payload?.sessionId
 
     Task {
       do {
@@ -950,7 +962,7 @@ struct ContentView: View {
         clearDocumentCaptureUIState()
         session.reset()
       } catch {
-        session.handleError(error, forAttemptId: attemptId)
+        session.handleError(error, forSessionId: sessionId)
       }
     }
   }
@@ -1059,7 +1071,7 @@ struct ContentView: View {
 
   private var shouldKeepDeviceAwake: Bool {
     shouldPreventDeviceSleepDuringVerification(
-      hasActiveAttempt: session.payload != nil,
+      hasActiveSession: session.payload != nil,
       isTerminalStep: session.step == .complete || session.step == .error
     )
   }

@@ -14,15 +14,14 @@ export function formatStatusLabel(value: string): string {
 
 export function getDemoProgressLabel(run: DemoRunView | null): string {
 	const sessionStatus = run?.session_status ?? null;
-	const latestAttempt = sessionStatus?.latest_attempt ?? null;
 	const webhookCount = getDemoWebhookHistory(run).length;
 
 	if (webhookCount > 0) {
 		return `${webhookCount} webhook${webhookCount === 1 ? "" : "s"} received`;
 	}
 
-	if (latestAttempt) {
-		return `Attempt ${formatStatusLabel(latestAttempt.status).toLowerCase()}`;
+	if (sessionStatus?.status && sessionStatus.status !== "created") {
+		return `Session ${formatStatusLabel(sessionStatus.status).toLowerCase()}`;
 	}
 
 	if (run?.session_id) {

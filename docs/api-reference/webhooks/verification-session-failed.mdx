@@ -1,0 +1,93 @@
+---
+title: "verification.session.failed"
+description: "Fires when a Kayle verification session exhausts its retry budget without confirming."
+---
+
+Emitted when the user runs out of retries for a check that's blocking confirmation, or when a hard-kill code (such as an anti-cloning attestation failure) terminates the session immediately. The payload carries the terminal `failure_code` plus the per-check retry counters so you can see which budget exhausted.
+
+## When it fires
+
+This event fires **once per session**, at the moment the session reaches the `failed` status. Intermediate per-check failures while retries remain are not delivered as webhooks — they appear in the per-org audit log as `session.check.failed` and stay between the user and the Kayle app.
+
+Retry budgets:
+
+| Check | Budget |
+|---|---|
+| MRZ scan | Unlimited (client-side; failures never reach the server) |
+| NFC chip read | 3 retries |
+| Liveness capture | 3 retries |
+
+`document_anti_cloning_attestation_failed` is a hard-kill code: it terminalizes the session immediately on the first failure regardless of retry counters.
+
+## Payload
+
+```json
+{
+  "type": "verification.session.failed",
+  "metadata": {
+    "contract_version": 1,
+    "event_id": "evt_...",
+    "verification_session_id": "vs_..."
+  },
+  "data": {
+    "failure_code": "document_chip_authentication_failed",
+    "nfc_tries_used": 3,
+    "liveness_tries_used": 0
+  }
+}
+```
+
+## Fields
+
+<ResponseField name="type" type="string">
+  Always `verification.session.failed`.
+</ResponseField>
+
+<ResponseField name="metadata.contract_version" type="number">
+  The share-contract version the session was created against.
+</ResponseField>
+
+<ResponseField name="metadata.event_id" type="string">
+  Unique event ID. Idempotency-key candidate — the same event reuses this ID on retries and replays.
+</ResponseField>
+
+<ResponseField name="metadata.verification_session_id" type="string">
+  The session that terminalized.
+</ResponseField>
+
+<ResponseField name="data.failure_code" type="string">
+  Reason Kayle could not confirm the session. One of:
+  - `document_authenticity_failed`
+  - `document_active_authentication_failed`
+  - `document_chip_authentication_failed`
+  - `document_anti_cloning_attestation_failed`
+  - `document_data_invalid`
+  - `liveness_failed`
+  - `selfie_face_mismatch`
+
+  Failed-session payloads do not include claims, biometrics, or risk scores.
+</ResponseField>
+
+<ResponseField name="data.nfc_tries_used" type="number">
+  How many NFC chip-read retries (0..3) the session consumed before terminalizing.
+</ResponseField>
+
+<ResponseField name="data.liveness_tries_used" type="number">
+  How many liveness retries (0..3) the session consumed before terminalizing.
+</ResponseField>
+
+## Handler outline
+
+```typescript
+if (event.type === "verification.session.failed") {
+  const { verification_session_id, event_id } = event.metadata;
+  if (await alreadyProcessed(event_id)) return;
+
+  await recordIdentityAssuranceFailure({
+    sessionId: verification_session_id,
+    failureCode: event.data.failure_code,
+    nfcTriesUsed: event.data.nfc_tries_used,
+    livenessTriesUsed: event.data.liveness_tries_used,
+  });
+}
+```

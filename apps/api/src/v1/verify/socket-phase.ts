@@ -1,10 +1,14 @@
 import { logEvent } from "@kayle-id/config/logging";
 import { prewarmBiometricVerifier } from "./biometric-verifier-client";
+import {
+	resetLivenessTransferState,
+	resetNfcTransferState,
+} from "./data-payload";
 import { resolveVerifyErrorMessage } from "./error-response";
 import { deriveLivenessChallenge } from "./liveness-challenge";
 import {
-	isTrackedAttemptPhase,
-	persistTrackedAttemptPhase,
+	isTrackedSessionPhase,
+	persistTrackedSessionPhase,
 	validateTrackedPhaseTransition,
 } from "./phase-state";
 import type { VerifySocketContext } from "./socket-context";
@@ -30,13 +34,13 @@ export async function handlePhaseMessage(
 		error: payload.error ?? "",
 	});
 
-	if (!state.attemptId) {
+	if (!state.sessionId) {
 		transport.sendError("HELLO_REQUIRED", "Send hello before other messages.");
 		return;
 	}
 
 	const nextPhase = payload.phase?.trim() ?? "";
-	if (!isTrackedAttemptPhase(nextPhase)) {
+	if (!isTrackedSessionPhase(nextPhase)) {
 		transport.sendAck("phase_ok");
 		return;
 	}
@@ -69,7 +73,7 @@ export async function handlePhaseMessage(
 
 	const checkResult =
 		nextPhase === "nfc_complete" || nextPhase === "liveness_complete"
-			? await runPhaseValidation(context, state.attemptId, nextPhase)
+			? await runPhaseValidation(context, state.sessionId, nextPhase)
 			: null;
 
 	if (
@@ -80,8 +84,22 @@ export async function handlePhaseMessage(
 	}
 
 	if (transition.changed) {
-		await persistTrackedAttemptPhase({
-			attemptId: state.attemptId,
+		// Per-check rewinds (e.g. nfc_complete → nfc_reading) drop the stale
+		// artifacts from the previous attempt so the next chip read or liveness
+		// recording lands cleanly. The socket itself stays open across the
+		// retry; the user keeps recapturing on the same WebSocket connection
+		// until the session reaches a terminal state.
+		if (state.currentPhase === "nfc_complete" && nextPhase === "nfc_reading") {
+			resetNfcTransferState(state.transfer);
+		} else if (
+			state.currentPhase === "liveness_complete" &&
+			nextPhase === "liveness_capturing"
+		) {
+			resetLivenessTransferState(state.transfer);
+		}
+
+		await persistTrackedSessionPhase({
+			sessionId: state.sessionId,
 			phase: transition.nextPhase,
 		});
 		state.currentPhase = transition.nextPhase;
@@ -95,7 +113,7 @@ export async function handlePhaseMessage(
 			context.scheduleTask(
 				prewarmBiometricVerifier({
 					env: context.env,
-					attemptId: state.attemptId,
+					sessionId: state.sessionId,
 				}),
 			);
 			const authSecret = context.env.AUTH_SECRET;
@@ -105,7 +123,7 @@ export async function handlePhaseMessage(
 				// matching nonce. Fail loudly here rather than letting the
 				// iOS engine hang on a never-arriving challenge.
 				logEvent(context.log, {
-					details: { attempt_id: state.attemptId },
+					details: { attempt_id: state.sessionId },
 					event: "verify.ws.liveness_challenge_unavailable",
 					level: "warn",
 				});
@@ -117,7 +135,7 @@ export async function handlePhaseMessage(
 				return;
 			}
 			const challenge = await deriveLivenessChallenge({
-				attemptId: state.attemptId,
+				attemptId: state.sessionId,
 				authSecret,
 			});
 			state.livenessChallengeNonce = challenge.challengeNonce;

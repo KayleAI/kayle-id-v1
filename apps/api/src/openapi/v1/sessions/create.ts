@@ -19,14 +19,6 @@ export const createSession = createRoute({
 	method: "post",
 	path: "/",
 	request: {
-		query: z.object({
-			include_attempts: z.coerce
-				.boolean()
-				.optional()
-				.describe(
-					"When true, includes the `attempts` array on the created session. Attempts will be empty on creation.",
-				),
-		}),
 		body: {
 			content: {
 				"application/json": {

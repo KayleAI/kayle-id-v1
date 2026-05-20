@@ -1,22 +1,23 @@
 import { logEvent } from "@kayle-id/config/logging";
 import {
-	claimAttemptConnection,
-	releaseAttemptConnection,
-} from "./attempt-connection";
-import {
 	isAttestationGateEnabled,
 	verifyHelloAttestation,
 } from "./attest-gate";
 import {
-	getAttemptForHello,
+	consumeHelloHandoff,
+	getSessionForHello,
 	type HelloPayload,
-	isAttemptMissingOrTerminal,
+	isSessionMissingOrTerminal,
 	type ParsedHelloPayload,
 	parseHelloPayload,
 	persistFirstHelloState,
 	resolveHelloAuthState,
 } from "./hello-auth";
-import { persistTrackedAttemptPhase } from "./phase-state";
+import { persistTrackedSessionPhase } from "./phase-state";
+import {
+	claimSessionConnection,
+	releaseSessionConnection,
+} from "./session-connection";
 import type { VerifySocketContext } from "./socket-context";
 import { deriveActiveAuthChallenge } from "./validation";
 
@@ -26,18 +27,18 @@ import { deriveActiveAuthChallenge } from "./validation";
 // instead of a confusing attestation error.
 const MIN_APP_VERSION = process.env.MIN_APP_VERSION ?? "";
 
-async function resetAttemptState(
+async function resetSessionState(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 ): Promise<void> {
 	const { connectionOwnerId, state } = context;
 
-	await releaseAttemptConnection({
-		attemptId,
+	await releaseSessionConnection({
+		sessionId,
 		ownerId: connectionOwnerId,
 	});
 	state.confirmedFaceScore = null;
-	state.attemptId = null;
+	state.sessionId = null;
 	state.currentPhase = null;
 	state.shareManifest = null;
 	state.shareRequestSent = false;
@@ -45,14 +46,14 @@ async function resetAttemptState(
 
 async function persistConnectedPhaseIfMissing(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 ): Promise<void> {
 	if (context.state.currentPhase) {
 		return;
 	}
 
-	await persistTrackedAttemptPhase({
-		attemptId,
+	await persistTrackedSessionPhase({
+		sessionId,
 		phase: "mobile_connected",
 	});
 	context.state.currentPhase = "mobile_connected";
@@ -67,7 +68,7 @@ export async function handleHelloMessage(
 	const parsed = parseHelloPayload(payload);
 
 	transport.logDebug("recv_hello", {
-		attemptIdPresent: Boolean(parsed?.attemptId),
+		sessionIdPresent: Boolean(parsed?.sessionId),
 		mobileWriteTokenPresent: Boolean(parsed?.mobileWriteToken),
 		deviceIdPresent: Boolean(parsed?.deviceId),
 	});
@@ -77,16 +78,21 @@ export async function handleHelloMessage(
 		return;
 	}
 
-	const attempt = await getAttemptForHello(session.id, parsed.attemptId);
-	if (isAttemptMissingOrTerminal(attempt)) {
-		transport.sendAuthErrorAndClose("ATTEMPT_NOT_FOUND");
+	if (parsed.sessionId !== session.id) {
+		transport.sendAuthErrorAndClose("HELLO_AUTH_REQUIRED");
+		return;
+	}
+
+	const sessionRow = await getSessionForHello(session.id);
+	if (isSessionMissingOrTerminal(sessionRow)) {
+		transport.sendAuthErrorAndClose("SESSION_NOT_FOUND");
 		return;
 	}
 
 	if (
 		state.helloReceived &&
-		state.attemptId &&
-		state.attemptId !== attempt.id
+		state.sessionId &&
+		state.sessionId !== sessionRow.id
 	) {
 		transport.sendAuthErrorAndClose("HELLO_AUTH_REQUIRED");
 		return;
@@ -102,7 +108,7 @@ export async function handleHelloMessage(
 
 	const authStartedAt = Date.now();
 	const authState = await resolveHelloAuthState({
-		attempt,
+		session: sessionRow,
 		mobileWriteToken: parsed.mobileWriteToken,
 		deviceId: parsed.deviceId,
 		nowMs: Date.now(),
@@ -123,14 +129,14 @@ export async function handleHelloMessage(
 	}
 
 	const ownershipStartedAt = Date.now();
-	const ownership = await claimAttemptConnection({
-		attemptId: attempt.id,
+	const ownership = await claimSessionConnection({
+		sessionId: sessionRow.id,
 		ownerId: connectionOwnerId,
 		// Resume already proved this is the same device via deviceIdHash, so
 		// the new socket is allowed to displace whatever owner the previous
 		// socket left behind. Otherwise the iOS reconnect that runs right
 		// after the NFC scan races the old socket's async release and gets
-		// rejected with ATTEMPT_CONNECTION_ACTIVE.
+		// rejected with SESSION_CONNECTION_ACTIVE.
 		allowTakeover: authState.kind === "resume",
 	});
 	const ownershipDurationMs = Date.now() - ownershipStartedAt;
@@ -141,19 +147,19 @@ export async function handleHelloMessage(
 	}
 
 	state.confirmedFaceScore = null;
-	state.attemptId = attempt.id;
-	state.currentPhase = attempt.currentPhase ?? null;
+	state.sessionId = sessionRow.id;
+	state.currentPhase = sessionRow.currentPhase ?? null;
 	state.helloReceived = true;
 	state.shareManifest = null;
 	state.shareRequestSent = false;
 	log.set({
-		attempt_id: attempt.id,
+		session_id: sessionRow.id,
 	});
 
 	if (parsed.runtimeIntegritySignal !== 0) {
 		logEvent(log, {
 			details: {
-				attempt_id: attempt.id,
+				session_id: sessionRow.id,
 				runtime_integrity_signal: parsed.runtimeIntegritySignal,
 			},
 			event: "verify.ws.runtime_integrity_signal",
@@ -163,10 +169,10 @@ export async function handleHelloMessage(
 
 	if (authState.kind === "resume") {
 		const persistStartedAt = Date.now();
-		await persistConnectedPhaseIfMissing(context, attempt.id);
+		await persistConnectedPhaseIfMissing(context, sessionRow.id);
 		const persistDurationMs = Date.now() - persistStartedAt;
 		logHelloTiming({
-			attemptId: attempt.id,
+			sessionId: sessionRow.id,
 			authDurationMs,
 			attestationDurationMs,
 			helloStartedAt,
@@ -176,7 +182,7 @@ export async function handleHelloMessage(
 			resume: true,
 		});
 		transport.sendAck("hello_ok");
-		await sendActiveAuthChallenge(context, attempt.id);
+		await sendActiveAuthChallenge(context, sessionRow.id);
 		return;
 	}
 
@@ -184,7 +190,6 @@ export async function handleHelloMessage(
 		const persistStartedAt = Date.now();
 		if (
 			!(await persistFirstHelloState({
-				attemptId: attempt.id,
 				deviceIdHash: authState.deviceIdHash,
 				appVersion: parsed.appVersion,
 				mobileAttestKeyId: attestation.attestKeyId,
@@ -194,10 +199,15 @@ export async function handleHelloMessage(
 			transport.sendAuthErrorAndClose("SESSION_EXPIRED");
 			return;
 		}
+		// `persistFirstHelloState` already writes the consumed-at timestamp and
+		// mobileHelloDeviceIdHash; this helper is kept as a safety net for any
+		// future caller that wants to update consumption state outside of the
+		// first-hello critical section.
+		void consumeHelloHandoff;
 		const persistDurationMs = Date.now() - persistStartedAt;
 		state.currentPhase = "mobile_connected";
 		logHelloTiming({
-			attemptId: attempt.id,
+			sessionId: sessionRow.id,
 			authDurationMs,
 			attestationDurationMs,
 			helloStartedAt,
@@ -207,16 +217,16 @@ export async function handleHelloMessage(
 			resume: false,
 		});
 	} catch (error) {
-		await resetAttemptState(context, attempt.id);
+		await resetSessionState(context, sessionRow.id);
 		throw error;
 	}
 
 	transport.sendAck("hello_ok");
-	await sendActiveAuthChallenge(context, attempt.id);
+	await sendActiveAuthChallenge(context, sessionRow.id);
 }
 
 function logHelloTiming({
-	attemptId,
+	sessionId,
 	authDurationMs,
 	attestationDurationMs,
 	helloStartedAt,
@@ -225,7 +235,7 @@ function logHelloTiming({
 	persistDurationMs,
 	resume,
 }: {
-	attemptId: string;
+	sessionId: string;
 	authDurationMs: number;
 	attestationDurationMs: number;
 	helloStartedAt: number;
@@ -236,7 +246,7 @@ function logHelloTiming({
 }): void {
 	logEvent(log, {
 		details: {
-			attempt_id: attemptId,
+			session_id: sessionId,
 			attestation_ms: attestationDurationMs,
 			auth_ms: authDurationMs,
 			ownership_ms: ownershipDurationMs,
@@ -273,7 +283,7 @@ async function runHelloAttestationGate(
 	if (!hasAssertion) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: parsed.attemptId,
+				session_id: parsed.sessionId,
 				reason: "assertion_missing",
 			},
 			event: "verify.ws.hello_attest_missing",
@@ -284,7 +294,7 @@ async function runHelloAttestationGate(
 
 	const result = await verifyHelloAttestation({
 		appVersion: parsed.appVersion,
-		attemptId: parsed.attemptId,
+		sessionId: parsed.sessionId,
 		attestKeyId: parsed.attestKeyId,
 		authSecret: context.env.AUTH_SECRET as string,
 		deviceId: parsed.deviceId,
@@ -294,7 +304,7 @@ async function runHelloAttestationGate(
 	if (!result.ok) {
 		logEvent(context.log, {
 			details: {
-				attempt_id: parsed.attemptId,
+				session_id: parsed.sessionId,
 				attest_key_id: parsed.attestKeyId,
 				reason: result.code,
 				detail: result.detail ?? null,
@@ -340,10 +350,10 @@ function parseSemver(value: string): [number, number, number] | null {
 
 async function sendActiveAuthChallenge(
 	context: VerifySocketContext,
-	attemptId: string,
+	sessionId: string,
 ): Promise<void> {
 	const challenge = await deriveActiveAuthChallenge({
-		attemptId,
+		sessionId,
 		authSecret: context.env.AUTH_SECRET as string,
 	});
 	context.transport.sendActiveAuthChallenge(challenge);

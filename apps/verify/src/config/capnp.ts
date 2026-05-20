@@ -31,7 +31,7 @@ type PendingRequest = {
 };
 
 export type HelloCredentials = {
-	attemptId: string;
+	sessionId: string;
 	mobileWriteToken: string;
 	deviceId: string;
 	appVersion: string;
@@ -73,13 +73,13 @@ const parseJsonError = (text: string): SessionError | null => {
 };
 
 const encodeHello = ({
-	attemptId,
+	sessionId,
 	mobileWriteToken,
 	deviceId,
 	appVersion,
 }: HelloCredentials): Uint8Array =>
 	encodeClientHello({
-		attemptId,
+		sessionId,
 		mobileWriteToken,
 		deviceId,
 		appVersion,

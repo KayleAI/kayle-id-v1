@@ -167,7 +167,7 @@ test("verifyWebhookSignature rejects replayed deliveries", async () => {
 test("decryptCompactJwe decrypts the Phase 11 webhook payload locally", async () => {
 	const { privateKey, publicJwk } = await generateDemoKeyPair();
 	const plaintext = JSON.stringify({
-		type: "verification.attempt.succeeded",
+		type: "verification.session.succeeded",
 		data: {
 			claims: {
 				document_number: "123456789",

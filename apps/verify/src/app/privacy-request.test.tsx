@@ -146,7 +146,6 @@ function createFoundContext(
 		kind: "found",
 		has_withdrawn_consent: false,
 		is_terminal: false,
-		latest_attempt_id: "va_attempt123",
 		organization_id: "00000000-0000-4000-8000-000000000123",
 		organization_business_jurisdiction: null,
 		organization_business_name: null,
@@ -216,9 +215,8 @@ describe("privacy options helpers", () => {
 		).toBe("/vs_session123/privacy?cancel_token=ct_cancel_token");
 	});
 
-	test("builds organization mailto content scoped to the session and attempt", () => {
+	test("builds organization mailto content scoped to the session", () => {
 		const href = buildPrivacyRequestMailtoHref({
-			attemptId: "va_attempt123",
 			email: "support@test.example",
 			organizationName: "Test Organization",
 			sessionId: "vs_session123",
@@ -233,7 +231,6 @@ describe("privacy options helpers", () => {
 			"I am using the Kayle ID privacy options for this check.",
 		);
 		expect(params.get("body")).toContain("Session ID: vs_session123");
-		expect(params.get("body")).toContain("Latest attempt ID: va_attempt123");
 		expect(params.get("body")).toContain("Organization: Test Organization");
 	});
 });
@@ -319,7 +316,7 @@ describe("PrivacyRequestPage", () => {
 			rpLink.getAttribute("href")?.split("?")[1] ?? "",
 		);
 
-		expect(rpParams.get("body")).toContain("Latest attempt ID: va_attempt123");
+		expect(rpParams.get("body")).toContain("Session ID: vs_session123");
 		expectTextContent(
 			"This check is already finished. Kayle ID no longer has your document, selfie, or personal details. Test Organization has already received your data.",
 		);

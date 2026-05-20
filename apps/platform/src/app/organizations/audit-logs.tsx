@@ -102,8 +102,8 @@ const EVENT_DESCRIPTORS: readonly EventDescriptor[] = [
 	},
 	{
 		category: "Sessions",
-		event: "session.attempt.failed",
-		label: "Session attempt failed",
+		event: "session.check.failed",
+		label: "Check failed (retry allowed)",
 	},
 	{
 		category: "Sessions",
@@ -290,9 +290,13 @@ function metadataStringList(
 function summariseEntry(entry: AuditLogEntry): string | null {
 	const meta = entry.metadata;
 	switch (entry.event) {
-		case "session.attempt.failed":
+		case "session.check.failed":
 		case "session.failed": {
 			const code = metadataString(meta, "failure_code");
+			const failedCheck = metadataString(meta, "failed_check");
+			if (code && failedCheck) {
+				return `${failedCheck}: ${code.replaceAll("_", " ")}`;
+			}
 			return code ? code.replaceAll("_", " ") : null;
 		}
 		case "organization.public_details.updated":
@@ -455,12 +459,12 @@ function ActorCell({ entry }: { entry: AuditLogEntry }) {
 const HUMAN_METADATA_LABELS: Readonly<Record<string, string>> = {
 	actor_api_key_id: "API key",
 	apex_domain: "Domain",
-	attempt_id: "Attempt",
-	consecutive_failed_checks: "Consecutive failed checks",
 	email: "Email",
 	enabled: "Enabled",
-	failed_attempts: "Failed attempts",
+	failed_check: "Failed check",
 	failure_code: "Failure",
+	nfc_tries_used: "NFC retries used",
+	liveness_tries_used: "Liveness retries used",
 	has_conflict: "Conflict detected",
 	is_age_only: "Age-only",
 	method: "Method",

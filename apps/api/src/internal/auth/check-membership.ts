@@ -150,7 +150,7 @@ checkMembership.openapi(checkSessionMembershipRoute, async (c) => {
 	const isOwner = hasOrgRole(member.role, "owner");
 	const isAdminOrOwner = hasOrgRole(member.role, "admin");
 
-	const primary = isOwner
+	const primary: "owner" | "admin" | "member" | null = isOwner
 		? "owner"
 		: isAdminOrOwner
 			? "admin"

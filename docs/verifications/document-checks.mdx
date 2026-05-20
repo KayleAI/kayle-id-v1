@@ -53,4 +53,4 @@ When an attempt is not confirmed, the webhook payload's `data.failure_code` tell
 | `session_expired` | The session ran past its 60-minute window before this attempt could finish. |
 | `session_cancelled` | The session was cancelled while this attempt was in progress. |
 
-The first four codes appear on `verification.attempt.failed`. The last two surface on attempts inside expired or cancelled sessions; you'll usually receive the corresponding session-level event (`verification.session.expired` / `verification.session.cancelled`) at the same time.
+The first four codes appear on `verification.session.failed`. The last two surface on attempts inside expired or cancelled sessions; you'll usually receive the corresponding session-level event (`verification.session.expired` / `verification.session.cancelled`) at the same time.

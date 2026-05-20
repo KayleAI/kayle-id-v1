@@ -1,25 +1,24 @@
 ---
-title: "verification.attempt.succeeded"
-description: "Fires when a Kayle check attempt is confirmed."
+title: "verification.session.succeeded"
+description: "Fires when a Kayle verification session is confirmed."
 ---
 
-Emitted when an attempt finishes with all Kayle checks confirmed. The payload includes the consented claims and the canonical list of selected field keys.
+Emitted when a session finishes with all Kayle checks confirmed. The payload includes the consented claims and the canonical list of selected field keys.
 
 ## When it fires
 
-After the verify pipeline confirms an attempt: SOD chain checked, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier confirms the selfie, and the user has consented to share at least all required fields.
+After the verify pipeline confirms the session: SOD chain checked, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier confirms the selfie, and the user has consented to share at least all required fields.
 
-A session can only have one confirmed attempt — once this event fires, the session moves to `completed` and no further attempts are allowed.
+A session can only succeed once — once this event fires, the session moves to `succeeded` and no further checks are accepted.
 
 ## Payload
 
 ```json
 {
-  "type": "verification.attempt.succeeded",
+  "type": "verification.session.succeeded",
   "metadata": {
     "contract_version": 1,
     "event_id": "evt_...",
-    "verification_attempt_id": "va_...",
     "verification_session_id": "vs_..."
   },
   "data": {
@@ -42,7 +41,7 @@ A session can only have one confirmed attempt — once this event fires, the ses
 ## Fields
 
 <ResponseField name="type" type="string">
-  Always `verification.attempt.succeeded`.
+  Always `verification.session.succeeded`.
 </ResponseField>
 
 <ResponseField name="metadata.contract_version" type="number">
@@ -53,12 +52,8 @@ A session can only have one confirmed attempt — once this event fires, the ses
   The unique event ID. Idempotency-key candidate — the same event will reuse this ID on retries and replays.
 </ResponseField>
 
-<ResponseField name="metadata.verification_attempt_id" type="string">
-  The attempt that succeeded.
-</ResponseField>
-
 <ResponseField name="metadata.verification_session_id" type="string">
-  The session this attempt belongs to.
+  The session that succeeded.
 </ResponseField>
 
 <ResponseField name="data.claims" type="object">
@@ -72,13 +67,12 @@ A session can only have one confirmed attempt — once this event fires, the ses
 ## Handler outline
 
 ```typescript
-if (event.type === "verification.attempt.succeeded") {
-  const { verification_session_id, verification_attempt_id, event_id } = event.metadata;
+if (event.type === "verification.session.succeeded") {
+  const { verification_session_id, event_id } = event.metadata;
   if (await alreadyProcessed(event_id)) return;
 
   await recordIdentityAssuranceSignal({
     sessionId: verification_session_id,
-    attemptId: verification_attempt_id,
     claims: event.data.claims,
   });
 }

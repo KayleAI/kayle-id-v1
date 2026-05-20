@@ -44,7 +44,7 @@ sequenceDiagram
     Biometric-->>API: { passed, score }
     API->>API: SOD trust chain, active auth, chip auth
     API-->>Mobile: check result (confirmed | not confirmed)
-    API-->>Partner: webhook (verification.attempt.succeeded | failed)
+    API-->>Partner: webhook (verification.session.succeeded | failed)
     Verify->>Partner: redirect to redirect_url
 ```
 
@@ -74,7 +74,7 @@ The Postgres database holds:
 
 - **Verification sessions** — status, expiry, requested share fields, optional `redirect_url`, hashed `cancel_token`.
 - **Verification attempts** — status, failure code if any, risk score, hashed mobile write token, hashed device ID, app version, current phase.
-- **Events** — domain events (`verification.attempt.succeeded`, etc.) with a trigger ID, but no PII.
+- **Events** — domain events (`verification.session.succeeded`, etc.) with a trigger ID, but no PII.
 - **Webhook deliveries** — endpoint ID, status, attempt count, payload (encrypted in transit when an encryption key is registered).
 
 It does **not** store DG1, DG2, DG14, DG15, SOD bytes, selfies, or any plaintext claims. Those are processed in memory while the WebSocket is open and discarded when it closes. See [Privacy](/verifications/privacy) for the full list.

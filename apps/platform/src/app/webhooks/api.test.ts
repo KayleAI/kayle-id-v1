@@ -151,7 +151,7 @@ describe("webhook api helpers", () => {
 			mockJsonResponse({
 				data: {
 					id: "evt_123",
-					type: "verification.attempt.succeeded",
+					type: "verification.session.succeeded",
 					trigger_id: "va_123",
 					trigger_type: "verification_attempt",
 					created_at: "2026-05-19T00:00:00.000Z",

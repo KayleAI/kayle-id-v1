@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const SUPPORTED_WEBHOOK_EVENT_TYPES = [
-  "verification.attempt.succeeded",
-  "verification.attempt.failed",
+  "verification.session.succeeded",
+  "verification.session.failed",
   "verification.session.expired",
   "verification.session.cancelled",
 ] as const;

@@ -84,7 +84,6 @@ describe("emitCostEvent", () => {
       quantity: 3400, // 3.4s in ms
       unit: "ms",
       workerName: "kayle-id-biometric-verifier",
-      attemptId: "attempt-abc",
       environment: "production",
       version: "1.3.6",
     });
@@ -255,7 +254,6 @@ describe("blob-slot mapping", () => {
       quantity: 1000,
       unit: "ms",
       workerName: "kayle-id-test",
-      attemptId: "attempt-slot",
       environment: "production",
       version: "9.9.9",
     });

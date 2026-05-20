@@ -52,15 +52,15 @@ const ISO_9796_2_EXPLICIT_HASH_BY_ID: Record<number, AaHashAlgorithm> = {
  * what gives Active Authentication its anti-cloning value.
  */
 export async function deriveActiveAuthChallenge({
-	attemptId,
+	sessionId,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	authSecret: string;
 }): Promise<Uint8Array> {
 	const secretBytes = new TextEncoder().encode(authSecret);
 	const payloadBytes = new TextEncoder().encode(
-		`${ACTIVE_AUTH_CHALLENGE_LABEL}${attemptId}`,
+		`${ACTIVE_AUTH_CHALLENGE_LABEL}${sessionId}`,
 	);
 	const key = await crypto.subtle.importKey(
 		"raw",

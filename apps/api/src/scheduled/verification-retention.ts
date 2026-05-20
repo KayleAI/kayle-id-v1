@@ -8,7 +8,6 @@ import { audit_logs } from "@kayle-id/database/schema/audit-logs";
 import {
 	events,
 	mobile_attest_keys,
-	verification_attempts,
 	verification_sessions,
 } from "@kayle-id/database/schema/core";
 import { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
@@ -38,14 +37,15 @@ const RETENTION_SWEEP_UTC_MINUTE = 23;
 const DAY_MS = 24 * 60 * 60_000;
 
 const TERMINAL_SESSION_STATUSES = [
-	"completed",
+	"succeeded",
+	"failed",
 	"expired",
 	"cancelled",
 ] as const;
 
 const VERIFICATION_EVENT_TYPES = [
-	"verification.attempt.succeeded",
-	"verification.attempt.failed",
+	"verification.session.succeeded",
+	"verification.session.failed",
 	"verification.session.expired",
 	"verification.session.cancelled",
 ] as const;
@@ -55,7 +55,7 @@ const VERIFICATION_AUDIT_LOG_EVENTS = [
 	"session.cancelled",
 	"session.expired",
 	"session.succeeded",
-	"session.attempt.failed",
+	"session.check.failed",
 	"session.failed",
 ] as const;
 
@@ -127,7 +127,12 @@ async function deleteTerminalVerificationSessions({
 	return deletedRows.length;
 }
 
-async function minimizeVerificationAttempts({
+/**
+ * Minimize terminal session rows by nulling out anything tied to the
+ * specific attempt that was running before the session terminalized. The
+ * session id, organization id, terminal status, and timestamps survive.
+ */
+async function minimizeVerificationSessionsPostTerminal({
 	batchSize,
 	now,
 }: {
@@ -139,31 +144,37 @@ async function minimizeVerificationAttempts({
 		VERIFICATION_ATTEMPT_MINIMIZATION_RETENTION_DAYS,
 	);
 	const staleRows = await db
-		.select({ id: verification_attempts.id })
-		.from(verification_attempts)
+		.select({ id: verification_sessions.id })
+		.from(verification_sessions)
 		.where(
 			and(
-				isNotNull(verification_attempts.completedAt),
-				lte(verification_attempts.completedAt, cutoff),
+				inArray(verification_sessions.status, [
+					"succeeded",
+					"failed",
+					"expired",
+					"cancelled",
+				]),
+				isNotNull(verification_sessions.completedAt),
+				lte(verification_sessions.completedAt, cutoff),
 				or(
-					isNotNull(verification_attempts.failureCode),
-					isNotNull(verification_attempts.mobileWriteTokenSeed),
-					isNotNull(verification_attempts.mobileWriteTokenHash),
-					isNotNull(verification_attempts.mobileWriteTokenIssuedAt),
-					isNotNull(verification_attempts.mobileWriteTokenExpiresAt),
-					isNotNull(verification_attempts.mobileWriteTokenConsumedAt),
-					isNotNull(verification_attempts.mobileHelloDeviceIdHash),
-					isNotNull(verification_attempts.mobileHelloAppVersion),
-					isNotNull(verification_attempts.currentPhase),
-					isNotNull(verification_attempts.phaseUpdatedAt),
-					ne(verification_attempts.riskScore, 0),
-					isNotNull(verification_attempts.claimedByConnectionId),
-					isNotNull(verification_attempts.claimedAt),
-					isNotNull(verification_attempts.mobileAttestKeyId),
+					isNotNull(verification_sessions.failureCode),
+					isNotNull(verification_sessions.mobileWriteTokenSeed),
+					isNotNull(verification_sessions.mobileWriteTokenHash),
+					isNotNull(verification_sessions.mobileWriteTokenIssuedAt),
+					isNotNull(verification_sessions.mobileWriteTokenExpiresAt),
+					isNotNull(verification_sessions.mobileWriteTokenConsumedAt),
+					isNotNull(verification_sessions.mobileHelloDeviceIdHash),
+					isNotNull(verification_sessions.mobileHelloAppVersion),
+					isNotNull(verification_sessions.currentPhase),
+					isNotNull(verification_sessions.phaseUpdatedAt),
+					ne(verification_sessions.riskScore, 0),
+					isNotNull(verification_sessions.claimedByConnectionId),
+					isNotNull(verification_sessions.claimedAt),
+					isNotNull(verification_sessions.mobileAttestKeyId),
 				),
 			),
 		)
-		.orderBy(asc(verification_attempts.completedAt))
+		.orderBy(asc(verification_sessions.completedAt))
 		.limit(batchSize);
 
 	if (staleRows.length === 0) {
@@ -171,12 +182,11 @@ async function minimizeVerificationAttempts({
 	}
 
 	const minimizedRows = await db
-		.update(verification_attempts)
+		.update(verification_sessions)
 		.set({
 			claimedAt: null,
 			claimedByConnectionId: null,
 			currentPhase: null,
-			failureCode: null,
 			mobileAttestKeyId: null,
 			mobileHelloAppVersion: null,
 			mobileHelloDeviceIdHash: null,
@@ -190,11 +200,11 @@ async function minimizeVerificationAttempts({
 		})
 		.where(
 			inArray(
-				verification_attempts.id,
+				verification_sessions.id,
 				staleRows.map((row) => row.id),
 			),
 		)
-		.returning({ id: verification_attempts.id });
+		.returning({ id: verification_sessions.id });
 
 	return minimizedRows.length;
 }
@@ -304,10 +314,10 @@ async function deleteStaleMobileAttestKeys({
 					exists(
 						db
 							.select({ presence: sql`1` })
-							.from(verification_attempts)
+							.from(verification_sessions)
 							.where(
 								eq(
-									verification_attempts.mobileAttestKeyId,
+									verification_sessions.mobileAttestKeyId,
 									mobile_attest_keys.keyId,
 								),
 							),
@@ -353,10 +363,11 @@ export async function runVerificationRetentionSweep({
 			batchSize,
 			now,
 		});
-		const minimizedAttemptCount = await minimizeVerificationAttempts({
-			batchSize,
-			now,
-		});
+		const minimizedAttemptCount =
+			await minimizeVerificationSessionsPostTerminal({
+				batchSize,
+				now,
+			});
 		const deletedEventCount = await deleteVerificationEvents({
 			batchSize,
 			now,

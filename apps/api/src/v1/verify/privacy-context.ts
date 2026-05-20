@@ -1,11 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
-import {
-	events,
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import { events, verification_sessions } from "@kayle-id/database/schema/core";
 import { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { expireVerificationSessionIfNeeded } from "@/v1/sessions/repo/session-repo";
 import {
 	getPublicVerifySessionDetails,
@@ -34,10 +30,15 @@ type PublicVerifySessionPrivacyOrganization = Pick<
 export type PublicVerifySessionPrivacyContext =
 	PublicVerifySessionPrivacyOrganization & {
 		session_id: string;
-		status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+		status:
+			| "cancelled"
+			| "created"
+			| "expired"
+			| "failed"
+			| "in_progress"
+			| "succeeded";
 		is_terminal: boolean;
 		has_withdrawn_consent: boolean;
-		latest_attempt_id: string | null;
 		result_webhook_deliveries: {
 			total_count: number;
 			succeeded_count: number;
@@ -46,31 +47,21 @@ export type PublicVerifySessionPrivacyContext =
 	};
 
 async function getResultWebhookDeliverySummary({
-	attemptIds,
+	sessionId,
 	organizationId,
 }: {
-	attemptIds: string[];
+	sessionId: string;
 	organizationId: string;
 }): Promise<PublicVerifySessionPrivacyContext["result_webhook_deliveries"]> {
-	if (attemptIds.length === 0) {
-		return {
-			total_count: 0,
-			succeeded_count: 0,
-			undelivered_count: 0,
-		};
-	}
-
 	const deliveryRows = await db
-		.select({
-			status: webhook_deliveries.status,
-		})
+		.select({ status: webhook_deliveries.status })
 		.from(events)
 		.innerJoin(webhook_deliveries, eq(webhook_deliveries.eventId, events.id))
 		.where(
 			and(
 				eq(events.organizationId, organizationId),
-				eq(events.type, "verification.attempt.succeeded"),
-				inArray(events.triggerId, attemptIds),
+				eq(events.type, "verification.session.succeeded"),
+				eq(events.triggerId, sessionId),
 			),
 		);
 	const succeededCount = deliveryRows.filter(
@@ -117,16 +108,8 @@ export async function getPublicVerifySessionPrivacyContext({
 		row: rawSession.session,
 	});
 
-	const attempts = await db
-		.select({
-			id: verification_attempts.id,
-		})
-		.from(verification_attempts)
-		.where(eq(verification_attempts.verificationSessionId, session.id))
-		.orderBy(desc(verification_attempts.createdAt));
-	const latestAttemptId = attempts[0]?.id ?? null;
 	const resultWebhookDeliveries = await getResultWebhookDeliverySummary({
-		attemptIds: attempts.map((attempt) => attempt.id),
+		sessionId: session.id,
 		organizationId: session.organizationId,
 	});
 
@@ -154,7 +137,6 @@ export async function getPublicVerifySessionPrivacyContext({
 		organization_website: details.organization_website,
 		organization_description: details.organization_description,
 		rp_fallback: details.rp_fallback,
-		latest_attempt_id: latestAttemptId,
 		result_webhook_deliveries: resultWebhookDeliveries,
 	};
 }

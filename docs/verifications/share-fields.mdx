@@ -4,7 +4,7 @@ description: "The catalogue of claims you can request for a Kayle check."
 icon: "list-check"
 ---
 
-When you create a session you tell Kayle which claims you need. The user sees those claims and the reasons you supplied during the consent step, then either consents and continues or aborts. Only the consented claims are returned in the `verification.attempt.succeeded` webhook.
+When you create a session you tell Kayle which claims you need. The user sees those claims and the reasons you supplied during the consent step, then either consents and continues or aborts. Only the consented claims are returned in the `verification.session.succeeded` webhook.
 
 ## The request shape
 
@@ -75,11 +75,11 @@ If you create a session without `share_fields`, Kayle applies a default contract
 
 ## Receiving the values
 
-When Kayle confirms an attempt, the `verification.attempt.succeeded` webhook returns the consented claims:
+When Kayle confirms an attempt, the `verification.session.succeeded` webhook returns the consented claims:
 
 ```json
 {
-  "type": "verification.attempt.succeeded",
+  "type": "verification.session.succeeded",
   "data": {
     "claims": {
       "date_of_birth": "1995-04-12",
@@ -89,7 +89,7 @@ When Kayle confirms an attempt, the `verification.attempt.succeeded` webhook ret
     },
     "selected_field_keys": ["date_of_birth", "family_name", "given_names", "kayle_document_id"]
   },
-  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+  "metadata": { "verification_session_id": "vs_...", "event_id": "evt_...", "contract_version": 1 }
 }
 ```
 

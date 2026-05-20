@@ -27,7 +27,7 @@ static bool copy_text_to_buffer(T text, char* out, size_t out_size) {
 
 int verify_build_hello(
   void* message_builder,
-  const char* attempt_id,
+  const char* session_id,
   const char* mobile_write_token,
   const char* device_id,
   const char* app_version,
@@ -36,13 +36,13 @@ int verify_build_hello(
   size_t hello_assertion_size,
   uint32_t runtime_integrity_signal
 ) {
-  if (!message_builder || !attempt_id || !mobile_write_token || !app_version) {
+  if (!message_builder || !session_id || !mobile_write_token || !app_version) {
     return 0;
   }
   auto* builder = reinterpret_cast<capnp::MallocMessageBuilder*>(message_builder);
   auto root = builder->initRoot<ClientMessage>();
   auto hello = root.initHello();
-  hello.setAttemptId(attempt_id);
+  hello.setSessionId(session_id);
   hello.setMobileWriteToken(mobile_write_token);
   if (device_id) {
     hello.setDeviceId(device_id);
@@ -280,13 +280,17 @@ int verify_server_message_get_check_result(
   char* out_reason_message,
   size_t out_reason_message_size,
   int* out_retry_allowed,
-  uint32_t* out_remaining_attempts
+  int* out_failed_check,
+  uint32_t* out_remaining_nfc_retries,
+  uint32_t* out_remaining_liveness_retries
 ) {
   if (
     !message_reader ||
     !out_outcome ||
     !out_retry_allowed ||
-    !out_remaining_attempts
+    !out_failed_check ||
+    !out_remaining_nfc_retries ||
+    !out_remaining_liveness_retries
   ) {
     return 0;
   }
@@ -323,7 +327,24 @@ int verify_server_message_get_check_result(
   }
 
   *out_retry_allowed = check_result.getRetryAllowed() ? 1 : 0;
-  *out_remaining_attempts = check_result.getRemainingAttempts();
+
+  switch (check_result.getFailedCheck()) {
+    case CheckKind::MRZ:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_MRZ;
+      break;
+    case CheckKind::NFC:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_NFC;
+      break;
+    case CheckKind::LIVENESS:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_LIVENESS;
+      break;
+    default:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_NONE;
+      break;
+  }
+
+  *out_remaining_nfc_retries = check_result.getRemainingNfcRetries();
+  *out_remaining_liveness_retries = check_result.getRemainingLivenessRetries();
   return 1;
 }
 

@@ -99,12 +99,21 @@ enum VerifyCheckOutcome: Equatable {
   case notConfirmed
 }
 
+enum VerifyCheckKind: Int32, Equatable {
+  case mrz = 0
+  case nfc = 1
+  case liveness = 2
+  case none = 3
+}
+
 struct VerifyServerCheckResult: Equatable {
   let outcome: VerifyCheckOutcome
   let reasonCode: String
   let reasonMessage: String
   let retryAllowed: Bool
-  let remainingAttempts: Int
+  let failedCheck: VerifyCheckKind
+  let remainingNfcRetries: Int
+  let remainingLivenessRetries: Int
 }
 
 struct VerifyShareRequestField: Equatable, Identifiable {

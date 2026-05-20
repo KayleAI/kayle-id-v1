@@ -48,14 +48,7 @@ function createSessionAnalyticsCte({
 	organizationId: string;
 }) {
 	return sql`
-    with attempt_rollup as (
-      select
-        verification_session_id,
-        bool_or(status = 'succeeded') as has_succeeded
-      from verification_attempts
-      group by verification_session_id
-    ),
-    session_outcomes as (
+    with session_outcomes as (
       select
         case
           when verification_sessions.status = 'cancelled' then 'cancelled'
@@ -65,8 +58,8 @@ function createSessionAnalyticsCte({
               and verification_sessions.expires_at <= ${now}
             )
             then 'expired'
-          when coalesce(attempt_rollup.has_succeeded, false) then 'success'
-          when verification_sessions.status = 'completed' then 'failure'
+          when verification_sessions.status = 'succeeded' then 'success'
+          when verification_sessions.status = 'failed' then 'failure'
           else 'active'
         end as outcome,
         verification_sessions.created_at as created_at,
@@ -84,8 +77,6 @@ function createSessionAnalyticsCte({
           else verification_sessions.completed_at
         end as outcome_at
       from verification_sessions
-      left join attempt_rollup
-        on attempt_rollup.verification_session_id = verification_sessions.id
       where verification_sessions.organization_id = ${organizationId}
     )
   `;

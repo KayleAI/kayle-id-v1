@@ -85,7 +85,6 @@ export function OrganizationReportAction({
 					{copy.org.report.actionLabel}
 				</a>
 			}
-			size="sm"
 			variant={variant}
 		/>
 	);

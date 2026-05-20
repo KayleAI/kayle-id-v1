@@ -1,7 +1,6 @@
 export type HandoffPayload = {
 	v: number;
 	session_id: string;
-	attempt_id: string;
 	mobile_write_token: string;
 	expires_at: string;
 };
@@ -20,7 +19,13 @@ export type VerifySessionStatusPayload = {
 	redirect_url: string | null;
 	session_id: string;
 	same_device_only: boolean;
-	status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+	status:
+		| "cancelled"
+		| "created"
+		| "expired"
+		| "failed"
+		| "in_progress"
+		| "succeeded";
 };
 
 export type VerifySessionShareField = {

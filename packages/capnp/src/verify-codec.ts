@@ -1,5 +1,6 @@
 import { Message } from "capnp-es";
 import {
+  CheckKind as CapnpCheckKind,
   CheckOutcome as CapnpCheckOutcome,
   ClientMessage as CapnpClientMessage,
   DataKind as CapnpDataKind,
@@ -8,12 +9,12 @@ import {
 
 export interface VerifyClientHello {
   appVersion?: string;
-  attemptId?: string;
   attestKeyId?: string;
   deviceId?: string;
   helloAssertion?: Uint8Array;
   mobileWriteToken?: string;
   runtimeIntegritySignal?: number;
+  sessionId?: string;
 }
 
 export interface VerifyPhaseUpdate {
@@ -55,7 +56,9 @@ export interface VerifyServerMessage {
     reasonCode: string;
     reasonMessage: string;
     retryAllowed: boolean;
-    remainingAttempts: number;
+    failedCheck: "mrz" | "nfc" | "liveness" | "none";
+    remainingNfcRetries: number;
+    remainingLivenessRetries: number;
   };
   error?: {
     code: string;
@@ -102,6 +105,36 @@ function toVerifyCheckOutcome(
   return outcome === CapnpCheckOutcome.CONFIRMED
     ? "confirmed"
     : "not_confirmed";
+}
+
+function toVerifyCheckKind(
+  kind: (typeof CapnpCheckKind)[keyof typeof CapnpCheckKind]
+): VerifyServerCheckResult["failedCheck"] {
+  switch (kind) {
+    case CapnpCheckKind.MRZ:
+      return "mrz";
+    case CapnpCheckKind.NFC:
+      return "nfc";
+    case CapnpCheckKind.LIVENESS:
+      return "liveness";
+    default:
+      return "none";
+  }
+}
+
+function toCapnpCheckKind(
+  kind: VerifyServerCheckResult["failedCheck"]
+): (typeof CapnpCheckKind)[keyof typeof CapnpCheckKind] {
+  switch (kind) {
+    case "mrz":
+      return CapnpCheckKind.MRZ;
+    case "nfc":
+      return CapnpCheckKind.NFC;
+    case "liveness":
+      return CapnpCheckKind.LIVENESS;
+    default:
+      return CapnpCheckKind.NONE;
+  }
 }
 
 function toCapnpDataKind(
@@ -161,7 +194,9 @@ export function encodeServerCheckResult(
   next.reasonCode = checkResult.reasonCode;
   next.reasonMessage = checkResult.reasonMessage;
   next.retryAllowed = checkResult.retryAllowed;
-  next.remainingAttempts = checkResult.remainingAttempts;
+  next.failedCheck = toCapnpCheckKind(checkResult.failedCheck);
+  next.remainingNfcRetries = checkResult.remainingNfcRetries;
+  next.remainingLivenessRetries = checkResult.remainingLivenessRetries;
   return new Uint8Array(packet.toArrayBuffer());
 }
 
@@ -256,7 +291,9 @@ export function decodeServerMessage(
             reasonCode: root.checkResult.reasonCode,
             reasonMessage: root.checkResult.reasonMessage,
             retryAllowed: root.checkResult.retryAllowed,
-            remainingAttempts: root.checkResult.remainingAttempts,
+            failedCheck: toVerifyCheckKind(root.checkResult.failedCheck),
+            remainingNfcRetries: root.checkResult.remainingNfcRetries,
+            remainingLivenessRetries: root.checkResult.remainingLivenessRetries,
           },
         };
       case CapnpServerMessage.SHARE_REQUEST: {
@@ -324,7 +361,7 @@ export function encodeClientHello(hello: VerifyClientHello): Uint8Array {
   const packet = new Message();
   const root = packet.initRoot(CapnpClientMessage);
   const next = root._initHello();
-  next.attemptId = hello.attemptId ?? "";
+  next.sessionId = hello.sessionId ?? "";
   next.mobileWriteToken = hello.mobileWriteToken ?? "";
   next.deviceId = hello.deviceId ?? "";
   next.appVersion = hello.appVersion ?? "";
@@ -388,7 +425,7 @@ export function decodeClientMessage(
       case CapnpClientMessage.HELLO:
         return {
           hello: {
-            attemptId: root.hello.attemptId,
+            sessionId: root.hello.sessionId,
             mobileWriteToken: root.hello.mobileWriteToken,
             deviceId: root.hello.deviceId,
             appVersion: root.hello.appVersion,

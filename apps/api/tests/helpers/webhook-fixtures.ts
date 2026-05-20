@@ -8,14 +8,14 @@ import {
 import { file } from "bun";
 import { exportJWK, importSPKI } from "jose";
 import {
-	createWebhookDeliveriesForVerificationAttemptFailed,
-	createWebhookDeliveriesForVerificationSucceeded,
+	createWebhookDeliveriesForVerificationSessionFailed,
+	createWebhookDeliveriesForVerificationSessionSucceededWithManifest,
 } from "@/v1/webhooks/deliveries/service";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
 
 type SupportedSeedEventType =
-	| "verification.attempt.failed"
-	| "verification.attempt.succeeded";
+	| "verification.session.failed"
+	| "verification.session.succeeded";
 
 export async function loadTestPublicJwk(): Promise<JsonWebKey> {
 	const publicKeyText = await file(
@@ -150,25 +150,27 @@ export async function seedWebhookEventWithDelivery({
 	});
 
 	const deliveryIds =
-		eventType === "verification.attempt.succeeded"
-			? await createWebhookDeliveriesForVerificationSucceeded({
-					attemptId: `va_${context}_${crypto.randomUUID()}`,
-					eventId: event.id,
-					manifest: {
-						claims: {
-							family_name: "DOE",
+		eventType === "verification.session.succeeded"
+			? await createWebhookDeliveriesForVerificationSessionSucceededWithManifest(
+					{
+						eventId: event.id,
+						manifest: {
+							claims: {
+								family_name: "DOE",
+							},
+							contractVersion: 1,
+							selectedFieldKeys: ["family_name"],
+							sessionId: `vs_${context}_${crypto.randomUUID()}`,
 						},
-						contractVersion: 1,
-						selectedFieldKeys: ["family_name"],
-						sessionId: `vs_${context}_${crypto.randomUUID()}`,
+						organizationId,
 					},
-					organizationId,
-				})
-			: await createWebhookDeliveriesForVerificationAttemptFailed({
-					attemptId: `va_${context}_${crypto.randomUUID()}`,
+				)
+			: await createWebhookDeliveriesForVerificationSessionFailed({
 					contractVersion: 1,
 					eventId: event.id,
 					failureCode: "selfie_face_mismatch",
+					nfcTriesUsed: 3,
+					livenessTriesUsed: 0,
 					organizationId,
 					sessionId: `vs_${context}_${crypto.randomUUID()}`,
 				});

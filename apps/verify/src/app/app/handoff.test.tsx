@@ -278,7 +278,7 @@ function createHandoffPayload(
 	return {
 		v: 1,
 		session_id: "vs_session123",
-		attempt_id: "va_attempt123",
+
 		mobile_write_token: "token_123",
 		expires_at: "2099-01-01T00:00:00.000Z",
 		...overrides,
@@ -412,7 +412,7 @@ describe("Handoff", () => {
 
 		const qr = await view.findByTestId("qr-code");
 		const qrValue = qr.getAttribute("data-value");
-		expect(qrValue).toContain("va_attempt123");
+		expect(qrValue).toContain("vs_session123");
 		expect(qrValue).toContain("token_123");
 
 		const openAppLink = view.getByRole("link", {
@@ -444,7 +444,7 @@ describe("Handoff", () => {
 					retry_allowed: false,
 					status: "succeeded",
 				},
-				status: "completed",
+				status: "succeeded",
 			}),
 		});
 
@@ -544,13 +544,11 @@ describe("Handoff", () => {
 		requestHandoffPayloadMock
 			.mockResolvedValueOnce(
 				createHandoffPayload({
-					attempt_id: "va_attempt_initial",
 					mobile_write_token: "token_initial",
 				}),
 			)
 			.mockResolvedValueOnce(
 				createHandoffPayload({
-					attempt_id: "va_attempt_refreshed",
 					mobile_write_token: "token_refreshed",
 				}),
 			);
@@ -560,7 +558,7 @@ describe("Handoff", () => {
 
 		await flushUi();
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_attempt_initial",
+			"token_initial",
 		);
 
 		act(() => {
@@ -570,7 +568,7 @@ describe("Handoff", () => {
 
 		expect(requestHandoffPayloadMock).toHaveBeenCalledTimes(2);
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_attempt_refreshed",
+			"token_refreshed",
 		);
 	});
 
@@ -845,7 +843,7 @@ describe("Handoff", () => {
 				},
 				redirect_url: "https://example.com/return?foo=bar",
 				same_device_only: true,
-				status: "completed",
+				status: "succeeded",
 			}),
 		);
 
@@ -899,7 +897,7 @@ describe("Handoff", () => {
 				},
 				redirect_url: null,
 				same_device_only: true,
-				status: "completed",
+				status: "succeeded",
 			}),
 		);
 
@@ -951,7 +949,7 @@ describe("Handoff", () => {
 				},
 				redirect_url: null,
 				same_device_only: true,
-				status: "completed",
+				status: "succeeded",
 			}),
 		);
 

@@ -12,7 +12,7 @@ import {
 test("parseDemoDecryptedWebhook reads claims and selected field keys", () => {
 	const parsed = parseDemoDecryptedWebhook(
 		JSON.stringify({
-			type: "verification.attempt.succeeded",
+			type: "verification.session.succeeded",
 			data: {
 				claims: {
 					document_number: "123456789",
@@ -34,7 +34,7 @@ test("parseDemoDecryptedWebhook reads claims and selected field keys", () => {
 		},
 		contractVersion: 1,
 		selectedFieldKeys: ["document_number", "family_name"],
-		type: "verification.attempt.succeeded",
+		type: "verification.session.succeeded",
 		verificationSessionId: "vs_demo_test",
 	});
 });
@@ -145,7 +145,7 @@ test("buildDemoDocumentPreview includes machine readable zone for passports", ()
 test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	const preview = buildDemoWebhookEventPreview(
 		JSON.stringify({
-			type: "verification.attempt.failed",
+			type: "verification.session.failed",
 			data: {
 				failure_code: "document_authenticity_failed",
 			},
@@ -158,16 +158,16 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	);
 
 	expect(preview).toEqual({
+		cancelledReason: null,
 		contractVersion: 1,
 		description:
 			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
-		eventType: "verification.attempt.failed",
+		eventType: "verification.session.failed",
 		failureCode: "document_authenticity_failed",
 		failureDescription:
 			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
 		failureTitle: "Document check not confirmed",
-		title: "Attempt Failed",
-		verificationAttemptId: "va_demo_test",
+		title: "Session Failed",
 		verificationSessionId: "vs_demo_test",
 	});
 });
@@ -175,7 +175,7 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => {
 	const preview = buildDemoWebhookEventPreview(
 		JSON.stringify({
-			type: "verification.attempt.failed",
+			type: "verification.session.failed",
 			data: {
 				failure_code: "unexpected_failure_code",
 			},
@@ -183,15 +183,77 @@ test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => 
 	);
 
 	expect(preview).toEqual({
+		cancelledReason: null,
 		contractVersion: null,
 		description:
 			"A Kayle check attempt was not confirmed with Unexpected Failure Code.",
-		eventType: "verification.attempt.failed",
+		eventType: "verification.session.failed",
 		failureCode: "unexpected_failure_code",
 		failureDescription: null,
 		failureTitle: null,
-		title: "Attempt Failed",
-		verificationAttemptId: null,
+		title: "Session Failed",
 		verificationSessionId: null,
 	});
+});
+
+test("buildDemoWebhookEventPreview surfaces cancelled reason", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {
+				outcome: "not_verified",
+				reason: "cancelled_after_failed_check",
+				nfc_tries_used: 0,
+				liveness_tries_used: 2,
+			},
+			metadata: {
+				contract_version: 1,
+				verification_session_id: "vs_demo_cancel",
+			},
+		}),
+	);
+
+	expect(preview).toEqual({
+		cancelledReason: "cancelled_after_failed_check",
+		contractVersion: 1,
+		description: "The verification session was cancelled after a failed check.",
+		eventType: "verification.session.cancelled",
+		failureCode: null,
+		failureDescription: null,
+		failureTitle: null,
+		title: "Session Cancelled",
+		verificationSessionId: "vs_demo_cancel",
+	});
+});
+
+test("buildDemoWebhookEventPreview falls back for cancelled payload without reason", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {},
+		}),
+	);
+
+	expect(preview?.description).toBe(
+		"The verification session was cancelled before completion.",
+	);
+	expect(preview?.cancelledReason).toBeNull();
+});
+
+test("buildDemoWebhookEventPreview renders privacy-cancel-after-failure copy", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {
+				outcome: "not_verified",
+				reason: "privacy_cancelled_after_terminal_failure",
+				nfc_tries_used: 0,
+				liveness_tries_used: 3,
+			},
+		}),
+	);
+
+	expect(preview?.description).toBe(
+		"The user withdrew consent after the session terminalized as failed.",
+	);
 });

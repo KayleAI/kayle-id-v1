@@ -1,10 +1,6 @@
 import { recordAuditLog } from "@kayle-id/auth/audit-logs";
 import { db } from "@kayle-id/database/drizzle";
-import {
-	events,
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import { events, verification_sessions } from "@kayle-id/database/schema/core";
 import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { generateId } from "@/utils/generate-id";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
@@ -20,6 +16,7 @@ import {
 	scrubWebhookPayloadsForVerificationSessionPrivacyRequest,
 	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
+import type { VerificationSessionCancelledReason } from "@/v1/webhooks/deliveries/types";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -27,7 +24,7 @@ export { getVerificationSessionAnalyticsOverview } from "./session-analytics-rep
 
 const EXPIRED_SESSION_NORMALIZATION_BATCH_SIZE = 100;
 const EXPIRED_SESSION_NORMALIZATION_MAX_BATCHES = 10;
-const ATTEMPT_PRIVACY_MINIMIZATION_VALUES = {
+const SESSION_PRIVACY_MINIMIZATION_VALUES = {
 	claimedAt: null,
 	claimedByConnectionId: null,
 	currentPhase: null,
@@ -53,7 +50,13 @@ export function listVerificationSessions({
 	limit,
 }: {
 	organizationId: string;
-	status?: "created" | "in_progress" | "completed" | "expired" | "cancelled";
+	status?:
+		| "created"
+		| "in_progress"
+		| "succeeded"
+		| "failed"
+		| "expired"
+		| "cancelled";
 	createdFrom?: string;
 	createdTo?: string;
 	startingAfter?: string;
@@ -98,24 +101,6 @@ export async function getVerificationSessionById({
 		.limit(1);
 
 	return row;
-}
-
-export function getAttemptsBySessionId(sessionId: string) {
-	return db
-		.select()
-		.from(verification_attempts)
-		.where(eq(verification_attempts.verificationSessionId, sessionId));
-}
-
-export function getAttemptsBySessionIds(sessionIds: string[]) {
-	if (sessionIds.length === 0) {
-		return [];
-	}
-
-	return db
-		.select()
-		.from(verification_attempts)
-		.where(inArray(verification_attempts.verificationSessionId, sessionIds));
 }
 
 async function getLatestVerificationSessionById(
@@ -207,15 +192,6 @@ export type CreateVerificationSessionWithLimitResult =
 			rejected: { current: number; limit: number; resetAt: Date };
 	  };
 
-/**
- * Create a verification session with the unverified-org rolling-window limit
- * enforced strictly: the per-org `pg_advisory_xact_lock` and the count + insert
- * all run inside the same transaction, so two concurrent identity-session
- * creates can't both observe count=4 and both insert.
- *
- * Age-only and verified-org cases skip the lock entirely (they're exempt by
- * design and we don't want to serialize unrelated traffic on the same key).
- */
 export async function createVerificationSessionWithUnverifiedOrgLimit(
 	input: CreateVerificationSessionInput,
 ): Promise<CreateVerificationSessionWithLimitResult> {
@@ -225,9 +201,6 @@ export async function createVerificationSessionWithUnverifiedOrgLimit(
 	}
 
 	return db.transaction(async (tx) => {
-		// Per-org advisory lock; held only for this transaction. `hashtextextended`
-		// folds the UUID into a bigint key — collisions across orgs would only
-		// cause needless serialization, never incorrect counting.
 		await tx.execute(
 			sql`SELECT pg_advisory_xact_lock(hashtextextended(${input.organizationId}::text, 0))`,
 		);
@@ -276,6 +249,7 @@ export async function cancelVerificationSession({
 		const [cancelled] = await tx
 			.update(verification_sessions)
 			.set({
+				...SESSION_PRIVACY_MINIMIZATION_VALUES,
 				status: "cancelled",
 				completedAt: now,
 			})
@@ -289,27 +263,14 @@ export async function cancelVerificationSession({
 			.returning({
 				contractVersion: verification_sessions.contractVersion,
 				id: verification_sessions.id,
+				livenessTriesUsed: verification_sessions.livenessTriesUsed,
+				nfcTriesUsed: verification_sessions.nfcTriesUsed,
 				organizationId: verification_sessions.organizationId,
 			});
 
 		if (!cancelled) {
 			return null;
 		}
-
-		await tx
-			.update(verification_attempts)
-			.set({
-				...ATTEMPT_PRIVACY_MINIMIZATION_VALUES,
-				failureCode: "session_cancelled",
-				status: "cancelled",
-				completedAt: now,
-			})
-			.where(
-				and(
-					eq(verification_attempts.verificationSessionId, row.id),
-					eq(verification_attempts.status, "in_progress"),
-				),
-			);
 
 		await tx.insert(events).values({
 			id: sessionCancelledEventId,
@@ -332,6 +293,8 @@ export async function cancelVerificationSession({
 
 		return {
 			contractVersion: cancelled.contractVersion,
+			livenessTriesUsed: cancelled.livenessTriesUsed,
+			nfcTriesUsed: cancelled.nfcTriesUsed,
 			organizationId: cancelled.organizationId,
 			sessionCancelledEventId,
 			sessionId: cancelled.id,
@@ -342,11 +305,20 @@ export async function cancelVerificationSession({
 		return;
 	}
 
+	const consumedAnyRetryBudget =
+		result.livenessTriesUsed > 0 || result.nfcTriesUsed > 0;
+
 	const deliveryIds =
 		await createWebhookDeliveriesForVerificationSessionCancelled({
 			contractVersion: result.contractVersion,
 			eventId: result.sessionCancelledEventId,
+			livenessTriesUsed: result.livenessTriesUsed,
+			nfcTriesUsed: result.nfcTriesUsed,
 			organizationId: result.organizationId,
+			outcome: "not_verified",
+			reason: consumedAnyRetryBudget
+				? "cancelled_after_failed_check"
+				: "cancelled",
 			sessionId: result.sessionId,
 		});
 
@@ -378,46 +350,69 @@ export async function recordVerificationSessionPrivacyRequest({
 
 	if ((ACTIVE_SESSION_STATUSES as readonly string[]).includes(row.status)) {
 		await cancelVerificationSession({ env, organizationId, row });
-	} else if (row.status === "completed") {
+	} else if (row.status === "succeeded" || row.status === "failed") {
 		const now = new Date();
 		const shouldMarkWithdrawn = scrubResult.deliveredDeliveryCount === 0;
-		const minimized = await db.transaction(async (tx) => {
-			if (shouldMarkWithdrawn) {
-				await tx
-					.update(verification_sessions)
-					.set({
-						status: "cancelled",
-						completedAt: row.completedAt ?? now,
-					})
-					.where(
-						and(
-							eq(verification_sessions.id, row.id),
-							eq(verification_sessions.organizationId, organizationId),
-							eq(verification_sessions.status, "completed"),
-						),
-					);
-			}
-
-			return tx
-				.update(verification_attempts)
+		const replacementCancelledReason: VerificationSessionCancelledReason =
+			row.status === "failed"
+				? "privacy_cancelled_after_terminal_failure"
+				: "privacy_cancelled_after_terminal_success";
+		const txResult = await db.transaction(async (tx) => {
+			const updateResult = await tx
+				.update(verification_sessions)
 				.set({
-					...ATTEMPT_PRIVACY_MINIMIZATION_VALUES,
+					...SESSION_PRIVACY_MINIMIZATION_VALUES,
 					...(shouldMarkWithdrawn
 						? {
-								failureCode: "session_cancelled",
 								status: "cancelled" as const,
+								completedAt: row.completedAt ?? now,
 							}
 						: {}),
 				})
 				.where(
 					and(
-						eq(verification_attempts.verificationSessionId, row.id),
-						eq(verification_attempts.status, "succeeded"),
+						eq(verification_sessions.id, row.id),
+						eq(verification_sessions.organizationId, organizationId),
+						inArray(verification_sessions.status, [
+							"succeeded",
+							"failed",
+						] as const),
 					),
 				)
-				.returning({ id: verification_attempts.id });
+				.returning({ id: verification_sessions.id });
+
+			if (!(shouldMarkWithdrawn && updateResult.length > 0)) {
+				return { minimized: updateResult, sessionCancelledEventId: null };
+			}
+
+			const sessionCancelledEventId = generateId({ type: "evt" });
+			await tx.insert(events).values({
+				id: sessionCancelledEventId,
+				organizationId,
+				type: "verification.session.cancelled",
+				triggerId: row.id,
+				triggerType: "verification_session",
+			});
+
+			return { minimized: updateResult, sessionCancelledEventId };
 		});
-		minimizedCompletedAttemptCount = minimized.length;
+		minimizedCompletedAttemptCount = txResult.minimized.length;
+
+		if (txResult.sessionCancelledEventId) {
+			const deliveryIds =
+				await createWebhookDeliveriesForVerificationSessionCancelled({
+					contractVersion: row.contractVersion,
+					eventId: txResult.sessionCancelledEventId,
+					livenessTriesUsed: row.livenessTriesUsed,
+					nfcTriesUsed: row.nfcTriesUsed,
+					organizationId,
+					outcome: "not_verified",
+					reason: replacementCancelledReason,
+					sessionId: row.id,
+				});
+
+			await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
+		}
 	}
 
 	await recordAuditLog({
@@ -454,7 +449,8 @@ export async function expireVerificationSessionIfNeeded({
 }) {
 	if (
 		row.status === "expired" ||
-		row.status === "completed" ||
+		row.status === "succeeded" ||
+		row.status === "failed" ||
 		row.status === "cancelled" ||
 		row.expiresAt.getTime() > now.getTime()
 	) {
@@ -487,20 +483,6 @@ export async function expireVerificationSessionIfNeeded({
 				sessionExpiredEventId: null,
 			};
 		}
-
-		await tx
-			.update(verification_attempts)
-			.set({
-				status: "failed",
-				failureCode: "session_expired",
-				completedAt: now,
-			})
-			.where(
-				and(
-					eq(verification_attempts.verificationSessionId, row.id),
-					eq(verification_attempts.status, "in_progress"),
-				),
-			);
 
 		await tx.insert(events).values({
 			id: sessionExpiredEventId,

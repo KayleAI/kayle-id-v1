@@ -36,13 +36,20 @@ typedef enum verify_server_check_outcome {
   VERIFY_SERVER_CHECK_NOT_CONFIRMED = 1
 } verify_server_check_outcome_t;
 
+typedef enum verify_server_check_kind {
+  VERIFY_SERVER_CHECK_KIND_MRZ = 0,
+  VERIFY_SERVER_CHECK_KIND_NFC = 1,
+  VERIFY_SERVER_CHECK_KIND_LIVENESS = 2,
+  VERIFY_SERVER_CHECK_KIND_NONE = 3
+} verify_server_check_kind_t;
+
 // The builder and reader pointers are opaque pointers from CapnpCLib:
 // - capnp_c_message_builder_get()
 // - capnp_c_message_reader_get()
 
 int verify_build_hello(
   void* message_builder,
-  const char* attempt_id,
+  const char* session_id,
   const char* mobile_write_token,
   const char* device_id,
   const char* app_version,
@@ -102,7 +109,9 @@ int verify_server_message_get_check_result(
   char* out_reason_message,
   size_t out_reason_message_size,
   int* out_retry_allowed,
-  uint32_t* out_remaining_attempts
+  int* out_failed_check,
+  uint32_t* out_remaining_nfc_retries,
+  uint32_t* out_remaining_liveness_retries
 );
 
 int verify_server_message_get_share_request(

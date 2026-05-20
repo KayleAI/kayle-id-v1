@@ -73,7 +73,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
   private let resourceTimeoutSeconds = 15 * 60.0
   private let keepaliveIntervalNs: UInt64 = 20_000_000_000
   private let sessionId: String
-  private let attemptId: String
   private let mobileWriteToken: String
   private let baseURL: String
   private let attestHelloChallenge: Data?
@@ -112,7 +111,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
 
   init(
     sessionId: String,
-    attemptId: String,
     mobileWriteToken: String,
     baseURL: String,
     attestHelloChallenge: Data? = nil,
@@ -122,7 +120,6 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     onLivenessChallenge: ((VerifyServerLivenessChallenge) -> Void)? = nil
   ) {
     self.sessionId = sessionId
-    self.attemptId = attemptId
     self.mobileWriteToken = mobileWriteToken
     self.baseURL = baseURL
     self.attestHelloChallenge = attestHelloChallenge
@@ -152,13 +149,13 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     if let challenge = attestHelloChallenge, !challenge.isEmpty {
       do {
         let helloBaseURL = baseURL
-        let helloAttemptId = attemptId
+        let helloSessionId = sessionId
         let result = try await runWithTimeout(
           nanoseconds: helloAttestationTimeoutNs
         ) {
           try await AppAttestService.shared.helloAssertion(
             baseURL: helloBaseURL,
-            attemptId: helloAttemptId,
+            sessionId: helloSessionId,
             deviceId: deviceId,
             appVersion: appVersion,
             challenge: challenge
@@ -182,7 +179,7 @@ final class VerifyWebSocketService: NSObject, URLSessionWebSocketDelegate {
     }
 
     guard let payload = codec.encodeHello(
-      attemptId: attemptId,
+      sessionId: sessionId,
       mobileWriteToken: mobileWriteToken,
       deviceId: deviceId,
       appVersion: appVersion,

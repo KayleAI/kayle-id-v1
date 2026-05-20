@@ -1,10 +1,7 @@
 import { db } from "@kayle-id/database/drizzle";
-import {
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import { verification_sessions } from "@kayle-id/database/schema/core";
 import { and, eq, inArray } from "drizzle-orm";
-import { ACTIVE_SESSION_STATUSES, isTerminalAttemptStatus } from "./status";
+import { ACTIVE_SESSION_STATUSES, isTerminalSessionStatus } from "./status";
 import {
 	constantTimeStringEqual,
 	hashMobileDeviceId,
@@ -12,7 +9,7 @@ import {
 } from "./token-crypto";
 
 export type HelloPayload = {
-	attemptId?: string;
+	sessionId?: string;
 	mobileWriteToken?: string;
 	deviceId?: string;
 	appVersion?: string;
@@ -22,7 +19,7 @@ export type HelloPayload = {
 };
 
 export type ParsedHelloPayload = {
-	attemptId: string;
+	sessionId: string;
 	mobileWriteToken: string;
 	deviceId: string;
 	appVersion: string;
@@ -35,7 +32,7 @@ export function parseHelloPayload(
 	payload: HelloPayload,
 ): ParsedHelloPayload | null {
 	const parsed = {
-		attemptId: payload.attemptId?.trim() ?? "",
+		sessionId: payload.sessionId?.trim() ?? "",
 		mobileWriteToken: payload.mobileWriteToken?.trim() ?? "",
 		deviceId: payload.deviceId?.trim() ?? "",
 		appVersion: payload.appVersion?.trim() ?? "",
@@ -44,39 +41,31 @@ export function parseHelloPayload(
 		runtimeIntegritySignal: payload.runtimeIntegritySignal ?? 0,
 	};
 
-	if (!(parsed.attemptId && parsed.mobileWriteToken && parsed.deviceId)) {
+	if (!(parsed.sessionId && parsed.mobileWriteToken && parsed.deviceId)) {
 		return null;
 	}
 
 	return parsed;
 }
 
-export async function getAttemptForHello(
-	verificationSessionId: string,
-	attemptId: string,
-) {
-	const [attempt] = await db
+export async function getSessionForHello(sessionId: string) {
+	const [session] = await db
 		.select({
-			id: verification_attempts.id,
-			status: verification_attempts.status,
-			mobileWriteTokenHash: verification_attempts.mobileWriteTokenHash,
+			id: verification_sessions.id,
+			status: verification_sessions.status,
+			mobileWriteTokenHash: verification_sessions.mobileWriteTokenHash,
 			mobileWriteTokenExpiresAt:
-				verification_attempts.mobileWriteTokenExpiresAt,
+				verification_sessions.mobileWriteTokenExpiresAt,
 			mobileWriteTokenConsumedAt:
-				verification_attempts.mobileWriteTokenConsumedAt,
-			mobileHelloDeviceIdHash: verification_attempts.mobileHelloDeviceIdHash,
-			currentPhase: verification_attempts.currentPhase,
+				verification_sessions.mobileWriteTokenConsumedAt,
+			mobileHelloDeviceIdHash: verification_sessions.mobileHelloDeviceIdHash,
+			currentPhase: verification_sessions.currentPhase,
 		})
-		.from(verification_attempts)
-		.where(
-			and(
-				eq(verification_attempts.id, attemptId),
-				eq(verification_attempts.verificationSessionId, verificationSessionId),
-			),
-		)
+		.from(verification_sessions)
+		.where(eq(verification_sessions.id, sessionId))
 		.limit(1);
 
-	return attempt ?? null;
+	return session ?? null;
 }
 
 export type HelloAuthState =
@@ -97,99 +86,79 @@ export type HelloAuthState =
 	  };
 
 export async function resolveHelloAuthState({
-	attempt,
+	session,
 	mobileWriteToken,
 	deviceId,
 	nowMs,
 }: {
-	attempt: NonNullable<Awaited<ReturnType<typeof getAttemptForHello>>>;
+	session: NonNullable<Awaited<ReturnType<typeof getSessionForHello>>>;
 	mobileWriteToken: string;
 	deviceId: string;
 	nowMs: number;
 }): Promise<HelloAuthState> {
-	if (!attempt.mobileWriteTokenHash) {
-		return {
-			kind: "error",
-			code: "HANDOFF_TOKEN_INVALID",
-		};
+	if (!session.mobileWriteTokenHash) {
+		return { kind: "error", code: "HANDOFF_TOKEN_INVALID" };
 	}
 
 	const providedTokenHash = await hashMobileWriteToken(mobileWriteToken);
 	if (
-		!constantTimeStringEqual(providedTokenHash, attempt.mobileWriteTokenHash)
+		!constantTimeStringEqual(providedTokenHash, session.mobileWriteTokenHash)
 	) {
-		return {
-			kind: "error",
-			code: "HANDOFF_TOKEN_INVALID",
-		};
+		return { kind: "error", code: "HANDOFF_TOKEN_INVALID" };
 	}
 
 	const deviceIdHash = await hashMobileDeviceId(deviceId);
 
-	if (attempt.mobileWriteTokenConsumedAt) {
-		if (!attempt.mobileHelloDeviceIdHash) {
-			return {
-				kind: "error",
-				code: "HANDOFF_TOKEN_CONSUMED",
-			};
+	if (session.mobileWriteTokenConsumedAt) {
+		if (!session.mobileHelloDeviceIdHash) {
+			return { kind: "error", code: "HANDOFF_TOKEN_CONSUMED" };
 		}
 
 		if (
-			!constantTimeStringEqual(attempt.mobileHelloDeviceIdHash, deviceIdHash)
+			!constantTimeStringEqual(session.mobileHelloDeviceIdHash, deviceIdHash)
 		) {
-			return {
-				kind: "error",
-				code: "HANDOFF_DEVICE_MISMATCH",
-			};
+			return { kind: "error", code: "HANDOFF_DEVICE_MISMATCH" };
 		}
 
 		return { kind: "resume" };
 	}
 
-	const expiresAtMs = attempt.mobileWriteTokenExpiresAt?.getTime() ?? 0;
+	const expiresAtMs = session.mobileWriteTokenExpiresAt?.getTime() ?? 0;
 	if (expiresAtMs <= nowMs) {
-		return {
-			kind: "error",
-			code: "HANDOFF_TOKEN_EXPIRED",
-		};
+		return { kind: "error", code: "HANDOFF_TOKEN_EXPIRED" };
 	}
 
-	return {
-		kind: "consume",
-		deviceIdHash,
-	};
+	return { kind: "consume", deviceIdHash };
 }
 
-export async function consumeHelloAttempt({
-	attemptId,
+export async function consumeHelloHandoff({
+	sessionId,
 	deviceIdHash,
 	appVersion,
 	mobileAttestKeyId,
 }: {
-	attemptId: string;
+	sessionId: string;
 	deviceIdHash: string;
 	appVersion: string;
 	mobileAttestKeyId: string | null;
 }): Promise<void> {
 	await db
-		.update(verification_attempts)
+		.update(verification_sessions)
 		.set({
 			mobileWriteTokenConsumedAt: new Date(),
 			mobileHelloDeviceIdHash: deviceIdHash,
 			mobileHelloAppVersion: appVersion || null,
 			mobileAttestKeyId,
 		})
-		.where(eq(verification_attempts.id, attemptId));
+		.where(eq(verification_sessions.id, sessionId));
 }
 
 export async function persistFirstHelloState({
-	attemptId,
 	deviceIdHash,
 	appVersion,
 	mobileAttestKeyId,
 	session,
 }: {
-	attemptId: string;
 	deviceIdHash: string;
 	appVersion: string;
 	mobileAttestKeyId: string | null;
@@ -199,35 +168,12 @@ export async function persistFirstHelloState({
 	};
 }): Promise<boolean> {
 	const nextStatus = await db.transaction(async (tx) => {
-		let status = session.status;
-
-		if (status !== "in_progress") {
-			const [updated] = await tx
-				.update(verification_sessions)
-				.set({
-					status: "in_progress",
-				})
-				.where(
-					and(
-						eq(verification_sessions.id, session.id),
-						inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
-					),
-				)
-				.returning({
-					status: verification_sessions.status,
-				});
-
-			if (!updated) {
-				return null;
-			}
-
-			status = updated.status;
-		}
-
 		const now = new Date();
-		await tx
-			.update(verification_attempts)
+
+		const [updated] = await tx
+			.update(verification_sessions)
 			.set({
+				status: "in_progress",
 				currentPhase: "mobile_connected",
 				mobileAttestKeyId,
 				mobileHelloAppVersion: appVersion || null,
@@ -235,9 +181,17 @@ export async function persistFirstHelloState({
 				mobileWriteTokenConsumedAt: now,
 				phaseUpdatedAt: now,
 			})
-			.where(eq(verification_attempts.id, attemptId));
+			.where(
+				and(
+					eq(verification_sessions.id, session.id),
+					inArray(verification_sessions.status, ACTIVE_SESSION_STATUSES),
+				),
+			)
+			.returning({
+				status: verification_sessions.status,
+			});
 
-		return status;
+		return updated?.status ?? null;
 	});
 
 	if (!nextStatus) {
@@ -279,12 +233,12 @@ export async function markSessionInProgress(session: {
 	return true;
 }
 
-export function isAttemptMissingOrTerminal(
-	attempt: Awaited<ReturnType<typeof getAttemptForHello>>,
+export function isSessionMissingOrTerminal(
+	session: Awaited<ReturnType<typeof getSessionForHello>>,
 ): boolean {
-	if (!attempt) {
+	if (!session) {
 		return true;
 	}
 
-	return isTerminalAttemptStatus(attempt.status);
+	return isTerminalSessionStatus(session.status);
 }

@@ -3,7 +3,6 @@ import { requestLoggingMiddleware } from "@/logging";
 import analytics from "@/v1/analytics";
 import { authenticate, requireReadWriteScope, requireScope } from "@/v1/auth";
 import sessions from "@/v1/sessions";
-import sessionAttempts from "@/v1/sessions/attempts";
 import webhooks from "@/v1/webhooks";
 import events from "@/v1/webhooks/events";
 
@@ -47,7 +46,6 @@ v1.use(
 // v1 routes
 v1.route("/analytics", analytics);
 v1.route("/events", events);
-v1.route("/sessions", sessionAttempts);
 v1.route("/sessions", sessions);
 v1.route("/webhooks", webhooks);
 

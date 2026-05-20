@@ -5,6 +5,7 @@ import {
 import { cn } from "@kayleai/ui/utils/cn";
 import { ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import {
+	buildDemoWebhookEventPreview,
 	type DemoDocumentPreview,
 	type DemoWebhookEventPreview,
 	formatDemoClaimValue,
@@ -351,9 +352,18 @@ export function DemoAgePreviewPanel({
 	const ageItem = buildSharedProfileItems(preview).find(
 		(item) => item.kind === "age-gate",
 	);
+	const eventPreview = buildDemoWebhookEventPreview(payload);
 
 	return (
 		<div className="space-y-6">
+			{eventPreview ? (
+				<ResultSectionHeading
+					description={eventPreview.description}
+					title={eventPreview.title}
+					variant="step"
+				/>
+			) : null}
+
 			{ageItem ? (
 				<dl>
 					<AgeGateStatusItem
@@ -397,9 +407,18 @@ export function DemoDocumentPreviewPanel({
 			: null,
 		...sharedItems.filter((item) => !item.key.includes("kayle")),
 	].filter((item): item is SharedProfileItem => item !== null);
+	const eventPreview = buildDemoWebhookEventPreview(payload);
 
 	return (
 		<div className="space-y-6">
+			{eventPreview ? (
+				<ResultSectionHeading
+					description={eventPreview.description}
+					title={eventPreview.title}
+					variant="step"
+				/>
+			) : null}
+
 			{hasDocumentPhoto || returnedItems.length === 0 ? (
 				<section>
 					<div
@@ -490,7 +509,7 @@ export function DemoWebhookEventPreviewPanel({
 	payload: string;
 	preview: DemoWebhookEventPreview;
 }) {
-	if (preview.eventType === "verification.attempt.failed") {
+	if (preview.eventType === "verification.session.failed") {
 		return (
 			<DemoFailedAttemptPreviewPanel payload={payload} preview={preview} />
 		);

@@ -15,7 +15,7 @@ export const listWebhookEvents = createRoute({
 			type: webhookEventTypeSchema
 				.optional()
 				.describe(
-					'Filter events by type (e.g. "verification.attempt.succeeded").',
+					'Filter events by type (e.g. "verification.session.succeeded").',
 				),
 			created_from: z
 				.string()

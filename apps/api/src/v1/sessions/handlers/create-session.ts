@@ -74,7 +74,6 @@ export const createSessionHandler: RouteHandler<
 > = async (c) => {
 	const organizationId = c.get("organizationId");
 	const log = getRequestLogger(c);
-	const query = c.req.valid("query") ?? {};
 	const body = c.req.valid("json");
 
 	const frozenResponse = await denyIfOrgFrozen(c);
@@ -252,7 +251,6 @@ export const createSessionHandler: RouteHandler<
 
 	const data = mapSessionRowToResponse({
 		row: created,
-		attempts: query.include_attempts ? [] : undefined,
 		cancelToken,
 	});
 

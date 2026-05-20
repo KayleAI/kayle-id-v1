@@ -4,7 +4,7 @@ import Foundation
 @_silgen_name("verify_build_hello")
 nonisolated private func verify_build_hello(
   _ builder: UnsafeMutableRawPointer?,
-  _ attemptId: UnsafePointer<CChar>?,
+  _ sessionId: UnsafePointer<CChar>?,
   _ mobileWriteToken: UnsafePointer<CChar>?,
   _ deviceId: UnsafePointer<CChar>?,
   _ appVersion: UnsafePointer<CChar>?,
@@ -71,7 +71,9 @@ nonisolated private func verify_server_message_get_check_result(
   _ outReasonMessage: UnsafeMutablePointer<CChar>?,
   _ outReasonMessageSize: Int,
   _ outRetryAllowed: UnsafeMutablePointer<Int32>?,
-  _ outRemainingAttempts: UnsafeMutablePointer<UInt32>?
+  _ outFailedCheck: UnsafeMutablePointer<Int32>?,
+  _ outRemainingNfcRetries: UnsafeMutablePointer<UInt32>?,
+  _ outRemainingLivenessRetries: UnsafeMutablePointer<UInt32>?
 ) -> Int32
 
 @_silgen_name("verify_server_message_get_share_request")
@@ -171,7 +173,7 @@ struct VerifyServerMessage {
 
 final class VerifyCapnpCodec {
   nonisolated func encodeHello(
-    attemptId: String,
+    sessionId: String,
     mobileWriteToken: String,
     deviceId: String?,
     appVersion: String,
@@ -187,14 +189,14 @@ final class VerifyCapnpCodec {
       let assertionPtr = assertionBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self)
       let assertionSize = helloAssertion.count
 
-      return attemptId.withCString { attemptCString in
+      return sessionId.withCString { sessionCString in
         mobileWriteToken.withCString { tokenCString in
           appVersion.withCString { appCString in
             attestKeyId.withCString { keyIdCString in
               let invokeWithDeviceId: (UnsafePointer<CChar>?) -> Int32 = { deviceCString in
                 verify_build_hello(
                   builder.opaque,
-                  attemptCString,
+                  sessionCString,
                   tokenCString,
                   deviceCString,
                   appCString,
@@ -410,7 +412,9 @@ final class VerifyCapnpCodec {
     case .checkResult:
       var outcome: Int32 = -1
       var retryAllowed: Int32 = 0
-      var remainingAttempts: UInt32 = 0
+      var failedCheck: Int32 = Int32(VerifyCheckKind.none.rawValue)
+      var remainingNfcRetries: UInt32 = 0
+      var remainingLivenessRetries: UInt32 = 0
       var reasonCodeBuffer = [CChar](repeating: 0, count: 128)
       var reasonMessageBuffer = [CChar](repeating: 0, count: 256)
       let ok = verify_server_message_get_check_result(
@@ -421,10 +425,13 @@ final class VerifyCapnpCodec {
         &reasonMessageBuffer,
         reasonMessageBuffer.count,
         &retryAllowed,
-        &remainingAttempts
+        &failedCheck,
+        &remainingNfcRetries,
+        &remainingLivenessRetries
       )
       if ok == 1 {
         let checkOutcome: VerifyCheckOutcome = outcome == 0 ? .confirmed : .notConfirmed
+        let kind = VerifyCheckKind(rawValue: failedCheck) ?? .none
         return VerifyServerMessage(
           ackMessage: nil,
           errorCode: nil,
@@ -434,7 +441,9 @@ final class VerifyCapnpCodec {
             reasonCode: String(cString: reasonCodeBuffer),
             reasonMessage: String(cString: reasonMessageBuffer),
             retryAllowed: retryAllowed == 1,
-            remainingAttempts: Int(remainingAttempts)
+            failedCheck: kind,
+            remainingNfcRetries: Int(remainingNfcRetries),
+            remainingLivenessRetries: Int(remainingLivenessRetries)
           ),
           shareRequest: nil,
           shareReady: nil

@@ -50,11 +50,11 @@ export function getWebDeviceId(): string {
 }
 
 function toHelloCredentials(payload: {
-	attempt_id: string;
+	session_id: string;
 	mobile_write_token: string;
 }): HelloCredentials {
 	return {
-		attemptId: payload.attempt_id,
+		sessionId: payload.session_id,
 		mobileWriteToken: payload.mobile_write_token,
 		deviceId: getWebDeviceId(),
 		appVersion: WEB_APP_VERSION,

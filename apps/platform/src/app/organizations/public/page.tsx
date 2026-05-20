@@ -271,7 +271,7 @@ function OrganizationResultCardSkeleton() {
 	return (
 		<div className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card/70 p-5">
 			<div className="flex items-center gap-4">
-				<Skeleton className="size-12 shrink-0 rounded-2xl" />
+				<Skeleton className="size-14 shrink-0 rounded-2xl" />
 				<div className="min-w-0 flex-1 space-y-2">
 					<Skeleton className="h-5 w-2/5 rounded-md" />
 					<Skeleton className="h-4 w-4/5 rounded-md" />

@@ -11,6 +11,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	acceptVerificationTerms,
 	createOwnerVerificationSession,
@@ -90,8 +91,7 @@ export function StartVerificationDialog({
 			window.location.href = session.verification_url;
 		},
 		onError: (err) => {
-			const message =
-				err instanceof Error ? err.message : "Failed to start verification.";
+			const message = getErrorMessage(err, "Failed to start verification.");
 			setErrorMessage(message);
 			toast.error(message);
 		},

@@ -29,6 +29,7 @@ import {
 	toggleEventSelection,
 	WEBHOOK_PAYLOAD_RETENTION_OPTIONS,
 } from "@/app/webhooks/utils";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { EventSubscriptionMenu } from "../events/pieces";
 import { PublicKeyFields } from "../keys/fields";
 
@@ -111,9 +112,7 @@ export function CreateEndpointDrawer({
 			}
 		} catch (error) {
 			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: "Failed to create webhook endpoint.",
+				getErrorMessage(error, "Failed to create webhook endpoint."),
 			);
 		} finally {
 			setIsSubmitting(false);

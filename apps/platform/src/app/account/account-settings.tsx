@@ -41,6 +41,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	listOwnedOrganizations,
 	OWNED_ORGS_QUERY_KEY,
@@ -127,9 +128,7 @@ export function AccountSettingsPage() {
 			setImagePreview(dataUrl);
 			setPendingImage(dataUrl);
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Could not read image",
-			);
+			toast.error(getErrorMessage(error, "Could not read image"));
 		}
 	};
 
@@ -162,8 +161,7 @@ export function AccountSettingsPage() {
 			{
 				loading: "Updating profile...",
 				success: "Profile updated",
-				error: (error) =>
-					error instanceof Error ? error.message : "Failed to update profile",
+				error: (error) => getErrorMessage(error, "Failed to update profile"),
 			},
 		);
 	};
@@ -180,9 +178,10 @@ export function AccountSettingsPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to update profile</AlertTitle>
 					<AlertDescription>
-						{updateMutation.error instanceof Error
-							? updateMutation.error.message
-							: "Something went wrong. Please try again."}
+						{getErrorMessage(
+							updateMutation.error,
+							"Something went wrong. Please try again.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}
@@ -324,9 +323,7 @@ function EmailCard() {
 			loading: "Sending verification email...",
 			success: "Verification email sent. Check your inbox.",
 			error: (error) =>
-				error instanceof Error
-					? error.message
-					: "Failed to send verification email",
+				getErrorMessage(error, "Failed to send verification email"),
 		});
 	};
 
@@ -346,8 +343,7 @@ function EmailCard() {
 		toast.promise(changeEmailMutation.mutateAsync(trimmedNewEmail), {
 			loading: "Sending confirmation link...",
 			success: `Confirmation link sent to ${trimmedNewEmail}. Click it to apply the change.`,
-			error: (error) =>
-				error instanceof Error ? error.message : "Failed to change email",
+			error: (error) => getErrorMessage(error, "Failed to change email"),
 		});
 	};
 
@@ -514,8 +510,7 @@ function DeleteAccountCard() {
 			loading: "Sending confirmation link...",
 			success:
 				"Confirmation link sent to your inbox. Click it to permanently delete your account.",
-			error: (error) =>
-				error instanceof Error ? error.message : "Failed to delete account",
+			error: (error) => getErrorMessage(error, "Failed to delete account"),
 		});
 	};
 

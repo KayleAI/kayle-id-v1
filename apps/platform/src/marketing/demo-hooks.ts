@@ -13,6 +13,7 @@ import {
 } from "@/demo/webhook-history";
 import { getDemoRun, processWebhookReceipt } from "@/marketing/demo-api";
 import type { ProcessedWebhookMap } from "@/marketing/demo-attempts";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -139,11 +140,7 @@ export function useDemoRunPolling({
 				})
 				.catch((error: unknown) => {
 					if (!cancelled) {
-						onRunError(
-							error instanceof Error
-								? error.message
-								: "Failed to refresh demo run.",
-						);
+						onRunError(getErrorMessage(error, "Failed to refresh demo run."));
 					}
 				});
 		};

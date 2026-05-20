@@ -32,9 +32,11 @@ export type {
 const WEBHOOKS_PATH = "/api/webhooks";
 const UNEXPECTED_WEBHOOK_RESPONSE = "Unexpected webhook response.";
 
+const DEFAULT_PAGE_LIMIT = 20;
+
 export function listWebhookEndpoints({
 	enabled,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	enabled?: boolean;
@@ -153,7 +155,7 @@ export function rotateWebhookSigningSecret(
 export function listWebhookKeys({
 	endpointId,
 	isActive,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	endpointId: string;
@@ -219,7 +221,7 @@ export function reactivateWebhookKey(
 }
 
 export function listWebhookEvents({
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	limit?: number;
@@ -255,7 +257,7 @@ export function replayWebhookEvent(eventId: string): Promise<WebhookEvent> {
 
 export function listWebhookDeliveries({
 	endpointId,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 	status,
 }: {

@@ -60,6 +60,8 @@ const ENDPOINT_DETAIL_TABS: Array<{
 	{ label: "Event deliveries", value: "deliveries" },
 ];
 
+const ENDPOINT_DETAIL_PAGE_SIZE = 50;
+
 export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -80,7 +82,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		queryKey: ["webhooks", "endpoints"],
 		queryFn: () =>
 			listWebhookEndpoints({
-				limit: 50,
+				limit: ENDPOINT_DETAIL_PAGE_SIZE,
 			}),
 	});
 
@@ -93,7 +95,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		queryFn: () =>
 			listWebhookKeys({
 				endpointId,
-				limit: 50,
+				limit: ENDPOINT_DETAIL_PAGE_SIZE,
 			}),
 	});
 
@@ -101,7 +103,7 @@ export function WebhookEndpointPage({ endpointId }: { endpointId: string }) {
 		queryKey: ["webhooks", "deliveries"],
 		queryFn: () =>
 			listWebhookDeliveries({
-				limit: 50,
+				limit: ENDPOINT_DETAIL_PAGE_SIZE,
 			}),
 	});
 

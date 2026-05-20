@@ -56,6 +56,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
 import { AppHeading } from "@/components/app-shell/heading";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type AuditLogEntry,
 	type AuditLogPage,
@@ -1272,9 +1273,10 @@ export function OrganizationAuditLogsPage() {
 						<Alert variant="destructive">
 							<AlertTitle>Failed to load audit logs</AlertTitle>
 							<AlertDescription>
-								{auditQuery.error instanceof Error
-									? auditQuery.error.message
-									: "Something went wrong while loading audit logs."}
+								{getErrorMessage(
+									auditQuery.error,
+									"Something went wrong while loading audit logs.",
+								)}
 							</AlertDescription>
 						</Alert>
 					) : null}

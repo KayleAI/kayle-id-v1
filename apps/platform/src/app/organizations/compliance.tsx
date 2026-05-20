@@ -38,6 +38,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	acceptRpIntegrationTerms,
 	type FullOrganization,
@@ -128,10 +129,7 @@ export function ComplianceForm({
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
-	/**
-	 * Called whenever any of the form's editable values change. Used by the
-	 * onboarding shell to gate Continue on draft completeness.
-	 */
+	// Onboarding shell uses this to gate Continue on draft completeness.
 	onValuesChange?: (values: ComplianceDraftValues) => void;
 	organization: FullOrganization;
 }) {
@@ -279,9 +277,7 @@ export function ComplianceForm({
 			onSaved?.();
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update compliance",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update compliance"));
 		},
 	});
 
@@ -612,9 +608,7 @@ function RpIntegrationTermsCard({
 		},
 		onError: (err) => {
 			toast.error(
-				err instanceof Error
-					? err.message
-					: "Failed to accept Kayle ID Integration Terms",
+				getErrorMessage(err, "Failed to accept Kayle ID Integration Terms"),
 			);
 		},
 	});
@@ -796,9 +790,10 @@ export function OrganizationCompliancePage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load compliance settings</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading compliance settings."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading compliance settings.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

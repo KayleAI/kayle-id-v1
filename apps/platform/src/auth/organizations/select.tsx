@@ -5,6 +5,7 @@ import { Button } from "@kayle-id/ui/components/button";
 import { Logo } from "@kayle-id/ui/components/logo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 export function SelectOrganizations() {
 	const { organizations, refresh } = useAuth();
@@ -28,9 +29,10 @@ export function SelectOrganizations() {
 			navigate({ to: "/dashboard" });
 		} catch (err) {
 			setError(
-				err instanceof Error
-					? err.message
-					: "Failed to select organization. Please try again.",
+				getErrorMessage(
+					err,
+					"Failed to select organization. Please try again.",
+				),
 			);
 			setIsLoading(null);
 		}
@@ -39,7 +41,6 @@ export function SelectOrganizations() {
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -52,14 +53,12 @@ export function SelectOrganizations() {
 					</p>
 				</div>
 
-				{/* Error Message */}
 				{error && (
 					<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 						{error}
 					</div>
 				)}
 
-				{/* Organization Cards */}
 				<div className="w-full space-y-3">
 					{organizations.map((org: Organization) => (
 						<button
@@ -70,7 +69,6 @@ export function SelectOrganizations() {
 							type="button"
 						>
 							<div className="flex items-center gap-4">
-								{/* Logo */}
 								<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
 									{org.logo ? (
 										<img
@@ -89,7 +87,6 @@ export function SelectOrganizations() {
 									)}
 								</div>
 
-								{/* Organization Info */}
 								<div className="min-w-0 flex-1">
 									<h3 className="truncate font-medium text-foreground text-lg">
 										{org.name}
@@ -102,7 +99,6 @@ export function SelectOrganizations() {
 									) : null}
 								</div>
 
-								{/* Loading Indicator */}
 								{isLoading === org.id && (
 									<div className="shrink-0">
 										<svg
@@ -133,7 +129,6 @@ export function SelectOrganizations() {
 					))}
 				</div>
 
-				{/* Create New Organization Link */}
 				<div className="pt-4">
 					<Button
 						className="w-full"

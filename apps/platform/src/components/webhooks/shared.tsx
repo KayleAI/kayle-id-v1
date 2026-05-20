@@ -19,6 +19,9 @@ import {
 	getResponseCodeClass,
 	getStatusBadgeClass,
 } from "@/app/webhooks/utils";
+import { getErrorMessage } from "@/utils/get-error-message";
+
+export { getErrorMessage };
 
 export function StatusBadge({
 	className,
@@ -85,10 +88,6 @@ export interface AsyncToastMessages {
 	error: string;
 	loading: string;
 	success: string;
-}
-
-export function getErrorMessage(error: unknown, fallback: string): string {
-	return error instanceof Error ? error.message : fallback;
 }
 
 export function showAsyncToast(

@@ -19,6 +19,8 @@ import {
 	getEventTriggerLabel,
 } from "./utils";
 
+const EVENT_ENDPOINTS_PAGE_SIZE = 100;
+
 export function WebhookEventPage({ eventId }: { eventId: string }) {
 	const queryClient = useQueryClient();
 
@@ -34,7 +36,7 @@ export function WebhookEventPage({ eventId }: { eventId: string }) {
 		queryKey: ["webhooks", "endpoints"],
 		queryFn: () =>
 			listWebhookEndpoints({
-				limit: 100,
+				limit: EVENT_ENDPOINTS_PAGE_SIZE,
 			}),
 	});
 

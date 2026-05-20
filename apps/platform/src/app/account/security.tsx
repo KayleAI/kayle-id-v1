@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { TwoFactorAuthSection } from "@/app/account/two-factor";
 import { PasskeysList } from "@/app/passkeys";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 const SESSIONS_QUERY_KEY = ["account", "sessions"] as const;
 
@@ -131,8 +132,7 @@ export function AccountSecurityPage() {
 		toast.promise(revokeSessionMutation.mutateAsync(token), {
 			loading: "Revoking session...",
 			success: "Session revoked",
-			error: (error) =>
-				error instanceof Error ? error.message : "Failed to revoke session",
+			error: (error) => getErrorMessage(error, "Failed to revoke session"),
 		});
 	};
 
@@ -141,9 +141,7 @@ export function AccountSecurityPage() {
 			loading: "Signing out other sessions...",
 			success: "All other sessions signed out",
 			error: (error) =>
-				error instanceof Error
-					? error.message
-					: "Failed to sign out other sessions",
+				getErrorMessage(error, "Failed to sign out other sessions"),
 		});
 	};
 
@@ -182,9 +180,10 @@ export function AccountSecurityPage() {
 						<Alert variant="destructive">
 							<AlertTitle>Failed to load sessions</AlertTitle>
 							<AlertDescription>
-								{sessionsQuery.error instanceof Error
-									? sessionsQuery.error.message
-									: "Something went wrong while loading your sessions."}
+								{getErrorMessage(
+									sessionsQuery.error,
+									"Something went wrong while loading your sessions.",
+								)}
 							</AlertDescription>
 						</Alert>
 					) : null}

@@ -48,6 +48,7 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
@@ -117,8 +118,7 @@ function MemberRow({
 		toast.promise(roleMutation.mutateAsync(role), {
 			loading: "Updating member role...",
 			success: "Member role updated",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to update member role",
+			error: (err) => getErrorMessage(err, "Failed to update member role"),
 		});
 	};
 
@@ -126,8 +126,7 @@ function MemberRow({
 		toast.promise(suspendMutation.mutateAsync(), {
 			loading: "Suspending member...",
 			success: "Member suspended",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to suspend member",
+			error: (err) => getErrorMessage(err, "Failed to suspend member"),
 		});
 	};
 
@@ -234,8 +233,7 @@ function SuspendedMemberRow({
 		toast.promise(reinstateMutation.mutateAsync(), {
 			loading: "Reinstating member...",
 			success: "Member reinstated",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to reinstate member",
+			error: (err) => getErrorMessage(err, "Failed to reinstate member"),
 		});
 	};
 
@@ -308,8 +306,7 @@ function InvitationRow({
 		toast.promise(cancelMutation.mutateAsync(), {
 			loading: "Cancelling invitation...",
 			success: "Invitation cancelled",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to cancel invitation",
+			error: (err) => getErrorMessage(err, "Failed to cancel invitation"),
 		});
 	};
 
@@ -360,9 +357,7 @@ function InviteMemberDialog({ canInvite }: { canInvite: boolean }) {
 			toast.success("Invitation sent");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to send invitation",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to send invitation"));
 		},
 	});
 
@@ -625,9 +620,10 @@ export function OrganizationMembersPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load members</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading members."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading members.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

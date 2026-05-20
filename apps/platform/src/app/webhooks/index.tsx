@@ -39,6 +39,7 @@ export { WebhookEventPage } from "./event-detail-page";
 
 const WEBHOOK_ENDPOINT_PAGE_SIZE = 20;
 const WEBHOOK_EVENT_PAGE_SIZE = 20;
+const WEBHOOK_DELIVERIES_PAGE_SIZE = 50;
 
 type WebhookEventPage = Awaited<ReturnType<typeof listWebhookEvents>>;
 
@@ -103,7 +104,7 @@ export function WebhooksPage({
 		queryKey: ["webhooks", "deliveries"],
 		queryFn: () =>
 			listWebhookDeliveries({
-				limit: 50,
+				limit: WEBHOOK_DELIVERIES_PAGE_SIZE,
 			}),
 	});
 

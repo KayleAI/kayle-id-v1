@@ -11,6 +11,7 @@ import {
 import { OnboardingPage } from "@/app/onboarding/page";
 import { Loading } from "@/components/loading";
 import { NotFound } from "@/components/not-found";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 export const Route = createFileRoute("/onboarding")({
 	component: OnboardingRoute,
@@ -19,8 +20,7 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 function OnboardingErrorView({ error }: ErrorComponentProps) {
-	const description =
-		error instanceof Error ? error.message : "An unexpected error occurred.";
+	const description = getErrorMessage(error, "An unexpected error occurred.");
 	return (
 		<Layout>
 			<InfoCard

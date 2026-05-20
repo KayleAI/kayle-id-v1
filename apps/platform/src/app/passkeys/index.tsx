@@ -35,6 +35,7 @@ import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
@@ -94,7 +95,7 @@ export function PasskeysList() {
 					<Alert variant="destructive">
 						<AlertTitle>Failed to load passkeys</AlertTitle>
 						<AlertDescription>
-							{error instanceof Error ? error.message : "Please try again."}
+							{getErrorMessage(error, "Please try again.")}
 						</AlertDescription>
 					</Alert>
 				) : null}
@@ -161,9 +162,7 @@ export function PasskeysList() {
 													loading: "Removing passkey…",
 													success: "Passkey removed",
 													error: (err) =>
-														err instanceof Error
-															? err.message
-															: "Failed to remove passkey",
+														getErrorMessage(err, "Failed to remove passkey"),
 												})
 											}
 											size="icon"

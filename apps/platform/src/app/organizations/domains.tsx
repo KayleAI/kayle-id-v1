@@ -54,6 +54,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type ActiveDomainChallenge,
 	addRedirectUri,
@@ -187,9 +188,7 @@ function VerifiedDomainsCard({
 			setPendingRemoval(null);
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to remove domain.",
-			);
+			toast.error(getErrorMessage(err, "Failed to remove domain."));
 		},
 	});
 
@@ -393,9 +392,7 @@ function AddDomainWizard({
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to start DNS challenge.",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to start DNS challenge."));
 		},
 	});
 
@@ -424,9 +421,10 @@ function AddDomainWizard({
 		},
 		onError: (err) => {
 			setErrorMessage(
-				err instanceof Error
-					? err.message
-					: "DNS record not found yet. DNS may take a few minutes to propagate.",
+				getErrorMessage(
+					err,
+					"DNS record not found yet. DNS may take a few minutes to propagate.",
+				),
 			);
 		},
 	});
@@ -697,9 +695,7 @@ function AddRedirectUriDialog({
 			onClose();
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to add redirect URI.",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to add redirect URI."));
 		},
 	});
 
@@ -875,9 +871,7 @@ function RedirectUrisCard({
 			toast.success("Redirect URI removed.");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to remove redirect URI.",
-			);
+			toast.error(getErrorMessage(err, "Failed to remove redirect URI."));
 		},
 	});
 
@@ -1009,12 +1003,10 @@ export function OrganizationDomainsPage() {
 
 	const isLoading = orgQuery.isLoading || domainsQuery.isLoading;
 	const isError = orgQuery.isError || domainsQuery.isError;
-	const errorMessage =
-		orgQuery.error instanceof Error
-			? orgQuery.error.message
-			: domainsQuery.error instanceof Error
-				? domainsQuery.error.message
-				: "Something went wrong while loading domains.";
+	const errorMessage = getErrorMessage(
+		orgQuery.error ?? domainsQuery.error,
+		"Something went wrong while loading domains.",
+	);
 
 	return (
 		<OrganizationPageLayout

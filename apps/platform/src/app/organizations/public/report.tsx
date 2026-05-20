@@ -14,6 +14,7 @@ import {
 	submitPublicOrganizationReport,
 } from "@/lib/api/report";
 import { ORGANIZATION_REPORT_REASON_LABELS } from "@/lib/organization-report-labels";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 const DETAILS_MAX_LENGTH = 2000;
 
@@ -261,9 +262,10 @@ export function ReportOrganizationPage({
 											className="mt-0.5 size-5 sm:size-4"
 										/>
 										<p>
-											{submitMutation.error instanceof Error
-												? submitMutation.error.message
-												: "Unable to submit organization report."}
+											{getErrorMessage(
+												submitMutation.error,
+												"Unable to submit organization report.",
+											)}
 										</p>
 									</div>
 								) : null}

@@ -38,6 +38,7 @@ import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	cancelOrganizationDeletion,
 	confirmOrganizationDeletion,
@@ -75,9 +76,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update slug",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update slug"));
 		},
 	});
 
@@ -164,9 +163,7 @@ function LeaveCard({
 			navigate({ to: "/select-organization" });
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to leave organization",
-			);
+			toast.error(getErrorMessage(err, "Failed to leave organization"));
 			setOpen(false);
 		},
 	});
@@ -325,9 +322,7 @@ function PendingDeletionCard({
 			toast.success("Deletion canceled");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to cancel deletion",
-			);
+			toast.error(getErrorMessage(err, "Failed to cancel deletion"));
 		},
 	});
 
@@ -382,9 +377,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 			toast.success("Confirmation code sent. Check your email.");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to send confirmation code",
-			);
+			toast.error(getErrorMessage(err, "Failed to send confirmation code"));
 			setOpen(false);
 		},
 	});
@@ -400,9 +393,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 			setCode("");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to confirm deletion",
-			);
+			toast.error(getErrorMessage(err, "Failed to confirm deletion"));
 		},
 	});
 
@@ -580,9 +571,10 @@ export function OrganizationSettingsPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load settings</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading settings."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading settings.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

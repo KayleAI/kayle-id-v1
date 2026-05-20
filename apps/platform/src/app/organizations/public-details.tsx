@@ -15,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
@@ -73,10 +74,7 @@ export function PublicDetailsForm({
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
-	/**
-	 * Called whenever any of the form's editable values change. Used by the
-	 * onboarding preview pane to mirror the user's draft input live.
-	 */
+	// Onboarding preview pane uses this to mirror the user's draft live.
 	onValuesChange?: (values: PublicDetailsDraftValues) => void;
 	organization: FullOrganization;
 }) {
@@ -208,9 +206,7 @@ export function PublicDetailsForm({
 			onSaved?.();
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update public details",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update public details"));
 		},
 	});
 
@@ -236,9 +232,7 @@ export function PublicDetailsForm({
 			setErrorMessage("");
 		} catch (err) {
 			setErrorMessage(
-				err instanceof Error
-					? err.message
-					: "Failed to read the selected file.",
+				getErrorMessage(err, "Failed to read the selected file."),
 			);
 		}
 	};
@@ -550,9 +544,10 @@ export function OrganizationPublicDetailsPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load public details</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading public details."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading public details.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

@@ -52,6 +52,7 @@ import {
 	ORGANIZATION_REPORT_REASON_LABELS,
 	ORGANIZATION_REPORT_STATUS_LABELS,
 } from "@/lib/organization-report-labels";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 type ReportFilter<T extends string> = "all" | T;
 
@@ -527,9 +528,10 @@ export function AdminOrganizationReportsPage({
 				</div>
 			) : reportsQuery.error ? (
 				<div className="py-12 text-center text-destructive text-sm">
-					{reportsQuery.error instanceof Error
-						? reportsQuery.error.message
-						: "Unable to load organization reports."}
+					{getErrorMessage(
+						reportsQuery.error,
+						"Unable to load organization reports.",
+					)}
 				</div>
 			) : (
 				<OrganizationReportsTable reports={reports} />
@@ -575,9 +577,7 @@ export function AdminOrganizationReportDetailPage({
 		},
 		onError: (error) => {
 			toast.error(
-				error instanceof Error
-					? error.message
-					: "Unable to update organization report.",
+				getErrorMessage(error, "Unable to update organization report."),
 			);
 		},
 		onSuccess: async (payload) => {
@@ -628,9 +628,10 @@ export function AdminOrganizationReportDetailPage({
 					Back to reports
 				</Link>
 				<div className="rounded-md border border-destructive/30 bg-destructive/5 p-6 text-destructive text-sm">
-					{reportQuery.error instanceof Error
-						? reportQuery.error.message
-						: "Unable to load organization report."}
+					{getErrorMessage(
+						reportQuery.error,
+						"Unable to load organization report.",
+					)}
 				</div>
 			</div>
 		);

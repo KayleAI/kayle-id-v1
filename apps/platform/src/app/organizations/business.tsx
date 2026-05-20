@@ -19,6 +19,7 @@ import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
@@ -98,10 +99,7 @@ export function BusinessDetailsForm({
 	canEdit: boolean;
 	compact?: boolean;
 	onSaved?: () => void;
-	/**
-	 * Called whenever any of the form's editable values change. Used by the
-	 * onboarding preview pane to mirror the user's draft input live.
-	 */
+	// Onboarding preview pane uses this to mirror the user's draft live.
 	onValuesChange?: (values: BusinessDetailsDraftValues) => void;
 	organization: FullOrganization;
 }) {
@@ -179,9 +177,7 @@ export function BusinessDetailsForm({
 		},
 		onError: (err) => {
 			setErrorMessage(
-				err instanceof Error
-					? err.message
-					: "Failed to update business details",
+				getErrorMessage(err, "Failed to update business details"),
 			);
 		},
 	});
@@ -364,9 +360,10 @@ export function OrganizationBusinessPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load business details</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading business details."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading business details.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

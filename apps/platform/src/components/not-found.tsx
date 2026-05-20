@@ -2,11 +2,6 @@ import { Layout } from "@kayle-id/ui/components/layout";
 import { InfoCard } from "@kayle-id/ui/info-card";
 import type { NotFoundRouteProps } from "@tanstack/react-router";
 
-/**
- * The not found component.
- *
- * @returns A not found component.
- */
 export function NotFound(_props: NotFoundRouteProps) {
 	return (
 		<Layout>

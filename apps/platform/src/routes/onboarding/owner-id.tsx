@@ -7,6 +7,7 @@ import {
 	createOwnerVerificationSession,
 	type FullOrganization,
 } from "@/app/organizations/api";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 export const Route = createFileRoute("/onboarding/owner-id")({
 	component: OnboardingOwnerIdStep,
@@ -66,9 +67,7 @@ function OwnerIdInlineStep({
 			window.location.href = session.verification_url;
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to start verification.",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to start verification."));
 		},
 	});
 

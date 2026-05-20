@@ -109,7 +109,6 @@ export function SignIn() {
 	return (
 		<div className="relative flex flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -123,7 +122,6 @@ export function SignIn() {
 					</p>
 				</div>
 
-				{/* Sign In Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
 						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
@@ -159,7 +157,6 @@ export function SignIn() {
 					</div>
 				</div>
 
-				{/* Passkey Sign In */}
 				<Button
 					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
@@ -170,7 +167,6 @@ export function SignIn() {
 					Sign in with passkey
 				</Button>
 
-				{/* Google Sign In */}
 				<Button
 					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
@@ -203,7 +199,6 @@ export function SignIn() {
 					Continue with Google
 				</Button>
 
-				{/* Footer Links */}
 				<p className="inline-block text-center text-muted-foreground text-xs">
 					By signing in to Kayle ID, you agree to our{" "}
 					<Button

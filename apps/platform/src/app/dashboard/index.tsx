@@ -15,6 +15,7 @@ import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";
 import { UnverifiedOrgBanner } from "@/app/organizations/unverified-org-banner";
 import { AppHeading } from "@/components/app-shell/heading";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { getSessionAnalyticsOverview } from "./api";
 import { clampIndex, getPeriodSummary } from "./chart-utils";
 import { BREAKDOWN_METRICS } from "./constants";
@@ -75,9 +76,10 @@ export function Dashboard() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load analytics</AlertTitle>
 					<AlertDescription>
-						{analyticsQuery.error instanceof Error
-							? analyticsQuery.error.message
-							: "Something went wrong while loading dashboard analytics."}
+						{getErrorMessage(
+							analyticsQuery.error,
+							"Something went wrong while loading dashboard analytics.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

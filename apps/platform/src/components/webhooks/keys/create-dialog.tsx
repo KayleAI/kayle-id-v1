@@ -16,6 +16,7 @@ import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { parsePublicKeyInput } from "@/app/webhooks/api";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { PublicKeyFields } from "./fields";
 
 export function CreateKeyDialog({
@@ -56,9 +57,7 @@ export function CreateKeyDialog({
 			setIsOpen(false);
 			resetState();
 		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "Failed to add public key.",
-			);
+			setErrorMessage(getErrorMessage(error, "Failed to add public key."));
 			throw error;
 		}
 	}
@@ -117,9 +116,7 @@ export function CreateKeyDialog({
 								loading: "Adding public key...",
 								success: "Public key added",
 								error: (error) =>
-									error instanceof Error
-										? error.message
-										: "Failed to add public key",
+									getErrorMessage(error, "Failed to add public key"),
 							});
 						}}
 						type="button"

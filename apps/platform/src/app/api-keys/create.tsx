@@ -19,6 +19,7 @@ import { Label } from "@kayle-id/ui/components/label";
 import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import {
 	API_KEYS_QUERY_KEY,
@@ -320,10 +321,10 @@ export function CreateApiKey() {
 		} catch (err) {
 			dispatch({
 				type: "ERROR",
-				message:
-					err instanceof Error
-						? err.message
-						: "Failed to create API key. Please try again.",
+				message: getErrorMessage(
+					err,
+					"Failed to create API key. Please try again.",
+				),
 			});
 		}
 	};

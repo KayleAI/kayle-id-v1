@@ -33,6 +33,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
@@ -64,9 +65,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update API key",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update API key"));
 		},
 	});
 
@@ -77,9 +76,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 			navigate({ to: "/api-keys" });
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to delete API key",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to delete API key"));
 			setIsDeleteDialogOpen(false);
 		},
 	});

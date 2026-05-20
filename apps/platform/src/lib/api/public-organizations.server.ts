@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	DEFAULT_PUBLIC_ORGANIZATIONS_PAGINATION,
 	type PublicOrganization,
@@ -87,10 +88,7 @@ export async function searchPublicOrganizationsOnServer({
 		};
 	} catch (error) {
 		return {
-			error:
-				error instanceof Error
-					? error.message
-					: "Unable to search organizations.",
+			error: getErrorMessage(error, "Unable to search organizations."),
 			organizations: [],
 			pagination: fallbackPagination,
 		};
@@ -122,8 +120,7 @@ async function fetchOrganizationDetailOnServer({
 		};
 	} catch (error) {
 		return {
-			error:
-				error instanceof Error ? error.message : "Unable to load organization.",
+			error: getErrorMessage(error, "Unable to load organization."),
 			organization: null,
 		};
 	}

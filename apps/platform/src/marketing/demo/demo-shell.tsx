@@ -39,6 +39,7 @@ import {
 	useDemoStepScroll,
 	useProcessedWebhookReceipts,
 } from "@/marketing/demo-hooks";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 function createDemoRunView(createdRun: DemoRunCreateResult): DemoRunView {
 	return {
@@ -158,9 +159,7 @@ export function DemoShell({
 			await provisionDemoRun();
 			toast.success("Secure demo run created");
 		} catch (error) {
-			setRunError(
-				error instanceof Error ? error.message : "Failed to create demo run.",
-			);
+			setRunError(getErrorMessage(error, "Failed to create demo run."));
 		} finally {
 			setIsCreatingRun(false);
 		}
@@ -229,11 +228,7 @@ export function DemoShell({
 			);
 			toast.success("Verification session created");
 		} catch (error) {
-			setRunError(
-				error instanceof Error
-					? error.message
-					: "Failed to create demo session.",
-			);
+			setRunError(getErrorMessage(error, "Failed to create demo session."));
 		} finally {
 			setIsCreatingSession(false);
 		}
@@ -268,9 +263,7 @@ export function DemoShell({
 			});
 			toast.success("Demo restarted");
 		} catch (error) {
-			setRunError(
-				error instanceof Error ? error.message : "Failed to restart demo.",
-			);
+			setRunError(getErrorMessage(error, "Failed to restart demo."));
 		} finally {
 			setIsRestartingDemo(false);
 			setIsCreatingRun(false);

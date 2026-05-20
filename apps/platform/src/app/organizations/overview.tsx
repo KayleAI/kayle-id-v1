@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
 	fetchFullOrganization,
@@ -207,9 +208,10 @@ export function OrganizationOverviewPage() {
 				<Alert variant="destructive">
 					<AlertTitle>Failed to load organization</AlertTitle>
 					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading this organization."}
+						{getErrorMessage(
+							error,
+							"Something went wrong while loading this organization.",
+						)}
 					</AlertDescription>
 				</Alert>
 			) : null}

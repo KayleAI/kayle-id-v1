@@ -412,7 +412,7 @@ describe("Handoff", () => {
 
 		const qr = await view.findByTestId("qr-code");
 		const qrValue = qr.getAttribute("data-value");
-		expect(qrValue).toContain("va_attempt123");
+		expect(qrValue).toContain("vs_session123");
 		expect(qrValue).toContain("token_123");
 
 		const openAppLink = view.getByRole("link", {
@@ -558,7 +558,7 @@ describe("Handoff", () => {
 
 		await flushUi();
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_attempt_initial",
+			"token_initial",
 		);
 
 		act(() => {
@@ -568,7 +568,7 @@ describe("Handoff", () => {
 
 		expect(requestHandoffPayloadMock).toHaveBeenCalledTimes(2);
 		expect(view.getByTestId("qr-code").getAttribute("data-value")).toContain(
-			"va_attempt_refreshed",
+			"token_refreshed",
 		);
 	});
 

@@ -231,7 +231,6 @@ describe("privacy options helpers", () => {
 			"I am using the Kayle ID privacy options for this check.",
 		);
 		expect(params.get("body")).toContain("Session ID: vs_session123");
-		expect(params.get("body")).toContain("Latest attempt ID: va_attempt123");
 		expect(params.get("body")).toContain("Organization: Test Organization");
 	});
 });
@@ -317,7 +316,7 @@ describe("PrivacyRequestPage", () => {
 			rpLink.getAttribute("href")?.split("?")[1] ?? "",
 		);
 
-		expect(rpParams.get("body")).toContain("Latest attempt ID: va_attempt123");
+		expect(rpParams.get("body")).toContain("Session ID: vs_session123");
 		expectTextContent(
 			"This check is already finished. Kayle ID no longer has your document, selfie, or personal details. Test Organization has already received your data.",
 		);

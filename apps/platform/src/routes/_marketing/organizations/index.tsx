@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PublicOrganizationsSearchPage } from "@/app/organizations/public/page";
+import {
+	PublicOrganizationsSearchPage,
+	PublicOrganizationsSearchPageSkeleton,
+} from "@/app/organizations/public/page";
 import { searchPublicOrganizationsForRoute } from "@/lib/api/public-organizations-route";
 
 interface OrganizationsSearch {
@@ -24,8 +27,11 @@ function parseOrganizationsSearch(
 	};
 }
 
-export const Route = createFileRoute("/organizations/")({
+export const Route = createFileRoute("/_marketing/organizations/")({
 	component: PublicOrganizationsIndexRoute,
+	pendingComponent: PublicOrganizationsIndexPending,
+	pendingMs: 0,
+	ssr: "data-only",
 	validateSearch: parseOrganizationsSearch,
 	loaderDeps: ({ search }) => ({
 		page: search.page ?? 1,
@@ -36,6 +42,11 @@ export const Route = createFileRoute("/organizations/")({
 			data: { page: deps.page, query: deps.query },
 		}),
 });
+
+function PublicOrganizationsIndexPending() {
+	const search = Route.useSearch();
+	return <PublicOrganizationsSearchPageSkeleton query={search.query ?? ""} />;
+}
 
 function PublicOrganizationsIndexRoute() {
 	const search = Route.useSearch();

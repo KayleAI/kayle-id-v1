@@ -4,10 +4,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "ln -sf ../../.env .env && vite dev",
-		"build": "vite build",
+		"build": "bun run cf:types && vite build",
 		"serve": "vite preview",
 		"test": "vitest run",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun run cf:types && tsc --noEmit",
 		"deploy": "wrangler deploy --minify",
 		"preview": "npm run build && vite preview",
 		"cf:types": "wrangler types --env-interface CloudflareBindings cloudflare-env.d.ts"

@@ -68,5 +68,6 @@ tmp/icao-pkd-trust-store.sql
 .claude/settings.local.json
 
 # Wrangler
+apps/*/cloudflare-env.d.ts
 .wrangler-out/
 .wrangler/

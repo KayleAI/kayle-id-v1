@@ -12,17 +12,13 @@ import {
 	CardTitle,
 } from "@kayle-id/ui/components/card";
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { QueryErrorAlert } from "@/components/query-error-alert";
-import {
-	type FullOrganization,
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-} from "./api";
+import type { FullOrganization } from "./api";
 import { OrganizationPageLayout } from "./layout";
 import { PendingDeletionBanner } from "./pending-deletion-banner";
 import { UnverifiedOrgBanner } from "./unverified-org-banner";
+import { useOrganizationQuery } from "./use-organization-query";
 
 function OverviewSkeleton() {
 	return (
@@ -182,11 +178,7 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 }
 
 export function OrganizationOverviewPage() {
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const { data, isLoading, isError, error } = useOrganizationQuery();
 
 	return (
 		<OrganizationPageLayout

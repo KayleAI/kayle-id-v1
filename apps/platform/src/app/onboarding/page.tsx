@@ -4,7 +4,6 @@ import {
 	getOrganizationBusinessDetailsStatus,
 	getOrganizationPublicDetailsStatus,
 } from "@kayle-id/auth/organization-onboarding";
-import type { OrganizationRole } from "@kayle-id/auth/types";
 import {
 	Alert,
 	AlertDescription,
@@ -17,6 +16,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import type { BusinessDetailsDraftValues } from "@/app/organizations/business";
 import type { ComplianceDraftValues } from "@/app/organizations/compliance";
 import type { PublicDetailsDraftValues } from "@/app/organizations/public-details";
+import { useCurrentMemberRole } from "@/app/organizations/use-organization-query";
 import { OnboardingPreviewPane } from "./preview-pane";
 import {
 	ONBOARDING_STEP_HEADER_LABELS,
@@ -33,16 +33,13 @@ import { useOnboardingStatus } from "./use-onboarding-status";
 // state, and the Continue/Back navigation. Each child route at
 // /onboarding/<slug> renders its own step body via `<Outlet />`.
 export function OnboardingPage() {
-	const { activeOrganization, user } = useAuth();
+	const { activeOrganization } = useAuth();
 	const navigate = useNavigate();
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const activeStep = stepFromPathname(pathname);
 	const { isError, isLoading, organization, rpTermsAccepted } =
 		useOnboardingStatus();
-
-	const currentRole = organization?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
+	const currentRole = useCurrentMemberRole();
 	const isOwner = currentRole === "owner";
 	const canEdit = isOwner || currentRole === "admin";
 

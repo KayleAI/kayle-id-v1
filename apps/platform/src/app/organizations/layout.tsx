@@ -1,11 +1,9 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
 import { cn } from "@kayle-id/ui/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
-import { fetchFullOrganization, ORGANIZATION_QUERY_KEY } from "./api";
+import { useCurrentMemberRole } from "./use-organization-query";
 
 interface TabDefinition {
 	href:
@@ -55,17 +53,7 @@ export function OrganizationPageLayout({
 }: OrganizationPageLayoutProps) {
 	const { location } = useRouterState();
 	const currentPath = location.pathname.replace(/\/$/, "");
-	const { user } = useAuth();
-	// Reuse the cached org query the page itself will fetch (TanStack Query
-	// dedupes), so we don't issue a second request just to gate tab visibility.
-	const { data: org } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const currentRole = org?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role;
+	const currentRole = useCurrentMemberRole();
 	const visibleTabs = TABS.filter((tab) =>
 		roleSatisfies(currentRole, tab.requiresRole),
 	);

@@ -1,5 +1,3 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
-import type { OrganizationRole } from "@kayle-id/auth/types";
 import {
 	Alert,
 	AlertDescription,
@@ -53,14 +51,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type ActiveDomainChallenge,
 	addRedirectUri,
 	type DnsChallengeStarted,
-	fetchFullOrganization,
-	listOrganizationDomains,
 	listRedirectUris,
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
@@ -72,6 +69,11 @@ import {
 	verifyDnsDomainChallenge,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import {
+	useCurrentMemberRole,
+	useOrganizationDomainsQuery,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 function DomainsSkeleton() {
 	return (
@@ -466,12 +468,7 @@ function AddDomainWizard({
 						.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Action needed</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Action needed" />
 				{step.kind === "input" ? (
 					<form className="space-y-4" onSubmit={handleApexSubmit}>
 						<div className="space-y-2">
@@ -758,12 +755,7 @@ function AddRedirectUriDialog({
 						.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Couldn't add pattern</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Couldn't add pattern" />
 				<form className="space-y-4" onSubmit={handleSubmit}>
 					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-end">
 						<div className="space-y-1">
@@ -983,23 +975,10 @@ function RedirectUrisCard({
 }
 
 export function OrganizationDomainsPage() {
-	const { user } = useAuth();
-	const orgQuery = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const domainsQuery = useQuery({
-		queryFn: listOrganizationDomains,
-		queryKey: ORGANIZATION_DOMAINS_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const orgQuery = useOrganizationQuery();
+	const domainsQuery = useOrganizationDomainsQuery();
 	const [wizardOpen, setWizardOpen] = useState(false);
-
-	const currentRole = orgQuery.data?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
-	const canManage = currentRole === "owner";
+	const canManage = useCurrentMemberRole() === "owner";
 
 	const isLoading = orgQuery.isLoading || domainsQuery.isLoading;
 	const isError = orgQuery.isError || domainsQuery.isError;
@@ -1013,12 +992,10 @@ export function OrganizationDomainsPage() {
 			description="Your organization's domains and redirect URIs."
 			title="Domains"
 		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load domains</AlertTitle>
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert
+				message={isError ? errorMessage : ""}
+				title="Failed to load domains"
+			/>
 			{isLoading ? <DomainsSkeleton /> : null}
 			{!(isLoading || isError) ? (
 				<div className="space-y-6">

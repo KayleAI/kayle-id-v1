@@ -34,6 +34,7 @@ import { CheckCircle2Icon, DownloadIcon, ShieldCheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useReducer, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { useCopyToClipboard } from "@/utils/use-copy";
 
 const TOTP_CODE_LENGTH = 6;
@@ -320,12 +321,10 @@ function VerifyStep({
 					</InputOTPGroup>
 				</InputOTP>
 			</fieldset>
-			{state.errorMessage ? (
-				<Alert variant="destructive">
-					<AlertTitle>Verification failed</AlertTitle>
-					<AlertDescription>{state.errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert
+				message={state.errorMessage}
+				title="Verification failed"
+			/>
 		</div>
 	);
 }
@@ -390,12 +389,7 @@ function DisableTwoFactorDialog({
 						again. You can re-enable two-factor authentication anytime.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Failed to disable</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Failed to disable" />
 				<DialogFooter>
 					<Button
 						disabled={isLoading}
@@ -645,10 +639,10 @@ export function TwoFactorAuthSection() {
 				enableState.status === "idle" &&
 				enableState.errorMessage ? (
 					<CardContent>
-						<Alert variant="destructive">
-							<AlertTitle>Couldn't start enrolment</AlertTitle>
-							<AlertDescription>{enableState.errorMessage}</AlertDescription>
-						</Alert>
+						<FormErrorAlert
+							message={enableState.errorMessage}
+							title="Couldn't start enrolment"
+						/>
 					</CardContent>
 				) : null}
 			</Card>

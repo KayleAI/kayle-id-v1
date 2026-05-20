@@ -1,45 +1,24 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
 import { Button } from "@kayle-id/ui/components/button";
-import { useQuery } from "@tanstack/react-query";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
-import {
-	type FullOrganization,
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-} from "@/app/organizations/api";
 import { StartVerificationDialog } from "@/app/organizations/start-verification-dialog";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "@/app/organizations/use-organization-query";
 
 function isOwnerRole(role: string | undefined): boolean {
 	return role?.split(",").includes("owner") ?? false;
 }
 
-function findCurrentUserIsOwner(
-	organization: FullOrganization,
-	userId: string | undefined,
-): boolean {
-	if (!userId) {
-		return false;
-	}
-	return organization.members.some(
-		(member) => member.userId === userId && isOwnerRole(member.role),
-	);
-}
-
 export function SidebarVerificationWarning() {
-	const { user } = useAuth();
-	const { data } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const { data } = useOrganizationQuery();
 	const [dialogOpen, setDialogOpen] = useState(false);
+	const isOwner = isOwnerRole(useCurrentMemberRole());
 
 	if (!data || data.verifiedAt || data.pendingDeletionAt) {
 		return null;
 	}
-
-	const isOwner = findCurrentUserIsOwner(data, user?.id);
 
 	return (
 		<div className="mx-2 mb-1 group-data-[collapsible=icon]:hidden">

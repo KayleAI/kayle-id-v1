@@ -1,8 +1,3 @@
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import {
 	Dialog,
@@ -16,6 +11,7 @@ import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { parsePublicKeyInput } from "@/app/webhooks/api";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { PublicKeyFields } from "./fields";
 
@@ -86,12 +82,7 @@ export function CreateKeyDialog({
 				</DialogHeader>
 
 				<div className="space-y-4">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to add key</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert message={errorMessage} title="Failed to add key" />
 
 					<PublicKeyFields
 						jwkInput={jwkInput}

@@ -1,11 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { OrganizationRole } from "@kayle-id/auth/types";
 import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
-import {
 	Avatar,
 	AvatarFallback,
 	AvatarImage,
@@ -38,7 +33,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@kayle-id/ui/components/table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	EllipsisVerticalIcon,
 	RotateCcwIcon,
@@ -47,6 +42,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -54,7 +50,6 @@ import { useToastMutation } from "@/utils/use-toast-mutation";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
-	fetchFullOrganization,
 	inviteOrganizationMember,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationInvitation,
@@ -64,6 +59,7 @@ import {
 	updateOrganizationMemberRole,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { useOrganizationQuery } from "./use-organization-query";
 
 const ROLE_OPTIONS: readonly OrganizationRole[] = [
 	"owner",
@@ -371,12 +367,7 @@ function InviteMemberDialog({ canInvite }: { canInvite: boolean }) {
 					<DialogTitle>Invite a member</DialogTitle>
 				</DialogHeader>
 				<div className="space-y-4">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert message={errorMessage} />
 					<div className="space-y-2">
 						<Label htmlFor="invite-email">Email</Label>
 						<Input
@@ -581,11 +572,7 @@ function MembersBody({
 
 export function OrganizationMembersPage() {
 	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const { data, isLoading, isError, error } = useOrganizationQuery();
 
 	const currentMember =
 		data?.members.find((member) => member.userId === user?.id) ?? null;

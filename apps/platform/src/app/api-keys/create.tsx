@@ -1,9 +1,4 @@
 import type { CustomerApiKeyScope } from "@kayle-id/auth/permissions";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import { Checkbox } from "@kayle-id/ui/components/checkbox";
 import {
@@ -19,6 +14,7 @@ import { Label } from "@kayle-id/ui/components/label";
 import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useReducer, useState } from "react";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import {
@@ -200,12 +196,9 @@ function ApiKeyFormView({
 				<DialogTitle>Create API Key</DialogTitle>
 			</DialogHeader>
 			<div className="space-y-4">
-				{state.status === "error" && state.errorMessage && (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{state.errorMessage}</AlertDescription>
-					</Alert>
-				)}
+				<FormErrorAlert
+					message={state.status === "error" ? (state.errorMessage ?? "") : ""}
+				/>
 				<div className="space-y-2">
 					<Label htmlFor="name">Name</Label>
 					<Input

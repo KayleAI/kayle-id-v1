@@ -1,10 +1,4 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import type { OrganizationRole } from "@kayle-id/auth/types";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import { Input } from "@kayle-id/ui/components/input";
 import { Label } from "@kayle-id/ui/components/label";
@@ -16,20 +10,24 @@ import {
 	SelectValue,
 } from "@kayle-id/ui/components/select";
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
-	fetchFullOrganization,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationBusinessType,
 	updateOrganizationBusinessDetails,
 } from "./api";
 import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 function BusinessSkeleton() {
 	return (
@@ -230,12 +228,7 @@ export function BusinessDetailsForm({
 				</p>
 			</div>
 
-			{errorMessage ? (
-				<Alert variant="destructive">
-					<AlertTitle>Error</AlertTitle>
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert message={errorMessage} />
 
 			<FormSection compact={compact}>
 				<div className="space-y-2">
@@ -341,16 +334,8 @@ export function BusinessDetailsForm({
 }
 
 export function OrganizationBusinessPage() {
-	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = data?.members.find((member) => member.userId === user?.id)
-		?.role as OrganizationRole | undefined;
-	const canEdit = currentRole === "owner";
+	const { data, isLoading, isError, error } = useOrganizationQuery();
+	const canEdit = useCurrentMemberRole() === "owner";
 
 	return (
 		<OrganizationPageLayout

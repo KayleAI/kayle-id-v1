@@ -1,5 +1,3 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
-import type { OrganizationRole } from "@kayle-id/auth/types";
 import { Button } from "@kayle-id/ui/components/button";
 import { Calendar } from "@kayle-id/ui/components/calendar";
 import {
@@ -56,11 +54,13 @@ import {
 	type AuditLogEntry,
 	type AuditLogPage,
 	type AuditLogsListInput,
-	fetchFullOrganization,
 	listAuditLogs,
 	ORGANIZATION_AUDIT_LOGS_QUERY_KEY,
-	ORGANIZATION_QUERY_KEY,
 } from "./api";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 // Mirrors `react-day-picker`'s `DateRange` to avoid the transitive dependency.
 interface AuditDateRange {
@@ -1073,16 +1073,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 export function OrganizationAuditLogsPage() {
-	const { user } = useAuth();
-	const orgQuery = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = orgQuery.data?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
+	const orgQuery = useOrganizationQuery();
+	const currentRole = useCurrentMemberRole();
 	const canView = currentRole === "owner" || currentRole === "admin";
 
 	const memberOptions = useMemo<ActorOption[]>(

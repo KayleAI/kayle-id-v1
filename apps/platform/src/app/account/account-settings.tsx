@@ -41,6 +41,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { unwrapBetterAuthResult } from "@/utils/better-auth";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { useToastMutation } from "@/utils/use-toast-mutation";
@@ -169,17 +170,17 @@ export function AccountSettingsPage() {
 
 	return (
 		<div className="space-y-6">
-			{updateMutation.isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to update profile</AlertTitle>
-					<AlertDescription>
-						{getErrorMessage(
-							updateMutation.error,
-							"Something went wrong. Please try again.",
-						)}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert
+				message={
+					updateMutation.isError
+						? getErrorMessage(
+								updateMutation.error,
+								"Something went wrong. Please try again.",
+							)
+						: ""
+				}
+				title="Failed to update profile"
+			/>
 
 			<form className="space-y-6" onSubmit={handleProfileSubmit}>
 				<Card>

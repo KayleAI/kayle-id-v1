@@ -1,11 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
-import type { OrganizationRole } from "@kayle-id/auth/types";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -32,11 +26,12 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@kayle-id/ui/components/tooltip";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -44,13 +39,16 @@ import {
 	cancelOrganizationDeletion,
 	confirmOrganizationDeletion,
 	type FullOrganization,
-	fetchFullOrganization,
 	leaveOrganization,
 	ORGANIZATION_QUERY_KEY,
 	requestOrganizationDeletion,
 	updateOrganization,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 function SettingsSkeleton() {
 	return (
@@ -106,12 +104,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 				<CardDescription>The unique identifier used in URLs.</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} />
 				<div className="space-y-2">
 					<Label htmlFor="slug">Slug</Label>
 					<Input
@@ -545,15 +538,8 @@ function hasOwnerRole(role: string | undefined): boolean {
 }
 
 export function OrganizationSettingsPage() {
-	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = data?.members.find((member) => member.userId === user?.id)
-		?.role as OrganizationRole | undefined;
+	const { data, isLoading, isError, error } = useOrganizationQuery();
+	const currentRole = useCurrentMemberRole();
 	const canEditSlug = currentRole === "owner" || currentRole === "admin";
 	const canScheduleDeletion = currentRole === "owner";
 	const canCancelDeletion = currentRole === "owner" || currentRole === "admin";

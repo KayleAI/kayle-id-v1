@@ -1,33 +1,30 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import type { OrganizationRole } from "@kayle-id/auth/types";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import { Input } from "@kayle-id/ui/components/input";
 import { Label } from "@kayle-id/ui/components/label";
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { Textarea } from "@kayle-id/ui/components/textarea";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type FullOrganization,
-	fetchFullOrganization,
-	listOrganizationDomains,
-	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	updateOrganization,
 	uploadOrganizationLogo,
 } from "./api";
 import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
+import { UnverifiedDomainNotice } from "./unverified-domain-notice";
+import {
+	useCurrentMemberRole,
+	useOrganizationDomainsQuery,
+	useOrganizationQuery,
+} from "./use-organization-query";
 import {
 	parsePublicPrivacyPolicyUrl,
 	parsePublicTermsOfServiceUrl,
@@ -323,12 +320,7 @@ export function PublicDetailsForm({
 				</p>
 			</div>
 
-			{errorMessage ? (
-				<Alert variant="destructive">
-					<AlertTitle>Error</AlertTitle>
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert message={errorMessage} />
 
 			<FormSection compact={compact}>
 				<div className="flex items-center gap-4">
@@ -487,47 +479,10 @@ export function PublicDetailsForm({
 	);
 }
 
-function UnverifiedDomainNotice() {
-	return (
-		<Alert>
-			<AlertTitle>
-				Verify a domain to surface these details to end-users
-			</AlertTitle>
-			<AlertDescription>
-				<p>
-					Until your organization has at least one verified domain, the verify
-					flow does not show your logo, legal name, jurisdiction, or
-					registration number to end-users — they could be set by anyone, so
-					Kayle hides them to protect users from impersonation.
-				</p>
-				<div className="mt-3">
-					<Link
-						className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
-						to="/settings/organizations/domains"
-					>
-						Verify a domain
-					</Link>
-				</div>
-			</AlertDescription>
-		</Alert>
-	);
-}
-
 export function OrganizationPublicDetailsPage() {
-	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const domainsQuery = useQuery({
-		queryFn: listOrganizationDomains,
-		queryKey: ORGANIZATION_DOMAINS_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = data?.members.find((member) => member.userId === user?.id)
-		?.role as OrganizationRole | undefined;
+	const { data, isLoading, isError, error } = useOrganizationQuery();
+	const domainsQuery = useOrganizationDomainsQuery();
+	const currentRole = useCurrentMemberRole();
 	const canEdit = currentRole === "owner" || currentRole === "admin";
 
 	const hasActiveVerifiedDomain = (domainsQuery.data?.domains ?? []).some(
@@ -548,7 +503,7 @@ export function OrganizationPublicDetailsPage() {
 			/>
 			{showUnverifiedNotice ? (
 				<div className="mb-6">
-					<UnverifiedDomainNotice />
+					<UnverifiedDomainNotice hiddenSurfaces="your logo, legal name, jurisdiction, or registration number" />
 				</div>
 			) : null}
 			{isLoading ? <PublicDetailsSkeleton /> : null}

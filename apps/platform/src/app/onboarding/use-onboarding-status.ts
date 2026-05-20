@@ -2,11 +2,10 @@ import { getOrganizationOnboardingStatus } from "@kayle-id/auth/organization-onb
 import { useQuery } from "@tanstack/react-query";
 import {
 	type FullOrganization,
-	fetchFullOrganization,
 	fetchRpIntegrationTermsStatus,
-	ORGANIZATION_QUERY_KEY,
 	ORGANIZATION_RP_TERMS_QUERY_KEY,
 } from "@/app/organizations/api";
+import { useOrganizationQuery } from "@/app/organizations/use-organization-query";
 
 export interface UseOnboardingStatusResult {
 	isLoading: boolean;
@@ -18,11 +17,7 @@ export interface UseOnboardingStatusResult {
 }
 
 export function useOnboardingStatus(): UseOnboardingStatusResult {
-	const organizationQuery = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const organizationQuery = useOrganizationQuery();
 	const rpTermsQuery = useQuery({
 		queryFn: fetchRpIntegrationTermsStatus,
 		queryKey: ORGANIZATION_RP_TERMS_QUERY_KEY,

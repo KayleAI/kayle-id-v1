@@ -1,6 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { RP_INTEGRATION_TERMS_CANONICAL_TEXT } from "@kayle-id/auth/rp-integration-terms";
-import type { OrganizationRole } from "@kayle-id/auth/types";
 import {
 	Alert,
 	AlertDescription,
@@ -35,24 +34,27 @@ import {
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	acceptRpIntegrationTerms,
 	type FullOrganization,
-	fetchFullOrganization,
 	fetchRpIntegrationTermsStatus,
-	listOrganizationDomains,
-	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	ORGANIZATION_RP_TERMS_QUERY_KEY,
 	updateOrganization,
 } from "./api";
 import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
+import { UnverifiedDomainNotice } from "./unverified-domain-notice";
+import {
+	useCurrentMemberRole,
+	useOrganizationDomainsQuery,
+	useOrganizationQuery,
+} from "./use-organization-query";
 import {
 	parsePublicAppealUrl,
 	parsePublicComplaintsUrl,
@@ -367,12 +369,7 @@ export function ComplianceForm({
 				</p>
 			</div>
 
-			{errorMessage ? (
-				<Alert variant="destructive">
-					<AlertTitle>Error</AlertTitle>
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert message={errorMessage} />
 
 			<FormSection compact={compact}>
 				<div className="grid gap-4 md:grid-cols-2">
@@ -733,47 +730,10 @@ function RpIntegrationTermsCard({
 	);
 }
 
-function UnverifiedDomainNotice() {
-	return (
-		<Alert>
-			<AlertTitle>
-				Verify a domain to surface these details to end-users
-			</AlertTitle>
-			<AlertDescription>
-				<p>
-					Until your organization has at least one verified domain, the verify
-					flow does not show your controller name, jurisdiction, or other
-					compliance details to end-users — they could be set by anyone, so
-					Kayle hides them to protect users from impersonation.
-				</p>
-				<div className="mt-3">
-					<Link
-						className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 font-medium text-foreground text-sm hover:bg-muted"
-						to="/settings/organizations/domains"
-					>
-						Verify a domain
-					</Link>
-				</div>
-			</AlertDescription>
-		</Alert>
-	);
-}
-
 export function OrganizationCompliancePage() {
-	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const domainsQuery = useQuery({
-		queryFn: listOrganizationDomains,
-		queryKey: ORGANIZATION_DOMAINS_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = data?.members.find((member) => member.userId === user?.id)
-		?.role as OrganizationRole | undefined;
+	const { data, isLoading, isError, error } = useOrganizationQuery();
+	const domainsQuery = useOrganizationDomainsQuery();
+	const currentRole = useCurrentMemberRole();
 	const canEdit = currentRole === "owner" || currentRole === "admin";
 
 	const hasActiveVerifiedDomain = (domainsQuery.data?.domains ?? []).some(
@@ -794,7 +754,7 @@ export function OrganizationCompliancePage() {
 			/>
 			{showUnverifiedNotice ? (
 				<div className="mb-6">
-					<UnverifiedDomainNotice />
+					<UnverifiedDomainNotice hiddenSurfaces="your controller name, jurisdiction, or other compliance details" />
 				</div>
 			) : null}
 			{isLoading ? <ComplianceSkeleton /> : null}

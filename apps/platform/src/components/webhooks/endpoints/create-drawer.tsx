@@ -2,11 +2,6 @@ import {
 	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 } from "@kayle-id/config/webhook-events";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import { Input } from "@kayle-id/ui/components/input";
 import { Label } from "@kayle-id/ui/components/label";
@@ -29,6 +24,7 @@ import {
 	toggleEventSelection,
 	WEBHOOK_PAYLOAD_RETENTION_OPTIONS,
 } from "@/app/webhooks/utils";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { EventSubscriptionMenu } from "../events/pieces";
 import { PublicKeyFields } from "../keys/fields";
@@ -150,12 +146,10 @@ export function CreateEndpointDrawer({
 				</div>
 
 				<div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to create endpoint</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert
+						message={errorMessage}
+						title="Failed to create endpoint"
+					/>
 
 					<div className="space-y-2">
 						<Label htmlFor="create-webhook-name">Endpoint name</Label>

@@ -1,9 +1,4 @@
 import { client } from "@kayle-id/auth/client";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@kayle-id/ui/components/alert";
 import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
@@ -34,6 +29,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { unwrapBetterAuthResult } from "@/utils/better-auth";
@@ -232,12 +228,7 @@ function AddPasskey() {
 					<DialogTitle>Add a passkey</DialogTitle>
 				</DialogHeader>
 				<div className="space-y-4">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert message={errorMessage} />
 					<div className="space-y-2">
 						<Label htmlFor="passkey-name">Name (optional)</Label>
 						<Input

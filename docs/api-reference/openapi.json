@@ -177,8 +177,41 @@
           },
           "data": {
             "type": "object",
-            "properties": {},
-            "description": "Reserved for future fields."
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": ["not_verified"],
+                "description": "High-level outcome for the user. Cancelled sessions never produce a verified user."
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "cancelled",
+                  "cancelled_after_failed_check",
+                  "privacy_cancelled_after_terminal_failure",
+                  "privacy_cancelled_after_terminal_success"
+                ],
+                "description": "Why this terminal cancelled event was emitted. `cancelled_after_failed_check` indicates the user or relying party cancelled while a retry budget was already partially consumed. The `privacy_cancelled_after_terminal_*` reasons replace a previously-queued failed or succeeded webhook whose payload was scrubbed by a privacy request before delivery."
+              },
+              "nfc_tries_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many NFC chip-read retries the session consumed before cancellation."
+              },
+              "liveness_tries_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "How many liveness retries the session consumed before cancellation."
+              }
+            },
+            "required": [
+              "outcome",
+              "reason",
+              "nfc_tries_used",
+              "liveness_tries_used"
+            ]
           }
         },
         "required": ["type", "metadata", "data"]
@@ -12463,7 +12496,7 @@
       "post": {
         "tags": ["Webhook payloads"],
         "summary": "verification.session.cancelled payload",
-        "description": "Delivered as a JWE-encrypted POST body when a session is cancelled by the user or relying party. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
+        "description": "Delivered as a JWE-encrypted POST body when a session terminates without producing a verified user. Emitted by the authenticated cancel endpoint, the public cancel endpoint, or as a privacy-withdrawal replacement for a `succeeded`/`failed` payload that was scrubbed before delivery. Verify the `X-Kayle-Signature` header against the encrypted body before decrypting.",
         "requestBody": {
           "required": true,
           "description": "The decrypted JSON payload. The actual request body delivered to your endpoint is compact JWE.",

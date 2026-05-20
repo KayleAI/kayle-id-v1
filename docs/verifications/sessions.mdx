@@ -90,7 +90,7 @@ Two cancel paths exist:
 - **Authenticated cancel** — `POST /v1/sessions/:id/cancel` with your API key. Idempotent. Use this when you decide server-side that you no longer want the Kayle check to proceed.
 - **Public cancel** — `POST /v1/verify/session/:id/cancel` with the one-shot `cancel_token` in the body. The verify app and native apps use this to abort from the user's side. The token is consumed on first successful use; subsequent calls return `204` if the session is already terminal, otherwise `CANCEL_TOKEN_USED`.
 
-A cancelled session emits `verification.session.cancelled` to subscribed webhooks.
+A cancelled session emits `verification.session.cancelled` to subscribed webhooks. The payload carries a `reason` (`cancelled`, `cancelled_after_failed_check`, or one of the `privacy_cancelled_after_terminal_*` variants when the event replaces a scrubbed `succeeded` / `failed` payload) plus the per-check retry counters. See the [reference](/api-reference/webhooks/verification-session-cancelled) for the full field list.
 
 <Note>
   The `verification_url` in the create response already contains `cancel_token` as a query parameter, so you don't need to surface it yourself unless you're building a separate cancel UI.

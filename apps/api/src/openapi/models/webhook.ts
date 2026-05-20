@@ -366,7 +366,39 @@ export const VerificationSessionCancelledWebhookPayload = z
 	.object({
 		type: z.literal("verification.session.cancelled"),
 		metadata: WebhookSessionMetadata,
-		data: z.object({}).describe("Reserved for future fields."),
+		data: z.object({
+			outcome: z
+				.enum(["not_verified"])
+				.describe(
+					"High-level outcome for the user. Cancelled sessions never produce a verified user.",
+				),
+			reason: z
+				.enum([
+					"cancelled",
+					"cancelled_after_failed_check",
+					"privacy_cancelled_after_terminal_failure",
+					"privacy_cancelled_after_terminal_success",
+				])
+				.describe(
+					"Why this terminal cancelled event was emitted. `cancelled_after_failed_check` indicates the user or relying party cancelled while a retry budget was already partially consumed. The `privacy_cancelled_after_terminal_*` reasons replace a previously-queued failed or succeeded webhook whose payload was scrubbed by a privacy request before delivery.",
+				),
+			nfc_tries_used: z
+				.number()
+				.int()
+				.min(0)
+				.max(3)
+				.describe(
+					"How many NFC chip-read retries the session consumed before cancellation.",
+				),
+			liveness_tries_used: z
+				.number()
+				.int()
+				.min(0)
+				.max(3)
+				.describe(
+					"How many liveness retries the session consumed before cancellation.",
+				),
+		}),
 	})
 	.openapi("VerificationSessionCancelledWebhookPayload");
 

@@ -47,6 +47,8 @@ import {
 } from "./payloads";
 import type {
 	DeliveryRowResponse,
+	VerificationSessionCancelledOutcome,
+	VerificationSessionCancelledReason,
 	VerificationSessionFailedCode,
 	WebhookPayload,
 } from "./types";
@@ -792,12 +794,20 @@ export async function createWebhookDeliveriesForVerificationSessionExpired({
 export async function createWebhookDeliveriesForVerificationSessionCancelled({
 	contractVersion,
 	eventId,
+	livenessTriesUsed,
+	nfcTriesUsed,
 	organizationId,
+	outcome,
+	reason,
 	sessionId,
 }: {
 	contractVersion: number;
 	eventId: string;
+	livenessTriesUsed: number;
+	nfcTriesUsed: number;
 	organizationId: string;
+	outcome: VerificationSessionCancelledOutcome;
+	reason: VerificationSessionCancelledReason;
 	sessionId: string;
 }): Promise<string[]> {
 	const webhookEndpointIds =
@@ -810,6 +820,10 @@ export async function createWebhookDeliveriesForVerificationSessionCancelled({
 		payload: buildVerificationSessionCancelledPayload({
 			contractVersion,
 			eventId,
+			livenessTriesUsed,
+			nfcTriesUsed,
+			outcome,
+			reason,
 			sessionId,
 		}),
 		webhookEndpointIds,

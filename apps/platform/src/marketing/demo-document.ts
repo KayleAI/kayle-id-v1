@@ -30,6 +30,7 @@ export interface DemoDecryptedWebhook {
 }
 
 export interface DemoWebhookEventPreview {
+	cancelledReason: string | null;
 	contractVersion: number | null;
 	description: string;
 	eventType: string | null;
@@ -215,10 +216,25 @@ function getDemoAttemptFailureMessage(
 	return null;
 }
 
+function buildCancelledEventDescription(reason: string | null): string {
+	switch (reason) {
+		case "cancelled_after_failed_check":
+			return "The verification session was cancelled after a failed check.";
+		case "privacy_cancelled_after_terminal_failure":
+			return "The user withdrew consent after the session terminalized as failed.";
+		case "privacy_cancelled_after_terminal_success":
+			return "The user withdrew consent after the session terminalized as succeeded.";
+		default:
+			return "The verification session was cancelled before completion.";
+	}
+}
+
 function buildWebhookEventDescription({
+	cancelledReason,
 	eventType,
 	failureCode,
 }: {
+	cancelledReason: string | null;
 	eventType: string | null;
 	failureCode: string | null;
 }): string {
@@ -236,7 +252,7 @@ function buildWebhookEventDescription({
 		case "verification.session.succeeded":
 			return "The confirmed document signal was received successfully.";
 		case "verification.session.cancelled":
-			return "The verification session was cancelled before completion.";
+			return buildCancelledEventDescription(cancelledReason);
 		case "verification.session.expired":
 			return "The verification session expired before completion.";
 		default:
@@ -255,13 +271,19 @@ export function buildDemoWebhookEventPreview(
 
 	const failureCode = toNonEmptyString(parsed.data.failure_code);
 	const failureMessage = getDemoAttemptFailureMessage(failureCode);
+	const cancelledReason =
+		parsed.type === "verification.session.cancelled"
+			? toNonEmptyString(parsed.data.reason)
+			: null;
 
 	return {
+		cancelledReason,
 		contractVersion:
 			typeof parsed.metadata?.contract_version === "number"
 				? parsed.metadata.contract_version
 				: null,
 		description: buildWebhookEventDescription({
+			cancelledReason,
 			eventType: parsed.type,
 			failureCode,
 		}),

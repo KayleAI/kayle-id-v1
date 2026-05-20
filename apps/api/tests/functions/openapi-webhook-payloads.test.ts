@@ -62,8 +62,31 @@ test("OpenAPI documents actual webhook delivery payloads", async () => {
 
 	expect(Object.keys(failedPayloadDataProperties ?? {})).toEqual([
 		"failure_code",
+		"nfc_tries_used",
+		"liveness_tries_used",
 	]);
 	expect(Array.isArray(failedPayloadDataProperties?.failure_code?.enum)).toBe(
 		true,
 	);
+
+	const cancelledPayloadSchema =
+		document.components?.schemas?.VerificationSessionCancelledWebhookPayload;
+	const cancelledPayloadDataProperties =
+		cancelledPayloadSchema?.properties?.data?.properties;
+
+	expect(Object.keys(cancelledPayloadDataProperties ?? {})).toEqual([
+		"outcome",
+		"reason",
+		"nfc_tries_used",
+		"liveness_tries_used",
+	]);
+	expect(cancelledPayloadDataProperties?.outcome?.enum).toEqual([
+		"not_verified",
+	]);
+	expect(cancelledPayloadDataProperties?.reason?.enum).toEqual([
+		"cancelled",
+		"cancelled_after_failed_check",
+		"privacy_cancelled_after_terminal_failure",
+		"privacy_cancelled_after_terminal_success",
+	]);
 });

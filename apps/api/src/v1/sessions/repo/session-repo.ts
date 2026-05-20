@@ -16,6 +16,7 @@ import {
 	scrubWebhookPayloadsForVerificationSessionPrivacyRequest,
 	triggerWebhookDeliveryWorkflows,
 } from "@/v1/webhooks/deliveries/service";
+import type { VerificationSessionCancelledReason } from "@/v1/webhooks/deliveries/types";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -262,6 +263,8 @@ export async function cancelVerificationSession({
 			.returning({
 				contractVersion: verification_sessions.contractVersion,
 				id: verification_sessions.id,
+				livenessTriesUsed: verification_sessions.livenessTriesUsed,
+				nfcTriesUsed: verification_sessions.nfcTriesUsed,
 				organizationId: verification_sessions.organizationId,
 			});
 
@@ -290,6 +293,8 @@ export async function cancelVerificationSession({
 
 		return {
 			contractVersion: cancelled.contractVersion,
+			livenessTriesUsed: cancelled.livenessTriesUsed,
+			nfcTriesUsed: cancelled.nfcTriesUsed,
 			organizationId: cancelled.organizationId,
 			sessionCancelledEventId,
 			sessionId: cancelled.id,
@@ -300,11 +305,20 @@ export async function cancelVerificationSession({
 		return;
 	}
 
+	const consumedAnyRetryBudget =
+		result.livenessTriesUsed > 0 || result.nfcTriesUsed > 0;
+
 	const deliveryIds =
 		await createWebhookDeliveriesForVerificationSessionCancelled({
 			contractVersion: result.contractVersion,
 			eventId: result.sessionCancelledEventId,
+			livenessTriesUsed: result.livenessTriesUsed,
+			nfcTriesUsed: result.nfcTriesUsed,
 			organizationId: result.organizationId,
+			outcome: "not_verified",
+			reason: consumedAnyRetryBudget
+				? "cancelled_after_failed_check"
+				: "cancelled",
 			sessionId: result.sessionId,
 		});
 
@@ -339,7 +353,11 @@ export async function recordVerificationSessionPrivacyRequest({
 	} else if (row.status === "succeeded" || row.status === "failed") {
 		const now = new Date();
 		const shouldMarkWithdrawn = scrubResult.deliveredDeliveryCount === 0;
-		const minimized = await db.transaction(async (tx) => {
+		const replacementCancelledReason: VerificationSessionCancelledReason =
+			row.status === "failed"
+				? "privacy_cancelled_after_terminal_failure"
+				: "privacy_cancelled_after_terminal_success";
+		const txResult = await db.transaction(async (tx) => {
 			const updateResult = await tx
 				.update(verification_sessions)
 				.set({
@@ -362,9 +380,39 @@ export async function recordVerificationSessionPrivacyRequest({
 					),
 				)
 				.returning({ id: verification_sessions.id });
-			return updateResult;
+
+			if (!(shouldMarkWithdrawn && updateResult.length > 0)) {
+				return { minimized: updateResult, sessionCancelledEventId: null };
+			}
+
+			const sessionCancelledEventId = generateId({ type: "evt" });
+			await tx.insert(events).values({
+				id: sessionCancelledEventId,
+				organizationId,
+				type: "verification.session.cancelled",
+				triggerId: row.id,
+				triggerType: "verification_session",
+			});
+
+			return { minimized: updateResult, sessionCancelledEventId };
 		});
-		minimizedCompletedAttemptCount = minimized.length;
+		minimizedCompletedAttemptCount = txResult.minimized.length;
+
+		if (txResult.sessionCancelledEventId) {
+			const deliveryIds =
+				await createWebhookDeliveriesForVerificationSessionCancelled({
+					contractVersion: row.contractVersion,
+					eventId: txResult.sessionCancelledEventId,
+					livenessTriesUsed: row.livenessTriesUsed,
+					nfcTriesUsed: row.nfcTriesUsed,
+					organizationId,
+					outcome: "not_verified",
+					reason: replacementCancelledReason,
+					sessionId: row.id,
+				});
+
+			await triggerWebhookDeliveryWorkflows({ env, deliveryIds });
+		}
 	}
 
 	await recordAuditLog({

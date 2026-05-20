@@ -87,8 +87,21 @@ export type VerificationSessionExpiredPayload = {
 	type: "verification.session.expired";
 };
 
+export type VerificationSessionCancelledOutcome = "not_verified";
+
+export type VerificationSessionCancelledReason =
+	| "cancelled"
+	| "cancelled_after_failed_check"
+	| "privacy_cancelled_after_terminal_failure"
+	| "privacy_cancelled_after_terminal_success";
+
 export type VerificationSessionCancelledPayload = {
-	data: Record<string, never>;
+	data: {
+		outcome: VerificationSessionCancelledOutcome;
+		reason: VerificationSessionCancelledReason;
+		nfc_tries_used: number;
+		liveness_tries_used: number;
+	};
 	metadata: VerificationSessionMetadata;
 	type: "verification.session.cancelled";
 };

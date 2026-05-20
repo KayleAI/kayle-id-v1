@@ -1,18 +1,19 @@
 ---
 title: "verification.session.cancelled"
-description: "Fires when a session is cancelled."
+description: "Fires when a session terminates without producing a verified user."
 ---
 
-Emitted when a session is explicitly cancelled — either by you (authenticated cancel via your API key) or by the user (public cancel from the verify app).
+Emitted when a session reaches a terminal `cancelled` state. The payload carries an `outcome`, a granular `reason`, and the per-check retry counters so you can tell whether the user gave up after a failed check, withdrew consent after the session had already terminalized, or cancelled cleanly before attempting anything.
 
 ## When it fires
 
-The two cancel paths:
+There are two paths that lead to a cancelled event, plus a privacy-driven replacement path:
 
-- **Authenticated.** `POST /v1/sessions/:id/cancel` with an API key that holds `sessions:write`. Idempotent.
-- **Public.** `POST /v1/verify/session/:id/cancel` with the one-shot `cancel_token`. The verify web app and mobile apps use this to abort from the user's side.
+- **Authenticated cancel.** `POST /v1/sessions/:id/cancel` with an API key that holds `sessions:write`. Idempotent.
+- **Public cancel.** `POST /v1/verify/session/:id/cancel` with the one-shot `cancel_token`. The verify web app and mobile apps use this to abort from the user's side.
+- **Privacy withdrawal replacement.** When the user redeems their `cancel_token` after the session has already terminalized as `succeeded` or `failed`, Kayle scrubs the previously queued terminal payload. If that prior delivery had not yet been delivered, a `verification.session.cancelled` event is emitted in its place so every session still produces exactly one terminal webhook. If the prior delivery had already been delivered, no replacement is emitted.
 
-Either path emits this event once. In-progress attempts inside a cancelled session are marked `failed` with `failure_code: session_cancelled`.
+Either cancel path emits this event once. In-progress attempts inside a cancelled session are marked `failed` with `failure_code: session_cancelled`.
 
 ## Payload
 
@@ -24,7 +25,12 @@ Either path emits this event once. In-progress attempts inside a cancelled sessi
     "event_id": "evt_...",
     "verification_session_id": "vs_..."
   },
-  "data": {}
+  "data": {
+    "outcome": "not_verified",
+    "reason": "cancelled_after_failed_check",
+    "nfc_tries_used": 0,
+    "liveness_tries_used": 2
+  }
 }
 ```
 
@@ -35,20 +41,41 @@ Either path emits this event once. In-progress attempts inside a cancelled sessi
 </ResponseField>
 
 <ResponseField name="metadata.contract_version" type="number">
-  Contract version the session was created against.
+  The share-contract version the session was created against.
 </ResponseField>
 
 <ResponseField name="metadata.event_id" type="string">
-  Unique event ID. Use as an idempotency key.
+  Unique event ID. Idempotency-key candidate — the same event reuses this ID on retries and replays.
 </ResponseField>
 
 <ResponseField name="metadata.verification_session_id" type="string">
   The session that was cancelled.
 </ResponseField>
 
-<ResponseField name="data" type="object">
-  Empty object. The webhook does not distinguish authenticated vs public cancel — if you need that distinction, capture it server-side at the moment you call the authenticated cancel endpoint.
+<ResponseField name="data.outcome" type="string">
+  Always `not_verified`. Cancelled sessions never produce a verified user.
 </ResponseField>
+
+<ResponseField name="data.reason" type="string">
+  Why this cancelled event was emitted. One of:
+
+  - `cancelled` — the session was cancelled before any retry budget was consumed.
+  - `cancelled_after_failed_check` — the session was cancelled while at least one of the NFC or liveness retry budgets was already partially consumed. Inspect `nfc_tries_used` / `liveness_tries_used` to see which.
+  - `privacy_cancelled_after_terminal_failure` — the session had already terminalized as `failed` and the user then withdrew consent before the failed webhook delivered. The original `verification.session.failed` payload was scrubbed; this event replaces it.
+  - `privacy_cancelled_after_terminal_success` — the session had already terminalized as `succeeded` and the user then withdrew consent before the success webhook delivered. The original `verification.session.succeeded` payload (with its claims) was scrubbed; this event replaces it. **You will not receive the claims** for this session — privacy withdrawal is final.
+</ResponseField>
+
+<ResponseField name="data.nfc_tries_used" type="number">
+  How many NFC chip-read retries (0..3) the session consumed before cancellation.
+</ResponseField>
+
+<ResponseField name="data.liveness_tries_used" type="number">
+  How many liveness retries (0..3) the session consumed before cancellation.
+</ResponseField>
+
+## Terminal-webhook invariant
+
+Every verification session produces **exactly one** terminal webhook from the set `{succeeded, failed, expired, cancelled}` — provided you have at least one endpoint subscribed to that event type. The privacy-withdrawal replacement path exists to preserve this invariant: if a `succeeded` or `failed` webhook is scrubbed by a privacy request before it lands, you receive a `cancelled` event in its place rather than nothing at all.
 
 ## Handler outline
 
@@ -57,7 +84,26 @@ if (event.type === "verification.session.cancelled") {
   const { verification_session_id, event_id } = event.metadata;
   if (await alreadyProcessed(event_id)) return;
 
-  await markSessionCancelled({ sessionId: verification_session_id });
+  switch (event.data.reason) {
+    case "cancelled":
+    case "cancelled_after_failed_check":
+      await markSessionCancelled({ sessionId: verification_session_id });
+      break;
+    case "privacy_cancelled_after_terminal_failure":
+      // Treat as a failed session you'll never see the failure detail for.
+      await markSessionPrivacyWithdrawn({
+        sessionId: verification_session_id,
+        priorOutcome: "failed",
+      });
+      break;
+    case "privacy_cancelled_after_terminal_success":
+      // Claims will never arrive; do not provision the user.
+      await markSessionPrivacyWithdrawn({
+        sessionId: verification_session_id,
+        priorOutcome: "succeeded",
+      });
+      break;
+  }
 }
 ```
 

@@ -158,6 +158,7 @@ test("buildDemoWebhookEventPreview reads non-success webhook payloads", () => {
 	);
 
 	expect(preview).toEqual({
+		cancelledReason: null,
 		contractVersion: 1,
 		description:
 			"Kayle ID could not automatically confirm your document. Try again or use a different one.",
@@ -182,6 +183,7 @@ test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => 
 	);
 
 	expect(preview).toEqual({
+		cancelledReason: null,
 		contractVersion: null,
 		description:
 			"A Kayle check attempt was not confirmed with Unexpected Failure Code.",
@@ -192,4 +194,66 @@ test("buildDemoWebhookEventPreview falls back for unknown failure codes", () => 
 		title: "Session Failed",
 		verificationSessionId: null,
 	});
+});
+
+test("buildDemoWebhookEventPreview surfaces cancelled reason", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {
+				outcome: "not_verified",
+				reason: "cancelled_after_failed_check",
+				nfc_tries_used: 0,
+				liveness_tries_used: 2,
+			},
+			metadata: {
+				contract_version: 1,
+				verification_session_id: "vs_demo_cancel",
+			},
+		}),
+	);
+
+	expect(preview).toEqual({
+		cancelledReason: "cancelled_after_failed_check",
+		contractVersion: 1,
+		description: "The verification session was cancelled after a failed check.",
+		eventType: "verification.session.cancelled",
+		failureCode: null,
+		failureDescription: null,
+		failureTitle: null,
+		title: "Session Cancelled",
+		verificationSessionId: "vs_demo_cancel",
+	});
+});
+
+test("buildDemoWebhookEventPreview falls back for cancelled payload without reason", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {},
+		}),
+	);
+
+	expect(preview?.description).toBe(
+		"The verification session was cancelled before completion.",
+	);
+	expect(preview?.cancelledReason).toBeNull();
+});
+
+test("buildDemoWebhookEventPreview renders privacy-cancel-after-failure copy", () => {
+	const preview = buildDemoWebhookEventPreview(
+		JSON.stringify({
+			type: "verification.session.cancelled",
+			data: {
+				outcome: "not_verified",
+				reason: "privacy_cancelled_after_terminal_failure",
+				nfc_tries_used: 0,
+				liveness_tries_used: 3,
+			},
+		}),
+	);
+
+	expect(preview?.description).toBe(
+		"The user withdrew consent after the session terminalized as failed.",
+	);
 });

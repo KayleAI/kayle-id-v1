@@ -15,9 +15,11 @@ Four event types exist:
 | `verification.session.succeeded` | An attempt was confirmed by Kayle. The payload includes the consented claims and the list of selected field keys. |
 | `verification.session.failed` | Kayle could not confirm an attempt. The payload includes a `failure_code`. |
 | `verification.session.expired` | A session passed its 60-minute window with no confirmed attempt. |
-| `verification.session.cancelled` | A session was cancelled by you (authenticated cancel) or by the user (public cancel). |
+| `verification.session.cancelled` | A session was cancelled by you (authenticated cancel), by the user (public cancel), or as a privacy-withdrawal replacement for a `succeeded` / `failed` payload that was scrubbed before delivery. The payload includes a `reason` and the per-check retry counters. |
 
 Each endpoint subscribes to a subset by listing event types when you create or update it. See [Configuring endpoints](/webhooks/configuring-endpoints).
+
+Every verification session produces **exactly one** terminal webhook from the set above — provided at least one of your endpoints subscribes to that event type. If a user withdraws consent (privacy request) after a `succeeded` or `failed` event was queued but before it delivered, the payload is scrubbed and a `verification.session.cancelled` event is emitted in its place. See [verification.session.cancelled](/api-reference/webhooks/verification-session-cancelled) for the full `reason` enumeration.
 
 ## Delivery semantics
 

@@ -1,6 +1,8 @@
 import type { VerifyShareManifest } from "@/v1/verify/share-manifest";
 import type {
+	VerificationSessionCancelledOutcome,
 	VerificationSessionCancelledPayload,
+	VerificationSessionCancelledReason,
 	VerificationSessionExpiredPayload,
 	VerificationSessionFailedCode,
 	VerificationSessionFailedPayload,
@@ -81,14 +83,27 @@ export function buildVerificationSessionExpiredPayload({
 export function buildVerificationSessionCancelledPayload({
 	contractVersion,
 	eventId,
+	livenessTriesUsed,
+	nfcTriesUsed,
+	outcome,
+	reason,
 	sessionId,
 }: {
 	contractVersion: number;
 	eventId: string;
+	livenessTriesUsed: number;
+	nfcTriesUsed: number;
+	outcome: VerificationSessionCancelledOutcome;
+	reason: VerificationSessionCancelledReason;
 	sessionId: string;
 }): VerificationSessionCancelledPayload {
 	return {
-		data: {},
+		data: {
+			outcome,
+			reason,
+			nfc_tries_used: nfcTriesUsed,
+			liveness_tries_used: livenessTriesUsed,
+		},
 		metadata: {
 			contract_version: contractVersion,
 			event_id: eventId,

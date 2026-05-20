@@ -1,4 +1,4 @@
-import type { VerifySessionStatusPayload } from "@/config/handoff";
+import type { VerifySessionStatusPayload } from "@/api/verify-api";
 
 export function readCancelTokenFromLocation(): string | null {
 	if (typeof window === "undefined") {

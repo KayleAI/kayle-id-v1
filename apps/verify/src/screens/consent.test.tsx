@@ -14,10 +14,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
 	requestCancelVerifySession,
 	requestRecordVerifyConsent,
-} from "@/config/handoff";
-import { useVerificationStore } from "../../stores/session";
+} from "@/api/verify-api";
+import { useVerificationStore } from "@/stores/session";
 
-vi.mock("@/config/handoff", () => ({
+vi.mock("@/api/verify-api", () => ({
 	requestCancelVerifySession: vi.fn().mockResolvedValue(undefined),
 	requestRecordVerifyConsent: vi.fn().mockResolvedValue({
 		consent_id: "vc_test",
@@ -182,7 +182,7 @@ vi.mock("@kayle-id/ui/components/dialog", () => ({
 }));
 
 import { SessionConsent } from "./consent";
-import type { Organization } from "./organization-name";
+import type { Organization } from "./organization/types";
 
 const sessionId =
 	"vs_consentbrowser000000000000000000000000000000000000000000000000000000";

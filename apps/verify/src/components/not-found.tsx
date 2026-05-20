@@ -3,17 +3,6 @@ import { InfoCard } from "@kayle-id/ui/info-card";
 import type { NotFoundRouteProps } from "@tanstack/react-router";
 import { useErrorMessages, useVerifyHandoffCopy } from "@/i18n/provider";
 
-/**
- * The not found component.
- *
- * This component is reserved only for when a session is not found, has expired, or is otherwise invalid.
- *
- * This informs the user that it's an issue on their end.
- *
- * @note Not to be confused with the error page which is reserved for when issues occur on our end.
- *
- * @returns A not found component.
- */
 type InvalidSessionData = {
 	data?: {
 		type?: string;
@@ -53,7 +42,6 @@ export function NotFound({ data }: NotFoundRouteProps) {
 		);
 	}
 
-	// Generic not found page
 	return (
 		<Layout>
 			<InfoCard

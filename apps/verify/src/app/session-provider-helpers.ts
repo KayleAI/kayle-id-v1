@@ -2,40 +2,24 @@ import type {
 	HelloCredentials,
 	SessionError,
 	VerifySession,
-} from "@/config/capnp";
-import { initialiseSession } from "@/config/capnp";
+} from "@/api/session-socket";
+import { initialiseSession } from "@/api/session-socket";
 import {
+	isVerifyRequestError,
 	requestHandoffPayload,
 	type VerifySessionStatusPayload,
-} from "@/config/handoff";
+} from "@/api/verify-api";
 
 const WEB_APP_VERSION = "verify-web";
 let webDeviceId: string | null = null;
 
-function isErrorWithCode(
-	value: unknown,
-): value is { code: string; message?: string } {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		"code" in value &&
-		typeof (value as { code?: unknown }).code === "string"
-	);
-}
-
 export function toSessionError(value: unknown): SessionError {
-	if (isErrorWithCode(value)) {
-		return {
-			code: value.code,
-			message: value.message ?? value.code,
-		};
+	if (isVerifyRequestError(value)) {
+		return { code: value.code, message: value.message || value.code };
 	}
 
 	if (value instanceof Error) {
-		return {
-			code: "UNKNOWN",
-			message: value.message,
-		};
+		return { code: "UNKNOWN", message: value.message };
 	}
 
 	return {
@@ -85,6 +69,15 @@ export function reportCallbackErrorDevOnly(error: unknown): void {
 	});
 }
 
+type BootstrapArgs = {
+	sessionId: string;
+	handleRpcError: (sessionError: SessionError) => void;
+	isUnmountedRef: { current: boolean };
+	sessionStubRef: { current: VerifySession | null };
+	setIsSessionReady: (value: boolean) => void;
+	setError: (value: SessionError | null) => void;
+};
+
 export async function bootstrapSupportedSession({
 	sessionId,
 	handleRpcError,
@@ -92,14 +85,7 @@ export async function bootstrapSupportedSession({
 	sessionStubRef,
 	setIsSessionReady,
 	setError,
-}: {
-	sessionId: string;
-	handleRpcError: (sessionError: SessionError) => void;
-	isUnmountedRef: { current: boolean };
-	sessionStubRef: { current: VerifySession | null };
-	setIsSessionReady: (value: boolean) => void;
-	setError: (value: SessionError | null) => void;
-}) {
+}: BootstrapArgs) {
 	try {
 		const handoffPayload = await requestHandoffPayload(sessionId);
 		if (isUnmountedRef.current) {

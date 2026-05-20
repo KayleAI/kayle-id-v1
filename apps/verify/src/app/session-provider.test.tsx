@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type {
 	VerifySessionDetailsPayload,
 	VerifySessionStatusPayload,
-} from "@/config/handoff";
+} from "@/api/verify-api";
 import { useVerificationStore } from "../stores/session";
 import { SessionProvider, useSession } from "./session-provider";
 
@@ -216,8 +216,8 @@ describe("SessionProvider", () => {
 			maxTouchPoints: 0,
 		});
 
-		const handoffModule = await import("@/config/handoff");
-		const capnpModule = await import("@/config/capnp");
+		const handoffModule = await import("@/api/verify-api");
+		const capnpModule = await import("@/api/session-socket");
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
@@ -245,8 +245,8 @@ describe("SessionProvider", () => {
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 		});
 
-		const handoffModule = await import("@/config/handoff");
-		const capnpModule = await import("@/config/capnp");
+		const handoffModule = await import("@/api/verify-api");
+		const capnpModule = await import("@/api/session-socket");
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
@@ -274,8 +274,8 @@ describe("SessionProvider", () => {
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 		});
 
-		const handoffModule = await import("@/config/handoff");
-		const capnpModule = await import("@/config/capnp");
+		const handoffModule = await import("@/api/verify-api");
+		const capnpModule = await import("@/api/session-socket");
 		const handoffSpy = vi.spyOn(handoffModule, "requestHandoffPayload");
 		const detailsSpy = vi
 			.spyOn(handoffModule, "requestVerifySessionDetails")
@@ -305,7 +305,7 @@ describe("SessionProvider", () => {
 			maxTouchPoints: 0,
 		});
 
-		const handoffModule = await import("@/config/handoff");
+		const handoffModule = await import("@/api/verify-api");
 		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue(
 			createSessionDetails(),
 		);
@@ -330,7 +330,7 @@ describe("SessionProvider", () => {
 			maxTouchPoints: 0,
 		});
 
-		const handoffModule = await import("@/config/handoff");
+		const handoffModule = await import("@/api/verify-api");
 		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockRejectedValue(
 			Object.assign(new Error("Session not found."), {
 				code: "SESSION_NOT_FOUND",
@@ -358,7 +358,7 @@ describe("SessionProvider", () => {
 			maxTouchPoints: 0,
 		});
 
-		const handoffModule = await import("@/config/handoff");
+		const handoffModule = await import("@/api/verify-api");
 		vi.spyOn(handoffModule, "requestVerifySessionDetails").mockResolvedValue(
 			createSessionDetails(),
 		);

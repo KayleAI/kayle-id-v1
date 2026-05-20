@@ -1,6 +1,6 @@
 import { Button } from "@kayle-id/ui/components/button";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
-import type { Organization } from "./organization-name";
+import type { Organization } from "./types";
 
 const LOCAL_PLATFORM_ORIGIN = "https://localhost:3000";
 const STAGING_PLATFORM_ORIGIN = "https://staging.kayle.id";

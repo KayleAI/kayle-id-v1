@@ -3,7 +3,7 @@ import {
 	requestCancelVerifySession,
 	requestHandoffPayload,
 	requestVerifySessionStatus,
-} from "./handoff";
+} from "./verify-api";
 
 const originalFetch = globalThis.fetch;
 

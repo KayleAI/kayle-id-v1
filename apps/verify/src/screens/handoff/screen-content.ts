@@ -2,7 +2,7 @@ import type { VerifyHandoffCopy } from "@kayle-id/translations/verify-handoff-co
 import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,
-} from "@/config/handoff";
+} from "@/api/verify-api";
 
 export type CardTone = "amber" | "blue" | "emerald" | "red";
 

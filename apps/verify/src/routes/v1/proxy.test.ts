@@ -3,7 +3,7 @@ import {
 	buildApiProxyUrl,
 	buildProxyHeaders,
 	isAllowedApiProxyPath,
-} from "./proxy-internal-api";
+} from "./proxy";
 
 describe("buildApiProxyUrl", () => {
 	test("preserves the API service binding scheme", () => {

@@ -1,6 +1,6 @@
 import { Layout } from "@kayle-id/ui/components/layout";
 import { useLoaderData } from "@tanstack/react-router";
-import { SessionApp } from "./app";
+import { SessionApp } from "@/screens/session-app";
 import { SessionError } from "./error";
 import { SessionLoader } from "./loader";
 import { SessionProvider } from "./session-provider";

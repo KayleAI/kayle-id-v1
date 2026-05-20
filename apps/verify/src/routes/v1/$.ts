@@ -4,7 +4,7 @@ import {
 	buildApiProxyUrl,
 	buildProxyHeaders,
 	isAllowedApiProxyPath,
-} from "@/utils/proxy-internal-api";
+} from "./proxy";
 
 export const Route = createFileRoute("/v1/$")({
 	server: {

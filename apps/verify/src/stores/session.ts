@@ -31,28 +31,10 @@ type VerificationStore = {
 
 export const useVerificationStore = create<VerificationStore>((set) => ({
 	step: "explain",
-	/**
-	 * Warn the user that the organization is not verified before continuing.
-	 */
 	goToUnverifiedOrgWarning: () => set({ step: "unverified_org_warning" }),
-	/**
-	 * Explain the verification process.
-	 */
 	goToExplain: () => set({ step: "explain" }),
-	/**
-	 * Get the user's consent to complete the verification.
-	 */
 	goToConsent: () => set({ step: "consent" }),
-	/**
-	 * Continue the verification in the mobile handoff flow.
-	 */
 	goToHandoff: () => set({ step: "handoff" }),
-	/**
-	 * Show the result of the verification.
-	 */
 	goToResult: () => set({ step: "result" }),
-	/**
-	 * Teardown the verification session.
-	 */
 	goToTeardown: () => set({ step: "teardown" }),
 }));

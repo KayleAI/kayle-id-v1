@@ -10,8 +10,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type {
 	HandoffPayload,
 	VerifySessionStatusPayload,
-} from "@/config/handoff";
-import type { Organization } from "./organization-name";
+} from "@/api/verify-api";
+import type { Organization } from "../organization/types";
 
 if (typeof document === "undefined") {
 	const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -62,7 +62,7 @@ vi.mock("@tanstack/react-router", () => ({
 	}),
 }));
 
-vi.mock("@/utils/use-device", () => ({
+vi.mock("@/hooks/use-device", () => ({
 	useDevice: () => mockedUseDevice(),
 }));
 
@@ -70,11 +70,11 @@ vi.mock("@/utils/navigation", () => ({
 	redirectToUrl: (targetUrl: string) => assignLocationSpy(targetUrl),
 }));
 
-vi.mock("../session-provider", () => ({
+vi.mock("@/app/session-provider", () => ({
 	useSession: () => mockedUseSession(),
 }));
 
-vi.mock("@/config/handoff", () => ({
+vi.mock("@/api/verify-api", () => ({
 	requestCancelVerifySession: (sessionId: string, cancelToken: string) =>
 		requestCancelVerifySessionMock(sessionId, cancelToken),
 	requestHandoffPayload: (sessionId: string) =>
@@ -270,7 +270,7 @@ vi.mock("qrcode.react", () => ({
 	},
 }));
 
-import { Handoff } from "./handoff";
+import { Handoff } from ".";
 
 function createHandoffPayload(
 	overrides: Partial<HandoffPayload> = {},

@@ -3,12 +3,12 @@ import { getVerifyHandoffCopy } from "@kayle-id/translations/verify-handoff-copy
 import { Layout } from "@kayle-id/ui/components/layout";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { VERIFY_LAYOUT_CLASS_NAME } from "@/app/verification";
+import { env } from "@/config/env.server";
 import {
 	PrivacyRequestPage,
 	type PrivacyRequestRouteContext,
-} from "@/app/privacy-request";
-import { VERIFY_LAYOUT_CLASS_NAME } from "@/app/verification";
-import { env } from "@/config/env.server";
+} from "@/screens/privacy-request";
 
 export const Route = createFileRoute("/$sessionId/privacy")({
 	component: PrivacyRoute,

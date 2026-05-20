@@ -45,7 +45,7 @@ vi.mock("@kayle-id/ui/components/dialog", () => ({
 	DialogFooter: () => null,
 }));
 
-vi.mock("../../stores/session", () => ({
+vi.mock("@/stores/session", () => ({
 	useVerificationStore: (selector: (state: unknown) => unknown) =>
 		selector({
 			goToConsent: () => {},
@@ -53,7 +53,7 @@ vi.mock("../../stores/session", () => ({
 }));
 
 import { SessionExplain } from "./explain";
-import type { Organization } from "./organization-name";
+import type { Organization } from "./organization/types";
 
 function createOrganization(
 	overrides: Partial<Organization> = {},

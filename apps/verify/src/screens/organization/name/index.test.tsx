@@ -109,8 +109,9 @@ vi.mock("@kayle-id/ui/components/button", () => ({
 		),
 }));
 
-import { type Organization, OrganizationName } from "./organization-name";
-import { buildOrganizationReportUrl } from "./organization-report-dialog";
+import { buildOrganizationReportUrl } from "../report-dialog";
+import type { Organization } from "../types";
+import { OrganizationName } from ".";
 
 function createOrganization(
 	overrides: Partial<Organization> = {},

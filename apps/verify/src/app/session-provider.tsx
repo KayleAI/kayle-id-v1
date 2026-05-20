@@ -8,17 +8,21 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { SessionError, VerifySession } from "@/config/capnp";
+import type { SessionError, VerifySession } from "@/api/session-socket";
 import {
 	requestVerifySessionDetails,
 	requestVerifySessionStatus,
 	type VerifySessionShareFields,
 	type VerifySessionStatusPayload,
-} from "@/config/handoff";
+} from "@/api/verify-api";
+import { useDevice } from "@/hooks/use-device";
+import {
+	EMPTY_ORGANIZATION,
+	type Organization,
+	toOrganization,
+} from "@/screens/organization/types";
 import { buildCancelledSessionStatus } from "@/utils/cancel";
-import { useDevice } from "@/utils/use-device";
 import { useVerificationStore } from "../stores/session";
-import type { Organization } from "./app/organization-name";
 import {
 	bootstrapSupportedSession,
 	closeSessionStub,
@@ -43,36 +47,15 @@ type SessionContextType = {
 
 const EMPTY_SHARE_FIELDS: VerifySessionShareFields = {};
 
-const EMPTY_ORGANIZATION: Organization = {
-	id: "",
-	name: null,
-	ownerIdCheckCompleted: false,
-	verifiedApexDomains: [],
-	logo: null,
-	businessType: null,
-	businessName: null,
-	businessJurisdiction: null,
-	businessRegistrationNumber: null,
-	privacyPolicyUrl: null,
-	termsOfServiceUrl: null,
-	website: null,
-	description: null,
-	rpFallback: {
-		appealUrl: null,
-		complaintsUrl: null,
-		fallbackIdvUrl: null,
-		supportEmail: null,
-	},
-};
-
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-type SessionProviderProps = {
+export function SessionProvider({
+	sessionId,
+	children,
+}: {
 	sessionId: string;
 	children: ReactNode;
-};
-
-export function SessionProvider({ sessionId, children }: SessionProviderProps) {
+}) {
 	const { supported: deviceSupported } = useDevice();
 	const [isSessionDetailsReady, setIsSessionDetailsReady] = useState(false);
 	const [organization, setOrganization] =
@@ -147,32 +130,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 					return;
 				}
 
-				setOrganization({
-					id: details.organization_id,
-					name: details.organization_name,
-					ownerIdCheckCompleted: details.organization_owner_id_check_completed,
-					verifiedApexDomains: details.organization_verified_apex_domains,
-					logo: details.organization_logo,
-					businessType: details.organization_business_type,
-					businessName: details.organization_business_name,
-					businessJurisdiction: details.organization_business_jurisdiction,
-					businessRegistrationNumber:
-						details.organization_business_registration_number,
-					privacyPolicyUrl: details.organization_privacy_policy_url,
-					termsOfServiceUrl: details.organization_terms_of_service_url,
-					website: details.organization_website,
-					description: details.organization_description,
-					rpFallback: {
-						appealUrl: details.rp_fallback.appeal_url,
-						complaintsUrl: details.rp_fallback.complaints_url,
-						fallbackIdvUrl: details.rp_fallback.fallback_idv_url,
-						supportEmail: details.rp_fallback.support_email,
-					},
-				});
+				setOrganization(toOrganization(details));
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);
 				setShareFields(details.share_fields);
 				setSessionStatus(nextSessionStatus);
+
 				const showUnverifiedWarning =
 					details.organization_verified_apex_domains.length === 0 &&
 					!details.is_age_only;
@@ -189,7 +152,6 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				if (isStale) {
 					return;
 				}
-
 				setIsSessionDetailsReady(true);
 				handleRpcError(toSessionError(detailsError));
 			});
@@ -200,11 +162,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	}, [handleRpcError, sessionId]);
 
 	useEffect(() => {
-		// Reset state when sessionId changes
 		setIsSessionReady(false);
 		setError(null);
-
-		// Dispose previous stub if it exists
 		closeSessionStub(sessionStubRef);
 
 		if (!deviceSupported) {
@@ -222,14 +181,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			setError,
 		});
 
-		// Cleanup function
 		return () => {
 			isUnmountedRef.current = true;
 			closeSessionStub(sessionStubRef);
 		};
 	}, [deviceSupported, sessionId, handleRpcError]);
 
-	// Memoize the context value, providing session from ref only when ready
 	const value: SessionContextType = useMemo(
 		() => ({
 			sessionId,

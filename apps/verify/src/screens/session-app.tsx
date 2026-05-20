@@ -1,9 +1,9 @@
+import { ErrorCard } from "@/app/error";
+import { useSession } from "@/app/session-provider";
 import {
 	canRenderWithoutSession,
 	useVerificationStore,
-} from "../../stores/session";
-import { ErrorCard } from "../error";
-import { useSession } from "../session-provider";
+} from "@/stores/session";
 import { SessionConsent } from "./consent";
 import { SessionExplain } from "./explain";
 import { Handoff } from "./handoff";

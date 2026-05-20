@@ -124,18 +124,18 @@ vi.mock("@/i18n/provider", () => ({
 	useVerifyHandoffCopy: () => VERIFY_HANDOFF_COPY,
 }));
 
-vi.mock("@/config/handoff", () => ({
+vi.mock("@/api/verify-api", () => ({
 	requestCancelVerifySession: (sessionId: string, cancelToken: string) =>
 		requestCancelVerifySessionMock(sessionId, cancelToken),
 }));
 
-import { buildOrganizationReportUrl } from "./app/organization-report-dialog";
+import { buildOrganizationReportUrl } from "@/screens/organization/report-dialog";
 import {
 	buildPrivacyRequestMailtoHref,
 	buildPrivacyRequestPath,
 	PrivacyRequestPage,
 	type PrivacyRequestRouteContext,
-} from "./privacy-request";
+} from ".";
 
 function createFoundContext(
 	overrides: Partial<

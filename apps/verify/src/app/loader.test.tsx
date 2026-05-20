@@ -8,7 +8,7 @@ import { useVerificationStore } from "../stores/session";
 const mockedUseDevice = vi.fn();
 const mockedUseSession = vi.fn();
 
-vi.mock("@/utils/use-device", () => ({
+vi.mock("@/hooks/use-device", () => ({
 	useDevice: () => mockedUseDevice(),
 }));
 

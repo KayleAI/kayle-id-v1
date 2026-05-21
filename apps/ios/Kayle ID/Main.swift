@@ -12,7 +12,6 @@ struct Main: App {
     WindowGroup {
       ContentView(pendingQRCode: $pendingQRCode)
         .onOpenURL { url in
-          // Handle kayle-id:// URL scheme
           handleIncomingURL(url)
         }
     }

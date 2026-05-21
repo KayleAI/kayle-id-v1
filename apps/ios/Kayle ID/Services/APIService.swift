@@ -1,12 +1,10 @@
 import Foundation
 
-/// API service for communicating with the Kayle verification backend.
 enum APIService {
   private static let productionBaseURL = "https://api.kayle.id"
   private static let productionVerifyBaseURL = "https://verify.kayle.id"
   private static let developmentBaseURLKey = "KAYLE_DEV_API_BASE_URL"
 
-  /// Construct the API base URL for the current app environment.
   static func baseURL(from _: String) -> String {
     #if DEBUG
     if let configuredBaseURL = configuredDevelopmentBaseURL() {
@@ -149,8 +147,6 @@ enum APIService {
     return values[0] == 100 && values[1] >= 64 && values[1] <= 127
   }
 }
-
-// MARK: - Error Types
 
 enum APIError: LocalizedError {
   case invalidResponse

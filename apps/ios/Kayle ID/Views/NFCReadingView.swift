@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Standalone NFC reading view - can be used in App Clips or main app.
 struct NFCReadingView: View {
   @ObservedObject var nfcReader: DocumentNFCReader
   var documentName = "document"

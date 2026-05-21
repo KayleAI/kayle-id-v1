@@ -150,7 +150,7 @@ struct VerifyServerMessage {
   let activeAuthChallenge: Data?
   let livenessChallenge: VerifyServerLivenessChallenge?
 
-  init(
+  nonisolated init(
     ackMessage: String? = nil,
     errorCode: String? = nil,
     errorMessage: String? = nil,

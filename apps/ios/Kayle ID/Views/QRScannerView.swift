@@ -1,8 +1,6 @@
 import AVFoundation
 import SwiftUI
 
-/// Standalone QR code scanner view - can be used in App Clips or main app.
-/// Scans QR codes with the `kayle-id://` URL scheme.
 struct QRScannerView: View {
   let onScan: (String) -> Void
   var isConnecting = false
@@ -81,8 +79,6 @@ private struct QRScannerConnectionStatus: View {
   }
 }
 
-// MARK: - UIKit Camera Controller
-
 struct QRScannerViewController: UIViewControllerRepresentable {
   let onScan: (String) -> Void
 
@@ -140,13 +136,11 @@ final class QRCameraViewController: UIViewController, AVCaptureMetadataOutputObj
 
     session.addInput(input)
 
-    // Preview layer
     let preview = AVCaptureVideoPreviewLayer(session: session)
     preview.videoGravity = .resizeAspectFill
     preview.frame = view.bounds
     view.layer.addSublayer(preview)
 
-    // Metadata output for QR codes
     guard session.canAddOutput(metadataOutput) else {
       session.commitConfiguration()
       return
@@ -165,8 +159,6 @@ final class QRCameraViewController: UIViewController, AVCaptureMetadataOutputObj
       preview.frame = view.bounds
     }
   }
-
-  // MARK: - AVCaptureMetadataOutputObjectsDelegate
 
   nonisolated func metadataOutput(
     _ output: AVCaptureMetadataOutput,

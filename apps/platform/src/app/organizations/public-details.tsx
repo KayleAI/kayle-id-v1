@@ -496,10 +496,7 @@ export function OrganizationPublicDetailsPage() {
 		!domainsQuery.isLoading && !hasActiveVerifiedDomain;
 
 	return (
-		<OrganizationPageLayout
-			description="Manage what users see when they interact with your organization."
-			title="Public details"
-		>
+		<OrganizationPageLayout title="Public details">
 			<QueryErrorAlert
 				error={isError ? error : null}
 				fallback="Something went wrong while loading public details."

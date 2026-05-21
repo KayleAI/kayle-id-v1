@@ -23,6 +23,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@kayle-id/ui/components/select";
+import {
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@kayle-id/ui/components/sheet";
 import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
@@ -43,6 +53,7 @@ import {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	SearchIcon,
+	SlidersHorizontalIcon,
 	XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -740,13 +751,18 @@ function AuditLogsTable({ entries }: { entries: AuditLogEntry[] }) {
 }
 
 interface SearchInputProps {
+	className?: string;
 	onChange: (next: string) => void;
 	value: string;
 }
 
-function SearchInput({ onChange, value }: SearchInputProps) {
+function SearchInput({
+	className = "relative w-full sm:w-72",
+	onChange,
+	value,
+}: SearchInputProps) {
 	return (
-		<div className="relative w-full sm:w-72">
+		<div className={className}>
 			<SearchIcon
 				aria-hidden
 				className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-4 text-muted-foreground"
@@ -775,6 +791,7 @@ function SearchInput({ onChange, value }: SearchInputProps) {
 
 interface EventFilterProps {
 	onChange: (next: string[]) => void;
+	triggerClassName?: string;
 	value: string[];
 }
 
@@ -788,7 +805,11 @@ function summariseEventSelection(selected: readonly string[]): string {
 	return `${selected.length} events`;
 }
 
-function EventFilter({ onChange, value }: EventFilterProps) {
+function EventFilter({
+	onChange,
+	triggerClassName = "w-[220px]",
+	value,
+}: EventFilterProps) {
 	return (
 		<Select
 			multiple
@@ -805,7 +826,7 @@ function EventFilter({ onChange, value }: EventFilterProps) {
 			}}
 			value={value}
 		>
-			<SelectTrigger aria-label="Filter by event" className="w-[220px]">
+			<SelectTrigger aria-label="Filter by event" className={triggerClassName}>
 				<SelectValue>
 					{(raw) => {
 						const selected = Array.isArray(raw)
@@ -857,10 +878,17 @@ interface ActorFilterProps {
 	apiKeys: ActorOption[];
 	members: ActorOption[];
 	onChange: (next: string) => void;
+	triggerClassName?: string;
 	value: string;
 }
 
-function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
+function ActorFilter({
+	apiKeys,
+	members,
+	onChange,
+	triggerClassName = "w-[200px]",
+	value,
+}: ActorFilterProps) {
 	const labelFor = (raw: unknown): string => {
 		if (raw === ALL_ACTORS_VALUE || typeof raw !== "string" || !raw) {
 			return "All actors";
@@ -881,7 +909,7 @@ function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
 			}
 			value={value}
 		>
-			<SelectTrigger aria-label="Filter by actor" className="w-[200px]">
+			<SelectTrigger aria-label="Filter by actor" className={triggerClassName}>
 				<SelectValue>
 					{(raw) => (
 						<span
@@ -926,11 +954,18 @@ function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
 }
 
 interface DateRangeFilterProps {
+	numberOfMonths?: 1 | 2;
 	onChange: (next: AuditDateRange | undefined) => void;
+	triggerClassName?: string;
 	value: AuditDateRange | undefined;
 }
 
-function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
+function DateRangeFilter({
+	numberOfMonths = 2,
+	onChange,
+	triggerClassName = "h-9 justify-start gap-2 font-normal",
+	value,
+}: DateRangeFilterProps) {
 	const [open, setOpen] = useState(false);
 	const label = describeRange(value) ?? "All time";
 
@@ -948,7 +983,7 @@ function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
 				render={
 					<Button
 						aria-label="Filter by date range"
-						className="h-9 justify-start gap-2 font-normal"
+						className={triggerClassName}
 						variant="outline"
 					>
 						<CalendarIcon className="size-4 text-muted-foreground" />
@@ -998,7 +1033,7 @@ function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
 						<Calendar
 							captionLayout="dropdown"
 							mode="range"
-							numberOfMonths={2}
+							numberOfMonths={numberOfMonths}
 							onSelect={onChange}
 							selected={value}
 						/>
@@ -1024,6 +1059,125 @@ interface FilterToolbarProps {
 	searchInput: string;
 }
 
+function getStructuredFilterCount({
+	actorFilter,
+	dateRange,
+	eventFilter,
+}: Pick<
+	FilterToolbarProps,
+	"actorFilter" | "dateRange" | "eventFilter"
+>): number {
+	return (
+		(eventFilter.length > 0 ? 1 : 0) +
+		(actorFilter !== ALL_ACTORS_VALUE ? 1 : 0) +
+		(dateRange?.from ? 1 : 0)
+	);
+}
+
+function MobileFiltersButton({
+	actorFilter,
+	apiKeyOptions,
+	dateRange,
+	eventFilter,
+	memberOptions,
+	onActorChange,
+	onDateRangeChange,
+	onEventChange,
+}: Omit<
+	FilterToolbarProps,
+	"hasAnyActiveFilter" | "onClearAll" | "onSearchChange" | "searchInput"
+>) {
+	const activeFilterCount = getStructuredFilterCount({
+		actorFilter,
+		dateRange,
+		eventFilter,
+	});
+	const hasActiveFilters = activeFilterCount > 0;
+	const handleClearFilters = () => {
+		onEventChange([]);
+		onActorChange(ALL_ACTORS_VALUE);
+		onDateRangeChange(undefined);
+	};
+
+	return (
+		<Sheet>
+			<SheetTrigger
+				render={
+					<Button
+						aria-label="Open audit log filters"
+						className="min-w-28 justify-between"
+						variant="outline"
+					/>
+				}
+			>
+				<span className="flex items-center gap-1.5">
+					<SlidersHorizontalIcon aria-hidden className="size-4" />
+					Filters
+				</span>
+				{hasActiveFilters ? (
+					<span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs tabular-nums">
+						{activeFilterCount}
+					</span>
+				) : null}
+			</SheetTrigger>
+			<SheetContent
+				className="max-h-[85vh] overflow-y-auto rounded-t-3xl"
+				side="bottom"
+			>
+				<SheetHeader className="border-border border-b p-4 pr-14">
+					<SheetTitle>Filters</SheetTitle>
+					<SheetDescription>
+						Refine audit log entries by event, actor, and time.
+					</SheetDescription>
+				</SheetHeader>
+				<div className="grid gap-4 p-4">
+					<div className="grid gap-2">
+						<Label>Events</Label>
+						<EventFilter
+							onChange={onEventChange}
+							triggerClassName="w-full"
+							value={eventFilter}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label>Actors</Label>
+						<ActorFilter
+							apiKeys={apiKeyOptions}
+							members={memberOptions}
+							onChange={onActorChange}
+							triggerClassName="w-full"
+							value={actorFilter}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label>Time</Label>
+						<DateRangeFilter
+							numberOfMonths={1}
+							onChange={onDateRangeChange}
+							triggerClassName="h-9 w-full justify-start gap-2 font-normal"
+							value={dateRange}
+						/>
+					</div>
+				</div>
+				<SheetFooter className="border-border border-t p-4">
+					<div className="flex gap-2">
+						{hasActiveFilters ? (
+							<Button onClick={handleClearFilters} variant="ghost">
+								Clear filters
+							</Button>
+						) : null}
+						<SheetClose
+							render={<Button className="ml-auto" variant="default" />}
+						>
+							Done
+						</SheetClose>
+					</div>
+				</SheetFooter>
+			</SheetContent>
+		</Sheet>
+	);
+}
+
 function FilterToolbar({
 	actorFilter,
 	apiKeyOptions,
@@ -1039,26 +1193,45 @@ function FilterToolbar({
 	searchInput,
 }: FilterToolbarProps) {
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<SearchInput onChange={onSearchChange} value={searchInput} />
-			<EventFilter onChange={onEventChange} value={eventFilter} />
-			<ActorFilter
-				apiKeys={apiKeyOptions}
-				members={memberOptions}
-				onChange={onActorChange}
-				value={actorFilter}
-			/>
-			<DateRangeFilter onChange={onDateRangeChange} value={dateRange} />
-			{hasAnyActiveFilter ? (
-				<Button
-					className="ml-auto"
-					onClick={onClearAll}
-					size="sm"
-					variant="ghost"
-				>
-					Clear all
-				</Button>
-			) : null}
+		<div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+			<div className="flex items-center gap-2 md:hidden">
+				<SearchInput
+					className="relative min-w-0 flex-1"
+					onChange={onSearchChange}
+					value={searchInput}
+				/>
+				<MobileFiltersButton
+					actorFilter={actorFilter}
+					apiKeyOptions={apiKeyOptions}
+					dateRange={dateRange}
+					eventFilter={eventFilter}
+					memberOptions={memberOptions}
+					onActorChange={onActorChange}
+					onDateRangeChange={onDateRangeChange}
+					onEventChange={onEventChange}
+				/>
+			</div>
+			<div className="hidden flex-wrap items-center gap-2 md:flex">
+				<SearchInput onChange={onSearchChange} value={searchInput} />
+				<EventFilter onChange={onEventChange} value={eventFilter} />
+				<ActorFilter
+					apiKeys={apiKeyOptions}
+					members={memberOptions}
+					onChange={onActorChange}
+					value={actorFilter}
+				/>
+				<DateRangeFilter onChange={onDateRangeChange} value={dateRange} />
+				{hasAnyActiveFilter ? (
+					<Button
+						className="ml-auto"
+						onClick={onClearAll}
+						size="sm"
+						variant="ghost"
+					>
+						Clear all
+					</Button>
+				) : null}
+			</div>
 		</div>
 	);
 }
@@ -1216,7 +1389,7 @@ export function OrganizationAuditLogsPage() {
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading title="Audit logs" />
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			{!canView && orgQuery.data ? (
 				<Card>

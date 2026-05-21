@@ -12,8 +12,8 @@ export function AppHeading({
 	className?: string;
 }) {
 	return (
-		<div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-6">
-			<div className={cn("flex min-w-0 flex-col md:flex-1", className)}>
+		<div className="flex flex-row flex-wrap items-center justify-between gap-3 sm:gap-x-6">
+			<div className={cn("flex min-w-0 flex-1 flex-col", className)}>
 				<h1 className="mb-1 font-light text-3xl text-foreground tracking-tight">
 					{title}
 				</h1>
@@ -22,7 +22,7 @@ export function AppHeading({
 				) : null}
 			</div>
 			{button ? (
-				<div className="flex shrink-0 md:justify-end">{button}</div>
+				<div className="flex shrink-0 justify-end">{button}</div>
 			) : null}
 		</div>
 	);

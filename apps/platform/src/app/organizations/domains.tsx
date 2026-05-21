@@ -988,10 +988,7 @@ export function OrganizationDomainsPage() {
 	);
 
 	return (
-		<OrganizationPageLayout
-			description="Your organization's domains and redirect URIs."
-			title="Domains"
-		>
+		<OrganizationPageLayout title="Domains">
 			<FormErrorAlert
 				message={isError ? errorMessage : ""}
 				title="Failed to load domains"

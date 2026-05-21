@@ -550,10 +550,7 @@ export function OrganizationSettingsPage() {
 	const isLastOwner = isCurrentUserOwner && ownerCount <= 1;
 
 	return (
-		<OrganizationPageLayout
-			description="Internal organization settings."
-			title="Settings"
-		>
+		<OrganizationPageLayout title="Settings">
 			<QueryErrorAlert
 				error={isError ? error : null}
 				fallback="Something went wrong while loading settings."

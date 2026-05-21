@@ -578,10 +578,7 @@ export function OrganizationMembersPage() {
 		data?.members.find((member) => member.userId === user?.id) ?? null;
 
 	return (
-		<OrganizationPageLayout
-			description="Manage who has access to your organization."
-			title="Members"
-		>
+		<OrganizationPageLayout title="Members">
 			<QueryErrorAlert
 				error={isError ? error : null}
 				fallback="Something went wrong while loading members."

@@ -64,7 +64,7 @@ export function Dashboard() {
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading title="Dashboard" />
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			<UnverifiedOrgBanner />
 

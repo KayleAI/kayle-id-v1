@@ -41,10 +41,10 @@ export function AdminPage() {
 		<div className="mx-auto flex h-full w-full max-w-7xl flex-1 grow flex-col">
 			<AppHeading title="Administrative Tools" />
 
-			<div className="mt-8 grid flex-1 gap-4 sm:grid-cols-2">
+			<div className="mt-8 grid gap-4 sm:grid-cols-2">
 				{ADMIN_TOOLS.map(({ to, title, description, Icon }) => (
 					<Link className="block" key={to} to={to}>
-						<Card className="transition-colors hover:border-emerald-500/40">
+						<Card className="transition-colors hover:border-emerald-500/40 py-0!">
 							<CardContent className="flex flex-col gap-3 p-6">
 								<Icon className="size-6 text-emerald-400" />
 								<h2 className="font-medium text-lg">{title}</h2>

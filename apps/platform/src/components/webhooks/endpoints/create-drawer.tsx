@@ -127,9 +127,14 @@ export function CreateEndpointDrawer({
 		>
 			<SheetTrigger
 				render={
-					<Button onClick={() => setIsOpen(true)}>
-						<PlusIcon className="mr-2 size-4" />
-						Create endpoint
+					<Button
+						aria-label="Create webhook endpoint"
+						className="w-9 px-0 sm:w-auto sm:px-3"
+						onClick={() => setIsOpen(true)}
+						variant="outline"
+					>
+						<PlusIcon aria-hidden className="size-4" />
+						<span className="hidden sm:inline">Create endpoint</span>
 					</Button>
 				}
 			/>

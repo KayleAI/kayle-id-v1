@@ -338,10 +338,7 @@ export function OrganizationBusinessPage() {
 	const canEdit = useCurrentMemberRole() === "owner";
 
 	return (
-		<OrganizationPageLayout
-			description="The legal entity (or individual) behind the organization."
-			title="Business Details"
-		>
+		<OrganizationPageLayout title="Business">
 			<QueryErrorAlert
 				error={isError ? error : null}
 				fallback="Something went wrong while loading business details."

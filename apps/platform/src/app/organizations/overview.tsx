@@ -181,10 +181,7 @@ export function OrganizationOverviewPage() {
 	const { data, isLoading, isError, error } = useOrganizationQuery();
 
 	return (
-		<OrganizationPageLayout
-			description="A snapshot of your organization."
-			title={data?.name ?? "Organization"}
-		>
+		<OrganizationPageLayout title={data?.name ?? "Organization"}>
 			{data?.pendingDeletionAt ? (
 				<PendingDeletionBanner pendingDeletionAt={data.pendingDeletionAt} />
 			) : (

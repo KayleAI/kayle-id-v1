@@ -743,10 +743,7 @@ export function OrganizationCompliancePage() {
 		!domainsQuery.isLoading && !hasActiveVerifiedDomain;
 
 	return (
-		<OrganizationPageLayout
-			description="Controller, lawful basis, and consumer-protection settings required before production identity checks."
-			title="Compliance"
-		>
+		<OrganizationPageLayout title="Compliance">
 			<QueryErrorAlert
 				error={isError ? error : null}
 				fallback="Something went wrong while loading compliance settings."

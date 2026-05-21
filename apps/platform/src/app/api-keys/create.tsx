@@ -13,6 +13,7 @@ import { Input } from "@kayle-id/ui/components/input";
 import { Label } from "@kayle-id/ui/components/label";
 import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 import { useReducer, useState } from "react";
 import { FormErrorAlert } from "@/components/form-error-alert";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -339,7 +340,17 @@ export function CreateApiKey() {
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={isOpen}>
 			<DialogTrigger
-				render={<Button onClick={() => setIsOpen(true)}>Create API Key</Button>}
+				render={
+					<Button
+						aria-label="Create API key"
+						className="w-9 px-0 sm:w-auto sm:px-3"
+						onClick={() => setIsOpen(true)}
+						variant="outline"
+					>
+						<PlusIcon aria-hidden className="size-4" />
+						<span className="hidden sm:inline">Create API Key</span>
+					</Button>
+				}
 			/>
 			<DialogContent className="flex w-full max-w-lg! flex-col">
 				{state.status === "success" && state.apiKey ? (

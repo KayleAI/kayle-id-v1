@@ -123,7 +123,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 				description="View and manage your API key"
 				title={apiKey.name}
 			/>
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			{errorMessage && (
 				<Alert className="mb-6" variant="destructive">

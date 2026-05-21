@@ -61,6 +61,7 @@ const trustPillars: ReadonlyArray<{
 export function Homepage() {
 	const { status } = useAuth();
 	const ctaTo = status === "authenticated" ? "/dashboard" : "/sign-in";
+	const ctaLabel = status === "authenticated" ? "Dashboard" : "Get Started";
 
 	return (
 		<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
@@ -75,7 +76,7 @@ export function Homepage() {
 				<div className="mt-6 flex flex-row items-center justify-center gap-3">
 					<Button
 						nativeButton={false}
-						render={<Link to={ctaTo}>Get Started</Link>}
+						render={<Link to={ctaTo}>{ctaLabel}</Link>}
 					/>
 					<Button
 						nativeButton={false}
@@ -157,7 +158,7 @@ export function Homepage() {
 				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
 					<Button
 						nativeButton={false}
-						render={<Link to={ctaTo}>Get Started</Link>}
+						render={<Link to={ctaTo}>{ctaLabel}</Link>}
 					/>
 					<Button
 						nativeButton={false}

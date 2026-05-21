@@ -94,7 +94,7 @@ export function AppSidebar() {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
-							className="h-10"
+							className="h-10 rounded-lg!"
 							render={
 								<Link to="/">
 									<span className="flex h-7 items-center w-full gap-2">
@@ -116,7 +116,7 @@ export function AppSidebar() {
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={
-									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5">
+									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5 rounded-lg!">
 										<Avatar className="size-7 rounded-md! after:rounded-md!">
 											<AvatarImage
 												alt={orgName}
@@ -152,25 +152,45 @@ export function AppSidebar() {
 										{orgName}
 									</DropdownMenuLabel>
 									<DropdownMenuItem
-										render={<Link to="/settings/organizations" />}
+										render={
+											<Link
+												to="/settings/organizations"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<BuildingIcon />
 										Overview
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/settings/organizations/members" />}
+										render={
+											<Link
+												to="/settings/organizations/members"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<UsersIcon />
 										Members
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/settings/organizations/public" />}
+										render={
+											<Link
+												to="/settings/organizations/public"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<GlobeIcon />
 										Public details
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/settings/organizations/settings" />}
+										render={
+											<Link
+												to="/settings/organizations/settings"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<SettingsIcon />
 										Settings
@@ -201,6 +221,7 @@ export function AppSidebar() {
 																},
 															);
 														}}
+														className="rounded-lg!"
 													>
 														<Avatar className="size-5 rounded-md! after:rounded-md!">
 															<AvatarImage
@@ -224,7 +245,11 @@ export function AppSidebar() {
 									</>
 								) : null}
 								<DropdownMenuSeparator />
-								<DropdownMenuItem render={<Link to="/create-organization" />}>
+								<DropdownMenuItem
+									render={
+										<Link to="/create-organization" className="rounded-lg!" />
+									}
+								>
 									<PlusIcon />
 									Create organization
 								</DropdownMenuItem>
@@ -241,7 +266,7 @@ export function AppSidebar() {
 							{NAV_ITEMS.map((item) => (
 								<SidebarMenuItem key={item.title}>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground rounded-lg!"
 										isActive={currentPath.startsWith(item.url)}
 										render={
 											<Link to={item.url}>
@@ -255,7 +280,7 @@ export function AppSidebar() {
 							{canViewAuditLogs ? (
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foregroun rounded-lg!"
 										isActive={currentPath.startsWith(
 											"/settings/organizations/audit-logs",
 										)}
@@ -271,7 +296,7 @@ export function AppSidebar() {
 							{isPlatformAdmin ? (
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground rounded-lg!"
 										isActive={currentPath.startsWith("/admin")}
 										render={
 											<Link to="/admin">

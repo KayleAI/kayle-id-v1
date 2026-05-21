@@ -13,29 +13,42 @@ import {
 } from "@kayle-id/ui/components/navigation-menu";
 import {
 	Sheet,
+	SheetClose,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
 } from "@kayle-id/ui/components/sheet";
 import { cn } from "@kayle-id/ui/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
 type NavTo = keyof FileRoutesByTo | string;
+type TopLevelNavigationLink = {
+	label: string;
+	to: NavTo;
+};
+type DropdownNavigationLink = {
+	description: string;
+	label: string;
+	to: NavTo;
+};
 
 const API_REFERENCE_URL = "https://docs.kayle.id/api-reference";
 const DOCUMENTATION_URL = "https://docs.kayle.id/";
 const ORGANIZATIONS_URL = "/organizations" satisfies keyof FileRoutesByTo;
 
-const topLevelNavigationItems: { label: string; to: NavTo }[] = [
-	{ label: "Organizations", to: ORGANIZATIONS_URL },
+const topLevelNavigationItems: TopLevelNavigationLink[] = [
+	{
+		label: "Organizations",
+		to: ORGANIZATIONS_URL,
+	},
 ];
 
 const navigationItems: {
 	section: string;
-	items: { to: NavTo; label: string; description: string }[];
+	items: DropdownNavigationLink[];
 }[] = [
 	{
 		section: "Product",
@@ -71,6 +84,18 @@ function getExternalLinkProps(to: NavTo) {
 	return to.startsWith("https://")
 		? ({ rel: "noopener noreferrer", target: "_blank" } as const)
 		: {};
+}
+
+function isActiveNavigationPath(to: NavTo, pathname: string) {
+	if (to.startsWith("https://")) {
+		return false;
+	}
+
+	if (to === "/") {
+		return pathname === "/";
+	}
+
+	return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 interface NavItemProps {
@@ -158,18 +183,27 @@ const ListItem = ({
 
 function MobileNavItem({
 	to,
-	children,
+	isActive,
+	label,
+	onNavigate,
 }: {
+	isActive: boolean;
+	label: string;
+	onNavigate: () => void;
 	to: NavTo;
-	children: React.ReactNode;
 }) {
 	return (
 		<Link
-			className="block text-lg text-muted-foreground transition-colors hover:text-foreground"
+			aria-current={isActive ? "page" : undefined}
+			className={cn(
+				"flex min-h-11 items-center rounded-lg border border-transparent px-3 py-1.5 text-left font-medium text-foreground text-lg outline-none transition-colors hover:bg-muted/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
+				isActive && "border-border/80 bg-muted text-foreground",
+			)}
+			onClick={onNavigate}
 			to={to}
 			{...getExternalLinkProps(to)}
 		>
-			{children}
+			{label}
 		</Link>
 	);
 }
@@ -188,54 +222,93 @@ function MobileNavigation() {
 		prevPathnameRef.current = pathname;
 	}, [pathname, open]);
 
+	const handleMenuClose = () => setOpen(false);
+	const ctaLabel = status === "authenticated" ? "Dashboard" : "Get Started";
+	const ctaTo = status === "authenticated" ? "/dashboard" : "/sign-in";
+
 	return (
-		<Sheet onOpenChange={setOpen} open={open}>
-			<SheetTrigger
-				render={
-					<button
-						aria-label="Open menu"
-						className="rounded-lg p-2 transition-colors hover:bg-muted lg:hidden"
-						type="button"
-					>
-						<Menu className="size-6" />
-					</button>
-				}
-			/>
-			<SheetContent className="w-full sm:max-w-sm" side="right">
-				<SheetTitle>
-					<Link to="/">Kayle</Link>
-				</SheetTitle>
-				<nav className="mt-8 flex flex-col gap-4">
-					<div className="border-border border-b pb-4">
-						<ul className="flex flex-col gap-y-2">
+		<Sheet modal={false} onOpenChange={setOpen} open={open}>
+			{open ? (
+				<SheetClose
+					render={
+						<Button
+							aria-expanded={open}
+							aria-label="Close menu"
+							className="lg:hidden"
+							size="icon"
+							variant="ghost"
+						/>
+					}
+				>
+					<X aria-hidden="true" className="size-5" />
+				</SheetClose>
+			) : (
+				<SheetTrigger
+					render={
+						<Button
+							aria-expanded={open}
+							aria-label="Open menu"
+							className="lg:hidden"
+							size="icon"
+							variant="ghost"
+						/>
+					}
+				>
+					<Menu aria-hidden="true" className="size-5" />
+				</SheetTrigger>
+			)}
+			<SheetContent
+				className="top-16 h-[calc(100dvh-4rem)] w-screen max-w-none origin-top overflow-hidden border-0 bg-background p-0 shadow-none data-ending-style:scale-y-95 data-starting-style:scale-y-95 data-[side=top]:top-16 data-[side=top]:h-[calc(100dvh-4rem)] data-[side=top]:data-ending-style:-translate-y-2 data-[side=top]:data-starting-style:-translate-y-2"
+				overlayClassName="z-40 bg-transparent backdrop-blur-none supports-backdrop-filter:backdrop-blur-none"
+				showCloseButton={false}
+				side="top"
+			>
+				<SheetTitle className="sr-only">Navigation menu</SheetTitle>
+				<nav
+					aria-label="Main navigation"
+					className="flex min-h-0 flex-1 flex-col"
+				>
+					<div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+						<ul className="space-y-1">
 							{topLevelNavigationItems.map((item) => (
-								<MobileNavItem key={item.to} to={item.to}>
-									{item.label}
-								</MobileNavItem>
+								<li key={item.to}>
+									<MobileNavItem
+										isActive={isActiveNavigationPath(item.to, pathname)}
+										label={item.label}
+										onNavigate={handleMenuClose}
+										to={item.to}
+									/>
+								</li>
 							))}
 						</ul>
+						{navigationItems.map((item) => (
+							<section className="mt-5" key={item.section}>
+								<h3 className="px-3 font-medium text-muted-foreground text-xs uppercase tracking-normal">
+									{item.section}
+								</h3>
+								<ul className="mt-2 space-y-1">
+									{item.items.map((navItem) => (
+										<li key={navItem.to}>
+											<MobileNavItem
+												isActive={isActiveNavigationPath(navItem.to, pathname)}
+												label={navItem.label}
+												onNavigate={handleMenuClose}
+												to={navItem.to}
+											/>
+										</li>
+									))}
+								</ul>
+							</section>
+						))}
 					</div>
-					{navigationItems.map((item) => (
-						<div className="border-border border-b pb-4" key={item.section}>
-							<h3 className="font-medium text-muted-foreground text-sm">
-								{item.section}
-							</h3>
-							<ul className="mt-2 flex flex-col gap-y-2">
-								{item.items.map((i) => (
-									<MobileNavItem key={i.to} to={i.to}>
-										{i.label}
-									</MobileNavItem>
-								))}
-							</ul>
-						</div>
-					))}
-					<div className="pt-4">
-						<Link
-							className="block w-full rounded-full bg-foreground px-4 py-2 text-background text-center transition-colors duration-200 ease-in-out hover:bg-foreground/90"
-							to={status === "authenticated" ? "/dashboard" : "/sign-in"}
+					<div className="border-border/70 border-t p-4">
+						<Button
+							className="h-11 w-full px-4"
+							nativeButton={false}
+							render={<Link onClick={handleMenuClose} to={ctaTo} />}
 						>
-							Get Started
-						</Link>
+							<span>{ctaLabel}</span>
+						</Button>
 					</div>
 				</nav>
 			</SheetContent>
@@ -294,7 +367,7 @@ export function Header() {
 							to={status === "authenticated" ? "/dashboard" : "/sign-in"}
 							variant="button"
 						>
-							Get Started
+							{status === "authenticated" ? "Dashboard" : "Get Started"}
 						</NavItem>
 					</div>
 				</div>

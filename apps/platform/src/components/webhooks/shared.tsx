@@ -50,7 +50,9 @@ export function EndpointLabels({ labels }: { labels: string[] }) {
 					key={label}
 					variant="outline"
 				>
-					{label}
+					<span className="truncate max-w-24 text-ellipsis whitespace-nowrap -mr-2">
+						{label}
+					</span>
 				</Badge>
 			))}
 		</div>

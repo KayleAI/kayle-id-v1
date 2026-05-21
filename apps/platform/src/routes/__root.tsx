@@ -73,7 +73,7 @@ function RootDocument() {
 	}, []);
 
 	return (
-		<html className="overscroll-none" lang="en" suppressHydrationWarning>
+		<html className="overscroll-x-none" lang="en" suppressHydrationWarning>
 			<head>
 				<script
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: inline script must run before paint to avoid a light-mode flash for dark-mode users
@@ -81,7 +81,7 @@ function RootDocument() {
 				/>
 				<HeadContent />
 			</head>
-			<body className="overscroll-none font-sans antialiased">
+			<body className="overscroll-x-none font-sans antialiased">
 				<AuthProvider>
 					<QueryClientProvider client={queryClient}>
 						<Outlet />

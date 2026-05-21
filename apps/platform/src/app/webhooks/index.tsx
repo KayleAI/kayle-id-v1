@@ -239,7 +239,7 @@ export function WebhooksPage({
 			/>
 
 			<Tabs
-				className="mt-6 gap-5"
+				className="mt-6 gap-5 flex flex-col"
 				onValueChange={(value) => handleActiveTabChange(value as WebhooksTab)}
 				value={activeTab}
 			>

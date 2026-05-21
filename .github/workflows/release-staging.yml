@@ -8,6 +8,8 @@ on:
       - Test
     types:
       - completed
+    branches:
+      - staging
   workflow_dispatch:
 
 permissions:

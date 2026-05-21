@@ -15,6 +15,10 @@ jobs:
   build-workers:
     name: ${{ matrix.worker }}
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.base_ref != 'main' ||
+      github.head_ref != 'staging'
     env:
       NODE_ENV: production
       CLOUDFLARE_ENV: production

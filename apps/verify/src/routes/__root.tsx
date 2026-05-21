@@ -27,29 +27,70 @@ export const Route = createRootRoute({
 			{
 				title: "Kayle ID",
 			},
+		],
+		links: [
 			{
 				rel: "apple-touch-icon",
 				sizes: "180x180",
+				media: "(prefers-color-scheme: light)",
 				href: "/apple-touch-icon.png",
+			},
+			{
+				rel: "apple-touch-icon",
+				sizes: "180x180",
+				media: "(prefers-color-scheme: dark)",
+				href: "/apple-touch-icon-dark.png",
+			},
+			{
+				rel: "icon",
+				sizes: "any",
+				media: "(prefers-color-scheme: light)",
+				href: "/favicon.ico",
+			},
+			{
+				rel: "icon",
+				sizes: "any",
+				media: "(prefers-color-scheme: dark)",
+				href: "/favicon-dark.ico",
 			},
 			{
 				rel: "icon",
 				type: "image/png",
 				sizes: "32x32",
+				media: "(prefers-color-scheme: light)",
 				href: "/favicon-32x32.png",
 			},
 			{
 				rel: "icon",
 				type: "image/png",
+				sizes: "32x32",
+				media: "(prefers-color-scheme: dark)",
+				href: "/favicon-dark-32x32.png",
+			},
+			{
+				rel: "icon",
+				type: "image/png",
 				sizes: "16x16",
+				media: "(prefers-color-scheme: light)",
 				href: "/favicon-16x16.png",
 			},
 			{
+				rel: "icon",
+				type: "image/png",
+				sizes: "16x16",
+				media: "(prefers-color-scheme: dark)",
+				href: "/favicon-dark-16x16.png",
+			},
+			{
 				rel: "manifest",
+				media: "(prefers-color-scheme: light)",
 				href: "/site.webmanifest",
 			},
-		],
-		links: [
+			{
+				rel: "manifest",
+				media: "(prefers-color-scheme: dark)",
+				href: "/site-dark.webmanifest",
+			},
 			{
 				rel: "stylesheet",
 				href: appCss,

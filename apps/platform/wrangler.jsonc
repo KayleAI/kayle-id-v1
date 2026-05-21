@@ -8,7 +8,10 @@
 	"main": "src/server-entry.ts",
 	"observability": {
 		"enabled": true,
-		"head_sampling_rate": 1
+		"head_sampling_rate": 1,
+		"logs": {
+			"invocation_logs": false
+		}
 	},
 	"durable_objects": {
 		"bindings": [
@@ -28,6 +31,12 @@
 		{
 			"binding": "API",
 			"service": "kayle-id-api"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "ORG_VERIFICATIONS_KV",
+			"id": "3cacbcba5de84a1395b328d04f2e9376"
 		}
 	],
 	"vars": {

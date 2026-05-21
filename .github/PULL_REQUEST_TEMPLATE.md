@@ -2,6 +2,9 @@
 Thanks for opening a PR! Please fill in every section below — write `n/a` if a
 section truly does not apply, with a one-line reason. See
 contributing/repository/pull-request-descriptions.md for the full guidance.
+
+Do not disclose security vulnerabilities or proposed vulnerability fixes in a
+public PR. Email security@kayle.id first.
 -->
 
 ## Summary

@@ -1,14 +1,18 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
 import type { Organization } from "@kayle-id/auth/types";
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 export function SelectOrganizations() {
 	const { organizations, refresh } = useAuth();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [isLoading, setIsLoading] = useState<string | null>(null);
 	const [error, setError] = useState("");
 
@@ -25,12 +29,14 @@ export function SelectOrganizations() {
 				organizationSlug: slug,
 			});
 			await refresh();
+			await resetActiveOrganizationQueries(queryClient);
 			navigate({ to: "/dashboard" });
 		} catch (err) {
 			setError(
-				err instanceof Error
-					? err.message
-					: "Failed to select organization. Please try again.",
+				getErrorMessage(
+					err,
+					"Failed to select organization. Please try again.",
+				),
 			);
 			setIsLoading(null);
 		}
@@ -39,7 +45,6 @@ export function SelectOrganizations() {
 	return (
 		<div className="relative flex w-full flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -52,14 +57,12 @@ export function SelectOrganizations() {
 					</p>
 				</div>
 
-				{/* Error Message */}
 				{error && (
 					<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
 						{error}
 					</div>
 				)}
 
-				{/* Organization Cards */}
 				<div className="w-full space-y-3">
 					{organizations.map((org: Organization) => (
 						<button
@@ -70,7 +73,6 @@ export function SelectOrganizations() {
 							type="button"
 						>
 							<div className="flex items-center gap-4">
-								{/* Logo */}
 								<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
 									{org.logo ? (
 										<img
@@ -89,7 +91,6 @@ export function SelectOrganizations() {
 									)}
 								</div>
 
-								{/* Organization Info */}
 								<div className="min-w-0 flex-1">
 									<h3 className="truncate font-medium text-foreground text-lg">
 										{org.name}
@@ -102,7 +103,6 @@ export function SelectOrganizations() {
 									) : null}
 								</div>
 
-								{/* Loading Indicator */}
 								{isLoading === org.id && (
 									<div className="shrink-0">
 										<svg
@@ -133,14 +133,13 @@ export function SelectOrganizations() {
 					))}
 				</div>
 
-				{/* Create New Organization Link */}
 				<div className="pt-4">
 					<Button
 						className="w-full"
 						disabled={isLoading !== null}
 						nativeButton={false}
 						render={
-							<Link to="/organizations/create">Create new organization</Link>
+							<Link to="/create-organization">Create new organization</Link>
 						}
 						variant="outline"
 					>

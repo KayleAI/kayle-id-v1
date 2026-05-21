@@ -1,8 +1,12 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import type { OrganizationRole } from "@kayle-id/auth/types";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -10,17 +14,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
+} from "@kayle-id/ui/components/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/dropdown-menu";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -28,8 +32,8 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+} from "@kayle-id/ui/components/table";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	EllipsisVerticalIcon,
 	RotateCcwIcon,
@@ -38,21 +42,24 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 import {
 	cancelOrganizationInvitation,
 	type FullOrganization,
-	fetchFullOrganization,
 	inviteOrganizationMember,
 	ORGANIZATION_QUERY_KEY,
 	type OrganizationInvitation,
 	type OrganizationMember,
-	type OrganizationRole,
 	reinstateOrganizationMember,
 	suspendOrganizationMember,
 	updateOrganizationMemberRole,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { useOrganizationQuery } from "./use-organization-query";
 
 const ROLE_OPTIONS: readonly OrganizationRole[] = [
 	"owner",
@@ -79,48 +86,37 @@ function MemberRow({
 	currentUserRole: OrganizationRole | null;
 	member: OrganizationMember;
 }) {
-	const queryClient = useQueryClient();
-
 	const isSelf = member.userId === currentUserId;
 	const canManage =
 		!isSelf &&
 		(currentUserRole === "owner" ||
 			(currentUserRole === "admin" && member.role !== "owner"));
 
-	const suspendMutation = useMutation({
+	const suspend = useToastMutation({
 		mutationFn: () => suspendOrganizationMember({ memberId: member.id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
+			loading: "Suspending member...",
+			success: "Member suspended",
+			error: "Failed to suspend member",
 		},
 	});
 
-	const roleMutation = useMutation({
-		mutationFn: (role: OrganizationRole) =>
+	const updateRole = useToastMutation<void, OrganizationRole>({
+		mutationFn: (role) =>
 			updateOrganizationMemberRole({ memberId: member.id, role }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
+			loading: "Updating member role...",
+			success: "Member role updated",
+			error: "Failed to update member role",
 		},
 	});
 
 	const handleChangeRole = (role: OrganizationRole) => {
-		if (role === member.role) {
-			return;
+		if (role !== member.role) {
+			updateRole.trigger(role);
 		}
-		toast.promise(roleMutation.mutateAsync(role), {
-			loading: "Updating member role...",
-			success: "Member role updated",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to update member role",
-		});
-	};
-
-	const handleSuspend = () => {
-		toast.promise(suspendMutation.mutateAsync(), {
-			loading: "Suspending member...",
-			success: "Member suspended",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to suspend member",
-		});
 	};
 
 	return (
@@ -190,7 +186,7 @@ function MemberRow({
 								render={
 									<Button
 										className="flex w-full items-center justify-start"
-										onClick={handleSuspend}
+										onClick={() => suspend.trigger()}
 										variant="destructive"
 									/>
 								}
@@ -213,23 +209,15 @@ function SuspendedMemberRow({
 	canManage: boolean;
 	member: OrganizationMember;
 }) {
-	const queryClient = useQueryClient();
-
-	const reinstateMutation = useMutation({
+	const reinstate = useToastMutation({
 		mutationFn: () => reinstateOrganizationMember({ memberId: member.id }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-		},
-	});
-
-	const handleReinstate = () => {
-		toast.promise(reinstateMutation.mutateAsync(), {
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
 			loading: "Reinstating member...",
 			success: "Member reinstated",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to reinstate member",
-		});
-	};
+			error: "Failed to reinstate member",
+		},
+	});
 
 	return (
 		<TableRow>
@@ -266,8 +254,8 @@ function SuspendedMemberRow({
 			<TableCell className="text-right">
 				{canManage ? (
 					<Button
-						disabled={reinstateMutation.isPending}
-						onClick={handleReinstate}
+						disabled={reinstate.isPending}
+						onClick={() => reinstate.trigger()}
 						size="sm"
 						variant="outline"
 					>
@@ -287,23 +275,15 @@ function InvitationRow({
 	canManage: boolean;
 	invitation: OrganizationInvitation;
 }) {
-	const queryClient = useQueryClient();
-
-	const cancelMutation = useMutation({
+	const cancel = useToastMutation({
 		mutationFn: () => cancelOrganizationInvitation(invitation.id),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
-		},
-	});
-
-	const handleCancel = () => {
-		toast.promise(cancelMutation.mutateAsync(), {
+		invalidate: [ORGANIZATION_QUERY_KEY],
+		messages: {
 			loading: "Cancelling invitation...",
 			success: "Invitation cancelled",
-			error: (err) =>
-				err instanceof Error ? err.message : "Failed to cancel invitation",
-		});
-	};
+			error: "Failed to cancel invitation",
+		},
+	});
 
 	return (
 		<TableRow>
@@ -321,8 +301,8 @@ function InvitationRow({
 			<TableCell className="text-right">
 				{canManage ? (
 					<Button
-						disabled={cancelMutation.isPending}
-						onClick={handleCancel}
+						disabled={cancel.isPending}
+						onClick={() => cancel.trigger()}
 						size="sm"
 						variant="outline"
 					>
@@ -352,9 +332,7 @@ function InviteMemberDialog({ canInvite }: { canInvite: boolean }) {
 			toast.success("Invitation sent");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to send invitation",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to send invitation"));
 		},
 	});
 
@@ -389,12 +367,7 @@ function InviteMemberDialog({ canInvite }: { canInvite: boolean }) {
 					<DialogTitle>Invite a member</DialogTitle>
 				</DialogHeader>
 				<div className="space-y-4">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert message={errorMessage} />
 					<div className="space-y-2">
 						<Label htmlFor="invite-email">Email</Label>
 						<Input
@@ -599,30 +572,18 @@ function MembersBody({
 
 export function OrganizationMembersPage() {
 	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const { data, isLoading, isError, error } = useOrganizationQuery();
 
 	const currentMember =
 		data?.members.find((member) => member.userId === user?.id) ?? null;
 
 	return (
-		<OrganizationPageLayout
-			description="Manage who has access to your organization."
-			title="Members"
-		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load members</AlertTitle>
-					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading members."}
-					</AlertDescription>
-				</Alert>
-			) : null}
+		<OrganizationPageLayout title="Members">
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading members."
+				title="Failed to load members"
+			/>
 			{isLoading ? <MembersSkeleton /> : null}
 			{data && !isError ? (
 				<MembersBody

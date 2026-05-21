@@ -3,10 +3,12 @@ import { join } from "node:path";
 import { expect, test } from "vitest";
 
 type EnvVars = { NODE_ENV?: string };
+type KvBinding = { binding?: string };
 type PlatformWranglerConfig = {
+	kv_namespaces?: KvBinding[];
 	env?: {
-		production?: { vars?: EnvVars };
-		staging?: { vars?: EnvVars };
+		production?: { kv_namespaces?: KvBinding[]; vars?: EnvVars };
+		staging?: { kv_namespaces?: KvBinding[]; vars?: EnvVars };
 	};
 };
 
@@ -25,4 +27,22 @@ test("platform worker config pins production NODE_ENV for every deploy env", asy
 
 	expect(config.env?.production?.vars?.NODE_ENV).toBe("production");
 	expect(config.env?.staging?.vars?.NODE_ENV).toBe("production");
+});
+
+test("platform worker config binds org verification KV in every runtime env", async () => {
+	const configPath = join(process.cwd(), "wrangler.jsonc");
+	const config = parseJsonc<PlatformWranglerConfig>(
+		await readFile(configPath, "utf8"),
+	);
+
+	const hasOrgVerificationKv = (binding: KvBinding): boolean =>
+		binding.binding === "ORG_VERIFICATIONS_KV";
+
+	expect(config.kv_namespaces?.some(hasOrgVerificationKv)).toBe(true);
+	expect(
+		config.env?.production?.kv_namespaces?.some(hasOrgVerificationKv),
+	).toBe(true);
+	expect(config.env?.staging?.kv_namespaces?.some(hasOrgVerificationKv)).toBe(
+		true,
+	);
 });

@@ -1,11 +1,10 @@
 import Foundation
 
-/// API service for communicating with the Kayle verification backend.
 enum APIService {
   private static let productionBaseURL = "https://api.kayle.id"
+  private static let productionVerifyBaseURL = "https://verify.kayle.id"
   private static let developmentBaseURLKey = "KAYLE_DEV_API_BASE_URL"
 
-  /// Construct the API base URL for the current app environment.
   static func baseURL(from _: String) -> String {
     #if DEBUG
     if let configuredBaseURL = configuredDevelopmentBaseURL() {
@@ -16,62 +15,18 @@ enum APIService {
     return productionBaseURL
   }
 
-  @MainActor
-  static func fetchHandoffPayload(sessionId: String) async throws -> QRCodePayload {
-    guard let url = URL(string: "\(baseURL(from: sessionId))/v1/verify/session/\(sessionId)/handoff")
-    else {
-      throw APIError.invalidResponse
+  static func privacyRequestURL(sessionId: String, cancelToken: String?) -> URL? {
+    guard var components = URLComponents(string: productionVerifyBaseURL) else {
+      return nil
     }
 
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-    let (data, response) = try await URLSession.shared.data(for: request)
-
-    guard let httpResponse = response as? HTTPURLResponse else {
-      throw APIError.invalidResponse
+    components.path = "/privacy/\(sessionId)"
+    if let cancelToken {
+      components.queryItems = [
+        URLQueryItem(name: "cancel_token", value: cancelToken)
+      ]
     }
-
-    guard
-      let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-    else {
-      throw APIError.invalidResponse
-    }
-
-    guard (200...299).contains(httpResponse.statusCode) else {
-      if
-        let error = envelope["error"] as? [String: Any],
-        let message = error["message"] as? String
-      {
-        throw APIError.serverError(message)
-      }
-      throw APIError.httpError(httpResponse.statusCode)
-    }
-
-    guard
-      let payload = envelope["data"] as? [String: Any],
-      let payloadSessionId = payload["session_id"] as? String,
-      let attemptId = payload["attempt_id"] as? String,
-      let mobileWriteToken = payload["mobile_write_token"] as? String,
-      let expiresAtValue = payload["expires_at"] as? String
-    else {
-      throw APIError.invalidResponse
-    }
-
-    guard let expiresAt = parseQRCodePayloadDate(expiresAtValue) else {
-      throw APIError.invalidResponse
-    }
-
-    return QRCodePayload(
-      v: payload["v"] as? Int,
-      sessionId: payloadSessionId,
-      attemptId: attemptId,
-      mobileWriteToken: mobileWriteToken,
-      expiresAt: expiresAt,
-      attestHelloChallenge: payload["attest_hello_challenge"] as? String,
-      attestNfcChallenge: payload["attest_nfc_challenge"] as? String
-    )
+    return components.url
   }
 
   @MainActor
@@ -192,8 +147,6 @@ enum APIService {
     return values[0] == 100 && values[1] >= 64 && values[1] <= 127
   }
 }
-
-// MARK: - Error Types
 
 enum APIError: LocalizedError {
   case invalidResponse

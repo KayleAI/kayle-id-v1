@@ -1,5 +1,10 @@
 import { requestApiResource } from "@/utils/api-client";
 
+export const SESSION_ANALYTICS_OVERVIEW_QUERY_KEY = [
+	"dashboard",
+	"session-analytics",
+] as const;
+
 export interface SessionAnalyticsSummary {
 	active: number;
 	cancelled: number;

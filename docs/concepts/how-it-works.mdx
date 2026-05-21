@@ -4,7 +4,7 @@ description: "The architecture, the trust model, and what happens during a typic
 icon: "diagram-project"
 ---
 
-Kayle ID verifies a person's identity by reading the cryptographic chip embedded in their ID document, checking the document's signatures against the issuing country's public key infrastructure, and matching the on-chip portrait against a live selfie. The underlying biometric and chip data never leaves the verification pipeline.
+Kayle ID produces an identity-assurance signal by reading the cryptographic chip embedded in an ID document, checking the document's signatures against the issuing country's public key infrastructure, and matching the on-chip portrait against a live selfie. The underlying biometric and chip data never leaves the verification pipeline, and the relying party remains responsible for any access, onboarding, or eligibility decision it makes from the result.
 
 ## Components
 
@@ -43,8 +43,8 @@ sequenceDiagram
     API->>Biometric: DG2 portrait + selfies
     Biometric-->>API: { passed, score }
     API->>API: SOD trust chain, active auth, chip auth
-    API-->>Mobile: ServerVerdict (accepted | rejected)
-    API-->>Partner: webhook (verification.attempt.succeeded | failed)
+    API-->>Mobile: check result (confirmed | not confirmed)
+    API-->>Partner: webhook (verification.session.succeeded | failed)
     Verify->>Partner: redirect to redirect_url
 ```
 
@@ -52,19 +52,19 @@ The API is the only component you talk to directly. Everything past `verificatio
 
 ## The trust model
 
-Three independent checks run before a verification is accepted:
+Three independent checks run before Kayle can confirm a check:
 
 1. **Passive authentication** — The Security Object (SOD) on the chip is a CMS-signed manifest of every data group. Kayle verifies the SOD signature against the Document Signer Certificate (DSC), then walks the chain to a Country Signing CA (CSCA) trusted by the [ICAO PKD](https://pkddownload.icao.int). Each data group's hash must match the SOD declaration. Recent Certificate Revocation Lists are consulted; missing or stale CRL coverage is reported as `revocation_unknown` and tightens the policy decision.
-2. **Active authentication** — If the document carries a DG15, the chip signs a freshly derived challenge with its private key. A successful signature proves the chip you're talking to is the same chip that was personalised at issuance, not a clone holding the same data.
+2. **Active authentication** — If the document carries a DG15, the chip signs a freshly derived challenge with its private key. A successful signature confirms the chip you're talking to is the same chip that was personalised at issuance, not a clone holding the same data.
 3. **Chip authentication** — If the document carries a DG14 (most modern passports), the chip and the reader run an authenticated key agreement. The transcript binds the rest of the session to the genuine chip and frustrates man-in-the-middle attempts.
 
-The selfie is matched against the on-chip portrait by the biometric verifier service. The decision is fail-closed: if the verifier is unavailable, the verdict is rejection. In production a fallback path is treated as a rejection even if the score is high.
+The selfie is matched against the on-chip portrait by the biometric verifier service. The check is fail-closed: if the verifier is unavailable, Kayle returns a not-confirmed result. In production a fallback biometric path is treated as not confirmed even if the score is high.
 
 See [Document checks](/verifications/document-checks) for the full check list and the failure codes that map to each step.
 
 ## The verification protocol
 
-Mobile clients drive the verification over a single WebSocket. The wire format is [Cap'n Proto](https://capnproto.org), defined in `packages/capnp/verify.capnp`. The protocol has a small message vocabulary: a hello, a handful of phase updates, chunked binary data payloads (DG1, DG2, DG14, DG15, SOD, selfie frames, active-auth signatures), and a server verdict.
+Mobile clients drive the Kayle check over a single WebSocket. The wire format is [Cap'n Proto](https://capnproto.org), defined in `packages/capnp/verify.capnp`. The protocol has a small message vocabulary: a hello, a handful of phase updates, chunked binary data payloads (DG1, DG2, DG14, DG15, SOD, selfie frames, active-auth signatures), and a check result.
 
 You don't implement this yourself. The mobile apps implement it; the verify web app coordinates the handoff.
 
@@ -74,7 +74,7 @@ The Postgres database holds:
 
 - **Verification sessions** — status, expiry, requested share fields, optional `redirect_url`, hashed `cancel_token`.
 - **Verification attempts** — status, failure code if any, risk score, hashed mobile write token, hashed device ID, app version, current phase.
-- **Events** — domain events (`verification.attempt.succeeded`, etc.) with a trigger ID, but no PII.
+- **Events** — domain events (`verification.session.succeeded`, etc.) with a trigger ID, but no PII.
 - **Webhook deliveries** — endpoint ID, status, attempt count, payload (encrypted in transit when an encryption key is registered).
 
 It does **not** store DG1, DG2, DG14, DG15, SOD bytes, selfies, or any plaintext claims. Those are processed in memory while the WebSocket is open and discarded when it closes. See [Privacy](/verifications/privacy) for the full list.

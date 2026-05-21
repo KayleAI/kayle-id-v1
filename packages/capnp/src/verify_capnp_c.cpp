@@ -27,7 +27,7 @@ static bool copy_text_to_buffer(T text, char* out, size_t out_size) {
 
 int verify_build_hello(
   void* message_builder,
-  const char* attempt_id,
+  const char* session_id,
   const char* mobile_write_token,
   const char* device_id,
   const char* app_version,
@@ -36,13 +36,13 @@ int verify_build_hello(
   size_t hello_assertion_size,
   uint32_t runtime_integrity_signal
 ) {
-  if (!message_builder || !attempt_id || !mobile_write_token || !app_version) {
+  if (!message_builder || !session_id || !mobile_write_token || !app_version) {
     return 0;
   }
   auto* builder = reinterpret_cast<capnp::MallocMessageBuilder*>(message_builder);
   auto root = builder->initRoot<ClientMessage>();
   auto hello = root.initHello();
-  hello.setAttemptId(attempt_id);
+  hello.setSessionId(session_id);
   hello.setMobileWriteToken(mobile_write_token);
   if (device_id) {
     hello.setDeviceId(device_id);
@@ -155,8 +155,8 @@ verify_server_message_kind_t verify_server_message_kind(void* message_reader) {
       return VERIFY_SERVER_MESSAGE_ACK;
     case ServerMessage::ERROR:
       return VERIFY_SERVER_MESSAGE_ERROR;
-    case ServerMessage::VERDICT:
-      return VERIFY_SERVER_MESSAGE_VERDICT;
+    case ServerMessage::CHECK_RESULT:
+      return VERIFY_SERVER_MESSAGE_CHECK_RESULT;
     case ServerMessage::SHARE_REQUEST:
       return VERIFY_SERVER_MESSAGE_SHARE_REQUEST;
     case ServerMessage::SHARE_READY:
@@ -272,7 +272,7 @@ int verify_server_message_get_error(
   return 1;
 }
 
-int verify_server_message_get_verdict(
+int verify_server_message_get_check_result(
   void* message_reader,
   int* out_outcome,
   char* out_reason_code,
@@ -280,31 +280,35 @@ int verify_server_message_get_verdict(
   char* out_reason_message,
   size_t out_reason_message_size,
   int* out_retry_allowed,
-  uint32_t* out_remaining_attempts
+  int* out_failed_check,
+  uint32_t* out_remaining_nfc_retries,
+  uint32_t* out_remaining_liveness_retries
 ) {
   if (
     !message_reader ||
     !out_outcome ||
     !out_retry_allowed ||
-    !out_remaining_attempts
+    !out_failed_check ||
+    !out_remaining_nfc_retries ||
+    !out_remaining_liveness_retries
   ) {
     return 0;
   }
 
   auto* reader = reinterpret_cast<capnp::MessageReader*>(message_reader);
   auto root = reader->getRoot<ServerMessage>();
-  if (root.which() != ServerMessage::VERDICT) {
+  if (root.which() != ServerMessage::CHECK_RESULT) {
     return 0;
   }
 
-  auto verdict = root.getVerdict();
-  *out_outcome = verdict.getOutcome() == VerdictOutcome::ACCEPTED
-    ? VERIFY_SERVER_VERDICT_ACCEPTED
-    : VERIFY_SERVER_VERDICT_REJECTED;
+  auto check_result = root.getCheckResult();
+  *out_outcome = check_result.getOutcome() == CheckOutcome::CONFIRMED
+    ? VERIFY_SERVER_CHECK_CONFIRMED
+    : VERIFY_SERVER_CHECK_NOT_CONFIRMED;
 
   if (
     !copy_text_to_buffer(
-      verdict.getReasonCode(),
+      check_result.getReasonCode(),
       out_reason_code,
       out_reason_code_size
     )
@@ -314,7 +318,7 @@ int verify_server_message_get_verdict(
 
   if (
     !copy_text_to_buffer(
-      verdict.getReasonMessage(),
+      check_result.getReasonMessage(),
       out_reason_message,
       out_reason_message_size
     )
@@ -322,8 +326,25 @@ int verify_server_message_get_verdict(
     return 0;
   }
 
-  *out_retry_allowed = verdict.getRetryAllowed() ? 1 : 0;
-  *out_remaining_attempts = verdict.getRemainingAttempts();
+  *out_retry_allowed = check_result.getRetryAllowed() ? 1 : 0;
+
+  switch (check_result.getFailedCheck()) {
+    case CheckKind::MRZ:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_MRZ;
+      break;
+    case CheckKind::NFC:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_NFC;
+      break;
+    case CheckKind::LIVENESS:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_LIVENESS;
+      break;
+    default:
+      *out_failed_check = VERIFY_SERVER_CHECK_KIND_NONE;
+      break;
+  }
+
+  *out_remaining_nfc_retries = check_result.getRemainingNfcRetries();
+  *out_remaining_liveness_retries = check_result.getRemainingLivenessRetries();
   return 1;
 }
 

@@ -4,7 +4,7 @@ description: "What Kayle stores, what it discards, and what reaches your webhook
 icon: "lock"
 ---
 
-Kayle ID is built around a single rule: the API stores the **minimum** needed to make verification work, and never more. Document images, MRZ fields, selfies, and chip signatures are processed in memory and discarded the moment the WebSocket closes. The only place verified claims exist outside that pipeline is the webhook payload sent to you, encrypted in flight if you've registered an encryption key.
+Kayle ID is built around a single rule: the API stores the **minimum** needed to make a Kayle check work, and never more. Document images, MRZ fields, selfies, and chip signatures are processed in memory and discarded the moment the WebSocket closes. The only place consented claims exist outside that pipeline is the webhook payload sent to you, encrypted in flight if you've registered an encryption key.
 
 ## What gets stored
 
@@ -16,6 +16,18 @@ The Postgres database holds the metadata required to drive the lifecycle and aud
 - **Webhook deliveries** — endpoint ID, status, attempt count, payload (encrypted with the endpoint's registered key when applicable), HTTP status of the last attempt, timestamps.
 
 Tokens are hashed before storage. The plaintext is shown once at creation and never persisted.
+
+## Retention windows
+
+Verification metadata is retained only while it has an operational or compliance purpose:
+
+- Completed, expired, and cancelled verification sessions are purged after 30 days.
+- Verification attempts are minimised after 7 days. Kayle keeps lifecycle status and timestamps, but clears failure details, mobile handoff hashes, device/app metadata, phase state, risk score, connection claims, and the mobile attestation key reference.
+- Verification events and webhook delivery attempt history are purged after 30 days once no retained webhook payload remains.
+- Verification audit log rows are purged after 365 days.
+- Mobile App Attest key rows are deleted after 90 days of no use once no retained attempt still references them.
+
+Webhook payload retention is controlled separately per endpoint. Delivered payloads are scrubbed immediately; terminally failed payloads follow the endpoint's `undelivered_payload_retention_hours` setting. See [Webhook deliveries](/webhooks/deliveries#payload-retention).
 
 ## What gets discarded
 
@@ -34,34 +46,42 @@ Every byte of document and biometric data is processed in memory inside the API'
 
 None of these touch the database. None of these are visible in the dashboard. None of these are recoverable after the fact.
 
+## Logs
+
+Runtime logs use the shared `evlog` wrapper in `@kayle-id/config/logging`. Request logs strip query strings and only keep the method, path, status, request ID, and explicit safe event fields. Error logs use caller-provided safe messages and error names instead of serialising `Error.message`, `Error.stack`, SQL parameters, request bodies, MRZ data, chip data, selfie frames, liveness videos, or biometric verifier responses.
+
+Production log sinks must keep Cloudflare Workers Logs or Logpush retention bounded to 30 days or less. Kayle's application logs are diagnostic only; verification state is audited in Postgres with the retention windows above.
+
 ## What reaches your webhook
 
 Webhook payloads are always end-to-end encrypted: Kayle wraps every event body as a JWE addressed to a public key you've registered with the endpoint, so Kayle, your CDN, and any intermediary cannot read the cleartext. Endpoints without an active encryption key fail delivery before the body is sent. See [Encrypted payloads](/webhooks/encryption) for the registration flow.
 
-For a successful verification, the cleartext you receive after decryption contains only the claims the user consented to share:
+For a confirmed Kayle check, the cleartext you receive after decryption contains only the claims the user consented to share:
 
 ```json
 {
-  "type": "verification.attempt.succeeded",
+  "type": "verification.session.succeeded",
   "data": {
     "claims": { "date_of_birth": "1995-04-12", "kayle_document_id": "kdid_..." },
     "selected_field_keys": ["date_of_birth", "kayle_document_id"]
   },
-  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+  "metadata": { "verification_session_id": "vs_...", "event_id": "evt_...", "contract_version": 1 }
 }
 ```
 
-For a failed verification, you receive the failure code, no claims:
+For a not-confirmed Kayle check, you receive the failure code, no claims:
 
 ```json
 {
-  "type": "verification.attempt.failed",
+  "type": "verification.session.failed",
   "data": { "failure_code": "selfie_face_mismatch" },
-  "metadata": { "verification_session_id": "vs_...", "verification_attempt_id": "va_...", "event_id": "evt_...", "contract_version": 1 }
+  "metadata": { "verification_session_id": "vs_...", "event_id": "evt_...", "contract_version": 1 }
 }
 ```
 
-Session-level events (`verification.session.expired`, `verification.session.cancelled`) carry no claim data either.
+Session-level events (`verification.session.expired`, `verification.session.cancelled`) carry no claim data either. The `cancelled` payload includes an `outcome`, a `reason`, and the per-check retry counters so you can see _why_ a session ended without verifying the user; see the [verification.session.cancelled reference](/api-reference/webhooks/verification-session-cancelled).
+
+When a user redeems their cancel token (privacy withdrawal) after the session has already terminalized, Kayle scrubs any not-yet-delivered `succeeded` or `failed` payload and emits a replacement `verification.session.cancelled` event with `reason` set to either `privacy_cancelled_after_terminal_success` or `privacy_cancelled_after_terminal_failure`. This means privacy withdrawal can suppress the claims you would have received — but you will always learn that the session reached a terminal state.
 
 ## Stable identifiers without raw values
 

@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Card, CardContent } from "@kayleai/ui/card";
+import { Card, CardContent } from "@kayle-id/ui/components/card";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -11,6 +11,7 @@ import {
 	type CostAnalyticsRow,
 	fetchCostAnalytics,
 } from "@/lib/api/cost-analytics";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 type RangePreset = "7d" | "30d" | "90d";
 
@@ -100,9 +101,7 @@ function CostBreakdownCard({
 					</div>
 				) : error ? (
 					<div className="py-8 text-center text-destructive text-sm">
-						{error instanceof Error
-							? error.message
-							: "Failed to load cost data."}
+						{getErrorMessage(error, "Failed to load cost data.")}
 					</div>
 				) : rows.length === 0 ? (
 					<div className="py-8 text-center text-muted-foreground text-sm">

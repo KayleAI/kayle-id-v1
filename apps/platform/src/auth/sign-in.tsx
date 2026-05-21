@@ -1,39 +1,29 @@
 import { client } from "@kayle-id/auth/client";
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { useNavigate } from "@tanstack/react-router";
 import { KeyRoundIcon } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { friendlyPasskeyError } from "@/app/passkeys/errors";
+
+type ActiveSignInMethod = "email" | "passkey" | "google" | null;
 
 export function SignIn() {
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
+	const [activeSignInMethod, setActiveSignInMethod] =
+		useState<ActiveSignInMethod>(null);
 	const [error, setError] = useState("");
-
-	useEffect(() => {
-		// Conditional UI: when the browser supports it, prompt the user with any
-		// passkeys saved for this site as soon as the email field is focused.
-		const isWebAuthnAvailable =
-			typeof window !== "undefined" &&
-			typeof window.PublicKeyCredential !== "undefined";
-		if (!isWebAuthnAvailable) {
-			return;
-		}
-
-		void client.signIn.passkey({ autoFill: true }).catch(() => {
-			// Conditional UI silently fails on browsers without autofill support;
-			// the explicit "Sign in with passkey" button still works.
-		});
-	}, []);
+	const [passkeyError, setPasskeyError] = useState("");
+	const isLoading = activeSignInMethod !== null;
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setIsLoading(true);
+		setActiveSignInMethod("email");
 		setError("");
+		setPasskeyError("");
 
 		try {
 			const {
@@ -55,18 +45,19 @@ export function SignIn() {
 		} catch {
 			setError("Unable to send sign-in link. Please try again.");
 		} finally {
-			setIsLoading(false);
+			setActiveSignInMethod(null);
 		}
 	};
 
 	const handlePasskeySignIn = async () => {
-		setIsLoading(true);
+		setActiveSignInMethod("passkey");
 		setError("");
+		setPasskeyError("");
 
 		try {
 			const result = await client.signIn.passkey();
 			if (result?.error) {
-				setError(
+				setPasskeyError(
 					friendlyPasskeyError(
 						result.error,
 						"authenticate",
@@ -76,9 +67,14 @@ export function SignIn() {
 				return;
 			}
 
-			navigate({ to: "/dashboard" });
+			if (result?.data) {
+				navigate({ to: "/dashboard" });
+				return;
+			}
+
+			setPasskeyError("Passkey sign-in did not complete. Please try again.");
 		} catch (err) {
-			setError(
+			setPasskeyError(
 				friendlyPasskeyError(
 					err,
 					"authenticate",
@@ -86,13 +82,14 @@ export function SignIn() {
 				),
 			);
 		} finally {
-			setIsLoading(false);
+			setActiveSignInMethod(null);
 		}
 	};
 
 	const handleGoogleSignIn = async () => {
-		setIsLoading(true);
+		setActiveSignInMethod("google");
 		setError("");
+		setPasskeyError("");
 
 		try {
 			await client.signIn.social({
@@ -102,14 +99,13 @@ export function SignIn() {
 		} catch {
 			setError("Failed to sign in with Google");
 		} finally {
-			setIsLoading(false);
+			setActiveSignInMethod(null);
 		}
 	};
 
 	return (
 		<div className="relative flex flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -123,10 +119,12 @@ export function SignIn() {
 					</p>
 				</div>
 
-				{/* Sign In Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
-						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
+						<div
+							className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm"
+							role="alert"
+						>
 							{error}
 						</div>
 					)}
@@ -135,6 +133,7 @@ export function SignIn() {
 						autoComplete="username webauthn"
 						disabled={isLoading}
 						id="email"
+						name="email"
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
 							setEmail(e.target.value)
 						}
@@ -145,7 +144,9 @@ export function SignIn() {
 					/>
 
 					<Button className="w-full" disabled={isLoading} type="submit">
-						{isLoading ? "Sending link..." : "Send sign-in link"}
+						{activeSignInMethod === "email"
+							? "Sending link..."
+							: "Send sign-in link"}
 					</Button>
 				</form>
 
@@ -159,22 +160,33 @@ export function SignIn() {
 					</div>
 				</div>
 
-				{/* Passkey Sign In */}
 				<Button
 					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
 					onClick={handlePasskeySignIn}
+					type="button"
 					variant="outline"
 				>
 					<KeyRoundIcon className="h-5 w-5" />
-					Sign in with passkey
+					{activeSignInMethod === "passkey"
+						? "Waiting for passkey..."
+						: "Sign in with passkey"}
 				</Button>
 
-				{/* Google Sign In */}
+				{passkeyError ? (
+					<div
+						className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm"
+						role="alert"
+					>
+						{passkeyError}
+					</div>
+				) : null}
+
 				<Button
 					className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card px-4 py-3 font-medium text-foreground text-sm transition-all duration-200 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 					disabled={isLoading}
 					onClick={handleGoogleSignIn}
+					type="button"
 					variant="outline"
 				>
 					<svg
@@ -200,10 +212,11 @@ export function SignIn() {
 							fill="#EA4335"
 						/>
 					</svg>
-					Continue with Google
+					{activeSignInMethod === "google"
+						? "Opening Google..."
+						: "Continue with Google"}
 				</Button>
 
-				{/* Footer Links */}
 				<p className="inline-block text-center text-muted-foreground text-xs">
 					By signing in to Kayle ID, you agree to our{" "}
 					<Button

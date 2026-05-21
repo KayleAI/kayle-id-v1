@@ -1,13 +1,12 @@
 import { client } from "@kayle-id/auth/client";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -15,9 +14,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Table,
 	TableBody,
@@ -25,12 +24,16 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+} from "@kayle-id/ui/components/table";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
+import { unwrapBetterAuthResult } from "@/utils/better-auth";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 import { friendlyPasskeyError } from "./errors";
 
 const PASSKEYS_QUERY_KEY = ["passkeys"] as const;
@@ -44,28 +47,30 @@ interface PasskeyRow {
 
 async function listPasskeys(): Promise<PasskeyRow[]> {
 	const result = await client.passkey.listUserPasskeys();
-	if (result?.error) {
-		throw new Error(result.error.message ?? "Failed to load passkeys.");
-	}
-	return (result?.data ?? []) as PasskeyRow[];
+	return unwrapBetterAuthResult(
+		result,
+		"Failed to load passkeys.",
+	) as PasskeyRow[];
 }
 
 export function PasskeysList() {
-	const queryClient = useQueryClient();
 	const { data, isLoading, isError, error } = useQuery({
 		queryKey: PASSKEYS_QUERY_KEY,
 		queryFn: listPasskeys,
 	});
 
-	const deleteMutation = useMutation({
-		mutationFn: async (id: string) => {
+	const deleteMutation = useToastMutation<void, string>({
+		mutationFn: async (id) => {
 			const result = await client.passkey.deletePasskey({ id });
 			if (result?.error) {
 				throw new Error(result.error.message ?? "Failed to delete passkey.");
 			}
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: PASSKEYS_QUERY_KEY });
+		invalidate: [PASSKEYS_QUERY_KEY],
+		messages: {
+			loading: "Removing passkey…",
+			success: "Passkey removed",
+			error: "Failed to remove passkey",
 		},
 	});
 
@@ -86,14 +91,11 @@ export function PasskeysList() {
 				</div>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				{isError ? (
-					<Alert variant="destructive">
-						<AlertTitle>Failed to load passkeys</AlertTitle>
-						<AlertDescription>
-							{error instanceof Error ? error.message : "Please try again."}
-						</AlertDescription>
-					</Alert>
-				) : null}
+				<QueryErrorAlert
+					error={isError ? error : null}
+					fallback="Please try again."
+					title="Failed to load passkeys"
+				/>
 
 				<div className="overflow-hidden rounded-md border border-border/70">
 					<Table>
@@ -152,16 +154,7 @@ export function PasskeysList() {
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											onClick={() =>
-												toast.promise(deleteMutation.mutateAsync(passkey.id), {
-													loading: "Removing passkey…",
-													success: "Passkey removed",
-													error: (err) =>
-														err instanceof Error
-															? err.message
-															: "Failed to remove passkey",
-												})
-											}
+											onClick={() => deleteMutation.trigger(passkey.id)}
 											size="icon"
 											variant="ghost"
 										>
@@ -235,12 +228,7 @@ function AddPasskey() {
 					<DialogTitle>Add a passkey</DialogTitle>
 				</DialogHeader>
 				<div className="space-y-4">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert message={errorMessage} />
 					<div className="space-y-2">
 						<Label htmlFor="passkey-name">Name (optional)</Label>
 						<Input

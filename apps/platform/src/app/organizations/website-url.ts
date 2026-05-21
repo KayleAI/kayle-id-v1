@@ -1,5 +1,9 @@
 import {
+	normalizeOrganizationAppealUrl,
+	normalizeOrganizationComplaintsUrl,
+	normalizeOrganizationFallbackIdvUrl,
 	normalizeOrganizationPrivacyPolicyUrl,
+	normalizeOrganizationSupportEmail,
 	normalizeOrganizationTermsOfServiceUrl,
 	normalizeOrganizationWebsiteUrl,
 } from "@kayle-id/auth/organization-metadata";
@@ -44,4 +48,37 @@ export function parsePublicTermsOfServiceUrl(
 	value: null | string | undefined,
 ): PublicWebsiteUrl | null {
 	return parseWith(normalizeOrganizationTermsOfServiceUrl, value);
+}
+
+export function parsePublicFallbackIdvUrl(
+	value: null | string | undefined,
+): PublicWebsiteUrl | null {
+	return parseWith(normalizeOrganizationFallbackIdvUrl, value);
+}
+
+export function parsePublicAppealUrl(
+	value: null | string | undefined,
+): PublicWebsiteUrl | null {
+	return parseWith(normalizeOrganizationAppealUrl, value);
+}
+
+export function parsePublicComplaintsUrl(
+	value: null | string | undefined,
+): PublicWebsiteUrl | null {
+	return parseWith(normalizeOrganizationComplaintsUrl, value);
+}
+
+export function parsePublicSupportEmail(
+	value: null | string | undefined,
+): string | null {
+	const trimmed = value?.trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	try {
+		return normalizeOrganizationSupportEmail(trimmed) ?? null;
+	} catch {
+		return null;
+	}
 }

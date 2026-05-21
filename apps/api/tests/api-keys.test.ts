@@ -99,6 +99,7 @@ function createJsonHeaders(cookie: string): HeadersInit {
 beforeAll(async () => {
 	const sessionTestData = await setupSessionAuth({
 		withActiveOrganization: true,
+		withCompletedOnboarding: true,
 	});
 	const organizationId = requireOrganizationId(sessionTestData.organizationId);
 	const { apiKey, id: apiKeyId } = await createApiKey({

@@ -1,4 +1,8 @@
-import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	SUPPORTED_WEBHOOK_EVENT_TYPES,
+	WEBHOOK_PAYLOAD_RETENTION_HOUR_OPTIONS,
+} from "@kayle-id/config/webhook-events";
 import {
 	type DeliveryStatus,
 	parsePublicKeyInput,
@@ -6,6 +10,7 @@ import {
 	type WebhookEncryptionKey,
 	type WebhookEndpoint,
 	type WebhookEvent,
+	type WebhookEventDelivery,
 } from "./api";
 import {
 	EMPTY_ENDPOINT_DELIVERY_STATS,
@@ -17,7 +22,7 @@ import {
 import { type DeliveryTrendPoint, getEndpointDeliveryTrend } from "./trend";
 
 export type WebhooksTab = "endpoints" | "events";
-export type EndpointDetailTab = "overview" | "performance" | "deliveries";
+export type EndpointDetailTab = "overview" | "public-keys" | "deliveries";
 
 export type { DeliveryTrendPoint, EndpointDeliveryStats };
 export {
@@ -36,8 +41,10 @@ export interface CreateEndpointInitialPublicKey {
 export interface CreateEndpointSubmission {
 	enabled: boolean;
 	initialPublicKey: CreateEndpointInitialPublicKey | null;
+	labels: string[];
 	name: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }
 
@@ -58,6 +65,23 @@ export const TAB_OPTIONS: Array<{
 		label: "Events",
 	},
 ];
+
+export const WEBHOOK_PAYLOAD_RETENTION_OPTIONS =
+	WEBHOOK_PAYLOAD_RETENTION_HOUR_OPTIONS.map((hours) => ({
+		description:
+			hours === 0
+				? "Scrub encrypted payloads as soon as delivery permanently fails."
+				: `Retain encrypted payloads for ${hours} hours after final delivery failure.`,
+		label:
+			hours === 0
+				? "Do not retain after final failure"
+				: hours === DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS
+					? `Retain for ${hours} hours (default)`
+					: hours === 168
+						? "Retain for 7 days"
+						: `Retain for ${hours} hours`,
+		value: hours,
+	}));
 
 const WWW_PREFIX_REGEX = /^www\./;
 
@@ -99,7 +123,7 @@ export function getEndpointDisplayName(
 export function getEndpointPageTitle(
 	endpoint: Pick<WebhookEndpoint, "name" | "url">,
 ): string {
-	return endpoint.name?.trim() || getEndpointHostLabel(endpoint.url);
+	return endpoint.name?.trim() || endpoint.url;
 }
 
 export function getEndpointSecondaryLabel(
@@ -110,10 +134,41 @@ export function getEndpointSecondaryLabel(
 		: getEndpointHostLabel(endpoint.url);
 }
 
+export function getEndpointLabelsInput(labels: string[]): string {
+	return labels.join(", ");
+}
+
+export function parseEndpointLabels(input: string): string[] {
+	const labels = input
+		.split(",")
+		.map((label) => label.trim())
+		.filter(Boolean);
+	const normalizedLabels = new Set<string>();
+
+	return labels.filter((label) => {
+		const normalized = label.toLowerCase();
+		if (normalizedLabels.has(normalized)) {
+			return false;
+		}
+		normalizedLabels.add(normalized);
+		return true;
+	});
+}
+
+export function getSuccessfulDeliveryFraction(
+	deliveries: Array<Pick<WebhookEventDelivery, "status">>,
+): string {
+	const successfulCount = deliveries.filter(
+		(delivery) => delivery.status === "succeeded",
+	).length;
+
+	return `${formatCount(successfulCount)}/${formatCount(deliveries.length)}`;
+}
+
 export function getEndpointPageSubtitle(
 	endpoint: Pick<WebhookEndpoint, "name" | "url">,
-): string {
-	return endpoint.url;
+): string | null {
+	return endpoint.name?.trim() ? endpoint.url : null;
 }
 
 export function getEndpointsById(
@@ -161,14 +216,18 @@ export function getRecentDeliveriesForEndpoint(
 export function isWebhookEndpointDirty({
 	endpoint,
 	endpointEnabled,
+	endpointLabelsInput,
 	endpointName,
 	endpointSubscribedEventTypes,
+	endpointUndeliveredPayloadRetentionHours,
 	endpointUrl,
 }: {
 	endpoint: WebhookEndpoint | null;
 	endpointEnabled: boolean;
+	endpointLabelsInput: string;
 	endpointName: string;
 	endpointSubscribedEventTypes: string[];
+	endpointUndeliveredPayloadRetentionHours: number;
 	endpointUrl: string;
 }): boolean {
 	if (!endpoint) {
@@ -177,8 +236,14 @@ export function isWebhookEndpointDirty({
 
 	return (
 		(endpoint.name ?? "") !== endpointName.trim() ||
+		!areEventSelectionsEqual(
+			endpoint.labels,
+			parseEndpointLabels(endpointLabelsInput),
+		) ||
 		endpoint.url !== endpointUrl ||
 		endpoint.enabled !== endpointEnabled ||
+		endpoint.undelivered_payload_retention_hours !==
+			endpointUndeliveredPayloadRetentionHours ||
 		!areEventSelectionsEqual(
 			endpoint.subscribed_event_types,
 			endpointSubscribedEventTypes,
@@ -238,12 +303,12 @@ export function toggleEventSelection(
 }
 
 export function getWebhookEventTypeDescription(eventType: string): string {
-	if (eventType === "verification.attempt.succeeded") {
-		return "Dispatch completed verification attempts to this endpoint.";
+	if (eventType === "verification.session.succeeded") {
+		return "Dispatch confirmed Kayle check attempts to this endpoint.";
 	}
 
-	if (eventType === "verification.attempt.failed") {
-		return "Dispatch failed verification attempts to this endpoint.";
+	if (eventType === "verification.session.failed") {
+		return "Dispatch not-confirmed Kayle check attempts to this endpoint.";
 	}
 
 	if (eventType === "verification.session.expired") {
@@ -290,14 +355,60 @@ export async function getCreateEndpointInitialPublicKey({
 	};
 }
 
-export function getWebhookEventReplayDisabledReason(
-	event: WebhookEvent,
+export function getWebhookDeliveryRetryDisabledReason(
+	delivery: Pick<
+		WebhookDelivery,
+		| "payload_expires_at"
+		| "payload_retention_reason"
+		| "payload_scrubbed_at"
+		| "status"
+	>,
 ): string | null {
-	if (event.deliveries.length === 0) {
-		return "This event has no deliveries to replay.";
+	if (delivery.status === "delivering") {
+		return "Delivery is already in progress.";
+	}
+
+	if (
+		delivery.payload_scrubbed_at ||
+		delivery.payload_retention_reason === "delivered"
+	) {
+		return "Payload no longer retained.";
+	}
+
+	if (
+		delivery.payload_retention_reason === "expired" ||
+		!delivery.payload_expires_at ||
+		new Date(delivery.payload_expires_at).getTime() <= Date.now()
+	) {
+		return "Payload expired; create a new verification session or handle the event manually.";
 	}
 
 	return null;
+}
+
+export function getWebhookDeliveryPayloadLabel(
+	delivery: Pick<
+		WebhookDelivery,
+		"payload_expires_at" | "payload_retention_reason" | "payload_scrubbed_at"
+	>,
+): string {
+	if (delivery.payload_retention_reason === "delivered") {
+		return "Delivered - payload no longer retained.";
+	}
+
+	if (delivery.payload_retention_reason === "privacy_request") {
+		return "Payload scrubbed after privacy request.";
+	}
+
+	if (delivery.payload_scrubbed_at) {
+		return "Payload scrubbed.";
+	}
+
+	if (delivery.payload_expires_at) {
+		return "Retained for replay.";
+	}
+
+	return "Payload unavailable.";
 }
 
 const BADGE_PALETTE = {

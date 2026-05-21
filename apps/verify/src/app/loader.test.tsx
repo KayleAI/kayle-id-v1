@@ -8,7 +8,7 @@ import { useVerificationStore } from "../stores/session";
 const mockedUseDevice = vi.fn();
 const mockedUseSession = vi.fn();
 
-vi.mock("@/utils/use-device", () => ({
+vi.mock("@/hooks/use-device", () => ({
 	useDevice: () => mockedUseDevice(),
 }));
 
@@ -16,7 +16,7 @@ vi.mock("./session-provider", () => ({
 	useSession: () => mockedUseSession(),
 }));
 
-vi.mock("@kayleai/ui/spinner", () => ({
+vi.mock("@kayle-id/ui/components/spinner", () => ({
 	Spinner: () => <div data-testid="session-loader-spinner" />,
 }));
 

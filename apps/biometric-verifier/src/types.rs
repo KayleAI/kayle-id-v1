@@ -1,5 +1,4 @@
-//! Wire types for `/verify` request and response, matching the Zod schema
-//! at `packages/config/src/biometric-verifier.ts` field-for-field.
+//! Wire types for `/verify` request and response.
 //!
 //! Every optional response field uses `Option<T>` with explicit `null`
 //! serialization (no `skip_serializing_if`) — the TypeScript consumer
@@ -8,32 +7,24 @@
 //! Direct port of the Python `verify_liveness` request handling and
 //! response builders in `service.py`.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct VerifyRequest {
     pub dg2_image: Dg2ImagePayload,
-    /// Base64-encoded video bytes. Empty string treated as "no video".
-    #[serde(default)]
-    pub video_base64: String,
-    #[serde(default)]
-    pub challenge_nonce_base64: Option<String>,
-    #[serde(default)]
+    /// Raw video bytes. Empty vector treated as "no video".
+    pub video: Vec<u8>,
+    pub challenge_nonce: Option<Vec<u8>>,
     pub face_match_threshold: Option<f64>,
-    #[serde(default)]
     pub include_debug: Option<bool>,
-    #[serde(default)]
     pub skip_face_match: Option<bool>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct Dg2ImagePayload {
-    pub bytes_base64: String,
+    pub bytes: Vec<u8>,
     /// Format hint ("jpeg" / "png") — informational only; decode probes
     /// the magic bytes.
-    #[serde(default)]
     pub format: Option<String>,
 }
 
@@ -349,12 +340,21 @@ mod tests {
     }
 
     #[test]
-    fn request_parses_optional_fields_absent() {
-        let body = r#"{"dg2Image":{"bytesBase64":"AAAA"},"videoBase64":""}"#;
-        let r: VerifyRequest = serde_json::from_str(body).unwrap();
+    fn request_keeps_optional_fields_absent() {
+        let r = VerifyRequest {
+            dg2_image: Dg2ImagePayload {
+                bytes: vec![0, 0],
+                format: None,
+            },
+            video: Vec::new(),
+            challenge_nonce: None,
+            face_match_threshold: None,
+            include_debug: None,
+            skip_face_match: None,
+        };
         assert!(r.face_match_threshold.is_none());
-        assert!(r.challenge_nonce_base64.is_none());
+        assert!(r.challenge_nonce.is_none());
         assert!(r.include_debug.is_none());
-        assert_eq!(r.dg2_image.bytes_base64, "AAAA");
+        assert_eq!(r.dg2_image.bytes, vec![0, 0]);
     }
 }

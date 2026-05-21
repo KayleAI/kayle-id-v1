@@ -30,33 +30,33 @@ async function deriveAttestChallenge(
 }
 
 /**
- * Per-attempt challenge bound into the hello assertion's `clientDataHash`. The
- * iOS client signs over this nonce together with attempt/device metadata so the
- * server cryptographically witnesses the attempt anchor. Deterministic from
- * `attemptId` so it survives WebSocket reconnects without shared state, but
- * unpredictable to anyone without `AUTH_SECRET`.
+ * Per-session challenge bound into the hello assertion's `clientDataHash`. The
+ * iOS client signs over this nonce together with session/device metadata so
+ * the server cryptographically witnesses the session anchor. Deterministic
+ * from `sessionId` so it survives WebSocket reconnects without shared state,
+ * but unpredictable to anyone without `AUTH_SECRET`.
  */
 export function deriveAttestHelloChallenge({
-	attemptId,
+	sessionId,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	authSecret: string;
 }): Promise<Uint8Array> {
-	return deriveAttestChallenge(ATTEST_HELLO_LABEL, attemptId, authSecret);
+	return deriveAttestChallenge(ATTEST_HELLO_LABEL, sessionId, authSecret);
 }
 
 /**
- * Per-attempt challenge bound into the NFC-completion assertion. Distinct
+ * Per-session challenge bound into the NFC-completion assertion. Distinct
  * label from the hello challenge so a hello assertion can never be replayed
  * to satisfy the NFC gate.
  */
 export function deriveAttestNfcChallenge({
-	attemptId,
+	sessionId,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	authSecret: string;
 }): Promise<Uint8Array> {
-	return deriveAttestChallenge(ATTEST_NFC_LABEL, attemptId, authSecret);
+	return deriveAttestChallenge(ATTEST_NFC_LABEL, sessionId, authSecret);
 }

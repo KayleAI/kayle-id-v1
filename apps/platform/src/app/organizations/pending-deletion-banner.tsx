@@ -16,7 +16,7 @@ export function PendingDeletionBanner({
 			</div>
 			<Link
 				className="shrink-0 rounded-full border border-destructive/30 bg-background px-3 py-1.5 font-medium text-xs underline-offset-2 hover:underline"
-				to="/organizations/settings"
+				to="/settings/organizations/settings"
 			>
 				Cancel deletion
 			</Link>

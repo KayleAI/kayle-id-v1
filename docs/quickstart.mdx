@@ -35,8 +35,8 @@ This guide takes you from zero to a working verification in about ten minutes. Y
       -d '{
         "url": "https://example.ngrok.app/webhooks/kayle",
         "subscribed_event_types": [
-          "verification.attempt.succeeded",
-          "verification.attempt.failed",
+          "verification.session.succeeded",
+          "verification.session.failed",
           "verification.session.expired",
           "verification.session.cancelled"
         ]
@@ -67,7 +67,7 @@ This guide takes you from zero to a working verification in about ten minutes. Y
   </Step>
 
   <Step title="Create a verification session">
-    A session represents one identity verification you want to perform. You can request specific [share fields](/verifications/share-fields) — claims the user must consent to share before completing the flow.
+    A session represents one Kayle check you want to run. You can request specific [share fields](/verifications/share-fields) — claims the user must consent to share before completing the flow.
 
     ```bash
     curl -X POST https://api.kayle.id/v1/sessions \
@@ -76,7 +76,7 @@ This guide takes you from zero to a working verification in about ten minutes. Y
       -d '{
         "redirect_url": "https://yourapp.com/verification/done",
         "share_fields": {
-          "date_of_birth": { "required": true,  "reason": "Verify age eligibility" },
+          "date_of_birth": { "required": true,  "reason": "Check age eligibility" },
           "family_name":   { "required": true,  "reason": "Match account name" },
           "given_names":   { "required": true,  "reason": "Match account name" }
         }
@@ -106,15 +106,15 @@ This guide takes you from zero to a working verification in about ten minutes. Y
   </Step>
 
   <Step title="Receive the webhook">
-    When the user finishes, your webhook endpoint receives a POST with `Content-Type: application/jose`. The body is a compact JWE. Verify `X-Kayle-Signature` against the JWE string, decrypt with your private key, and the cleartext is the event JSON. For a successful verification:
+    When the user finishes, your webhook endpoint receives a POST with `Content-Type: application/jose`. The body is a compact JWE. Verify `X-Kayle-Signature` against the JWE string, decrypt with your private key, and the cleartext is the event JSON. For a confirmed Kayle check:
 
     ```json
     {
-      "type": "verification.attempt.succeeded",
+      "type": "verification.session.succeeded",
       "metadata": {
         "contract_version": 1,
         "event_id": "evt_...",
-        "verification_attempt_id": "va_...",
+
         "verification_session_id": "vs_..."
       },
       "data": {
@@ -132,7 +132,7 @@ This guide takes you from zero to a working verification in about ten minutes. Y
   </Step>
 
   <Step title="Pick up the redirect">
-    After the verification finishes, the user is sent to `redirect_url` if you supplied one. The redirect carries the session ID so you can match the browser back to the result you received over the webhook.
+    After the Kayle check finishes, the user is sent to `redirect_url` if you supplied one. The redirect carries the session ID so you can match the browser back to the result you received over the webhook. Kayle's result is not your final access, onboarding, or eligibility decision.
 
     <Note>
       If you don't supply a redirect URL, the user will be shown a button that closes the page.

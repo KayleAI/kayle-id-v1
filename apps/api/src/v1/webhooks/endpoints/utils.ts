@@ -1,6 +1,7 @@
 import {
 	SUPPORTED_WEBHOOK_EVENT_TYPES,
 	type SupportedWebhookEventType,
+	webhookPayloadRetentionHoursSchema,
 } from "@kayle-id/config/webhook-events";
 import type { db } from "@kayle-id/database/drizzle";
 import type {
@@ -176,19 +177,34 @@ function normalizeSubscribedEventTypes(
 		: [...SUPPORTED_WEBHOOK_EVENT_TYPES];
 }
 
+function normalizeEndpointLabels(value: unknown): string[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter((label): label is string => typeof label === "string");
+}
+
 export function mapEndpointRowToResponse(
 	row: typeof webhook_endpoints.$inferSelect,
 	organizationId: string,
 ) {
+	const undeliveredPayloadRetentionHours =
+		webhookPayloadRetentionHoursSchema.parse(
+			row.undeliveredPayloadRetentionHours,
+		);
+
 	return {
 		id: row.id,
 		organization_id: organizationId,
 		name: row.name,
+		labels: normalizeEndpointLabels(row.labels),
 		url: row.url,
 		enabled: row.enabled,
 		subscribed_event_types: normalizeSubscribedEventTypes(
 			row.subscribedEventTypes,
 		),
+		undelivered_payload_retention_hours: undeliveredPayloadRetentionHours,
 		created_at: row.createdAt.toISOString(),
 		updated_at: row.updatedAt.toISOString(),
 		disabled_at: row.disabledAt ? row.disabledAt.toISOString() : null,

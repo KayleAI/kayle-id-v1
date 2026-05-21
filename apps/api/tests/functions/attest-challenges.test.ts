@@ -11,7 +11,7 @@ const ATTEMPT_B = "va_test_attempt_b";
 describe("attest challenges", () => {
 	test("deriveAttestHelloChallenge returns 32 bytes", async () => {
 		const challenge = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 
@@ -20,7 +20,7 @@ describe("attest challenges", () => {
 
 	test("deriveAttestNfcChallenge returns 32 bytes", async () => {
 		const challenge = await deriveAttestNfcChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 
@@ -29,11 +29,11 @@ describe("attest challenges", () => {
 
 	test("hello challenge is deterministic for same attempt + secret", async () => {
 		const first = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 		const second = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 
@@ -42,11 +42,11 @@ describe("attest challenges", () => {
 
 	test("hello challenge differs across attemptIds", async () => {
 		const a = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 		const b = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_B,
+			sessionId: ATTEMPT_B,
 			authSecret: TEST_SECRET,
 		});
 
@@ -58,11 +58,11 @@ describe("attest challenges", () => {
 		// attacker must not satisfy the NFC gate. Distinct labels in the HMAC
 		// input enforce that.
 		const hello = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 		const nfc = await deriveAttestNfcChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 
@@ -71,11 +71,11 @@ describe("attest challenges", () => {
 
 	test("challenges differ across secrets", async () => {
 		const a = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: TEST_SECRET,
 		});
 		const b = await deriveAttestHelloChallenge({
-			attemptId: ATTEMPT_A,
+			sessionId: ATTEMPT_A,
 			authSecret: `${TEST_SECRET}:rotated`,
 		});
 

@@ -17,7 +17,9 @@
     "noImplicitOverride": true,
     "paths": {
       "*": ["./*"],
-      "@/*": ["./src/*"]
+      "@kayle-id/ui/*": ["./src/*"]
     }
-  }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

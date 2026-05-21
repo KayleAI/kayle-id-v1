@@ -1,15 +1,19 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -17,19 +21,20 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
 import {
 	InputOTP,
 	InputOTPGroup,
 	InputOTPSeparator,
 	InputOTPSlot,
-} from "@kayleai/ui/input-otp";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/input-otp";
+import { Label } from "@kayle-id/ui/components/label";
 import { CheckCircle2Icon, DownloadIcon, ShieldCheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useReducer, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { useCopyToClipboard } from "@/utils/use-copy";
 
 const TOTP_CODE_LENGTH = 6;
@@ -316,12 +321,10 @@ function VerifyStep({
 					</InputOTPGroup>
 				</InputOTP>
 			</fieldset>
-			{state.errorMessage ? (
-				<Alert variant="destructive">
-					<AlertTitle>Verification failed</AlertTitle>
-					<AlertDescription>{state.errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+			<FormErrorAlert
+				message={state.errorMessage}
+				title="Verification failed"
+			/>
 		</div>
 	);
 }
@@ -386,12 +389,7 @@ function DisableTwoFactorDialog({
 						again. You can re-enable two-factor authentication anytime.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Failed to disable</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Failed to disable" />
 				<DialogFooter>
 					<Button
 						disabled={isLoading}
@@ -641,10 +639,10 @@ export function TwoFactorAuthSection() {
 				enableState.status === "idle" &&
 				enableState.errorMessage ? (
 					<CardContent>
-						<Alert variant="destructive">
-							<AlertTitle>Couldn't start enrolment</AlertTitle>
-							<AlertDescription>{enableState.errorMessage}</AlertDescription>
-						</Alert>
+						<FormErrorAlert
+							message={enableState.errorMessage}
+							title="Couldn't start enrolment"
+						/>
 					</CardContent>
 				) : null}
 			</Card>

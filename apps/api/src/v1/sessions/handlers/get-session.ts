@@ -1,10 +1,7 @@
 import type { RouteHandler } from "@hono/zod-openapi";
 import type { getSession } from "@/openapi/v1/sessions/get-by-id";
 import { mapSessionRowToResponse } from "@/v1/sessions/mappers/session-response";
-import {
-	getAttemptsBySessionId,
-	getVerificationSessionById,
-} from "@/v1/sessions/repo/session-repo";
+import { getVerificationSessionById } from "@/v1/sessions/repo/session-repo";
 import type { SessionsAppEnv } from "@/v1/sessions/types";
 
 export const getSessionHandler: RouteHandler<
@@ -13,7 +10,6 @@ export const getSessionHandler: RouteHandler<
 > = async (c) => {
 	const organizationId = c.get("organizationId");
 	const params = c.req.valid("param");
-	const query = c.req.valid("query") ?? {};
 
 	const row = await getVerificationSessionById({
 		id: params.id,
@@ -35,14 +31,7 @@ export const getSessionHandler: RouteHandler<
 		);
 	}
 
-	const attempts = query.include_attempts
-		? await getAttemptsBySessionId(row.id)
-		: undefined;
-
-	const data = mapSessionRowToResponse({
-		row,
-		attempts,
-	});
+	const data = mapSessionRowToResponse({ row });
 
 	return c.json(
 		{

@@ -2,20 +2,18 @@ import type {
 	VerifyShareReady,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
-import { extractDg2FaceImage } from "@kayle-id/config/dg2-face-image";
 import { ERROR_MESSAGES } from "@kayle-id/translations/error-messages";
 import {
 	isAgeOverClaim,
 	parseAgeOverThreshold,
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import { createKayleDocumentId } from "@/v1/sessions/domain/share-contract/kayle-document-id";
-import { normalizeShareFields } from "@/v1/sessions/domain/share-contract/normalize-share-fields";
-import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import {
 	ageFromDateOfBirth,
 	type Dg1Claims,
 	parseDg1Claims,
 } from "./dg1-claims";
+import { resolvePublicShareFields } from "./public-share-fields";
 
 type ShareSelectionValidationCode =
 	| "INVALID_SESSION_ID"
@@ -23,14 +21,7 @@ type ShareSelectionValidationCode =
 	| "SHARE_SELECTION_INVALID_FIELD"
 	| "SHARE_SELECTION_MISSING_REQUIRED";
 
-type ShareClaimImage = {
-	dataBase64: string;
-	format: "jpeg" | "jpeg2000";
-	height: number;
-	width: number;
-};
-
-export type VerifyShareClaimValue = boolean | string | ShareClaimImage | null;
+export type VerifyShareClaimValue = boolean | string | null;
 
 export type VerifyShareManifest = {
 	contractVersion: number;
@@ -39,42 +30,18 @@ export type VerifyShareManifest = {
 	sessionId: string;
 };
 
-const defaultNormalizedShareFields = (() => {
-	const normalized = normalizeShareFields(undefined);
-
-	if (!normalized.ok) {
-		throw new Error("Failed to initialize default share fields.");
-	}
-
-	return normalized.shareFields;
-})();
-
 function resolveErrorMessage(code: ShareSelectionValidationCode): string {
 	return ERROR_MESSAGES[code].description;
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-	let output = "";
-	const chunkSize = 0x80_00;
-
-	for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-		const chunk = bytes.slice(offset, offset + chunkSize);
-		output += String.fromCharCode(...chunk);
-	}
-
-	return btoa(output);
 }
 
 async function buildShareClaimValue({
 	claimKey,
 	dg1Claims,
-	dg2,
 	now,
 	organizationId,
 }: {
 	claimKey: string;
 	dg1Claims: Dg1Claims;
-	dg2: Uint8Array;
 	now: Date;
 	organizationId: string;
 }): Promise<VerifyShareClaimValue> {
@@ -99,16 +66,6 @@ async function buildShareClaimValue({
 			return dg1Claims.expiryDateIso;
 		case "mrz_optional_data":
 			return dg1Claims.optionalData;
-		case "document_photo": {
-			const faceImage = extractDg2FaceImage(dg2);
-
-			return {
-				dataBase64: encodeBase64(faceImage.imageData),
-				format: faceImage.imageFormat,
-				height: faceImage.imageHeight,
-				width: faceImage.imageWidth,
-			};
-		}
 		case "kayle_document_id":
 			return await createKayleDocumentId({
 				organizationId,
@@ -209,16 +166,6 @@ function normalizeSelectedFieldKeys({
 	};
 }
 
-function resolveShareFields(shareFieldsInput: unknown): ShareFields {
-	const normalized = normalizeShareFields(shareFieldsInput);
-
-	if (!normalized.ok) {
-		return defaultNormalizedShareFields;
-	}
-
-	return normalized.shareFields;
-}
-
 export function createShareRequestPayload({
 	contractVersion,
 	sessionId,
@@ -228,7 +175,7 @@ export function createShareRequestPayload({
 	sessionId: string;
 	shareFieldsInput: unknown;
 }): VerifyShareRequest {
-	const shareFields = resolveShareFields(shareFieldsInput);
+	const shareFields = resolvePublicShareFields(shareFieldsInput);
 
 	return {
 		contractVersion,
@@ -244,7 +191,6 @@ export function createShareRequestPayload({
 export async function validateAndBuildShareManifest({
 	contractVersion,
 	dg1,
-	dg2,
 	now = new Date(),
 	organizationId,
 	selectedFieldKeysInput,
@@ -254,7 +200,6 @@ export async function validateAndBuildShareManifest({
 }: {
 	contractVersion: number;
 	dg1: Uint8Array;
-	dg2: Uint8Array;
 	now?: Date;
 	organizationId: string;
 	selectedFieldKeysInput: string[] | undefined;
@@ -307,7 +252,6 @@ export async function validateAndBuildShareManifest({
 						? await buildShareClaimValue({
 								claimKey: field.key,
 								dg1Claims,
-								dg2,
 								now,
 								organizationId,
 							})

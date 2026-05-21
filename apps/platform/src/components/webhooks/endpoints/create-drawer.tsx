@@ -1,16 +1,18 @@
-import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+import {
+	DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+	SUPPORTED_WEBHOOK_EVENT_TYPES,
+} from "@kayle-id/config/webhook-events";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Sheet,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
-} from "@kayleai/ui/sheet";
-import { Switch } from "@kayleai/ui/switch";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/sheet";
+import { Switch } from "@kayle-id/ui/components/switch";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { ChevronDownIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,8 +20,12 @@ import {
 	type CreateEndpointSubmission,
 	type CreateEndpointSubmissionResult,
 	getCreateEndpointInitialPublicKey,
+	parseEndpointLabels,
 	toggleEventSelection,
+	WEBHOOK_PAYLOAD_RETENTION_OPTIONS,
 } from "@/app/webhooks/utils";
+import { FormErrorAlert } from "@/components/form-error-alert";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { EventSubscriptionMenu } from "../events/pieces";
 import { PublicKeyFields } from "../keys/fields";
 
@@ -34,7 +40,12 @@ export function CreateEndpointDrawer({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
 	const [enabled, setEnabled] = useState(true);
+	const [labelsInput, setLabelsInput] = useState("");
 	const [name, setName] = useState("");
+	const [
+		undeliveredPayloadRetentionHours,
+		setUndeliveredPayloadRetentionHours,
+	] = useState(DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS);
 	const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([
 		...SUPPORTED_WEBHOOK_EVENT_TYPES,
 	]);
@@ -49,7 +60,11 @@ export function CreateEndpointDrawer({
 		setIsSubmitting(false);
 		setIsMoreOptionsOpen(false);
 		setEnabled(true);
+		setLabelsInput("");
 		setName("");
+		setUndeliveredPayloadRetentionHours(
+			DEFAULT_UNDELIVERED_WEBHOOK_PAYLOAD_RETENTION_HOURS,
+		);
 		setSelectedEventTypes([...SUPPORTED_WEBHOOK_EVENT_TYPES]);
 		setShouldConfigurePublicKey(false);
 		setPublicKeyId("");
@@ -78,8 +93,10 @@ export function CreateEndpointDrawer({
 					publicKeyInput,
 					shouldConfigurePublicKey,
 				}),
+				labels: parseEndpointLabels(labelsInput),
 				name: name.trim() || null,
 				subscribedEventTypes: selectedEventTypes,
+				undeliveredPayloadRetentionHours,
 				url: url.trim(),
 			});
 
@@ -91,9 +108,7 @@ export function CreateEndpointDrawer({
 			}
 		} catch (error) {
 			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: "Failed to create webhook endpoint.",
+				getErrorMessage(error, "Failed to create webhook endpoint."),
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -112,9 +127,14 @@ export function CreateEndpointDrawer({
 		>
 			<SheetTrigger
 				render={
-					<Button onClick={() => setIsOpen(true)}>
-						<PlusIcon className="mr-2 size-4" />
-						Create endpoint
+					<Button
+						aria-label="Create webhook endpoint"
+						className="w-9 px-0 sm:w-auto sm:px-3"
+						onClick={() => setIsOpen(true)}
+						variant="outline"
+					>
+						<PlusIcon aria-hidden className="size-4" />
+						<span className="hidden sm:inline">Create endpoint</span>
 					</Button>
 				}
 			/>
@@ -131,12 +151,10 @@ export function CreateEndpointDrawer({
 				</div>
 
 				<div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-					{errorMessage ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to create endpoint</AlertTitle>
-							<AlertDescription>{errorMessage}</AlertDescription>
-						</Alert>
-					) : null}
+					<FormErrorAlert
+						message={errorMessage}
+						title="Failed to create endpoint"
+					/>
 
 					<div className="space-y-2">
 						<Label htmlFor="create-webhook-name">Endpoint name</Label>
@@ -145,6 +163,16 @@ export function CreateEndpointDrawer({
 							onChange={(event) => setName(event.target.value)}
 							placeholder="Primary production webhook"
 							value={name}
+						/>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="create-webhook-labels">Labels</Label>
+						<Input
+							id="create-webhook-labels"
+							onChange={(event) => setLabelsInput(event.target.value)}
+							placeholder="production, identity"
+							value={labelsInput}
 						/>
 					</div>
 
@@ -215,6 +243,39 @@ export function CreateEndpointDrawer({
 										id="create-endpoint-enabled"
 										onCheckedChange={setEnabled}
 									/>
+								</div>
+
+								<div className="space-y-3 border-border/70 border-t pt-4">
+									<div className="space-y-1">
+										<Label>Undelivered payload retention</Label>
+										<p className="text-muted-foreground text-sm">
+											Delivered payloads are scrubbed immediately. This setting
+											only controls encrypted payloads after final delivery
+											failure.
+										</p>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										{WEBHOOK_PAYLOAD_RETENTION_OPTIONS.map((option) => (
+											<button
+												aria-pressed={
+													undeliveredPayloadRetentionHours === option.value
+												}
+												className="rounded-md border border-border/70 px-3 py-2 text-left text-sm transition-colors hover:border-foreground/30 aria-pressed:border-foreground aria-pressed:bg-muted"
+												key={option.value}
+												onClick={() =>
+													setUndeliveredPayloadRetentionHours(option.value)
+												}
+												type="button"
+											>
+												<span className="block font-medium">
+													{option.label}
+												</span>
+												<span className="mt-1 block text-muted-foreground text-xs">
+													{option.description}
+												</span>
+											</button>
+										))}
+									</div>
 								</div>
 
 								<div className="space-y-3 border-border/70 border-t pt-4">

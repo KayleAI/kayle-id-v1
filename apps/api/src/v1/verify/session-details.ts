@@ -12,8 +12,10 @@ import {
 } from "@/v1/sessions/domain/share-contract/claim-catalog";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 import { isPublicVerifySessionHidden } from "./public-session-visibility";
+import { resolvePublicShareFields } from "./public-share-fields";
 
 export type PublicVerifySessionDetails = {
+	organization_id: string;
 	organization_name: string;
 	organization_owner_id_check_completed: boolean;
 	/**
@@ -40,9 +42,16 @@ export type PublicVerifySessionDetails = {
 	organization_terms_of_service_url: string | null;
 	organization_website: string | null;
 	organization_description: string | null;
+	rp_fallback: {
+		appeal_url: string | null;
+		complaints_url: string | null;
+		fallback_idv_url: string | null;
+		support_email: string | null;
+	};
 	session_id: string;
 	is_age_only: boolean;
 	age_threshold: number | null;
+	share_fields: ShareFields;
 };
 
 function extractAgeThreshold(shareFields: ShareFields): number | null {
@@ -66,9 +75,9 @@ export async function getPublicVerifySessionDetails({
 	const [session] = await db
 		.select({
 			organizationName: auth_organizations.name,
-			organizationVerifiedAt: auth_organizations.verified_at,
+			organizationVerifiedAt: auth_organizations.owner_id_checked_at,
 			organizationLogo: auth_organizations.logo,
-			organizationBusinessType: auth_organizations.businessType,
+			organizationBusinessType: auth_organizations.business_type,
 			organizationBusinessName: auth_organizations.business_name,
 			organizationBusinessJurisdiction:
 				auth_organizations.business_jurisdiction,
@@ -118,8 +127,10 @@ export async function getPublicVerifySessionDetails({
 	);
 
 	const businessFieldsAllowed = verifiedApexDomains.length > 0;
+	const shareFields = resolvePublicShareFields(session.shareFields);
 
 	return {
+		organization_id: session.organizationId,
 		organization_name: session.organizationName,
 		organization_owner_id_check_completed:
 			session.organizationVerifiedAt !== null,
@@ -141,10 +152,15 @@ export async function getPublicVerifySessionDetails({
 		organization_terms_of_service_url: metadata?.termsOfServiceUrl ?? null,
 		organization_website: metadata?.website ?? null,
 		organization_description: metadata?.description ?? null,
+		rp_fallback: {
+			appeal_url: metadata?.appealUrl ?? null,
+			complaints_url: metadata?.complaintsUrl ?? null,
+			fallback_idv_url: metadata?.fallbackIdvUrl ?? null,
+			support_email: metadata?.supportEmail ?? null,
+		},
 		session_id: session.sessionId,
 		is_age_only: session.isAgeOnly,
-		age_threshold: session.isAgeOnly
-			? extractAgeThreshold(session.shareFields as ShareFields)
-			: null,
+		age_threshold: session.isAgeOnly ? extractAgeThreshold(shareFields) : null,
+		share_fields: shareFields,
 	};
 }

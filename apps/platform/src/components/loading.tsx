@@ -1,5 +1,5 @@
-import { Layout } from "@kayleai/ui/layout";
-import { Logo } from "@kayleai/ui/logo";
+import { Layout } from "@kayle-id/ui/components/layout";
+import { Logo } from "@kayle-id/ui/components/logo";
 
 function LoadingContent() {
 	return (
@@ -17,9 +17,6 @@ function LoadingContent() {
 	);
 }
 
-// `fullscreen` is for routes that render BEFORE the app/auth shell exists
-// (e.g. `_app.tsx` while auth is still resolving). Inside `_app` or `_auth`,
-// use the default — it fills the children container without overlaying the sidebar.
 export function Loading({ fullscreen = false }: { fullscreen?: boolean }) {
 	if (fullscreen) {
 		return (

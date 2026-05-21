@@ -6,8 +6,8 @@ import {
 } from "@/marketing/demo-document";
 
 const ATTEMPT_WEBHOOK_EVENT_TYPES = new Set([
-	"verification.attempt.failed",
-	"verification.attempt.succeeded",
+	"verification.session.failed",
+	"verification.session.succeeded",
 ]);
 
 export interface ProcessedWebhookState {
@@ -40,15 +40,10 @@ function getExpectedTerminalEventType(
 			return "verification.session.cancelled";
 		case "expired":
 			return "verification.session.expired";
-		case "completed":
-			switch (sessionStatus.latest_attempt?.status) {
-				case "failed":
-					return "verification.attempt.failed";
-				case "succeeded":
-					return "verification.attempt.succeeded";
-				default:
-					return null;
-			}
+		case "succeeded":
+			return "verification.session.succeeded";
+		case "failed":
+			return "verification.session.failed";
 		default:
 			return null;
 	}
@@ -89,15 +84,6 @@ export function isDemoRunSettled({
 		return false;
 	}
 
-	const latestAttemptId = sessionStatus.latest_attempt?.id;
-	if (
-		expectedEventType !== "verification.session.cancelled" &&
-		expectedEventType !== "verification.session.expired" &&
-		!latestAttemptId
-	) {
-		return false;
-	}
-
 	return webhooks.some((webhook) => {
 		if (webhook.event_type !== expectedEventType) {
 			return false;
@@ -111,18 +97,7 @@ export function isDemoRunSettled({
 			return false;
 		}
 
-		if (eventPreview.verificationSessionId !== sessionStatus.session_id) {
-			return false;
-		}
-
-		if (
-			expectedEventType === "verification.session.cancelled" ||
-			expectedEventType === "verification.session.expired"
-		) {
-			return true;
-		}
-
-		return eventPreview.verificationAttemptId === latestAttemptId;
+		return eventPreview.verificationSessionId === sessionStatus.session_id;
 	});
 }
 
@@ -147,7 +122,7 @@ export function buildDemoAttemptViews({
 		const eventPreview = buildDemoWebhookEventPreview(
 			processedWebhook.decryptedPayload,
 		);
-		const attemptId = eventPreview?.verificationAttemptId ?? receiptId;
+		const attemptId = eventPreview?.verificationSessionId ?? receiptId;
 
 		if (!attemptsById.has(attemptId)) {
 			orderedAttemptIds.push(attemptId);

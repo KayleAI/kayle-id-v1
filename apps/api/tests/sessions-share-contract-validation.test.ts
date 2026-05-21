@@ -141,6 +141,28 @@ describe("/v1/sessions share contract validation", () => {
 		expect(payload.error.code).toBe("UNKNOWN_CLAIM_KEY");
 	});
 
+	test.serial("document_photo is not a supported share field", async () => {
+		const response = await v1.request("/sessions", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				share_fields: {
+					document_photo: {
+						required: false,
+						reason: "Request the document portrait",
+					},
+				},
+			}),
+		});
+
+		expect(response.status).toBe(400);
+		const payload = (await response.json()) as { error: { code: string } };
+		expect(payload.error.code).toBe("UNKNOWN_CLAIM_KEY");
+	});
+
 	test.serial(
 		"Non-object share_fields returns INVALID_SHARE_FIELDS",
 		async () => {

@@ -1,13 +1,12 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
+import { Badge } from "@kayle-id/ui/components/badge";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/empty";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Loader2Icon, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { DeliveryStatus } from "@/app/webhooks/api";
@@ -15,10 +14,13 @@ import {
 	getResponseCodeClass,
 	getStatusBadgeClass,
 } from "@/app/webhooks/utils";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 export function StatusBadge({
+	className,
 	status,
 }: {
+	className?: string;
 	status: DeliveryStatus | "active" | "disabled" | "inactive";
 }) {
 	return (
@@ -26,11 +28,34 @@ export function StatusBadge({
 			className={cn(
 				"px-2.5 py-1 text-xs capitalize",
 				getStatusBadgeClass(status),
+				className,
 			)}
 			variant="outline"
 		>
 			{status.replace("_", " ")}
 		</Badge>
+	);
+}
+
+export function EndpointLabels({ labels }: { labels: string[] }) {
+	if (labels.length === 0) {
+		return <span className="text-muted-foreground text-xs">No labels</span>;
+	}
+
+	return (
+		<div className="flex flex-wrap gap-1.5">
+			{labels.map((label) => (
+				<Badge
+					className="border-border bg-muted/40 px-2 py-0.5 font-normal text-muted-foreground text-xs"
+					key={label}
+					variant="outline"
+				>
+					<span className="truncate max-w-24 text-ellipsis whitespace-nowrap -mr-2">
+						{label}
+					</span>
+				</Badge>
+			))}
+		</div>
 	);
 }
 
@@ -60,10 +85,6 @@ export interface AsyncToastMessages {
 	success: string;
 }
 
-export function getErrorMessage(error: unknown, fallback: string): string {
-	return error instanceof Error ? error.message : fallback;
-}
-
 export function showAsyncToast(
 	promise: Promise<void>,
 	messages: AsyncToastMessages,
@@ -73,27 +94,6 @@ export function showAsyncToast(
 		success: messages.success,
 		error: (error) => getErrorMessage(error, messages.error),
 	});
-}
-
-export function QueryErrorAlert({
-	error,
-	fallback,
-	title,
-}: {
-	error: unknown;
-	fallback: string;
-	title: string;
-}) {
-	if (!error) {
-		return null;
-	}
-
-	return (
-		<Alert variant="destructive">
-			<AlertTitle>{title}</AlertTitle>
-			<AlertDescription>{getErrorMessage(error, fallback)}</AlertDescription>
-		</Alert>
-	);
 }
 
 export function LoadingState({

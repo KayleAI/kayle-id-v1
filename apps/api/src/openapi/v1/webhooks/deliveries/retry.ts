@@ -19,7 +19,7 @@ export const retryWebhookDelivery = createRoute({
 	tags: ["Webhooks"],
 	summary: "Retry a webhook delivery",
 	description:
-		"Manually requeue a failed (or previously succeeded) webhook delivery for retry.",
+		"Manually requeue a failed webhook delivery while the encrypted payload is still retained.",
 	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
@@ -60,7 +60,7 @@ export const retryWebhookDelivery = createRoute({
 							error: {
 								code: "CONFLICT",
 								message: "Webhook delivery cannot be retried.",
-								hint: "The webhook delivery is already in progress.",
+								hint: "The webhook delivery is already in progress, or the encrypted payload has expired and cannot be replayed.",
 								docs: "https://kayle.id/docs/api/webhooks/deliveries#retry",
 							},
 						},

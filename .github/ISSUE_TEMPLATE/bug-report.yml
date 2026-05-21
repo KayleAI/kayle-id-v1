@@ -9,7 +9,7 @@ body:
       value: |
         Thanks for taking the time to file a bug. Please fill in every section — incomplete reports get tagged `needs-info` and are closed after 14 days of silence.
 
-        For security issues, **do not open a public issue.** Email `security@kayle.id` instead.
+        For security issues, **do not open a public issue or pull request.** Email `security@kayle.id` instead.
 
   - type: textarea
     id: summary
@@ -93,5 +93,5 @@ body:
       options:
         - label: I have searched [existing issues](https://github.com/KayleAI/kayle-id/issues) and confirmed this isn't a duplicate.
           required: true
-        - label: I am not reporting a security vulnerability (those go to security@kayle.id).
+        - label: I am not reporting a security vulnerability or proposed vulnerability fix (those go to security@kayle.id).
           required: true

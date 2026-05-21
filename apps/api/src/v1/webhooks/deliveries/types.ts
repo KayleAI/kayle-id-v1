@@ -32,9 +32,22 @@ export const WEBHOOK_DELIVERY_RETRY_SCHEDULE = [
 /** Total attempts = 1 initial + N retries from the schedule above. */
 export const MAX_DELIVERY_ATTEMPTS = 1 + WEBHOOK_DELIVERY_RETRY_SCHEDULE.length;
 
-export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
+export const WEBHOOK_AUTOMATIC_RETRY_WINDOW_MS =
+	5_000 +
+	5 * 60_000 +
+	30 * 60_000 +
+	2 * 60 * 60_000 +
+	5 * 60 * 60_000 +
+	10 * 60 * 60_000 +
+	10 * 60 * 60_000;
 
-export type VerificationAttemptFailedCode =
+export const WEBHOOK_PAYLOAD_EXPIRED_ERROR_CODE = "WEBHOOK_PAYLOAD_EXPIRED";
+
+export type DeliveryStatus = typeof webhook_deliveries.$inferSelect.status;
+export type DeliveryPayloadRetentionReason =
+	typeof webhook_deliveries.$inferSelect.payloadRetentionReason;
+
+export type VerificationSessionFailedCode =
 	| "document_anti_cloning_attestation_failed"
 	| "document_authenticity_failed"
 	| "document_active_authentication_failed"
@@ -43,34 +56,29 @@ export type VerificationAttemptFailedCode =
 	| "liveness_failed"
 	| "selfie_face_mismatch";
 
-export type VerificationAttemptMetadata = {
-	contract_version: number;
-	event_id: string;
-	verification_attempt_id: string;
-	verification_session_id: string;
-};
-
 export type VerificationSessionMetadata = {
 	contract_version: number;
 	event_id: string;
 	verification_session_id: string;
 };
 
-export type VerificationSucceededPayload = {
+export type VerificationSessionSucceededPayload = {
 	data: {
 		claims: VerifyShareManifest["claims"];
 		selected_field_keys: string[];
 	};
-	metadata: VerificationAttemptMetadata;
-	type: "verification.attempt.succeeded";
+	metadata: VerificationSessionMetadata;
+	type: "verification.session.succeeded";
 };
 
-export type VerificationAttemptFailedPayload = {
+export type VerificationSessionFailedPayload = {
 	data: {
-		failure_code: VerificationAttemptFailedCode;
+		failure_code: VerificationSessionFailedCode;
+		nfc_tries_used: number;
+		liveness_tries_used: number;
 	};
-	metadata: VerificationAttemptMetadata;
-	type: "verification.attempt.failed";
+	metadata: VerificationSessionMetadata;
+	type: "verification.session.failed";
 };
 
 export type VerificationSessionExpiredPayload = {
@@ -79,17 +87,30 @@ export type VerificationSessionExpiredPayload = {
 	type: "verification.session.expired";
 };
 
+export type VerificationSessionCancelledOutcome = "not_verified";
+
+export type VerificationSessionCancelledReason =
+	| "cancelled"
+	| "cancelled_after_failed_check"
+	| "privacy_cancelled_after_terminal_failure"
+	| "privacy_cancelled_after_terminal_success";
+
 export type VerificationSessionCancelledPayload = {
-	data: Record<string, never>;
+	data: {
+		outcome: VerificationSessionCancelledOutcome;
+		reason: VerificationSessionCancelledReason;
+		nfc_tries_used: number;
+		liveness_tries_used: number;
+	};
 	metadata: VerificationSessionMetadata;
 	type: "verification.session.cancelled";
 };
 
 export type WebhookPayload =
-	| VerificationAttemptFailedPayload
+	| VerificationSessionFailedPayload
 	| VerificationSessionCancelledPayload
 	| VerificationSessionExpiredPayload
-	| VerificationSucceededPayload;
+	| VerificationSessionSucceededPayload;
 
 export type DeliveryRowResponse = {
 	attempt_count: number;
@@ -99,6 +120,9 @@ export type DeliveryRowResponse = {
 	last_attempt_at: string | null;
 	last_status_code: number | null;
 	next_attempt_at: string | null;
+	payload_expires_at: string | null;
+	payload_retention_reason: DeliveryPayloadRetentionReason;
+	payload_scrubbed_at: string | null;
 	status: DeliveryStatus;
 	updated_at: string;
 	webhook_encryption_key_id: string | null;

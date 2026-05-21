@@ -1,7 +1,6 @@
 import type { CustomerApiKeyScope } from "@kayle-id/auth/permissions";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
-import { Checkbox } from "@kayleai/ui/checkbox";
+import { Button } from "@kayle-id/ui/components/button";
+import { Checkbox } from "@kayle-id/ui/components/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -9,12 +8,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Textarea } from "@kayleai/ui/textarea";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Textarea } from "@kayle-id/ui/components/textarea";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 import { useReducer, useState } from "react";
+import { FormErrorAlert } from "@/components/form-error-alert";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import {
 	API_KEYS_QUERY_KEY,
@@ -195,12 +197,9 @@ function ApiKeyFormView({
 				<DialogTitle>Create API Key</DialogTitle>
 			</DialogHeader>
 			<div className="space-y-4">
-				{state.status === "error" && state.errorMessage && (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{state.errorMessage}</AlertDescription>
-					</Alert>
-				)}
+				<FormErrorAlert
+					message={state.status === "error" ? (state.errorMessage ?? "") : ""}
+				/>
 				<div className="space-y-2">
 					<Label htmlFor="name">Name</Label>
 					<Input
@@ -316,10 +315,10 @@ export function CreateApiKey() {
 		} catch (err) {
 			dispatch({
 				type: "ERROR",
-				message:
-					err instanceof Error
-						? err.message
-						: "Failed to create API key. Please try again.",
+				message: getErrorMessage(
+					err,
+					"Failed to create API key. Please try again.",
+				),
 			});
 		}
 	};
@@ -341,7 +340,17 @@ export function CreateApiKey() {
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={isOpen}>
 			<DialogTrigger
-				render={<Button onClick={() => setIsOpen(true)}>Create API Key</Button>}
+				render={
+					<Button
+						aria-label="Create API key"
+						className="w-9 px-0 sm:w-auto sm:px-3"
+						onClick={() => setIsOpen(true)}
+						variant="outline"
+					>
+						<PlusIcon aria-hidden className="size-4" />
+						<span className="hidden sm:inline">Create API Key</span>
+					</Button>
+				}
 			/>
 			<DialogContent className="flex w-full max-w-lg! flex-col">
 				{state.status === "success" && state.apiKey ? (

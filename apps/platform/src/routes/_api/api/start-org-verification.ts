@@ -16,6 +16,7 @@ const PLATFORM_WORKER_NAME = "kayle-id-platform";
 const START_ORG_VERIFICATION_BODY_LIMIT_BYTES = 4 * 1024;
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
 const ORG_VERIFICATION_KV_PREFIX = "org-verify:";
+const ORG_VERIFICATION_RETURN_PATH = "/onboarding/owner-id";
 
 interface CheckMembershipResponse {
 	data: {
@@ -68,6 +69,12 @@ async function readJson(request: Request): Promise<{
 
 		return { organizationId: null };
 	}
+}
+
+export function buildOwnerVerificationRedirectUrl(
+	host = getPublicHost(),
+): string {
+	return new URL(ORG_VERIFICATION_RETURN_PATH, host).toString();
 }
 
 export const Route = createFileRoute("/_api/api/start-org-verification")({
@@ -159,10 +166,7 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 				// Only the three claims that feed the dedup hash are requested, all
 				// `required: true`. The owner can't decline them, and we don't ask
 				// for identity fields we won't use (name, DOB, etc.).
-				const redirectUrl = new URL(
-					"/organizations",
-					getPublicHost(),
-				).toString();
+				const redirectUrl = buildOwnerVerificationRedirectUrl();
 				const sessionResponse = await env.API.fetch("http://api/v1/sessions", {
 					method: "POST",
 					headers: {
@@ -203,7 +207,7 @@ export const Route = createFileRoute("/_api/api/start-org-verification")({
 				}
 
 				// 3. Stash the session_id → target_org_id mapping. The webhook handler
-				// reads this on `verification.attempt.succeeded` to know which org's
+				// reads this on `verification.session.succeeded` to know which org's
 				// `verified_at` to flip via the trust-token finalize endpoint. Store
 				// the initiating owner too so finalization can re-check ownership at
 				// webhook time instead of trusting a stale session start.

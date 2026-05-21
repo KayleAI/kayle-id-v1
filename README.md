@@ -16,7 +16,7 @@ Contributions are welcome and highly appreciated! However, please read the [CONT
 
 ## Security
 
-If you believe you have found a security vulnerability in Kayle ID, we encourage you to responsibly disclose this and NOT open a public issue by emailing [security@kayle.id](mailto:security@kayle.id).
+If you believe you have found a security vulnerability in Kayle ID, responsibly disclose it by emailing [security@kayle.id](mailto:security@kayle.id). Do not open a public issue or pull request.
 
 ## Data Processing
 

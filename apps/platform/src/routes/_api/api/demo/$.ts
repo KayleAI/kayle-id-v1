@@ -9,7 +9,7 @@ import {
 	createDemoSession,
 	createDemoWebhookEncryptionKey,
 	createDemoWebhookEndpoint,
-	disableDemoWebhookEndpoint,
+	deleteDemoWebhookEndpoint,
 	getDemoOrgSlug,
 	getPublicDemoSessionStatus,
 } from "@/demo/api";
@@ -172,7 +172,7 @@ async function handleCreateRun(request: Request): Promise<Response> {
 	} catch (error) {
 		if (endpointId) {
 			try {
-				await disableDemoWebhookEndpoint({
+				await deleteDemoWebhookEndpoint({
 					bindings: env,
 					endpointId,
 				});
@@ -227,6 +227,7 @@ async function handleCreateSession({
 	const session = await createDemoSession({
 		bindings: env,
 		shareFields: body.share_fields,
+		webhookEndpointId: run.endpoint_id,
 	});
 
 	await persistRunSession({

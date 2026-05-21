@@ -5,7 +5,7 @@ import {
 	readRequestJsonWithLimit,
 	readRequestTextWithLimit,
 } from "@kayle-id/config/request-body";
-import { disableDemoWebhookEndpoint } from "./api";
+import { deleteDemoWebhookEndpoint } from "./api";
 import type {
 	DemoRunRecord,
 	DemoSessionShareFields,
@@ -18,6 +18,7 @@ const ABANDONED_RUN_RETENTION_MS = 2 * 60 * 60 * 1000;
 const DEMO_MAILBOX_JSON_BODY_LIMIT_BYTES = 32 * 1024;
 const DEMO_RUN_RATE_LIMIT = 100;
 const DEMO_RUN_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const DEMO_ENDPOINT_CLEANUP_RETRY_MS = 5 * 60 * 1000;
 const DEMO_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 const TERMINAL_RUN_RETENTION_MS = 30 * 60 * 1000;
 const RATE_LIMIT_KEY = "demo-run-rate-limit";
@@ -174,12 +175,15 @@ export class DemoRunMailbox extends DurableObject<DemoRunMailboxEnv> {
 		}
 
 		try {
-			await disableDemoWebhookEndpoint({
+			await deleteDemoWebhookEndpoint({
 				bindings: this.env,
 				endpointId: record.endpoint_id,
 			});
 		} catch {
-			// The demo mailbox is ephemeral; failed cleanup should not keep the state alive.
+			await this.ctx.storage.setAlarm(
+				Date.now() + DEMO_ENDPOINT_CLEANUP_RETRY_MS,
+			);
+			return;
 		}
 
 		await this.ctx.storage.deleteAll();

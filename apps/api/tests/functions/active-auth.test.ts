@@ -472,11 +472,11 @@ describe("validateActiveAuthentication RSA (ISO/IEC 9796-2 DS1)", () => {
 describe("deriveActiveAuthChallenge", () => {
 	test("returns 8 deterministic bytes per (secret, attemptId) pair", async () => {
 		const first = await deriveActiveAuthChallenge({
-			attemptId: "att_123",
+			sessionId: "att_123",
 			authSecret: "test-secret",
 		});
 		const second = await deriveActiveAuthChallenge({
-			attemptId: "att_123",
+			sessionId: "att_123",
 			authSecret: "test-secret",
 		});
 
@@ -486,11 +486,11 @@ describe("deriveActiveAuthChallenge", () => {
 
 	test("differs across attemptIds", async () => {
 		const first = await deriveActiveAuthChallenge({
-			attemptId: "att_a",
+			sessionId: "att_a",
 			authSecret: "test-secret",
 		});
 		const second = await deriveActiveAuthChallenge({
-			attemptId: "att_b",
+			sessionId: "att_b",
 			authSecret: "test-secret",
 		});
 
@@ -499,11 +499,11 @@ describe("deriveActiveAuthChallenge", () => {
 
 	test("differs across secrets", async () => {
 		const first = await deriveActiveAuthChallenge({
-			attemptId: "att_same",
+			sessionId: "att_same",
 			authSecret: "secret-one",
 		});
 		const second = await deriveActiveAuthChallenge({
-			attemptId: "att_same",
+			sessionId: "att_same",
 			authSecret: "secret-two",
 		});
 

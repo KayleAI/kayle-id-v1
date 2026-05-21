@@ -1,6 +1,6 @@
-import { Button } from "@kayleai/ui/button";
-import { Logo } from "@kayleai/ui/logo";
-import { cn } from "@kayleai/ui/utils/cn";
+import { Button } from "@kayle-id/ui/components/button";
+import { Logo } from "@kayle-id/ui/components/logo";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import OctagonCheck from "./icons/octagon-check.tsx";
@@ -24,16 +24,7 @@ interface InfoCardProps {
     secondary?: ButtonAction;
   };
   children?: ReactNode;
-  colour: "red" | "blue" | "emerald";
-  /**
-   * Drops the min-height + flex-fill layout and renders the card at its
-   * natural content height. Defaults to `true` when no children are passed —
-   * a buttons-only card has nothing to grow into and should sit centered
-   * inside its parent rather than stretch to the viewport. Pass `false`
-   * explicitly when children should flex-fill the card body (e.g. a result
-   * panel that anchors buttons to the bottom of the viewport).
-   */
-  compact?: boolean;
+  colour: "red" | "blue" | "emerald" | "amber";
   footer?: boolean;
   header: {
     title: string;
@@ -52,6 +43,7 @@ const ICONS = {
   emerald: (
     <OctagonCheck className="size-5 text-emerald-800 dark:text-emerald-300" />
   ),
+  amber: <OctagonAlert className="size-5 text-amber-800 dark:text-amber-400" />,
 };
 
 const COLOUR_CLASSES = {
@@ -72,6 +64,12 @@ const COLOUR_CLASSES = {
       "bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900",
     title: "text-emerald-800 dark:text-emerald-200",
     description: "text-emerald-700 dark:text-emerald-300",
+  },
+  amber: {
+    container:
+      "bg-amber-50 border border-amber-200 dark:border-amber-500/30 dark:bg-amber-500/10",
+    title: "text-amber-800 dark:text-amber-100",
+    description: "text-amber-700 dark:text-amber-200/80",
   },
 };
 
@@ -101,21 +99,13 @@ export function InfoCard({
     },
   },
   footer = true,
-  compact,
   children,
 }: InfoCardProps) {
   const hasButtons = Boolean(buttons?.primary || buttons?.secondary);
-  const isCompact = compact ?? !children;
 
   return (
-    <div className="relative flex w-full flex-1 flex-col items-center justify-center">
-      <div
-        className={cn(
-          "w-full max-w-md space-y-8",
-          !isCompact &&
-            "flex min-h-[calc(100dvh_-_6rem)] flex-col [@media(min-height:800px)]:min-h-[44rem]"
-        )}
-      >
+    <div className="relative flex h-full w-full flex-col items-center justify-center">
+      <div className={cn("w-full max-w-md space-y-8")}>
         {/* Header */}
         <div>
           <div className="mb-8">
@@ -156,12 +146,9 @@ export function InfoCard({
           </div>
         </div>
 
-        {/* Children: in non-compact mode, wrap in a flex-1 fill so buttons stay at the bottom */}
-        {isCompact ? (
-          children
-        ) : (
+        {children ? (
           <div className="flex flex-1 flex-col justify-center">{children}</div>
-        )}
+        ) : null}
 
         {/* Action Buttons */}
         {hasButtons ? (

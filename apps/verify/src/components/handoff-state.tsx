@@ -1,6 +1,6 @@
+import { Button } from "@kayle-id/ui/components/button";
 import ArrowRotateCw from "@kayle-id/ui/icons/arrow-rotate-cw";
 import Spinner from "@kayle-id/ui/icons/spinner";
-import { Button } from "@kayleai/ui/button";
 import { QRCodeSVG } from "qrcode.react";
 import { useVerifyHandoffCopy } from "@/i18n/provider";
 

@@ -7,23 +7,23 @@ import {
 	encodeClientPhase,
 	encodeClientShareSelection,
 	encodeServerAck,
+	encodeServerCheckResult,
 	encodeServerError,
 	encodeServerShareReady,
 	encodeServerShareRequest,
-	encodeServerVerdict,
 } from "@kayle-id/capnp/verify-codec";
 
 describe("verify codec", () => {
 	test("round-trips hello payload", () => {
 		const bytes = encodeClientHello({
-			attemptId: "va_123",
+			sessionId: "vs_123",
 			mobileWriteToken: "token_123",
 			deviceId: "device_123",
 			appVersion: "verify-web",
 		});
 
 		const decoded = decodeClientMessage(bytes);
-		expect(decoded?.hello?.attemptId).toBe("va_123");
+		expect(decoded?.hello?.sessionId).toBe("vs_123");
 		expect(decoded?.hello?.mobileWriteToken).toBe("token_123");
 		expect(decoded?.hello?.deviceId).toBe("device_123");
 		expect(decoded?.hello?.appVersion).toBe("verify-web");
@@ -60,7 +60,7 @@ describe("verify codec", () => {
 		});
 	});
 
-	test("round-trips server ack, error, verdict, share request, and share ready payloads", () => {
+	test("round-trips server ack, error, checkResult, share request, and share ready payloads", () => {
 		const ackBytes = encodeServerAck("hello_ok");
 		const decodedAck = decodeServerMessage(ackBytes);
 		expect(decodedAck?.ack?.message).toBe("hello_ok");
@@ -73,20 +73,24 @@ describe("verify codec", () => {
 		expect(decodedError?.error?.code).toBe("HELLO_AUTH_REQUIRED");
 		expect(decodedError?.error?.message).toBe("Hello authentication required.");
 
-		const verdictBytes = encodeServerVerdict({
-			outcome: "rejected",
+		const checkResultBytes = encodeServerCheckResult({
+			outcome: "not_confirmed",
 			reasonCode: "selfie_face_mismatch",
 			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
-			remainingAttempts: 2,
+			failedCheck: "liveness",
+			remainingNfcRetries: 3,
+			remainingLivenessRetries: 2,
 		});
-		const decodedVerdict = decodeServerMessage(verdictBytes);
-		expect(decodedVerdict?.verdict).toEqual({
-			outcome: "rejected",
+		const decodedCheckResult = decodeServerMessage(checkResultBytes);
+		expect(decodedCheckResult?.checkResult).toEqual({
+			outcome: "not_confirmed",
 			reasonCode: "selfie_face_mismatch",
 			reasonMessage: "Selfie does not match the document photo.",
 			retryAllowed: true,
-			remainingAttempts: 2,
+			failedCheck: "liveness",
+			remainingNfcRetries: 3,
+			remainingLivenessRetries: 2,
 		});
 
 		const shareRequestBytes = encodeServerShareRequest({

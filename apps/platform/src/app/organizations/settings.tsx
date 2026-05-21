@@ -1,6 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -10,38 +9,46 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Button } from "@kayleai/ui/button";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Skeleton } from "@kayleai/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@kayleai/ui/tooltip";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+} from "@kayle-id/ui/components/card";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@kayle-id/ui/components/tooltip";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	cancelOrganizationDeletion,
 	confirmOrganizationDeletion,
 	type FullOrganization,
-	fetchFullOrganization,
 	leaveOrganization,
 	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
 	requestOrganizationDeletion,
 	updateOrganization,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
-import { StartVerificationDialog } from "./start-verification-dialog";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 function SettingsSkeleton() {
 	return (
@@ -68,9 +75,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update slug",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update slug"));
 		},
 	});
 
@@ -99,12 +104,7 @@ function SlugCard({ organization }: { organization: FullOrganization }) {
 				<CardDescription>The unique identifier used in URLs.</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} />
 				<div className="space-y-2">
 					<Label htmlFor="slug">Slug</Label>
 					<Input
@@ -154,12 +154,10 @@ function LeaveCard({
 			await queryClient.invalidateQueries({ queryKey: ORGANIZATION_QUERY_KEY });
 			await refresh();
 			toast.success("You have left the organization");
-			navigate({ to: "/organizations/select" });
+			navigate({ to: "/select-organization" });
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to leave organization",
-			);
+			toast.error(getErrorMessage(err, "Failed to leave organization"));
 			setOpen(false);
 		},
 	});
@@ -259,7 +257,6 @@ function VerificationCard({
 	canStartVerification: boolean;
 	organization: FullOrganization;
 }) {
-	const [dialogOpen, setDialogOpen] = useState(false);
 	const isVerified = organization.verifiedAt !== null;
 
 	return (
@@ -268,8 +265,7 @@ function VerificationCard({
 				<CardTitle>Verification</CardTitle>
 				{!isVerified ? (
 					<CardDescription>
-						Verifying lifts the unverified-org rate limit and removes the
-						warning shown to your end-users.
+						The owner identity check is part of organization onboarding.
 					</CardDescription>
 				) : null}
 			</CardHeader>
@@ -289,24 +285,17 @@ function VerificationCard({
 					<div className="flex items-center justify-between gap-4">
 						<p className="text-muted-foreground text-sm">
 							{canStartVerification
-								? "You'll be redirected to complete a one-time identity check."
-								: "Only an owner can start the verification flow."}
+								? "Finish onboarding to complete the owner identity check."
+								: "Only an owner can complete the owner identity check."}
 						</p>
 						{canStartVerification ? (
-							<Button onClick={() => setDialogOpen(true)} type="button">
-								Start verification
-							</Button>
+							<Link to="/onboarding">
+								<Button type="button">Continue onboarding</Button>
+							</Link>
 						) : null}
 					</div>
 				)}
 			</CardContent>
-			{!isVerified && canStartVerification ? (
-				<StartVerificationDialog
-					onOpenChange={setDialogOpen}
-					open={dialogOpen}
-					organization={organization}
-				/>
-			) : null}
 		</Card>
 	);
 }
@@ -327,9 +316,7 @@ function PendingDeletionCard({
 			toast.success("Deletion canceled");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to cancel deletion",
-			);
+			toast.error(getErrorMessage(err, "Failed to cancel deletion"));
 		},
 	});
 
@@ -384,9 +371,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 			toast.success("Confirmation code sent. Check your email.");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to send confirmation code",
-			);
+			toast.error(getErrorMessage(err, "Failed to send confirmation code"));
 			setOpen(false);
 		},
 	});
@@ -402,9 +387,7 @@ function DeleteCard({ organization }: { organization: FullOrganization }) {
 			setCode("");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to confirm deletion",
-			);
+			toast.error(getErrorMessage(err, "Failed to confirm deletion"));
 		},
 	});
 
@@ -555,15 +538,8 @@ function hasOwnerRole(role: string | undefined): boolean {
 }
 
 export function OrganizationSettingsPage() {
-	const { user } = useAuth();
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = data?.members.find((member) => member.userId === user?.id)
-		?.role as OrganizationRole | undefined;
+	const { data, isLoading, isError, error } = useOrganizationQuery();
+	const currentRole = useCurrentMemberRole();
 	const canEditSlug = currentRole === "owner" || currentRole === "admin";
 	const canScheduleDeletion = currentRole === "owner";
 	const canCancelDeletion = currentRole === "owner" || currentRole === "admin";
@@ -574,20 +550,12 @@ export function OrganizationSettingsPage() {
 	const isLastOwner = isCurrentUserOwner && ownerCount <= 1;
 
 	return (
-		<OrganizationPageLayout
-			description="Internal organization settings."
-			title="Settings"
-		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load settings</AlertTitle>
-					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading settings."}
-					</AlertDescription>
-				</Alert>
-			) : null}
+		<OrganizationPageLayout title="Settings">
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading settings."
+				title="Failed to load settings"
+			/>
 			{isLoading ? <SettingsSkeleton /> : null}
 			{data && !isError ? (
 				<SettingsBody

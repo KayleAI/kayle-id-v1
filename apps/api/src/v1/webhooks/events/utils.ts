@@ -11,6 +11,17 @@ function mapWebhookEventDelivery(delivery: {
 	id: string;
 	last_attempt_at: Date | null;
 	last_status_code: number | null;
+	payload_expires_at: Date | null;
+	payload_retention_reason:
+		| "delivered"
+		| "expired"
+		| "jwe_creation_failed"
+		| "no_active_key"
+		| "pending_delivery"
+		| "privacy_request"
+		| "terminal_failure_retention"
+		| null;
+	payload_scrubbed_at: Date | null;
 	status: "delivering" | "failed" | "pending" | "succeeded";
 	webhook_endpoint_id: string;
 }): WebhookEventResponse["deliveries"][number] {
@@ -19,6 +30,9 @@ function mapWebhookEventDelivery(delivery: {
 		id: delivery.id,
 		last_attempt_at: delivery.last_attempt_at?.toISOString() ?? null,
 		last_status_code: delivery.last_status_code,
+		payload_expires_at: delivery.payload_expires_at?.toISOString() ?? null,
+		payload_retention_reason: delivery.payload_retention_reason,
+		payload_scrubbed_at: delivery.payload_scrubbed_at?.toISOString() ?? null,
 		status: delivery.status,
 		webhook_endpoint_id: delivery.webhook_endpoint_id,
 	};
@@ -55,6 +69,9 @@ export async function getWebhookEventForOrganization({
 			id: webhook_deliveries.id,
 			last_attempt_at: webhook_deliveries.lastAttemptAt,
 			last_status_code: webhook_deliveries.lastStatusCode,
+			payload_expires_at: webhook_deliveries.payloadExpiresAt,
+			payload_retention_reason: webhook_deliveries.payloadRetentionReason,
+			payload_scrubbed_at: webhook_deliveries.payloadScrubbedAt,
 			status: webhook_deliveries.status,
 			webhook_endpoint_id: webhook_deliveries.webhookEndpointId,
 		})

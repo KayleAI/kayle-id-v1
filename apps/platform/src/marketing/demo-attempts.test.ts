@@ -4,13 +4,13 @@ import { buildDemoAttemptViews, isDemoRunSettled } from "./demo-attempts";
 
 function createWebhook({
 	deliveryId,
-	eventType = "verification.attempt.failed",
+	eventType = "verification.session.failed",
 	receivedAt,
 }: {
 	deliveryId: string;
 	eventType?:
-		| "verification.attempt.failed"
-		| "verification.attempt.succeeded"
+		| "verification.session.failed"
+		| "verification.session.succeeded"
 		| "verification.session.cancelled"
 		| "verification.session.expired";
 	receivedAt: string;
@@ -24,75 +24,59 @@ function createWebhook({
 	} as const;
 }
 
-test("buildDemoAttemptViews keeps attempts ordered while deduplicating redeliveries", () => {
-	const firstAttempt = createWebhook({
-		deliveryId: "whd_attempt_1_first",
+test("buildDemoAttemptViews dedupes redeliveries of the same session-terminal event", () => {
+	const firstDelivery = createWebhook({
+		deliveryId: "whd_session_first",
+		eventType: "verification.session.succeeded",
 		receivedAt: "2026-04-19T10:00:00.000Z",
 	});
-	const firstAttemptRedelivery = createWebhook({
-		deliveryId: "whd_attempt_1_second",
+	const redelivery = createWebhook({
+		deliveryId: "whd_session_second",
+		eventType: "verification.session.succeeded",
 		receivedAt: "2026-04-19T10:00:05.000Z",
 	});
-	const secondAttempt = createWebhook({
-		deliveryId: "whd_attempt_2",
-		eventType: "verification.attempt.succeeded",
-		receivedAt: "2026-04-19T10:03:00.000Z",
-	});
 
-	const attempts = buildDemoAttemptViews({
+	const views = buildDemoAttemptViews({
 		processedWebhooks: {
-			[getDemoWebhookReceiptId(firstAttempt)]: {
+			[getDemoWebhookReceiptId(firstDelivery)]: {
 				decryptedPayload: JSON.stringify({
-					type: "verification.attempt.failed",
-					data: {
-						failure_code: "selfie_mismatch",
-					},
-					metadata: {
-						verification_attempt_id: "va_1",
-					},
-				}),
-				error: null,
-				status: "decrypted",
-			},
-			[getDemoWebhookReceiptId(firstAttemptRedelivery)]: {
-				decryptedPayload: JSON.stringify({
-					type: "verification.attempt.failed",
-					data: {
-						failure_code: "selfie_mismatch",
-					},
-					metadata: {
-						verification_attempt_id: "va_1",
-					},
-				}),
-				error: null,
-				status: "decrypted",
-			},
-			[getDemoWebhookReceiptId(secondAttempt)]: {
-				decryptedPayload: JSON.stringify({
-					type: "verification.attempt.succeeded",
+					type: "verification.session.succeeded",
 					data: {
 						claims: {
 							family_name: "DOE",
 						},
 					},
 					metadata: {
-						verification_attempt_id: "va_2",
+						verification_session_id: "vs_demo_test",
+					},
+				}),
+				error: null,
+				status: "decrypted",
+			},
+			[getDemoWebhookReceiptId(redelivery)]: {
+				decryptedPayload: JSON.stringify({
+					type: "verification.session.succeeded",
+					data: {
+						claims: {
+							family_name: "DOE",
+						},
+					},
+					metadata: {
+						verification_session_id: "vs_demo_test",
 					},
 				}),
 				error: null,
 				status: "decrypted",
 			},
 		},
-		webhooks: [firstAttempt, firstAttemptRedelivery, secondAttempt],
+		webhooks: [firstDelivery, redelivery],
 	});
 
-	expect(attempts).toHaveLength(2);
-	expect(attempts.map((attempt) => attempt.id)).toEqual(["va_1", "va_2"]);
-	expect(attempts[0]?.receiptId).toBe(
-		getDemoWebhookReceiptId(firstAttemptRedelivery),
-	);
-	expect(attempts[1]?.eventPreview?.eventType).toBe(
-		"verification.attempt.succeeded",
+	expect(views).toHaveLength(1);
+	expect(views[0]?.id).toBe("vs_demo_test");
+	expect(views[0]?.receiptId).toBe(getDemoWebhookReceiptId(redelivery));
+	expect(views[0]?.eventPreview?.eventType).toBe(
+		"verification.session.succeeded",
 	);
 });
 
@@ -125,21 +109,16 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
 	});
 	const secondAttempt = createWebhook({
 		deliveryId: "whd_attempt_2",
-		eventType: "verification.attempt.succeeded",
+		eventType: "verification.session.succeeded",
 		receivedAt: "2026-04-19T10:03:00.000Z",
 	});
 	const sessionStatus = {
 		completed_at: "2026-04-19T10:03:00.000Z",
+		failure_code: null,
 		is_terminal: true,
-		latest_attempt: {
-			completed_at: "2026-04-19T10:03:00.000Z",
-			failure_code: null,
-			id: "va_2",
-			status: "succeeded" as const,
-		},
 		redirect_url: null,
 		session_id: "vs_demo_test",
-		status: "completed" as const,
+		status: "succeeded" as const,
 	};
 
 	expect(
@@ -147,7 +126,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
 			processedWebhooks: {
 				[getDemoWebhookReceiptId(firstAttempt)]: {
 					decryptedPayload: JSON.stringify({
-						type: "verification.attempt.failed",
+						type: "verification.session.failed",
 						data: {
 							failure_code: "selfie_mismatch",
 						},
@@ -170,7 +149,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
 			processedWebhooks: {
 				[getDemoWebhookReceiptId(firstAttempt)]: {
 					decryptedPayload: JSON.stringify({
-						type: "verification.attempt.failed",
+						type: "verification.session.failed",
 						data: {
 							failure_code: "selfie_mismatch",
 						},
@@ -184,7 +163,7 @@ test("isDemoRunSettled waits for the terminal webhook of the latest attempt", ()
 				},
 				[getDemoWebhookReceiptId(secondAttempt)]: {
 					decryptedPayload: JSON.stringify({
-						type: "verification.attempt.succeeded",
+						type: "verification.session.succeeded",
 						data: {
 							claims: {
 								family_name: "DOE",
@@ -213,13 +192,8 @@ test("isDemoRunSettled requires a decrypted session-terminal webhook for cancell
 	});
 	const cancelledStatus = {
 		completed_at: "2026-04-19T10:05:00.000Z",
+		failure_code: null,
 		is_terminal: true,
-		latest_attempt: {
-			completed_at: "2026-04-19T10:05:00.000Z",
-			failure_code: null,
-			id: "va_terminal",
-			status: "cancelled" as const,
-		},
 		redirect_url: null,
 		session_id: "vs_demo_test",
 		status: "cancelled" as const,

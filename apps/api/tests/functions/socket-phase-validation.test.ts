@@ -78,15 +78,15 @@ function buildPhaseContextWithTransfer(
 	configure?.(transfer);
 	return {
 		state: {
-			acceptedFaceScore: null,
-			attemptId: "att_test",
+			confirmedFaceScore: null,
+			sessionId: "vs_test",
 			currentPhase: null,
 			helloReceived: true,
 			shareManifest: null,
 			shareRequestSent: false,
 			transfer,
 		},
-	} as VerifySocketContext;
+	} as unknown as VerifySocketContext;
 }
 
 test("liveness_complete with empty NFC reports NFC missing", () => {

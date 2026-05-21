@@ -1,37 +1,92 @@
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
-	CopyIcon,
-	EyeIcon,
-	KeyRoundIcon,
-	Loader2Icon,
-	RefreshCwIcon,
-} from "lucide-react";
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@kayle-id/ui/components/table";
+import { cn } from "@kayle-id/ui/lib/utils";
+import { CopyIcon, EyeIcon, Loader2Icon, RefreshCwIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { WebhookEncryptionKey, WebhookEndpoint } from "@/app/webhooks/api";
 import {
 	type DeliveryTrendPoint,
-	type EndpointDeliveryStats,
 	formatCount,
-	getEndpointDisplayName,
 	getEventSubscriptionSummary,
 } from "@/app/webhooks/utils";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import { useCopyToClipboard } from "@/utils/use-copy";
 import { CreateKeyDialog } from "../keys/create-dialog";
 import {
+	EndpointLabels,
 	LoadingState,
-	QueryErrorAlert,
-	ResponseCodeBadge,
 	StatusBadge,
 	showAsyncToast,
 } from "../shared";
 
+function getDeliveryChartAxisMax(trendPoints: DeliveryTrendPoint[]): number {
+	const maxValue = Math.max(
+		1,
+		...trendPoints.map((point) => Math.max(point.total, point.failed)),
+	);
+
+	if (maxValue <= 8) {
+		return maxValue;
+	}
+
+	const step = Math.ceil(maxValue / 4);
+	return step * 4;
+}
+
+function getDeliveryChartTicks(axisMax: number): number[] {
+	if (axisMax <= 8) {
+		return Array.from({ length: axisMax + 1 }, (_, index) => index);
+	}
+
+	const step = axisMax / 4;
+	return Array.from({ length: 5 }, (_, index) => Math.round(step * index));
+}
+
+function getDeliveryChartX(index: number, totalPoints: number): number {
+	if (totalPoints <= 1) {
+		return 50;
+	}
+
+	return (index / (totalPoints - 1)) * 100;
+}
+
+function getDeliveryChartY(value: number, axisMax: number): number {
+	return 100 - (value / axisMax) * 100;
+}
+
+function getDeliveryChartPoints({
+	axisMax,
+	key,
+	trendPoints,
+}: {
+	axisMax: number;
+	key: "failed" | "total";
+	trendPoints: DeliveryTrendPoint[];
+}): string {
+	return trendPoints
+		.map((point, index) => {
+			const x = getDeliveryChartX(index, trendPoints.length);
+			const y = getDeliveryChartY(point[key], axisMax);
+			return `${x},${y}`;
+		})
+		.join(" ");
+}
+
+const DETAIL_ROW_CLASS_NAME =
+	"grid gap-2 px-4 py-2.5 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3";
+
 export function EndpointPerformancePanel({
-	endpointDeliveryStats,
 	isDeliveriesLoading,
 	trendPoints,
 }: {
-	endpointDeliveryStats: EndpointDeliveryStats;
 	isDeliveriesLoading: boolean;
 	trendPoints: DeliveryTrendPoint[];
 }) {
@@ -46,114 +101,109 @@ export function EndpointPerformancePanel({
 		);
 	}
 
-	const maxValue = Math.max(
-		1,
-		...trendPoints.map((point) => Math.max(point.total, point.failed)),
-	);
-	const succeededCount = Math.max(
-		endpointDeliveryStats.total -
-			endpointDeliveryStats.failed -
-			endpointDeliveryStats.inFlight,
+	const axisMax = getDeliveryChartAxisMax(trendPoints);
+	const axisTicks = getDeliveryChartTicks(axisMax);
+	const totalLinePoints = getDeliveryChartPoints({
+		axisMax,
+		key: "total",
+		trendPoints,
+	});
+	const failedLinePoints = getDeliveryChartPoints({
+		axisMax,
+		key: "failed",
+		trendPoints,
+	});
+	const plottedTotal = trendPoints.reduce((sum, point) => sum + point.total, 0);
+	const plottedFailed = trendPoints.reduce(
+		(sum, point) => sum + point.failed,
 		0,
 	);
+	const xAxisColumnCount = Math.max(trendPoints.length, 1);
 
 	return (
-		<div className="overflow-hidden rounded-md border border-border/70">
-			<div className="flex items-start justify-between gap-4 border-border/70 border-b px-4 py-4">
-				<div className="space-y-1">
-					<h2 className="font-medium text-sm">Performance</h2>
-					<p className="text-muted-foreground text-sm">
-						Delivery activity over the last 7 days.
-					</p>
-				</div>
-				<span className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
-					Last 7 days
-				</span>
-			</div>
-
-			<div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_18rem]">
-				<div className="space-y-4 border-border/70 p-4 xl:border-r">
-					<div className="flex flex-wrap gap-4 text-xs">
+		<div className="min-w-0 overflow-hidden rounded-md border border-border/70">
+			<div className="space-y-5 px-4 py-5">
+				<div className="space-y-3">
+					<h3 className="font-medium text-sm">Event deliveries</h3>
+					<div className="flex flex-wrap gap-5 text-sm">
 						<div className="flex items-center gap-2">
-							<span className="size-2 rounded-full bg-foreground/35" />
-							Total
+							<span className="h-1 w-4 rotate-[-10deg] rounded-full bg-violet-500" />
+							<span>Total {formatCount(plottedTotal)}</span>
 						</div>
 						<div className="flex items-center gap-2">
-							<span className="size-2 rounded-full bg-red-500/40" />
-							Failed
+							<span className="h-1 w-4 rotate-[-10deg] rounded-full bg-rose-500" />
+							<span>Failed {formatCount(plottedFailed)}</span>
 						</div>
 					</div>
+				</div>
 
-					<div className="flex h-44 items-end gap-3">
-						{trendPoints.map((point) => (
+				<div className="space-y-3">
+					<div className="relative h-56 pr-8">
+						<svg
+							aria-label="Event deliveries for this endpoint this week"
+							className="absolute inset-y-0 left-0 right-8 h-full w-[calc(100%-2rem)] overflow-visible"
+							preserveAspectRatio="none"
+							role="img"
+							viewBox="0 0 100 100"
+						>
+							{axisTicks.map((tick) => {
+								const y = getDeliveryChartY(tick, axisMax);
+
+								return (
+									<line
+										className="stroke-border/80"
+										key={tick}
+										vectorEffect="non-scaling-stroke"
+										x1="0"
+										x2="100"
+										y1={y}
+										y2={y}
+									/>
+								);
+							})}
+							<polyline
+								className="fill-none stroke-violet-500"
+								points={totalLinePoints}
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth="2.5"
+								vectorEffect="non-scaling-stroke"
+							/>
+							<polyline
+								className="fill-none stroke-rose-500"
+								points={failedLinePoints}
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth="2.5"
+								vectorEffect="non-scaling-stroke"
+							/>
+						</svg>
+
+						{axisTicks.map((tick) => (
 							<div
-								className="flex min-w-0 flex-1 flex-col items-center gap-2"
-								key={point.label}
+								className="-translate-y-1/2 absolute right-0 text-muted-foreground text-xs tabular-nums"
+								key={tick}
+								style={{ top: `${getDeliveryChartY(tick, axisMax)}%` }}
 							>
-								<div className="flex h-32 w-full items-end justify-center gap-1">
-									<div
-										className="w-full max-w-3 rounded-sm bg-foreground/15"
-										style={{
-											height:
-												point.total > 0
-													? `${Math.max((point.total / maxValue) * 100, 8)}%`
-													: "0%",
-										}}
-									/>
-									<div
-										className="w-full max-w-3 rounded-sm bg-red-500/30"
-										style={{
-											height:
-												point.failed > 0
-													? `${Math.max((point.failed / maxValue) * 100, 8)}%`
-													: "0%",
-										}}
-									/>
-								</div>
-								<div className="text-[11px] text-muted-foreground tabular-nums">
-									{point.label}
-								</div>
+								{formatCount(tick)}
 							</div>
 						))}
 					</div>
-				</div>
-
-				<div className="space-y-4 px-4 py-4">
-					<h3 className="font-medium text-sm">Delivery overview</h3>
-					<dl className="space-y-3 text-sm">
-						<div className="flex items-center justify-between gap-4">
-							<dt className="text-muted-foreground">Total deliveries</dt>
-							<dd className="font-medium tabular-nums">
-								{formatCount(endpointDeliveryStats.total)}
-							</dd>
-						</div>
-						<div className="flex items-center justify-between gap-4">
-							<dt className="text-muted-foreground">Succeeded</dt>
-							<dd className="font-medium tabular-nums">
-								{formatCount(succeededCount)}
-							</dd>
-						</div>
-						<div className="flex items-center justify-between gap-4">
-							<dt className="text-muted-foreground">Failed</dt>
-							<dd className="font-medium tabular-nums">
-								{formatCount(endpointDeliveryStats.failed)}
-							</dd>
-						</div>
-						<div className="flex items-center justify-between gap-4">
-							<dt className="text-muted-foreground">In flight</dt>
-							<dd className="font-medium tabular-nums">
-								{formatCount(endpointDeliveryStats.inFlight)}
-							</dd>
-						</div>
-						<div className="flex items-center justify-between gap-4">
-							<dt className="text-muted-foreground">Last response</dt>
-							<dd>
-								<ResponseCodeBadge
-									statusCode={endpointDeliveryStats.lastStatusCode}
-								/>
-							</dd>
-						</div>
-					</dl>
+					<div
+						className="grid pr-8"
+						style={{
+							gridTemplateColumns: `repeat(${xAxisColumnCount}, minmax(0, 1fr))`,
+						}}
+					>
+						{trendPoints.map((point) => (
+							<div
+								className="text-center text-muted-foreground text-xs tabular-nums"
+								key={point.label}
+							>
+								{point.label}
+							</div>
+						))}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -161,181 +211,149 @@ export function EndpointPerformancePanel({
 }
 
 export function EndpointDetailsPanel({
+	action,
 	endpoint,
+	isSecretRevealing,
+	isSecretRotating,
+	onRevealSecret,
+	onRotateSecret,
+	secret,
 }: {
+	action?: ReactNode;
 	endpoint: WebhookEndpoint;
+	isSecretRevealing: boolean;
+	isSecretRotating: boolean;
+	onRevealSecret: () => Promise<void>;
+	onRotateSecret: () => Promise<void>;
+	secret: string | null;
 }) {
+	const endpointName = endpoint.name?.trim();
+	const isSecretVisible = Boolean(secret);
+	const { copied, copy } = useCopyToClipboard();
+
 	return (
-		<div className="overflow-hidden rounded-md border border-border/70">
-			<div className="border-border/70 border-b px-4 py-3">
+		<div className="min-w-0 overflow-hidden rounded-md border border-border/70">
+			<div className="flex items-center justify-between gap-3 border-border/70 border-b px-4 py-3">
 				<h2 className="font-medium text-sm">Destination details</h2>
+				{action}
 			</div>
 
 			<dl className="divide-y divide-border/70 text-sm">
-				<div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
+				<div className={DETAIL_ROW_CLASS_NAME}>
 					<dt className="text-muted-foreground">Destination ID</dt>
 					<dd className="break-all font-mono text-xs">{endpoint.id}</dd>
 				</div>
-				<div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
+				<div className={DETAIL_ROW_CLASS_NAME}>
 					<dt className="text-muted-foreground">Name</dt>
-					<dd className="min-w-0">{getEndpointDisplayName(endpoint)}</dd>
+					<dd className="min-w-0">{endpointName || "Not set"}</dd>
 				</div>
-				<div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
+				<div className={DETAIL_ROW_CLASS_NAME}>
+					<dt className="text-muted-foreground">Status</dt>
+					<dd className="min-w-0">
+						<StatusBadge status={endpoint.enabled ? "active" : "disabled"} />
+					</dd>
+				</div>
+				<div className={DETAIL_ROW_CLASS_NAME}>
+					<dt className="text-muted-foreground">Labels</dt>
+					<dd className="min-w-0">
+						<EndpointLabels labels={endpoint.labels} />
+					</dd>
+				</div>
+				<div className={DETAIL_ROW_CLASS_NAME}>
 					<dt className="text-muted-foreground">Endpoint URL</dt>
 					<dd className="break-all">{endpoint.url}</dd>
 				</div>
-				<div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
+				<div className={DETAIL_ROW_CLASS_NAME}>
 					<dt className="text-muted-foreground">Listening to</dt>
 					<dd className="min-w-0">
 						{getEventSubscriptionSummary(endpoint.subscribed_event_types)}
 					</dd>
 				</div>
+				<div className={DETAIL_ROW_CLASS_NAME}>
+					<dt className="text-muted-foreground">Replay window</dt>
+					<dd className="min-w-0">
+						{endpoint.undelivered_payload_retention_hours === 0
+							? "Do not retain after final failure"
+							: `${endpoint.undelivered_payload_retention_hours} hours after final failure`}
+					</dd>
+				</div>
+				<div className={cn(DETAIL_ROW_CLASS_NAME, "items-center")}>
+					<dt className="text-muted-foreground">Signing secret</dt>
+					<dd className="min-w-0">
+						<div className="flex min-h-8 min-w-0 items-center gap-2 overflow-hidden rounded-md border border-border/70 bg-muted/20 px-3 py-0.5">
+							<div className="min-w-0 flex-1 truncate font-mono text-foreground/90 text-xs">
+								{secret ?? `whsec_${".".repeat(32)}`}
+							</div>
+							<div className="flex items-center gap-1">
+								{secret ? (
+									<Button
+										aria-label={
+											copied ? "Signing secret copied" : "Copy signing secret"
+										}
+										onClick={() => {
+											copy(secret);
+										}}
+										size="icon"
+										type="button"
+										variant="ghost"
+									>
+										<CopyIcon className="size-4" />
+									</Button>
+								) : null}
+								<Button
+									aria-label={
+										isSecretVisible
+											? "Hide signing secret"
+											: "Reveal signing secret"
+									}
+									disabled={isSecretRevealing}
+									onClick={() => {
+										if (isSecretVisible) {
+											void onRevealSecret();
+											return;
+										}
+
+										showAsyncToast(onRevealSecret(), {
+											loading: "Revealing signing secret...",
+											success: "Signing secret revealed",
+											error: "Failed to reveal signing secret",
+										});
+									}}
+									size="icon"
+									type="button"
+									variant="ghost"
+								>
+									{isSecretRevealing ? (
+										<Loader2Icon className="size-4 animate-spin" />
+									) : (
+										<EyeIcon className="size-4" />
+									)}
+								</Button>
+								<Button
+									aria-label="Rotate signing secret"
+									disabled={isSecretRotating}
+									onClick={() =>
+										showAsyncToast(onRotateSecret(), {
+											loading: "Rotating signing secret...",
+											success: "Signing secret rotated",
+											error: "Failed to rotate signing secret",
+										})
+									}
+									size="icon"
+									type="button"
+									variant="ghost"
+								>
+									{isSecretRotating ? (
+										<Loader2Icon className="size-4 animate-spin" />
+									) : (
+										<RefreshCwIcon className="size-4" />
+									)}
+								</Button>
+							</div>
+						</div>
+					</dd>
+				</div>
 			</dl>
-		</div>
-	);
-}
-
-export function EndpointSigningSecretCard({
-	secret,
-	isRevealing,
-	isRotating,
-	onRevealSecret,
-	onRotateSecret,
-}: {
-	secret: string | null;
-	isRevealing: boolean;
-	isRotating: boolean;
-	onRevealSecret: () => Promise<void>;
-	onRotateSecret: () => Promise<void>;
-}) {
-	const isSecretVisible = Boolean(secret);
-	const { copied, copy } = useCopyToClipboard();
-
-	return (
-		<div className="overflow-hidden rounded-md border border-border/70">
-			<div className="space-y-4 px-4 py-4">
-				<div className="space-y-2">
-					<div className="flex items-center gap-2 font-medium text-sm">
-						<KeyRoundIcon className="size-4 text-muted-foreground" />
-						Signing secret
-					</div>
-					<p className="text-muted-foreground text-sm leading-6">
-						Use this secret to verify that deliveries came from Kayle ID. Reveal
-						it temporarily or rotate it if you need to replace it.
-					</p>
-				</div>
-
-				<div className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-4 py-3">
-					<div className="min-w-0 flex-1 truncate font-mono text-foreground/90 text-sm">
-						{secret ?? `whsec_${".".repeat(32)}`}
-					</div>
-					<div className="flex items-center gap-1">
-						{secret ? (
-							<Button
-								aria-label={
-									copied ? "Signing secret copied" : "Copy signing secret"
-								}
-								onClick={() => {
-									copy(secret);
-								}}
-								size="icon"
-								type="button"
-								variant="ghost"
-							>
-								<CopyIcon className="size-4" />
-							</Button>
-						) : null}
-						<Button
-							aria-label={
-								isSecretVisible
-									? "Hide signing secret"
-									: "Reveal signing secret"
-							}
-							disabled={isRevealing}
-							onClick={() => {
-								if (isSecretVisible) {
-									onRevealSecret();
-									return;
-								}
-
-								showAsyncToast(onRevealSecret(), {
-									loading: "Revealing signing secret...",
-									success: "Signing secret revealed",
-									error: "Failed to reveal signing secret",
-								});
-							}}
-							size="icon"
-							type="button"
-							variant="ghost"
-						>
-							{isRevealing ? (
-								<Loader2Icon className="size-4 animate-spin" />
-							) : (
-								<EyeIcon className="size-4" />
-							)}
-						</Button>
-						<Button
-							aria-label="Rotate signing secret"
-							disabled={isRotating}
-							onClick={() =>
-								showAsyncToast(onRotateSecret(), {
-									loading: "Rotating signing secret...",
-									success: "Signing secret rotated",
-									error: "Failed to rotate signing secret",
-								})
-							}
-							size="icon"
-							type="button"
-							variant="ghost"
-						>
-							{isRotating ? (
-								<Loader2Icon className="size-4 animate-spin" />
-							) : (
-								<RefreshCwIcon className="size-4" />
-							)}
-						</Button>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-export function EndpointResourcesCard() {
-	const resources = [
-		{
-			href: "https://kayle.id/docs/api/webhooks/endpoints#get-by-id",
-			label: "Endpoint API reference",
-		},
-		{
-			href: "https://kayle.id/docs/api/webhooks/endpoints#rotate-signing-secret",
-			label: "Signing secret reference",
-		},
-		{
-			href: "https://kayle.id/docs/api/webhooks/deliveries#retry",
-			label: "Delivery retry reference",
-		},
-	] as const;
-
-	return (
-		<div className="overflow-hidden rounded-md border border-border/70">
-			<div className="border-border/70 border-b px-4 py-4">
-				<h2 className="font-medium text-sm">Resources</h2>
-			</div>
-
-			<div className="space-y-3 px-4 py-4 text-sm">
-				{resources.map((resource) => (
-					<a
-						className="block text-foreground transition-colors hover:text-foreground/70 hover:underline"
-						href={resource.href}
-						key={resource.href}
-						rel="noopener"
-						target="_blank"
-					>
-						{resource.label}
-					</a>
-				))}
-			</div>
 		</div>
 	);
 }
@@ -390,47 +408,69 @@ export function EndpointKeysCard({
 		);
 	} else {
 		content = (
-			<div className="divide-y divide-border/70">
-				{keys.map((key) => (
-					<div className="space-y-3 px-4 py-4" key={key.id}>
-						<div className="flex items-start justify-between gap-3">
-							<div className="min-w-0 space-y-1">
-								<div className="truncate font-medium text-sm">{key.key_id}</div>
-								<div className="truncate font-mono text-muted-foreground text-xs">
-									{key.algorithm} · {key.id}
-								</div>
-							</div>
-							<StatusBadge status={key.is_active ? "active" : "inactive"} />
-						</div>
-
-						<div className="flex items-center justify-between gap-3">
-							<p className="text-muted-foreground text-xs tabular-nums">
-								<RelativeTime iso={key.created_at} />
-							</p>
-							<Button
-								disabled={isUpdating}
-								onClick={() => handleToggleKey(key)}
-								size="sm"
-								type="button"
-								variant="outline"
-							>
-								{key.is_active ? "Deactivate" : "Re-enable"}
-							</Button>
-						</div>
-					</div>
-				))}
+			<div className="overflow-x-auto">
+				<Table className="min-w-184 table-fixed">
+					<colgroup>
+						<col className="w-[38%]" />
+						<col className="w-[18%]" />
+						<col className="w-[14%]" />
+						<col className="w-[16%]" />
+						<col className="w-[14%]" />
+					</colgroup>
+					<TableHeader className="bg-muted/40">
+						<TableRow>
+							<TableHead>Public key</TableHead>
+							<TableHead>Algorithm</TableHead>
+							<TableHead>Status</TableHead>
+							<TableHead>Created</TableHead>
+							<TableHead className="text-right">
+								<span className="sr-only">Actions</span>
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{keys.map((key) => (
+							<TableRow key={key.id}>
+								<TableCell className="align-middle">
+									<div className="min-w-0 space-y-1">
+										<div className="truncate font-medium text-sm">
+											{key.key_id}
+										</div>
+										<div className="truncate font-mono text-muted-foreground text-xs">
+											{key.id}
+										</div>
+									</div>
+								</TableCell>
+								<TableCell className="align-middle text-sm">
+									{key.algorithm}
+								</TableCell>
+								<TableCell className="align-middle">
+									<StatusBadge status={key.is_active ? "active" : "inactive"} />
+								</TableCell>
+								<TableCell className="align-middle text-muted-foreground text-sm tabular-nums">
+									<RelativeTime iso={key.created_at} />
+								</TableCell>
+								<TableCell className="align-middle text-right">
+									<Button
+										disabled={isUpdating}
+										onClick={() => handleToggleKey(key)}
+										size="sm"
+										type="button"
+										variant="outline"
+									>
+										{key.is_active ? "Deactivate" : "Re-enable"}
+									</Button>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
 			</div>
 		);
 	}
 
 	return (
 		<div className="overflow-hidden rounded-md border border-border/70">
-			<div className="flex items-start justify-between gap-3 border-border/70 border-b px-4 py-4">
-				<div className="space-y-1">
-					<h2 className="font-medium text-sm">Public keys</h2>
-				</div>
-				<CreateKeyDialog endpointId={endpointId} onSubmit={onCreateKey} />
-			</div>
 			<div className="space-y-4">
 				<QueryErrorAlert
 					error={error}
@@ -438,6 +478,9 @@ export function EndpointKeysCard({
 					title="Failed to load keys"
 				/>
 				{content}
+			</div>
+			<div className="flex justify-end border-border/70 border-t px-4 py-4">
+				<CreateKeyDialog endpointId={endpointId} onSubmit={onCreateKey} />
 			</div>
 		</div>
 	);

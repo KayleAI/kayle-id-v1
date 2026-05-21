@@ -1,5 +1,5 @@
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -8,56 +8,12 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
+} from "@kayle-id/ui/components/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
-import type { WebhookEvent } from "@/app/webhooks/api";
 import {
-	formatCountLabel,
 	getEventSubscriptionSummary,
 	getWebhookEventTypeDescription,
 } from "@/app/webhooks/utils";
-
-export function EventDeliverySummary({
-	deliveries,
-}: {
-	deliveries: WebhookEvent["deliveries"];
-}) {
-	if (deliveries.length === 0) {
-		return <p className="text-muted-foreground text-sm">No deliveries</p>;
-	}
-
-	const failedCount = deliveries.filter(
-		(delivery) => delivery.status === "failed",
-	).length;
-	const inFlightCount = deliveries.filter(
-		(delivery) =>
-			delivery.status === "pending" || delivery.status === "delivering",
-	).length;
-	const endpointCount = new Set(
-		deliveries.map((delivery) => delivery.webhook_endpoint_id),
-	).size;
-
-	let secondaryLabel = formatCountLabel(deliveries.length, "delivery");
-
-	if (failedCount > 0) {
-		secondaryLabel = formatCountLabel(failedCount, "failure");
-	} else if (inFlightCount > 0) {
-		secondaryLabel = formatCountLabel(
-			inFlightCount,
-			"in-flight attempt",
-			"in-flight attempts",
-		);
-	}
-
-	return (
-		<div className="space-y-1">
-			<p className="text-sm tabular-nums">
-				{formatCountLabel(endpointCount, "endpoint")}
-			</p>
-			<p className="truncate text-muted-foreground text-xs">{secondaryLabel}</p>
-		</div>
-	);
-}
 
 export function EventSubscriptionMenu({
 	selectedEventTypes,

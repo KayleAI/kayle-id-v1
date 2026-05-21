@@ -1,17 +1,19 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Button } from "@kayleai/ui/button";
-import { Calendar } from "@kayleai/ui/calendar";
+import { Button } from "@kayle-id/ui/components/button";
+import { Calendar } from "@kayle-id/ui/components/calendar";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@kayleai/ui/popover";
+} from "@kayle-id/ui/components/card";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@kayle-id/ui/components/popover";
 import {
 	Select,
 	SelectContent,
@@ -20,8 +22,18 @@ import {
 	SelectLabel,
 	SelectTrigger,
 	SelectValue,
-} from "@kayleai/ui/select";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/select";
+import {
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@kayle-id/ui/components/sheet";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -29,7 +41,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import {
 	type InfiniteData,
 	useInfiniteQuery,
@@ -41,30 +53,27 @@ import {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	SearchIcon,
+	SlidersHorizontalIcon,
 	XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { API_KEYS_QUERY_KEY, listApiKeys } from "@/app/api-keys/api";
 import { AppHeading } from "@/components/app-shell/heading";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
 import {
 	type AuditLogEntry,
 	type AuditLogPage,
 	type AuditLogsListInput,
-	fetchFullOrganization,
 	listAuditLogs,
 	ORGANIZATION_AUDIT_LOGS_QUERY_KEY,
-	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
 } from "./api";
+import {
+	useCurrentMemberRole,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
-/**
- * Mirrors `react-day-picker`'s `DateRange` so we don't have to add the
- * transitive dependency to the platform's package.json. The shape exactly
- * matches the type the underlying `Calendar` component passes to `onSelect`
- * — `from` is required but its value can be `undefined`, mirroring the
- * upstream definition.
- */
+// Mirrors `react-day-picker`'s `DateRange` to avoid the transitive dependency.
 interface AuditDateRange {
 	from: Date | undefined;
 	to?: Date;
@@ -83,10 +92,7 @@ interface EventDescriptor {
 	label: string;
 }
 
-/**
- * Mapping from raw event names to a human-readable label and a high-level
- * category. Keep in sync with `AUDIT_LOG_EVENTS` in `packages/auth/src/audit-logs.ts`.
- */
+// Keep in sync with `AUDIT_LOG_EVENTS` in `packages/auth/src/audit-logs.ts`.
 const EVENT_DESCRIPTORS: readonly EventDescriptor[] = [
 	{ category: "Sessions", event: "session.created", label: "Session created" },
 	{
@@ -102,8 +108,8 @@ const EVENT_DESCRIPTORS: readonly EventDescriptor[] = [
 	},
 	{
 		category: "Sessions",
-		event: "session.attempt.failed",
-		label: "Session attempt failed",
+		event: "session.check.failed",
+		label: "Check failed (retry allowed)",
 	},
 	{
 		category: "Sessions",
@@ -290,9 +296,13 @@ function metadataStringList(
 function summariseEntry(entry: AuditLogEntry): string | null {
 	const meta = entry.metadata;
 	switch (entry.event) {
-		case "session.attempt.failed":
+		case "session.check.failed":
 		case "session.failed": {
 			const code = metadataString(meta, "failure_code");
+			const failedCheck = metadataString(meta, "failed_check");
+			if (code && failedCheck) {
+				return `${failedCheck}: ${code.replaceAll("_", " ")}`;
+			}
 			return code ? code.replaceAll("_", " ") : null;
 		}
 		case "organization.public_details.updated":
@@ -363,12 +373,12 @@ function targetLinkFor(
 		case "verified_domain":
 		case "domain_challenge":
 		case "redirect_uri":
-			return "/organizations/domains";
+			return "/settings/organizations/domains";
 		case "member":
 		case "invitation":
-			return "/organizations/members";
+			return "/settings/organizations/members";
 		case "organization":
-			return "/organizations";
+			return "/settings/organizations";
 		default:
 			return null;
 	}
@@ -455,12 +465,12 @@ function ActorCell({ entry }: { entry: AuditLogEntry }) {
 const HUMAN_METADATA_LABELS: Readonly<Record<string, string>> = {
 	actor_api_key_id: "API key",
 	apex_domain: "Domain",
-	attempt_id: "Attempt",
-	consecutive_failed_checks: "Consecutive failed checks",
 	email: "Email",
 	enabled: "Enabled",
-	failed_attempts: "Failed attempts",
+	failed_check: "Failed check",
 	failure_code: "Failure",
+	nfc_tries_used: "NFC retries used",
+	liveness_tries_used: "Liveness retries used",
 	has_conflict: "Conflict detected",
 	is_age_only: "Age-only",
 	method: "Method",
@@ -741,13 +751,18 @@ function AuditLogsTable({ entries }: { entries: AuditLogEntry[] }) {
 }
 
 interface SearchInputProps {
+	className?: string;
 	onChange: (next: string) => void;
 	value: string;
 }
 
-function SearchInput({ onChange, value }: SearchInputProps) {
+function SearchInput({
+	className = "relative w-full sm:w-72",
+	onChange,
+	value,
+}: SearchInputProps) {
 	return (
-		<div className="relative w-full sm:w-72">
+		<div className={className}>
 			<SearchIcon
 				aria-hidden
 				className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-4 text-muted-foreground"
@@ -776,6 +791,7 @@ function SearchInput({ onChange, value }: SearchInputProps) {
 
 interface EventFilterProps {
 	onChange: (next: string[]) => void;
+	triggerClassName?: string;
 	value: string[];
 }
 
@@ -789,7 +805,11 @@ function summariseEventSelection(selected: readonly string[]): string {
 	return `${selected.length} events`;
 }
 
-function EventFilter({ onChange, value }: EventFilterProps) {
+function EventFilter({
+	onChange,
+	triggerClassName = "w-[220px]",
+	value,
+}: EventFilterProps) {
 	return (
 		<Select
 			multiple
@@ -806,7 +826,7 @@ function EventFilter({ onChange, value }: EventFilterProps) {
 			}}
 			value={value}
 		>
-			<SelectTrigger aria-label="Filter by event" className="w-[220px]">
+			<SelectTrigger aria-label="Filter by event" className={triggerClassName}>
 				<SelectValue>
 					{(raw) => {
 						const selected = Array.isArray(raw)
@@ -858,10 +878,17 @@ interface ActorFilterProps {
 	apiKeys: ActorOption[];
 	members: ActorOption[];
 	onChange: (next: string) => void;
+	triggerClassName?: string;
 	value: string;
 }
 
-function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
+function ActorFilter({
+	apiKeys,
+	members,
+	onChange,
+	triggerClassName = "w-[200px]",
+	value,
+}: ActorFilterProps) {
 	const labelFor = (raw: unknown): string => {
 		if (raw === ALL_ACTORS_VALUE || typeof raw !== "string" || !raw) {
 			return "All actors";
@@ -882,7 +909,7 @@ function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
 			}
 			value={value}
 		>
-			<SelectTrigger aria-label="Filter by actor" className="w-[200px]">
+			<SelectTrigger aria-label="Filter by actor" className={triggerClassName}>
 				<SelectValue>
 					{(raw) => (
 						<span
@@ -927,11 +954,18 @@ function ActorFilter({ apiKeys, members, onChange, value }: ActorFilterProps) {
 }
 
 interface DateRangeFilterProps {
+	numberOfMonths?: 1 | 2;
 	onChange: (next: AuditDateRange | undefined) => void;
+	triggerClassName?: string;
 	value: AuditDateRange | undefined;
 }
 
-function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
+function DateRangeFilter({
+	numberOfMonths = 2,
+	onChange,
+	triggerClassName = "h-9 justify-start gap-2 font-normal",
+	value,
+}: DateRangeFilterProps) {
 	const [open, setOpen] = useState(false);
 	const label = describeRange(value) ?? "All time";
 
@@ -949,7 +983,7 @@ function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
 				render={
 					<Button
 						aria-label="Filter by date range"
-						className="h-9 justify-start gap-2 font-normal"
+						className={triggerClassName}
 						variant="outline"
 					>
 						<CalendarIcon className="size-4 text-muted-foreground" />
@@ -999,7 +1033,7 @@ function DateRangeFilter({ onChange, value }: DateRangeFilterProps) {
 						<Calendar
 							captionLayout="dropdown"
 							mode="range"
-							numberOfMonths={2}
+							numberOfMonths={numberOfMonths}
 							onSelect={onChange}
 							selected={value}
 						/>
@@ -1025,6 +1059,125 @@ interface FilterToolbarProps {
 	searchInput: string;
 }
 
+function getStructuredFilterCount({
+	actorFilter,
+	dateRange,
+	eventFilter,
+}: Pick<
+	FilterToolbarProps,
+	"actorFilter" | "dateRange" | "eventFilter"
+>): number {
+	return (
+		(eventFilter.length > 0 ? 1 : 0) +
+		(actorFilter !== ALL_ACTORS_VALUE ? 1 : 0) +
+		(dateRange?.from ? 1 : 0)
+	);
+}
+
+function MobileFiltersButton({
+	actorFilter,
+	apiKeyOptions,
+	dateRange,
+	eventFilter,
+	memberOptions,
+	onActorChange,
+	onDateRangeChange,
+	onEventChange,
+}: Omit<
+	FilterToolbarProps,
+	"hasAnyActiveFilter" | "onClearAll" | "onSearchChange" | "searchInput"
+>) {
+	const activeFilterCount = getStructuredFilterCount({
+		actorFilter,
+		dateRange,
+		eventFilter,
+	});
+	const hasActiveFilters = activeFilterCount > 0;
+	const handleClearFilters = () => {
+		onEventChange([]);
+		onActorChange(ALL_ACTORS_VALUE);
+		onDateRangeChange(undefined);
+	};
+
+	return (
+		<Sheet>
+			<SheetTrigger
+				render={
+					<Button
+						aria-label="Open audit log filters"
+						className="min-w-28 justify-between"
+						variant="outline"
+					/>
+				}
+			>
+				<span className="flex items-center gap-1.5">
+					<SlidersHorizontalIcon aria-hidden className="size-4" />
+					Filters
+				</span>
+				{hasActiveFilters ? (
+					<span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs tabular-nums">
+						{activeFilterCount}
+					</span>
+				) : null}
+			</SheetTrigger>
+			<SheetContent
+				className="max-h-[85vh] overflow-y-auto rounded-t-3xl"
+				side="bottom"
+			>
+				<SheetHeader className="border-border border-b p-4 pr-14">
+					<SheetTitle>Filters</SheetTitle>
+					<SheetDescription>
+						Refine audit log entries by event, actor, and time.
+					</SheetDescription>
+				</SheetHeader>
+				<div className="grid gap-4 p-4">
+					<div className="grid gap-2">
+						<Label>Events</Label>
+						<EventFilter
+							onChange={onEventChange}
+							triggerClassName="w-full"
+							value={eventFilter}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label>Actors</Label>
+						<ActorFilter
+							apiKeys={apiKeyOptions}
+							members={memberOptions}
+							onChange={onActorChange}
+							triggerClassName="w-full"
+							value={actorFilter}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label>Time</Label>
+						<DateRangeFilter
+							numberOfMonths={1}
+							onChange={onDateRangeChange}
+							triggerClassName="h-9 w-full justify-start gap-2 font-normal"
+							value={dateRange}
+						/>
+					</div>
+				</div>
+				<SheetFooter className="border-border border-t p-4">
+					<div className="flex gap-2">
+						{hasActiveFilters ? (
+							<Button onClick={handleClearFilters} variant="ghost">
+								Clear filters
+							</Button>
+						) : null}
+						<SheetClose
+							render={<Button className="ml-auto" variant="default" />}
+						>
+							Done
+						</SheetClose>
+					</div>
+				</SheetFooter>
+			</SheetContent>
+		</Sheet>
+	);
+}
+
 function FilterToolbar({
 	actorFilter,
 	apiKeyOptions,
@@ -1040,26 +1193,45 @@ function FilterToolbar({
 	searchInput,
 }: FilterToolbarProps) {
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<SearchInput onChange={onSearchChange} value={searchInput} />
-			<EventFilter onChange={onEventChange} value={eventFilter} />
-			<ActorFilter
-				apiKeys={apiKeyOptions}
-				members={memberOptions}
-				onChange={onActorChange}
-				value={actorFilter}
-			/>
-			<DateRangeFilter onChange={onDateRangeChange} value={dateRange} />
-			{hasAnyActiveFilter ? (
-				<Button
-					className="ml-auto"
-					onClick={onClearAll}
-					size="sm"
-					variant="ghost"
-				>
-					Clear all
-				</Button>
-			) : null}
+		<div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+			<div className="flex items-center gap-2 md:hidden">
+				<SearchInput
+					className="relative min-w-0 flex-1"
+					onChange={onSearchChange}
+					value={searchInput}
+				/>
+				<MobileFiltersButton
+					actorFilter={actorFilter}
+					apiKeyOptions={apiKeyOptions}
+					dateRange={dateRange}
+					eventFilter={eventFilter}
+					memberOptions={memberOptions}
+					onActorChange={onActorChange}
+					onDateRangeChange={onDateRangeChange}
+					onEventChange={onEventChange}
+				/>
+			</div>
+			<div className="hidden flex-wrap items-center gap-2 md:flex">
+				<SearchInput onChange={onSearchChange} value={searchInput} />
+				<EventFilter onChange={onEventChange} value={eventFilter} />
+				<ActorFilter
+					apiKeys={apiKeyOptions}
+					members={memberOptions}
+					onChange={onActorChange}
+					value={actorFilter}
+				/>
+				<DateRangeFilter onChange={onDateRangeChange} value={dateRange} />
+				{hasAnyActiveFilter ? (
+					<Button
+						className="ml-auto"
+						onClick={onClearAll}
+						size="sm"
+						variant="ghost"
+					>
+						Clear all
+					</Button>
+				) : null}
+			</div>
 		</div>
 	);
 }
@@ -1074,16 +1246,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 export function OrganizationAuditLogsPage() {
-	const { user } = useAuth();
-	const orgQuery = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-
-	const currentRole = orgQuery.data?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
+	const orgQuery = useOrganizationQuery();
+	const currentRole = useCurrentMemberRole();
 	const canView = currentRole === "owner" || currentRole === "admin";
 
 	const memberOptions = useMemo<ActorOption[]>(
@@ -1225,7 +1389,7 @@ export function OrganizationAuditLogsPage() {
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading title="Audit logs" />
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			{!canView && orgQuery.data ? (
 				<Card>
@@ -1256,16 +1420,11 @@ export function OrganizationAuditLogsPage() {
 						searchInput={searchInput}
 					/>
 
-					{auditQuery.isError ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to load audit logs</AlertTitle>
-							<AlertDescription>
-								{auditQuery.error instanceof Error
-									? auditQuery.error.message
-									: "Something went wrong while loading audit logs."}
-							</AlertDescription>
-						</Alert>
-					) : null}
+					<QueryErrorAlert
+						error={auditQuery.isError ? auditQuery.error : null}
+						fallback="Something went wrong while loading audit logs."
+						title="Failed to load audit logs"
+					/>
 
 					{auditQuery.isLoading ? (
 						<AuditLogsSkeleton />

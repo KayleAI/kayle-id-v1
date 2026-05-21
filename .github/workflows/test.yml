@@ -15,6 +15,10 @@ jobs:
   test-workspace:
     name: ${{ matrix.workspace }}
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.base_ref != 'main' ||
+      github.head_ref != 'staging'
     env:
       NODE_ENV: test
 
@@ -51,6 +55,10 @@ jobs:
   test-api-integration:
     name: API Integration
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.base_ref != 'main' ||
+      github.head_ref != 'staging'
     env:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

@@ -2,12 +2,14 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { db } from "@kayle-id/database/drizzle";
 import { events } from "@kayle-id/database/schema/core";
 import { webhook_deliveries } from "@kayle-id/database/schema/webhooks";
-import { and, eq, gt } from "drizzle-orm";
+import { and, desc, eq, lt, or } from "drizzle-orm";
 import { listWebhookDeliveries } from "@/openapi/v1/webhooks/deliveries/list";
 import { retryWebhookDelivery } from "@/openapi/v1/webhooks/deliveries/retry";
 import { waitUntilIfAvailable } from "@/utils/wait-until";
 import {
 	getWebhookDeliveryForOrganization,
+	getWebhookDeliveryRetryBlockReason,
+	getWebhookPayloadExpiredErrorResponse,
 	mapWebhookDeliveryRowToResponse,
 	requeueWebhookDelivery,
 	triggerWebhookDeliveryWorkflows,
@@ -43,11 +45,14 @@ webhookDeliveries.openapi(listWebhookDeliveries, async (c) => {
 					? [eq(webhook_deliveries.eventId, query.event_id)]
 					: []),
 				...(query.starting_after
-					? [gt(webhook_deliveries.id, query.starting_after)]
+					? await getStartingAfterPredicate({
+							cursorId: query.starting_after,
+							organizationId,
+						})
 					: []),
 			),
 		)
-		.orderBy(webhook_deliveries.id)
+		.orderBy(desc(webhook_deliveries.createdAt), desc(webhook_deliveries.id))
 		.limit(limit + 1);
 
 	const hasMore = rows.length > limit;
@@ -94,7 +99,8 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 		);
 	}
 
-	if (delivery.status === "delivering") {
+	const retryBlockReason = getWebhookDeliveryRetryBlockReason(delivery);
+	if (retryBlockReason === "delivering") {
 		return c.json(
 			{
 				data: null,
@@ -104,6 +110,19 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 					hint: "The webhook delivery is already in progress.",
 					docs: "https://kayle.id/docs/api/webhooks/deliveries#retry",
 				},
+			},
+			409,
+		);
+	}
+
+	if (
+		retryBlockReason === "payload_expired" ||
+		retryBlockReason === "payload_scrubbed"
+	) {
+		return c.json(
+			{
+				data: null,
+				error: getWebhookPayloadExpiredErrorResponse(),
 			},
 			409,
 		);
@@ -145,5 +164,42 @@ webhookDeliveries.openapi(retryWebhookDelivery, async (c) => {
 		200,
 	);
 });
+
+async function getStartingAfterPredicate({
+	cursorId,
+	organizationId,
+}: {
+	cursorId: string;
+	organizationId: string;
+}) {
+	const [cursor] = await db
+		.select({
+			createdAt: webhook_deliveries.createdAt,
+			id: webhook_deliveries.id,
+		})
+		.from(webhook_deliveries)
+		.innerJoin(events, eq(events.id, webhook_deliveries.eventId))
+		.where(
+			and(
+				eq(webhook_deliveries.id, cursorId),
+				eq(events.organizationId, organizationId),
+			),
+		)
+		.limit(1);
+
+	if (!cursor) {
+		return [];
+	}
+
+	const cursorPredicate = or(
+		lt(webhook_deliveries.createdAt, cursor.createdAt),
+		and(
+			eq(webhook_deliveries.createdAt, cursor.createdAt),
+			lt(webhook_deliveries.id, cursor.id),
+		),
+	);
+
+	return cursorPredicate ? [cursorPredicate] : [];
+}
 
 export default webhookDeliveries;

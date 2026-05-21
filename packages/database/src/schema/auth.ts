@@ -112,8 +112,8 @@ export const auth_organizations = pgTable(
 		 * the sessions API. See `verification_records` for the dedup hash row that
 		 * was written at verification time.
 		 */
-		verified_at: timestamp("verified_at"),
-		businessType: text("business_type", {
+		owner_id_checked_at: timestamp("owner_id_checked_at"),
+		business_type: text("business_type", {
 			enum: organizationBusinessTypes,
 		}),
 		business_jurisdiction: text("business_jurisdiction"),
@@ -129,7 +129,39 @@ export const auth_organizations = pgTable(
 		index("auth_organizations_pending_deletion_at_idx").on(
 			table.pending_deletion_at,
 		),
-		index("auth_organizations_verified_at_idx").on(table.verified_at),
+		index("auth_organizations_owner_id_checked_at_idx").on(
+			table.owner_id_checked_at,
+		),
+	],
+);
+
+export const auth_organization_rp_terms_acceptances = pgTable(
+	"auth_organization_rp_terms_acceptances",
+	{
+		id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
+		termsVersion: text("terms_version").notNull(),
+		termsHash: text("terms_hash").notNull(),
+		jurisdiction: text("jurisdiction").notNull(),
+		acceptedBy: uuid("accepted_by").references(() => auth_users.id, {
+			onDelete: "set null",
+		}),
+		acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex("auth_org_rp_terms_current_uidx").on(
+			table.organizationId,
+			table.termsVersion,
+			table.termsHash,
+			table.jurisdiction,
+		),
+		index("auth_org_rp_terms_org_accepted_at_idx").on(
+			table.organizationId,
+			table.acceptedAt,
+		),
 	],
 );
 

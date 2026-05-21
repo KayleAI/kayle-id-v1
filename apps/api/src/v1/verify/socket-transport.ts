@@ -1,13 +1,13 @@
 import {
 	encodeServerAck,
 	encodeServerActiveAuthChallenge,
+	encodeServerCheckResult,
 	encodeServerError,
 	encodeServerLivenessChallenge,
 	encodeServerShareReady,
 	encodeServerShareRequest,
-	encodeServerVerdict,
+	type VerifyServerCheckResult,
 	type VerifyServerLivenessChallenge,
-	type VerifyServerVerdict,
 	type VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
 import { logEvent } from "@kayle-id/config/logging";
@@ -89,9 +89,9 @@ export function createVerifySocketTransport({
 		safeSend(encodeServerError(code, message));
 	};
 
-	const sendVerdict = (verdict: VerifyServerVerdict) => {
-		logDebug("send_verdict", verdict);
-		safeSend(encodeServerVerdict(verdict));
+	const sendCheckResult = (checkResult: VerifyServerCheckResult) => {
+		logDebug("send_check_result", checkResult);
+		safeSend(encodeServerCheckResult(checkResult));
 	};
 
 	const sendShareRequest = (shareRequest: VerifyShareRequest) => {
@@ -132,7 +132,7 @@ export function createVerifySocketTransport({
 	};
 
 	return {
-		closeAfterVerdict: (code: string) => {
+		closeAfterCheckResult: (code: string) => {
 			setTimeout(() => {
 				closeSocket(1008, code);
 			}, 0);
@@ -158,6 +158,6 @@ export function createVerifySocketTransport({
 		sendLivenessChallenge,
 		sendShareReady,
 		sendShareRequest,
-		sendVerdict,
+		sendCheckResult,
 	};
 }

@@ -40,16 +40,14 @@ const options: ReadonlyArray<DemoChooserOption> = [
 	{
 		Icon: IconWalletCard,
 		title: "ID check",
-		description:
-			"Verify identity claims like name, date of birth, nationality, and document photo — read straight from the chip.",
+		description: "Verify someone's identity directly from data on their ID.",
 		to: "/demo/id",
 		cta: "Try ID check",
 	},
 	{
 		Icon: IconLockPassword,
 		title: "Age verification",
-		description:
-			"Confirm a user is over a given age without revealing their date of birth — returns an over-N proof only.",
+		description: "Ensure someone meets an age requirement.",
 		to: "/demo/age",
 		cta: "Try age verification",
 	},
@@ -68,7 +66,7 @@ export function DemoChooser() {
 				</p>
 			</section>
 
-			<div className="grid gap-6 md:grid-cols-2 lg:gap-8">
+			<div className="grid gap-3 md:grid-cols-2 md:gap-4">
 				{options.map((option) => (
 					<Link
 						className="group rounded-2xl border border-border/70 bg-card/70 p-8 transition-colors hover:border-border hover:bg-muted/50"
@@ -95,7 +93,7 @@ export function DemoChooser() {
 				))}
 			</div>
 
-			<section className="mt-6 grid gap-3 md:grid-cols-2 md:gap-4">
+			<section className="mt-3 md:mt-4 grid gap-3 md:grid-cols-2 md:gap-4">
 				{legalLinks.map((link) => (
 					<Link
 						className="group rounded-2xl border border-border/70 bg-card/70 px-5 py-4 transition-colors hover:border-border hover:bg-muted/50"

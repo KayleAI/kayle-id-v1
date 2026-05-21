@@ -15,21 +15,13 @@ import { auth_organizations } from "./auth";
 export const verificationSessionStatuses = [
 	"created",
 	"in_progress",
-	"completed",
+	"succeeded",
+	"failed",
 	"expired",
 	"cancelled",
 ] as const;
 
-export const verificationAttemptStatuses = [
-	"in_progress",
-	"succeeded",
-	"failed",
-	"cancelled",
-] as const;
-
-export const verificationAttemptFailureCodes = [
-	"session_expired",
-	"session_cancelled",
+export const verificationSessionFailureCodes = [
 	"document_authenticity_failed",
 	"document_active_authentication_failed",
 	"document_chip_authentication_failed",
@@ -108,6 +100,7 @@ export const verification_sessions = pgTable(
 		contractVersion: integer("contract_version").default(1).notNull(),
 		shareFields: jsonb("share_fields").default({}).notNull(),
 		redirectUrl: text("redirect_url"),
+		webhookEndpointIds: jsonb("webhook_endpoint_ids").$type<string[]>(),
 		/**
 		 * HMAC-SHA256 of the one-shot cancel token issued at session creation.
 		 *
@@ -147,9 +140,64 @@ export const verification_sessions = pgTable(
 			.default(sql`now() + interval '60 minutes'`)
 			.notNull(),
 		/**
-		 * The time the verification session reached a terminal state (i.e., completed, expired or cancelled).
+		 * The time the verification session reached a terminal state
+		 * (i.e., succeeded, failed, expired or cancelled).
 		 */
 		completedAt: timestamp("completed_at"),
+		/**
+		 * Terminal failure code, set when `status='failed'`. Null in any
+		 * non-failed status.
+		 */
+		failureCode: text("failure_code", {
+			enum: verificationSessionFailureCodes,
+		}),
+		/**
+		 * Per-check retry counters. NFC and liveness each get up to 3 retries
+		 * before the session terminalizes on that check. MRZ has no counter
+		 * (unlimited client-side rescans).
+		 */
+		nfcTriesUsed: integer("nfc_tries_used").default(0).notNull(),
+		livenessTriesUsed: integer("liveness_tries_used").default(0).notNull(),
+		/**
+		 * Risk score blended from per-check signals. Decimal 0..1.
+		 */
+		riskScore: real("risk_score").default(0).notNull(),
+		/**
+		 * Field keys the end user agreed to share on a successful verification.
+		 * Distinct from `share_fields` which is the RP-requested catalogue.
+		 */
+		selectedShareFieldKeys: jsonb("selected_share_field_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		/**
+		 * Current lifecycle phase. Stores phase metadata only, never MRZ/NFC/selfie payloads.
+		 */
+		currentPhase: text("current_phase"),
+		phaseUpdatedAt: timestamp("phase_updated_at"),
+		/**
+		 * Mobile write token state for the single handoff per session lifetime.
+		 */
+		mobileWriteTokenSeed: text("mobile_write_token_seed"),
+		mobileWriteTokenHash: text("mobile_write_token_hash"),
+		mobileWriteTokenIssuedAt: timestamp("mobile_write_token_issued_at"),
+		mobileWriteTokenExpiresAt: timestamp("mobile_write_token_expires_at"),
+		mobileWriteTokenConsumedAt: timestamp("mobile_write_token_consumed_at"),
+		mobileHelloDeviceIdHash: text("mobile_hello_device_id_hash"),
+		mobileHelloAppVersion: text("mobile_hello_app_version"),
+		/**
+		 * Mobile attestation key bound at hello time. References
+		 * `mobile_attest_keys.key_id`. Nullable for sessions that predate the
+		 * App Attest gate.
+		 */
+		mobileAttestKeyId: text("mobile_attest_key_id"),
+		/**
+		 * Connection ID of the verify WebSocket that currently owns this session.
+		 * Cleared on close; refused for re-claim while held by a different live
+		 * connection. Stale claims are recovered after `claimedAt` ages out.
+		 */
+		claimedByConnectionId: text("claimed_by_connection_id"),
+		claimedAt: timestamp("claimed_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()
@@ -169,6 +217,8 @@ export const verification_sessions = pgTable(
 			table.isAgeOnly,
 			table.createdAt,
 		),
+		// Lookup sessions by attesting key (riskMetric refresh feedback path).
+		index("verif_sessions_mobile_attest_key_idx").on(table.mobileAttestKeyId),
 	],
 );
 
@@ -207,113 +257,57 @@ export const org_verification_records = pgTable(
 	],
 );
 
-export const verification_attempts = pgTable(
-	"verification_attempts",
+/**
+ * Browser consent captured before issuing mobile handoff credentials.
+ *
+ * Stores claim keys and versioned acknowledgements only; no document, biometric,
+ * MRZ, NFC, or claim values are persisted here.
+ */
+export const verification_consents = pgTable(
+	"verification_consents",
 	{
 		/**
-		 * The ID of the verification attempt.
+		 * The ID of the consent record.
 		 *
-		 * Always prefixed with `va_...`
+		 * Always prefixed with `vc_...`
 		 */
 		id: text("id").primaryKey(),
-		/**
-		 * The reference to the verification session that this attempt belongs to.
-		 */
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => auth_organizations.id, { onDelete: "cascade" }),
 		verificationSessionId: text("verification_session_id")
 			.notNull()
 			.references(() => verification_sessions.id, { onDelete: "cascade" }),
-		/**
-		 * The status of the verification attempt.
-		 *
-		 * If the referenced session expires, this attempt will be marked as `failed`
-		 * and `failure_code` will be set to `session_expired`.
-		 */
-		status: text({
-			enum: verificationAttemptStatuses,
-		})
-			.default("in_progress")
+		consentedAt: timestamp("consented_at").defaultNow().notNull(),
+		consentUiVersion: integer("consent_ui_version").notNull(),
+		termsVersion: text("terms_version").notNull(),
+		privacyNoticeVersion: text("privacy_notice_version").notNull(),
+		shareContractHash: text("share_contract_hash").notNull(),
+		requestedClaimKeys: jsonb("requested_claim_keys")
+			.$type<string[]>()
+			.default([])
 			.notNull(),
-		/**
-		 * The code of the failure reason.
-		 *
-		 * This is only set if the attempt is marked as `failed`.
-		 */
-		failureCode: text("failure_code", {
-			enum: verificationAttemptFailureCodes,
-		}),
-		/**
-		 * Random seed used to derive a deterministic mobile write token for the current handoff credential.
-		 *
-		 * The seed itself is not accepted for authentication.
-		 */
-		mobileWriteTokenSeed: text("mobile_write_token_seed"),
-		/**
-		 * Hash of the mobile write token issued for this attempt handoff.
-		 *
-		 * Plaintext tokens are never persisted.
-		 */
-		mobileWriteTokenHash: text("mobile_write_token_hash"),
-		/**
-		 * Time when the current mobile write token was issued.
-		 */
-		mobileWriteTokenIssuedAt: timestamp("mobile_write_token_issued_at"),
-		/**
-		 * Time when the current mobile write token expires.
-		 */
-		mobileWriteTokenExpiresAt: timestamp("mobile_write_token_expires_at"),
-		/**
-		 * Time when the mobile write token was consumed by a successful mobile hello.
-		 *
-		 * Reserved for Phase 3 auth enforcement.
-		 */
-		mobileWriteTokenConsumedAt: timestamp("mobile_write_token_consumed_at"),
-		/**
-		 * Hash of the device identifier that first successfully authenticated hello for this attempt.
-		 */
-		mobileHelloDeviceIdHash: text("mobile_hello_device_id_hash"),
-		/**
-		 * App version reported by the device that authenticated hello for this attempt.
-		 */
-		mobileHelloAppVersion: text("mobile_hello_app_version"),
-		/**
-		 * Current lifecycle phase for this attempt.
-		 *
-		 * Stores phase metadata only, never MRZ/NFC/selfie payloads.
-		 */
-		currentPhase: text("current_phase"),
-		/**
-		 * Time when `current_phase` was last updated.
-		 */
-		phaseUpdatedAt: timestamp("phase_updated_at"),
-		/**
-		 * Degree of risk associated with the verification attempt.
-		 *
-		 * Stored as a decimal number between 0 and 1.
-		 *
-		 * @default 0
-		 */
-		riskScore: real("risk_score").default(0).notNull(),
-		/**
-		 * The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled).
-		 */
-		completedAt: timestamp("completed_at"),
-		/**
-		 * Connection ID of the verify WebSocket that currently owns this attempt.
-		 * Cleared when the socket closes; refused for re-claim while held by a
-		 * different live connection. Stale claims are recovered after
-		 * `claimedAt` ages past 15 minutes (see attempt-connection.ts).
-		 */
-		claimedByConnectionId: text("claimed_by_connection_id"),
-		claimedAt: timestamp("claimed_at"),
-		/**
-		 * Mobile attestation key bound to this attempt at hello time. References
-		 * `mobile_attest_keys.key_id`; nullable for attempts that predate the
-		 * App Attest gate (the gate is feature-flagged during rollout).
-		 *
-		 * The key carries the device-and-app trust anchor used for the hello and
-		 * NFC-completion assertions; see `apps/api/src/v1/verify/app-attest.ts`.
-		 */
-		mobileAttestKeyId: text("mobile_attest_key_id"),
+		selectedClaimKeys: jsonb("selected_claim_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		requiredClaimKeys: jsonb("required_claim_keys")
+			.$type<string[]>()
+			.default([])
+			.notNull(),
+		documentProcessingConsent: boolean("document_processing_consent")
+			.default(false)
+			.notNull(),
+		biometricConsent: boolean("biometric_consent").default(false).notNull(),
+		shareClaimsConsent: boolean("share_claims_consent")
+			.default(false)
+			.notNull(),
+		termsAcknowledged: boolean("terms_acknowledged").default(false).notNull(),
+		privacyNoticeAcknowledged: boolean("privacy_notice_acknowledged")
+			.default(false)
+			.notNull(),
+		rpName: text("rp_name").notNull(),
+		controllerName: text("controller_name").notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()
@@ -321,12 +315,14 @@ export const verification_attempts = pgTable(
 			.notNull(),
 	},
 	(table) => [
-		// Attempts by session
-		index("verif_attempts_session_id_idx").on(table.verificationSessionId),
-		// Filter by status (e.g. in_progress, failed)
-		index("verif_attempts_status_idx").on(table.status),
-		// Lookup attempts by attesting key (riskMetric refresh feedback path).
-		index("verif_attempts_mobile_attest_key_idx").on(table.mobileAttestKeyId),
+		index("verif_consents_session_created_idx").on(
+			table.verificationSessionId,
+			table.createdAt,
+		),
+		index("verif_consents_org_created_idx").on(
+			table.organizationId,
+			table.createdAt,
+		),
 	],
 );
 
@@ -408,6 +404,8 @@ export const mobile_attest_keys = pgTable(
 		),
 		// Filter by provider (e.g. when the Android path lands).
 		index("mobile_attest_keys_provider_idx").on(table.provider),
+		// Retention sweeper scans by last use before deleting stale attestation keys.
+		index("mobile_attest_keys_last_used_idx").on(table.lastUsedAt),
 	],
 );
 
@@ -437,8 +435,8 @@ export const events = pgTable(
 		 * The type of the event.
 		 *
 		 * Examples:
-		 * - verification.attempt.succeeded
-		 * - verification.attempt.failed
+		 * - verification.session.succeeded
+		 * - verification.session.failed
 		 * - verification.session.expired
 		 */
 		type: text("type").notNull(),

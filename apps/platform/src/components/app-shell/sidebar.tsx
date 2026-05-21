@@ -1,7 +1,11 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import type { Organization } from "@kayle-id/auth/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
+import type { Organization, OrganizationRole } from "@kayle-id/auth/types";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -10,8 +14,8 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@kayleai/ui/dropdown-menu";
-import { Logomark } from "@kayleai/ui/logo";
+} from "@kayle-id/ui/components/dropdown-menu";
+import { Logomark } from "@kayle-id/ui/components/logo";
 import {
 	Sidebar,
 	SidebarContent,
@@ -22,8 +26,8 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-} from "@kayleai/ui/sidebar";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+} from "@kayle-id/ui/components/sidebar";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
 	ArrowUpRightIcon,
@@ -45,12 +49,7 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
-} from "@/app/organizations/api";
-import { SidebarVerificationWarning } from "./sidebar-verification-warning";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
 
 const NAV_ITEMS = [
 	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -59,39 +58,25 @@ const NAV_ITEMS = [
 ] as const;
 
 export function AppSidebar() {
-	const { user, activeOrganization, organizations, isPlatformAdmin } =
+	const { user, activeOrganization, organizations, isPlatformAdmin, refresh } =
 		useAuth();
 	const routerState = useRouterState();
 	const queryClient = useQueryClient();
 	const currentPath = routerState.location.pathname;
 
-	// Reuse the cached full-org query that the org pages also fetch — TanStack
-	// Query dedupes — so we can hide org-scoped sidebar items the caller isn't
-	// allowed to use without issuing a second request.
-	const { data: fullOrganization } = useQuery({
-		enabled: Boolean(activeOrganization?.id),
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const currentRole = fullOrganization?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
+	const currentRole = activeOrganization?.role as OrganizationRole | undefined;
 	const canViewAuditLogs = currentRole === "owner" || currentRole === "admin";
 
 	const handleSelectOrganization = async (
 		organizationId: string,
 		organizationSlug: string,
 	) => {
-		try {
-			await client.organization.setActive({
-				organizationId,
-				organizationSlug,
-			});
-		} finally {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-			queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-		}
+		await client.organization.setActive({
+			organizationId,
+			organizationSlug,
+		});
+		await refresh();
+		await resetActiveOrganizationQueries(queryClient);
 	};
 
 	const userName = user?.name || user?.email?.split("@")[0] || "User";
@@ -106,7 +91,7 @@ export function AppSidebar() {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
-							className="h-10"
+							className="h-10 rounded-lg!"
 							render={
 								<Link to="/">
 									<span className="flex h-7 items-center w-full gap-2">
@@ -128,7 +113,7 @@ export function AppSidebar() {
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={
-									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5">
+									<SidebarMenuButton className="h-12 data-open:bg-secondary-foreground/5 rounded-lg!">
 										<Avatar className="size-7 rounded-md! after:rounded-md!">
 											<AvatarImage
 												alt={orgName}
@@ -155,7 +140,7 @@ export function AppSidebar() {
 							/>
 							<DropdownMenuContent
 								align="start"
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg"
+								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg backdrop-blur-xs"
 								side="bottom"
 								sideOffset={6}
 							>
@@ -163,24 +148,46 @@ export function AppSidebar() {
 									<DropdownMenuLabel className="text-muted-foreground text-xs">
 										{orgName}
 									</DropdownMenuLabel>
-									<DropdownMenuItem render={<Link to="/organizations" />}>
+									<DropdownMenuItem
+										render={
+											<Link
+												to="/settings/organizations"
+												className="rounded-lg!"
+											/>
+										}
+									>
 										<BuildingIcon />
 										Overview
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/members" />}
+										render={
+											<Link
+												to="/settings/organizations/members"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<UsersIcon />
 										Members
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/public" />}
+										render={
+											<Link
+												to="/settings/organizations/public"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<GlobeIcon />
 										Public details
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										render={<Link to="/organizations/settings" />}
+										render={
+											<Link
+												to="/settings/organizations/settings"
+												className="rounded-lg!"
+											/>
+										}
 									>
 										<SettingsIcon />
 										Settings
@@ -211,6 +218,7 @@ export function AppSidebar() {
 																},
 															);
 														}}
+														className="rounded-lg!"
 													>
 														<Avatar className="size-5 rounded-md! after:rounded-md!">
 															<AvatarImage
@@ -234,7 +242,11 @@ export function AppSidebar() {
 									</>
 								) : null}
 								<DropdownMenuSeparator />
-								<DropdownMenuItem render={<Link to="/organizations/create" />}>
+								<DropdownMenuItem
+									render={
+										<Link to="/create-organization" className="rounded-lg!" />
+									}
+								>
 									<PlusIcon />
 									Create organization
 								</DropdownMenuItem>
@@ -251,7 +263,7 @@ export function AppSidebar() {
 							{NAV_ITEMS.map((item) => (
 								<SidebarMenuItem key={item.title}>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground rounded-lg!"
 										isActive={currentPath.startsWith(item.url)}
 										render={
 											<Link to={item.url}>
@@ -265,12 +277,12 @@ export function AppSidebar() {
 							{canViewAuditLogs ? (
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foregroun rounded-lg!"
 										isActive={currentPath.startsWith(
-											"/organizations/audit-logs",
+											"/settings/organizations/audit-logs",
 										)}
 										render={
-											<Link to="/organizations/audit-logs">
+											<Link to="/settings/organizations/audit-logs">
 												<ScrollTextIcon />
 												<span>Audit logs</span>
 											</Link>
@@ -281,7 +293,7 @@ export function AppSidebar() {
 							{isPlatformAdmin ? (
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground"
+										className="text-muted-foreground hover:bg-secondary-foreground/3 hover:text-foreground data-active:bg-secondary-foreground/5 data-active:font-normal data-active:text-foreground rounded-lg!"
 										isActive={currentPath.startsWith("/admin")}
 										render={
 											<Link to="/admin">
@@ -298,7 +310,6 @@ export function AppSidebar() {
 			</SidebarContent>
 
 			<SidebarFooter>
-				<SidebarVerificationWarning />
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton

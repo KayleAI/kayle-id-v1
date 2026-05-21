@@ -9,48 +9,68 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as LegalRouteImport } from './routes/_legal'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as OnboardingPublicRouteImport } from './routes/onboarding/public'
+import { Route as OnboardingOwnerIdRouteImport } from './routes/onboarding/owner-id'
+import { Route as OnboardingComplianceRouteImport } from './routes/onboarding/compliance'
+import { Route as OnboardingBusinessRouteImport } from './routes/onboarding/business'
 import { Route as LegalTermsRouteImport } from './routes/_legal/terms'
 import { Route as LegalPrivacyRouteImport } from './routes/_legal/privacy'
 import { Route as AuthVerify2faRouteImport } from './routes/_auth/verify-2fa'
 import { Route as AuthVerifyRouteImport } from './routes/_auth/verify'
 import { Route as AuthSignOutRouteImport } from './routes/_auth/sign-out'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
+import { Route as AuthSelectOrganizationRouteImport } from './routes/_auth/select-organization'
+import { Route as AuthCreateOrganizationRouteImport } from './routes/_auth/create-organization'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as MarketingOrganizationsIndexRouteImport } from './routes/_marketing/organizations/index'
 import { Route as MarketingDemoIndexRouteImport } from './routes/_marketing/demo.index'
 import { Route as AppWebhooksIndexRouteImport } from './routes/_app/webhooks/index'
-import { Route as AppOrganizationsIndexRouteImport } from './routes/_app/organizations/index'
 import { Route as AppApiKeysIndexRouteImport } from './routes/_app/api-keys/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as MarketingDemoIdRouteImport } from './routes/_marketing/demo.id'
 import { Route as MarketingDemoAgeRouteImport } from './routes/_marketing/demo.age'
-import { Route as AuthOrganizationsSelectRouteImport } from './routes/_auth/organizations/select'
-import { Route as AuthOrganizationsCreateRouteImport } from './routes/_auth/organizations/create'
 import { Route as AppWebhooksEndpointRouteImport } from './routes/_app/webhooks/$endpoint'
-import { Route as AppOrganizationsSettingsRouteImport } from './routes/_app/organizations/settings'
-import { Route as AppOrganizationsPublicRouteImport } from './routes/_app/organizations/public'
-import { Route as AppOrganizationsMembersRouteImport } from './routes/_app/organizations/members'
-import { Route as AppOrganizationsDomainsRouteImport } from './routes/_app/organizations/domains'
-import { Route as AppOrganizationsBusinessRouteImport } from './routes/_app/organizations/business'
-import { Route as AppOrganizationsAuditLogsRouteImport } from './routes/_app/organizations/audit-logs'
 import { Route as AppApiKeysKeyRouteImport } from './routes/_app/api-keys/$key'
 import { Route as AppAdminCostAnalyticsRouteImport } from './routes/_app/admin/cost-analytics'
 import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as ApiApiStartOrgVerificationRouteImport } from './routes/_api/api/start-org-verification'
+import { Route as ApiApiOrganizationsRouteImport } from './routes/_api/api/organizations'
+import { Route as MarketingOrganizationsIdentifierIndexRouteImport } from './routes/_marketing/organizations/$identifier/index'
+import { Route as AppSettingsOrganizationsIndexRouteImport } from './routes/_app/settings/organizations/index'
+import { Route as AppAdminOrganizationReportsIndexRouteImport } from './routes/_app/admin/organization-reports/index'
+import { Route as MarketingOrganizationsIdentifierReportRouteImport } from './routes/_marketing/organizations/$identifier/report'
 import { Route as AppWebhooksEventsEventRouteImport } from './routes/_app/webhooks/events/$event'
+import { Route as AppSettingsOrganizationsSettingsRouteImport } from './routes/_app/settings/organizations/settings'
+import { Route as AppSettingsOrganizationsPublicRouteImport } from './routes/_app/settings/organizations/public'
+import { Route as AppSettingsOrganizationsMembersRouteImport } from './routes/_app/settings/organizations/members'
+import { Route as AppSettingsOrganizationsDomainsRouteImport } from './routes/_app/settings/organizations/domains'
+import { Route as AppSettingsOrganizationsComplianceRouteImport } from './routes/_app/settings/organizations/compliance'
+import { Route as AppSettingsOrganizationsBusinessRouteImport } from './routes/_app/settings/organizations/business'
+import { Route as AppSettingsOrganizationsAuditLogsRouteImport } from './routes/_app/settings/organizations/audit-logs'
+import { Route as AppAdminOrganizationReportsReportRouteImport } from './routes/_app/admin/organization-reports/$report'
 import { Route as ApiApiWebhooksSplatRouteImport } from './routes/_api/api/webhooks/$'
+import { Route as ApiApiReportSplatRouteImport } from './routes/_api/api/report/$'
+import { Route as ApiApiOrganizationsSplatRouteImport } from './routes/_api/api/organizations/$'
 import { Route as ApiApiInternalWebhookReceiverRouteImport } from './routes/_api/api/internal/webhook-receiver'
 import { Route as ApiApiDemoSplatRouteImport } from './routes/_api/api/demo/$'
 import { Route as ApiApiAuthSplatRouteImport } from './routes/_api/api/auth/$'
 import { Route as ApiApiAnalyticsSplatRouteImport } from './routes/_api/api/analytics/$'
 import { Route as ApiApiAdminSplatRouteImport } from './routes/_api/api/admin/$'
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
   getParentRoute: () => rootRouteImport,
@@ -67,10 +87,35 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OnboardingRoute,
+} as any)
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRoute,
+} as any)
+const OnboardingPublicRoute = OnboardingPublicRouteImport.update({
+  id: '/public',
+  path: '/public',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingOwnerIdRoute = OnboardingOwnerIdRouteImport.update({
+  id: '/owner-id',
+  path: '/owner-id',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingComplianceRoute = OnboardingComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingBusinessRoute = OnboardingBusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 const LegalTermsRoute = LegalTermsRouteImport.update({
   id: '/terms',
@@ -102,6 +147,16 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthSelectOrganizationRoute = AuthSelectOrganizationRouteImport.update({
+  id: '/select-organization',
+  path: '/select-organization',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCreateOrganizationRoute = AuthCreateOrganizationRouteImport.update({
+  id: '/create-organization',
+  path: '/create-organization',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -112,6 +167,12 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const MarketingOrganizationsIndexRoute =
+  MarketingOrganizationsIndexRouteImport.update({
+    id: '/organizations/',
+    path: '/organizations/',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const MarketingDemoIndexRoute = MarketingDemoIndexRouteImport.update({
   id: '/demo/',
   path: '/demo/',
@@ -120,11 +181,6 @@ const MarketingDemoIndexRoute = MarketingDemoIndexRouteImport.update({
 const AppWebhooksIndexRoute = AppWebhooksIndexRouteImport.update({
   id: '/webhooks/',
   path: '/webhooks/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOrganizationsIndexRoute = AppOrganizationsIndexRouteImport.update({
-  id: '/organizations/',
-  path: '/organizations/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApiKeysIndexRoute = AppApiKeysIndexRouteImport.update({
@@ -152,54 +208,11 @@ const MarketingDemoAgeRoute = MarketingDemoAgeRouteImport.update({
   path: '/demo/age',
   getParentRoute: () => MarketingRoute,
 } as any)
-const AuthOrganizationsSelectRoute = AuthOrganizationsSelectRouteImport.update({
-  id: '/organizations/select',
-  path: '/organizations/select',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthOrganizationsCreateRoute = AuthOrganizationsCreateRouteImport.update({
-  id: '/organizations/create',
-  path: '/organizations/create',
-  getParentRoute: () => AuthRoute,
-} as any)
 const AppWebhooksEndpointRoute = AppWebhooksEndpointRouteImport.update({
   id: '/webhooks/$endpoint',
   path: '/webhooks/$endpoint',
   getParentRoute: () => AppRoute,
 } as any)
-const AppOrganizationsSettingsRoute =
-  AppOrganizationsSettingsRouteImport.update({
-    id: '/organizations/settings',
-    path: '/organizations/settings',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppOrganizationsPublicRoute = AppOrganizationsPublicRouteImport.update({
-  id: '/organizations/public',
-  path: '/organizations/public',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOrganizationsMembersRoute = AppOrganizationsMembersRouteImport.update({
-  id: '/organizations/members',
-  path: '/organizations/members',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOrganizationsDomainsRoute = AppOrganizationsDomainsRouteImport.update({
-  id: '/organizations/domains',
-  path: '/organizations/domains',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOrganizationsBusinessRoute =
-  AppOrganizationsBusinessRouteImport.update({
-    id: '/organizations/business',
-    path: '/organizations/business',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppOrganizationsAuditLogsRoute =
-  AppOrganizationsAuditLogsRouteImport.update({
-    id: '/organizations/audit-logs',
-    path: '/organizations/audit-logs',
-    getParentRoute: () => AppRoute,
-  } as any)
 const AppApiKeysKeyRoute = AppApiKeysKeyRouteImport.update({
   id: '/api-keys/$key',
   path: '/api-keys/$key',
@@ -221,16 +234,104 @@ const ApiApiStartOrgVerificationRoute =
     path: '/api/start-org-verification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiApiOrganizationsRoute = ApiApiOrganizationsRouteImport.update({
+  id: '/_api/api/organizations',
+  path: '/api/organizations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketingOrganizationsIdentifierIndexRoute =
+  MarketingOrganizationsIdentifierIndexRouteImport.update({
+    id: '/organizations/$identifier/',
+    path: '/organizations/$identifier/',
+    getParentRoute: () => MarketingRoute,
+  } as any)
+const AppSettingsOrganizationsIndexRoute =
+  AppSettingsOrganizationsIndexRouteImport.update({
+    id: '/settings/organizations/',
+    path: '/settings/organizations/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminOrganizationReportsIndexRoute =
+  AppAdminOrganizationReportsIndexRouteImport.update({
+    id: '/admin/organization-reports/',
+    path: '/admin/organization-reports/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const MarketingOrganizationsIdentifierReportRoute =
+  MarketingOrganizationsIdentifierReportRouteImport.update({
+    id: '/organizations/$identifier/report',
+    path: '/organizations/$identifier/report',
+    getParentRoute: () => MarketingRoute,
+  } as any)
 const AppWebhooksEventsEventRoute = AppWebhooksEventsEventRouteImport.update({
   id: '/webhooks/events/$event',
   path: '/webhooks/events/$event',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsOrganizationsSettingsRoute =
+  AppSettingsOrganizationsSettingsRouteImport.update({
+    id: '/settings/organizations/settings',
+    path: '/settings/organizations/settings',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsPublicRoute =
+  AppSettingsOrganizationsPublicRouteImport.update({
+    id: '/settings/organizations/public',
+    path: '/settings/organizations/public',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsMembersRoute =
+  AppSettingsOrganizationsMembersRouteImport.update({
+    id: '/settings/organizations/members',
+    path: '/settings/organizations/members',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsDomainsRoute =
+  AppSettingsOrganizationsDomainsRouteImport.update({
+    id: '/settings/organizations/domains',
+    path: '/settings/organizations/domains',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsComplianceRoute =
+  AppSettingsOrganizationsComplianceRouteImport.update({
+    id: '/settings/organizations/compliance',
+    path: '/settings/organizations/compliance',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsBusinessRoute =
+  AppSettingsOrganizationsBusinessRouteImport.update({
+    id: '/settings/organizations/business',
+    path: '/settings/organizations/business',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSettingsOrganizationsAuditLogsRoute =
+  AppSettingsOrganizationsAuditLogsRouteImport.update({
+    id: '/settings/organizations/audit-logs',
+    path: '/settings/organizations/audit-logs',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminOrganizationReportsReportRoute =
+  AppAdminOrganizationReportsReportRouteImport.update({
+    id: '/admin/organization-reports/$report',
+    path: '/admin/organization-reports/$report',
+    getParentRoute: () => AppRoute,
+  } as any)
 const ApiApiWebhooksSplatRoute = ApiApiWebhooksSplatRouteImport.update({
   id: '/_api/api/webhooks/$',
   path: '/api/webhooks/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApiReportSplatRoute = ApiApiReportSplatRouteImport.update({
+  id: '/_api/api/report/$',
+  path: '/api/report/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiApiOrganizationsSplatRoute =
+  ApiApiOrganizationsSplatRouteImport.update({
+    id: '/$',
+    path: '/$',
+    getParentRoute: () => ApiApiOrganizationsRoute,
+  } as any)
 const ApiApiInternalWebhookReceiverRoute =
   ApiApiInternalWebhookReceiverRouteImport.update({
     id: '/_api/api/internal/webhook-receiver',
@@ -260,80 +361,109 @@ const ApiApiAdminSplatRoute = ApiApiAdminSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/account': typeof AppAccountRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
+  '/create-organization': typeof AuthCreateOrganizationRoute
+  '/select-organization': typeof AuthSelectOrganizationRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
   '/verify': typeof AuthVerifyRoute
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
+  '/onboarding/': typeof OnboardingIndexRoute
+  '/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
-  '/organizations/business': typeof AppOrganizationsBusinessRoute
-  '/organizations/domains': typeof AppOrganizationsDomainsRoute
-  '/organizations/members': typeof AppOrganizationsMembersRoute
-  '/organizations/public': typeof AppOrganizationsPublicRoute
-  '/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/organizations/select': typeof AuthOrganizationsSelectRoute
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
   '/account/': typeof AppAccountIndexRoute
   '/admin/': typeof AppAdminIndexRoute
   '/api-keys/': typeof AppApiKeysIndexRoute
-  '/organizations/': typeof AppOrganizationsIndexRoute
   '/webhooks/': typeof AppWebhooksIndexRoute
   '/demo/': typeof MarketingDemoIndexRoute
+  '/organizations/': typeof MarketingOrganizationsIndexRoute
   '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
+  '/api/organizations/$': typeof ApiApiOrganizationsSplatRoute
+  '/api/report/$': typeof ApiApiReportSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
+  '/admin/organization-reports/$report': typeof AppAdminOrganizationReportsReportRoute
+  '/settings/organizations/audit-logs': typeof AppSettingsOrganizationsAuditLogsRoute
+  '/settings/organizations/business': typeof AppSettingsOrganizationsBusinessRoute
+  '/settings/organizations/compliance': typeof AppSettingsOrganizationsComplianceRoute
+  '/settings/organizations/domains': typeof AppSettingsOrganizationsDomainsRoute
+  '/settings/organizations/members': typeof AppSettingsOrganizationsMembersRoute
+  '/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
+  '/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
+  '/admin/organization-reports/': typeof AppAdminOrganizationReportsIndexRoute
+  '/settings/organizations/': typeof AppSettingsOrganizationsIndexRoute
+  '/organizations/$identifier/': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
   '/dashboard': typeof AppDashboardRoute
+  '/create-organization': typeof AuthCreateOrganizationRoute
+  '/select-organization': typeof AuthSelectOrganizationRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-out': typeof AuthSignOutRoute
   '/verify': typeof AuthVerifyRoute
   '/verify-2fa': typeof AuthVerify2faRoute
   '/privacy': typeof LegalPrivacyRoute
   '/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
+  '/onboarding': typeof OnboardingIndexRoute
+  '/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/account/security': typeof AppAccountSecurityRoute
   '/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
-  '/organizations/business': typeof AppOrganizationsBusinessRoute
-  '/organizations/domains': typeof AppOrganizationsDomainsRoute
-  '/organizations/members': typeof AppOrganizationsMembersRoute
-  '/organizations/public': typeof AppOrganizationsPublicRoute
-  '/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/organizations/select': typeof AuthOrganizationsSelectRoute
   '/demo/age': typeof MarketingDemoAgeRoute
   '/demo/id': typeof MarketingDemoIdRoute
   '/account': typeof AppAccountIndexRoute
   '/admin': typeof AppAdminIndexRoute
   '/api-keys': typeof AppApiKeysIndexRoute
-  '/organizations': typeof AppOrganizationsIndexRoute
   '/webhooks': typeof AppWebhooksIndexRoute
   '/demo': typeof MarketingDemoIndexRoute
+  '/organizations': typeof MarketingOrganizationsIndexRoute
   '/api/admin/$': typeof ApiApiAdminSplatRoute
   '/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/api/auth/$': typeof ApiApiAuthSplatRoute
   '/api/demo/$': typeof ApiApiDemoSplatRoute
   '/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
+  '/api/organizations/$': typeof ApiApiOrganizationsSplatRoute
+  '/api/report/$': typeof ApiApiReportSplatRoute
   '/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
+  '/admin/organization-reports/$report': typeof AppAdminOrganizationReportsReportRoute
+  '/settings/organizations/audit-logs': typeof AppSettingsOrganizationsAuditLogsRoute
+  '/settings/organizations/business': typeof AppSettingsOrganizationsBusinessRoute
+  '/settings/organizations/compliance': typeof AppSettingsOrganizationsComplianceRoute
+  '/settings/organizations/domains': typeof AppSettingsOrganizationsDomainsRoute
+  '/settings/organizations/members': typeof AppSettingsOrganizationsMembersRoute
+  '/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
+  '/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
+  '/admin/organization-reports': typeof AppAdminOrganizationReportsIndexRoute
+  '/settings/organizations': typeof AppSettingsOrganizationsIndexRoute
+  '/organizations/$identifier': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -341,165 +471,224 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_legal': typeof LegalRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/_app/account': typeof AppAccountRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_auth/create-organization': typeof AuthCreateOrganizationRoute
+  '/_auth/select-organization': typeof AuthSelectOrganizationRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-out': typeof AuthSignOutRoute
   '/_auth/verify': typeof AuthVerifyRoute
   '/_auth/verify-2fa': typeof AuthVerify2faRoute
   '/_legal/privacy': typeof LegalPrivacyRoute
   '/_legal/terms': typeof LegalTermsRoute
+  '/onboarding/business': typeof OnboardingBusinessRoute
+  '/onboarding/compliance': typeof OnboardingComplianceRoute
+  '/onboarding/owner-id': typeof OnboardingOwnerIdRoute
+  '/onboarding/public': typeof OnboardingPublicRoute
   '/_marketing/': typeof MarketingIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
+  '/_api/api/organizations': typeof ApiApiOrganizationsRouteWithChildren
   '/_api/api/start-org-verification': typeof ApiApiStartOrgVerificationRoute
   '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/admin/cost-analytics': typeof AppAdminCostAnalyticsRoute
   '/_app/api-keys/$key': typeof AppApiKeysKeyRoute
-  '/_app/organizations/audit-logs': typeof AppOrganizationsAuditLogsRoute
-  '/_app/organizations/business': typeof AppOrganizationsBusinessRoute
-  '/_app/organizations/domains': typeof AppOrganizationsDomainsRoute
-  '/_app/organizations/members': typeof AppOrganizationsMembersRoute
-  '/_app/organizations/public': typeof AppOrganizationsPublicRoute
-  '/_app/organizations/settings': typeof AppOrganizationsSettingsRoute
   '/_app/webhooks/$endpoint': typeof AppWebhooksEndpointRoute
-  '/_auth/organizations/create': typeof AuthOrganizationsCreateRoute
-  '/_auth/organizations/select': typeof AuthOrganizationsSelectRoute
   '/_marketing/demo/age': typeof MarketingDemoAgeRoute
   '/_marketing/demo/id': typeof MarketingDemoIdRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/api-keys/': typeof AppApiKeysIndexRoute
-  '/_app/organizations/': typeof AppOrganizationsIndexRoute
   '/_app/webhooks/': typeof AppWebhooksIndexRoute
   '/_marketing/demo/': typeof MarketingDemoIndexRoute
+  '/_marketing/organizations/': typeof MarketingOrganizationsIndexRoute
   '/_api/api/admin/$': typeof ApiApiAdminSplatRoute
   '/_api/api/analytics/$': typeof ApiApiAnalyticsSplatRoute
   '/_api/api/auth/$': typeof ApiApiAuthSplatRoute
   '/_api/api/demo/$': typeof ApiApiDemoSplatRoute
   '/_api/api/internal/webhook-receiver': typeof ApiApiInternalWebhookReceiverRoute
+  '/_api/api/organizations/$': typeof ApiApiOrganizationsSplatRoute
+  '/_api/api/report/$': typeof ApiApiReportSplatRoute
   '/_api/api/webhooks/$': typeof ApiApiWebhooksSplatRoute
+  '/_app/admin/organization-reports/$report': typeof AppAdminOrganizationReportsReportRoute
+  '/_app/settings/organizations/audit-logs': typeof AppSettingsOrganizationsAuditLogsRoute
+  '/_app/settings/organizations/business': typeof AppSettingsOrganizationsBusinessRoute
+  '/_app/settings/organizations/compliance': typeof AppSettingsOrganizationsComplianceRoute
+  '/_app/settings/organizations/domains': typeof AppSettingsOrganizationsDomainsRoute
+  '/_app/settings/organizations/members': typeof AppSettingsOrganizationsMembersRoute
+  '/_app/settings/organizations/public': typeof AppSettingsOrganizationsPublicRoute
+  '/_app/settings/organizations/settings': typeof AppSettingsOrganizationsSettingsRoute
   '/_app/webhooks/events/$event': typeof AppWebhooksEventsEventRoute
+  '/_marketing/organizations/$identifier/report': typeof MarketingOrganizationsIdentifierReportRoute
+  '/_app/admin/organization-reports/': typeof AppAdminOrganizationReportsIndexRoute
+  '/_app/settings/organizations/': typeof AppSettingsOrganizationsIndexRoute
+  '/_marketing/organizations/$identifier/': typeof MarketingOrganizationsIdentifierIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/onboarding'
     | '/account'
     | '/dashboard'
+    | '/create-organization'
+    | '/select-organization'
     | '/sign-in'
     | '/sign-out'
     | '/verify'
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
+    | '/onboarding/'
+    | '/api/organizations'
     | '/api/start-org-verification'
     | '/account/security'
     | '/admin/cost-analytics'
     | '/api-keys/$key'
-    | '/organizations/audit-logs'
-    | '/organizations/business'
-    | '/organizations/domains'
-    | '/organizations/members'
-    | '/organizations/public'
-    | '/organizations/settings'
     | '/webhooks/$endpoint'
-    | '/organizations/create'
-    | '/organizations/select'
     | '/demo/age'
     | '/demo/id'
     | '/account/'
     | '/admin/'
     | '/api-keys/'
-    | '/organizations/'
     | '/webhooks/'
     | '/demo/'
+    | '/organizations/'
     | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
     | '/api/internal/webhook-receiver'
+    | '/api/organizations/$'
+    | '/api/report/$'
     | '/api/webhooks/$'
+    | '/admin/organization-reports/$report'
+    | '/settings/organizations/audit-logs'
+    | '/settings/organizations/business'
+    | '/settings/organizations/compliance'
+    | '/settings/organizations/domains'
+    | '/settings/organizations/members'
+    | '/settings/organizations/public'
+    | '/settings/organizations/settings'
     | '/webhooks/events/$event'
+    | '/organizations/$identifier/report'
+    | '/admin/organization-reports/'
+    | '/settings/organizations/'
+    | '/organizations/$identifier/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
+    | '/create-organization'
+    | '/select-organization'
     | '/sign-in'
     | '/sign-out'
     | '/verify'
     | '/verify-2fa'
     | '/privacy'
     | '/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
+    | '/onboarding'
+    | '/api/organizations'
     | '/api/start-org-verification'
     | '/account/security'
     | '/admin/cost-analytics'
     | '/api-keys/$key'
-    | '/organizations/audit-logs'
-    | '/organizations/business'
-    | '/organizations/domains'
-    | '/organizations/members'
-    | '/organizations/public'
-    | '/organizations/settings'
     | '/webhooks/$endpoint'
-    | '/organizations/create'
-    | '/organizations/select'
     | '/demo/age'
     | '/demo/id'
     | '/account'
     | '/admin'
     | '/api-keys'
-    | '/organizations'
     | '/webhooks'
     | '/demo'
+    | '/organizations'
     | '/api/admin/$'
     | '/api/analytics/$'
     | '/api/auth/$'
     | '/api/demo/$'
     | '/api/internal/webhook-receiver'
+    | '/api/organizations/$'
+    | '/api/report/$'
     | '/api/webhooks/$'
+    | '/admin/organization-reports/$report'
+    | '/settings/organizations/audit-logs'
+    | '/settings/organizations/business'
+    | '/settings/organizations/compliance'
+    | '/settings/organizations/domains'
+    | '/settings/organizations/members'
+    | '/settings/organizations/public'
+    | '/settings/organizations/settings'
     | '/webhooks/events/$event'
+    | '/organizations/$identifier/report'
+    | '/admin/organization-reports'
+    | '/settings/organizations'
+    | '/organizations/$identifier'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
     | '/_legal'
     | '/_marketing'
+    | '/onboarding'
     | '/_app/account'
     | '/_app/dashboard'
+    | '/_auth/create-organization'
+    | '/_auth/select-organization'
     | '/_auth/sign-in'
     | '/_auth/sign-out'
     | '/_auth/verify'
     | '/_auth/verify-2fa'
     | '/_legal/privacy'
     | '/_legal/terms'
+    | '/onboarding/business'
+    | '/onboarding/compliance'
+    | '/onboarding/owner-id'
+    | '/onboarding/public'
     | '/_marketing/'
+    | '/onboarding/'
+    | '/_api/api/organizations'
     | '/_api/api/start-org-verification'
     | '/_app/account/security'
     | '/_app/admin/cost-analytics'
     | '/_app/api-keys/$key'
-    | '/_app/organizations/audit-logs'
-    | '/_app/organizations/business'
-    | '/_app/organizations/domains'
-    | '/_app/organizations/members'
-    | '/_app/organizations/public'
-    | '/_app/organizations/settings'
     | '/_app/webhooks/$endpoint'
-    | '/_auth/organizations/create'
-    | '/_auth/organizations/select'
     | '/_marketing/demo/age'
     | '/_marketing/demo/id'
     | '/_app/account/'
     | '/_app/admin/'
     | '/_app/api-keys/'
-    | '/_app/organizations/'
     | '/_app/webhooks/'
     | '/_marketing/demo/'
+    | '/_marketing/organizations/'
     | '/_api/api/admin/$'
     | '/_api/api/analytics/$'
     | '/_api/api/auth/$'
     | '/_api/api/demo/$'
     | '/_api/api/internal/webhook-receiver'
+    | '/_api/api/organizations/$'
+    | '/_api/api/report/$'
     | '/_api/api/webhooks/$'
+    | '/_app/admin/organization-reports/$report'
+    | '/_app/settings/organizations/audit-logs'
+    | '/_app/settings/organizations/business'
+    | '/_app/settings/organizations/compliance'
+    | '/_app/settings/organizations/domains'
+    | '/_app/settings/organizations/members'
+    | '/_app/settings/organizations/public'
+    | '/_app/settings/organizations/settings'
     | '/_app/webhooks/events/$event'
+    | '/_marketing/organizations/$identifier/report'
+    | '/_app/admin/organization-reports/'
+    | '/_app/settings/organizations/'
+    | '/_marketing/organizations/$identifier/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -507,17 +696,27 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   LegalRoute: typeof LegalRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
+  OnboardingRoute: typeof OnboardingRouteWithChildren
+  ApiApiOrganizationsRoute: typeof ApiApiOrganizationsRouteWithChildren
   ApiApiStartOrgVerificationRoute: typeof ApiApiStartOrgVerificationRoute
   ApiApiAdminSplatRoute: typeof ApiApiAdminSplatRoute
   ApiApiAnalyticsSplatRoute: typeof ApiApiAnalyticsSplatRoute
   ApiApiAuthSplatRoute: typeof ApiApiAuthSplatRoute
   ApiApiDemoSplatRoute: typeof ApiApiDemoSplatRoute
   ApiApiInternalWebhookReceiverRoute: typeof ApiApiInternalWebhookReceiverRoute
+  ApiApiReportSplatRoute: typeof ApiApiReportSplatRoute
   ApiApiWebhooksSplatRoute: typeof ApiApiWebhooksSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_marketing': {
       id: '/_marketing'
       path: ''
@@ -546,12 +745,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding/': {
+      id: '/onboarding/'
+      path: '/'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof OnboardingIndexRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
     '/_marketing/': {
       id: '/_marketing/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
+    }
+    '/onboarding/public': {
+      id: '/onboarding/public'
+      path: '/public'
+      fullPath: '/onboarding/public'
+      preLoaderRoute: typeof OnboardingPublicRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/owner-id': {
+      id: '/onboarding/owner-id'
+      path: '/owner-id'
+      fullPath: '/onboarding/owner-id'
+      preLoaderRoute: typeof OnboardingOwnerIdRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/compliance': {
+      id: '/onboarding/compliance'
+      path: '/compliance'
+      fullPath: '/onboarding/compliance'
+      preLoaderRoute: typeof OnboardingComplianceRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/business': {
+      id: '/onboarding/business'
+      path: '/business'
+      fullPath: '/onboarding/business'
+      preLoaderRoute: typeof OnboardingBusinessRouteImport
+      parentRoute: typeof OnboardingRoute
     }
     '/_legal/terms': {
       id: '/_legal/terms'
@@ -595,6 +829,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/select-organization': {
+      id: '/_auth/select-organization'
+      path: '/select-organization'
+      fullPath: '/select-organization'
+      preLoaderRoute: typeof AuthSelectOrganizationRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/create-organization': {
+      id: '/_auth/create-organization'
+      path: '/create-organization'
+      fullPath: '/create-organization'
+      preLoaderRoute: typeof AuthCreateOrganizationRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -609,6 +857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_marketing/organizations/': {
+      id: '/_marketing/organizations/'
+      path: '/organizations'
+      fullPath: '/organizations/'
+      preLoaderRoute: typeof MarketingOrganizationsIndexRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_marketing/demo/': {
       id: '/_marketing/demo/'
       path: '/demo'
@@ -621,13 +876,6 @@ declare module '@tanstack/react-router' {
       path: '/webhooks'
       fullPath: '/webhooks/'
       preLoaderRoute: typeof AppWebhooksIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/': {
-      id: '/_app/organizations/'
-      path: '/organizations'
-      fullPath: '/organizations/'
-      preLoaderRoute: typeof AppOrganizationsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/api-keys/': {
@@ -665,67 +913,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingDemoAgeRouteImport
       parentRoute: typeof MarketingRoute
     }
-    '/_auth/organizations/select': {
-      id: '/_auth/organizations/select'
-      path: '/organizations/select'
-      fullPath: '/organizations/select'
-      preLoaderRoute: typeof AuthOrganizationsSelectRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/organizations/create': {
-      id: '/_auth/organizations/create'
-      path: '/organizations/create'
-      fullPath: '/organizations/create'
-      preLoaderRoute: typeof AuthOrganizationsCreateRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/_app/webhooks/$endpoint': {
       id: '/_app/webhooks/$endpoint'
       path: '/webhooks/$endpoint'
       fullPath: '/webhooks/$endpoint'
       preLoaderRoute: typeof AppWebhooksEndpointRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/settings': {
-      id: '/_app/organizations/settings'
-      path: '/organizations/settings'
-      fullPath: '/organizations/settings'
-      preLoaderRoute: typeof AppOrganizationsSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/public': {
-      id: '/_app/organizations/public'
-      path: '/organizations/public'
-      fullPath: '/organizations/public'
-      preLoaderRoute: typeof AppOrganizationsPublicRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/members': {
-      id: '/_app/organizations/members'
-      path: '/organizations/members'
-      fullPath: '/organizations/members'
-      preLoaderRoute: typeof AppOrganizationsMembersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/domains': {
-      id: '/_app/organizations/domains'
-      path: '/organizations/domains'
-      fullPath: '/organizations/domains'
-      preLoaderRoute: typeof AppOrganizationsDomainsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/business': {
-      id: '/_app/organizations/business'
-      path: '/organizations/business'
-      fullPath: '/organizations/business'
-      preLoaderRoute: typeof AppOrganizationsBusinessRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/organizations/audit-logs': {
-      id: '/_app/organizations/audit-logs'
-      path: '/organizations/audit-logs'
-      fullPath: '/organizations/audit-logs'
-      preLoaderRoute: typeof AppOrganizationsAuditLogsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/api-keys/$key': {
@@ -756,11 +948,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApiStartOrgVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_api/api/organizations': {
+      id: '/_api/api/organizations'
+      path: '/api/organizations'
+      fullPath: '/api/organizations'
+      preLoaderRoute: typeof ApiApiOrganizationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_marketing/organizations/$identifier/': {
+      id: '/_marketing/organizations/$identifier/'
+      path: '/organizations/$identifier'
+      fullPath: '/organizations/$identifier/'
+      preLoaderRoute: typeof MarketingOrganizationsIdentifierIndexRouteImport
+      parentRoute: typeof MarketingRoute
+    }
+    '/_app/settings/organizations/': {
+      id: '/_app/settings/organizations/'
+      path: '/settings/organizations'
+      fullPath: '/settings/organizations/'
+      preLoaderRoute: typeof AppSettingsOrganizationsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/organization-reports/': {
+      id: '/_app/admin/organization-reports/'
+      path: '/admin/organization-reports'
+      fullPath: '/admin/organization-reports/'
+      preLoaderRoute: typeof AppAdminOrganizationReportsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_marketing/organizations/$identifier/report': {
+      id: '/_marketing/organizations/$identifier/report'
+      path: '/organizations/$identifier/report'
+      fullPath: '/organizations/$identifier/report'
+      preLoaderRoute: typeof MarketingOrganizationsIdentifierReportRouteImport
+      parentRoute: typeof MarketingRoute
+    }
     '/_app/webhooks/events/$event': {
       id: '/_app/webhooks/events/$event'
       path: '/webhooks/events/$event'
       fullPath: '/webhooks/events/$event'
       preLoaderRoute: typeof AppWebhooksEventsEventRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/settings': {
+      id: '/_app/settings/organizations/settings'
+      path: '/settings/organizations/settings'
+      fullPath: '/settings/organizations/settings'
+      preLoaderRoute: typeof AppSettingsOrganizationsSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/public': {
+      id: '/_app/settings/organizations/public'
+      path: '/settings/organizations/public'
+      fullPath: '/settings/organizations/public'
+      preLoaderRoute: typeof AppSettingsOrganizationsPublicRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/members': {
+      id: '/_app/settings/organizations/members'
+      path: '/settings/organizations/members'
+      fullPath: '/settings/organizations/members'
+      preLoaderRoute: typeof AppSettingsOrganizationsMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/domains': {
+      id: '/_app/settings/organizations/domains'
+      path: '/settings/organizations/domains'
+      fullPath: '/settings/organizations/domains'
+      preLoaderRoute: typeof AppSettingsOrganizationsDomainsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/compliance': {
+      id: '/_app/settings/organizations/compliance'
+      path: '/settings/organizations/compliance'
+      fullPath: '/settings/organizations/compliance'
+      preLoaderRoute: typeof AppSettingsOrganizationsComplianceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/business': {
+      id: '/_app/settings/organizations/business'
+      path: '/settings/organizations/business'
+      fullPath: '/settings/organizations/business'
+      preLoaderRoute: typeof AppSettingsOrganizationsBusinessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/organizations/audit-logs': {
+      id: '/_app/settings/organizations/audit-logs'
+      path: '/settings/organizations/audit-logs'
+      fullPath: '/settings/organizations/audit-logs'
+      preLoaderRoute: typeof AppSettingsOrganizationsAuditLogsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/organization-reports/$report': {
+      id: '/_app/admin/organization-reports/$report'
+      path: '/admin/organization-reports/$report'
+      fullPath: '/admin/organization-reports/$report'
+      preLoaderRoute: typeof AppAdminOrganizationReportsReportRouteImport
       parentRoute: typeof AppRoute
     }
     '/_api/api/webhooks/$': {
@@ -769,6 +1052,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/webhooks/$'
       preLoaderRoute: typeof ApiApiWebhooksSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_api/api/report/$': {
+      id: '/_api/api/report/$'
+      path: '/api/report/$'
+      fullPath: '/api/report/$'
+      preLoaderRoute: typeof ApiApiReportSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_api/api/organizations/$': {
+      id: '/_api/api/organizations/$'
+      path: '/$'
+      fullPath: '/api/organizations/$'
+      preLoaderRoute: typeof ApiApiOrganizationsSplatRouteImport
+      parentRoute: typeof ApiApiOrganizationsRoute
     }
     '/_api/api/internal/webhook-receiver': {
       id: '/_api/api/internal/webhook-receiver'
@@ -827,18 +1124,21 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppAdminCostAnalyticsRoute: typeof AppAdminCostAnalyticsRoute
   AppApiKeysKeyRoute: typeof AppApiKeysKeyRoute
-  AppOrganizationsAuditLogsRoute: typeof AppOrganizationsAuditLogsRoute
-  AppOrganizationsBusinessRoute: typeof AppOrganizationsBusinessRoute
-  AppOrganizationsDomainsRoute: typeof AppOrganizationsDomainsRoute
-  AppOrganizationsMembersRoute: typeof AppOrganizationsMembersRoute
-  AppOrganizationsPublicRoute: typeof AppOrganizationsPublicRoute
-  AppOrganizationsSettingsRoute: typeof AppOrganizationsSettingsRoute
   AppWebhooksEndpointRoute: typeof AppWebhooksEndpointRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
   AppApiKeysIndexRoute: typeof AppApiKeysIndexRoute
-  AppOrganizationsIndexRoute: typeof AppOrganizationsIndexRoute
   AppWebhooksIndexRoute: typeof AppWebhooksIndexRoute
+  AppAdminOrganizationReportsReportRoute: typeof AppAdminOrganizationReportsReportRoute
+  AppSettingsOrganizationsAuditLogsRoute: typeof AppSettingsOrganizationsAuditLogsRoute
+  AppSettingsOrganizationsBusinessRoute: typeof AppSettingsOrganizationsBusinessRoute
+  AppSettingsOrganizationsComplianceRoute: typeof AppSettingsOrganizationsComplianceRoute
+  AppSettingsOrganizationsDomainsRoute: typeof AppSettingsOrganizationsDomainsRoute
+  AppSettingsOrganizationsMembersRoute: typeof AppSettingsOrganizationsMembersRoute
+  AppSettingsOrganizationsPublicRoute: typeof AppSettingsOrganizationsPublicRoute
+  AppSettingsOrganizationsSettingsRoute: typeof AppSettingsOrganizationsSettingsRoute
   AppWebhooksEventsEventRoute: typeof AppWebhooksEventsEventRoute
+  AppAdminOrganizationReportsIndexRoute: typeof AppAdminOrganizationReportsIndexRoute
+  AppSettingsOrganizationsIndexRoute: typeof AppSettingsOrganizationsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -846,38 +1146,44 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppAdminCostAnalyticsRoute: AppAdminCostAnalyticsRoute,
   AppApiKeysKeyRoute: AppApiKeysKeyRoute,
-  AppOrganizationsAuditLogsRoute: AppOrganizationsAuditLogsRoute,
-  AppOrganizationsBusinessRoute: AppOrganizationsBusinessRoute,
-  AppOrganizationsDomainsRoute: AppOrganizationsDomainsRoute,
-  AppOrganizationsMembersRoute: AppOrganizationsMembersRoute,
-  AppOrganizationsPublicRoute: AppOrganizationsPublicRoute,
-  AppOrganizationsSettingsRoute: AppOrganizationsSettingsRoute,
   AppWebhooksEndpointRoute: AppWebhooksEndpointRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
   AppApiKeysIndexRoute: AppApiKeysIndexRoute,
-  AppOrganizationsIndexRoute: AppOrganizationsIndexRoute,
   AppWebhooksIndexRoute: AppWebhooksIndexRoute,
+  AppAdminOrganizationReportsReportRoute:
+    AppAdminOrganizationReportsReportRoute,
+  AppSettingsOrganizationsAuditLogsRoute:
+    AppSettingsOrganizationsAuditLogsRoute,
+  AppSettingsOrganizationsBusinessRoute: AppSettingsOrganizationsBusinessRoute,
+  AppSettingsOrganizationsComplianceRoute:
+    AppSettingsOrganizationsComplianceRoute,
+  AppSettingsOrganizationsDomainsRoute: AppSettingsOrganizationsDomainsRoute,
+  AppSettingsOrganizationsMembersRoute: AppSettingsOrganizationsMembersRoute,
+  AppSettingsOrganizationsPublicRoute: AppSettingsOrganizationsPublicRoute,
+  AppSettingsOrganizationsSettingsRoute: AppSettingsOrganizationsSettingsRoute,
   AppWebhooksEventsEventRoute: AppWebhooksEventsEventRoute,
+  AppAdminOrganizationReportsIndexRoute: AppAdminOrganizationReportsIndexRoute,
+  AppSettingsOrganizationsIndexRoute: AppSettingsOrganizationsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
+  AuthCreateOrganizationRoute: typeof AuthCreateOrganizationRoute
+  AuthSelectOrganizationRoute: typeof AuthSelectOrganizationRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
   AuthVerify2faRoute: typeof AuthVerify2faRoute
-  AuthOrganizationsCreateRoute: typeof AuthOrganizationsCreateRoute
-  AuthOrganizationsSelectRoute: typeof AuthOrganizationsSelectRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthCreateOrganizationRoute: AuthCreateOrganizationRoute,
+  AuthSelectOrganizationRoute: AuthSelectOrganizationRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
   AuthVerifyRoute: AuthVerifyRoute,
   AuthVerify2faRoute: AuthVerify2faRoute,
-  AuthOrganizationsCreateRoute: AuthOrganizationsCreateRoute,
-  AuthOrganizationsSelectRoute: AuthOrganizationsSelectRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -899,6 +1205,9 @@ interface MarketingRouteChildren {
   MarketingDemoAgeRoute: typeof MarketingDemoAgeRoute
   MarketingDemoIdRoute: typeof MarketingDemoIdRoute
   MarketingDemoIndexRoute: typeof MarketingDemoIndexRoute
+  MarketingOrganizationsIndexRoute: typeof MarketingOrganizationsIndexRoute
+  MarketingOrganizationsIdentifierReportRoute: typeof MarketingOrganizationsIdentifierReportRoute
+  MarketingOrganizationsIdentifierIndexRoute: typeof MarketingOrganizationsIdentifierIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
@@ -906,23 +1215,62 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingDemoAgeRoute: MarketingDemoAgeRoute,
   MarketingDemoIdRoute: MarketingDemoIdRoute,
   MarketingDemoIndexRoute: MarketingDemoIndexRoute,
+  MarketingOrganizationsIndexRoute: MarketingOrganizationsIndexRoute,
+  MarketingOrganizationsIdentifierReportRoute:
+    MarketingOrganizationsIdentifierReportRoute,
+  MarketingOrganizationsIdentifierIndexRoute:
+    MarketingOrganizationsIdentifierIndexRoute,
 }
 
 const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
   MarketingRouteChildren,
 )
 
+interface OnboardingRouteChildren {
+  OnboardingBusinessRoute: typeof OnboardingBusinessRoute
+  OnboardingComplianceRoute: typeof OnboardingComplianceRoute
+  OnboardingOwnerIdRoute: typeof OnboardingOwnerIdRoute
+  OnboardingPublicRoute: typeof OnboardingPublicRoute
+  OnboardingIndexRoute: typeof OnboardingIndexRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingBusinessRoute: OnboardingBusinessRoute,
+  OnboardingComplianceRoute: OnboardingComplianceRoute,
+  OnboardingOwnerIdRoute: OnboardingOwnerIdRoute,
+  OnboardingPublicRoute: OnboardingPublicRoute,
+  OnboardingIndexRoute: OnboardingIndexRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
+interface ApiApiOrganizationsRouteChildren {
+  ApiApiOrganizationsSplatRoute: typeof ApiApiOrganizationsSplatRoute
+}
+
+const ApiApiOrganizationsRouteChildren: ApiApiOrganizationsRouteChildren = {
+  ApiApiOrganizationsSplatRoute: ApiApiOrganizationsSplatRoute,
+}
+
+const ApiApiOrganizationsRouteWithChildren =
+  ApiApiOrganizationsRoute._addFileChildren(ApiApiOrganizationsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   LegalRoute: LegalRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
+  OnboardingRoute: OnboardingRouteWithChildren,
+  ApiApiOrganizationsRoute: ApiApiOrganizationsRouteWithChildren,
   ApiApiStartOrgVerificationRoute: ApiApiStartOrgVerificationRoute,
   ApiApiAdminSplatRoute: ApiApiAdminSplatRoute,
   ApiApiAnalyticsSplatRoute: ApiApiAnalyticsSplatRoute,
   ApiApiAuthSplatRoute: ApiApiAuthSplatRoute,
   ApiApiDemoSplatRoute: ApiApiDemoSplatRoute,
   ApiApiInternalWebhookReceiverRoute: ApiApiInternalWebhookReceiverRoute,
+  ApiApiReportSplatRoute: ApiApiReportSplatRoute,
   ApiApiWebhooksSplatRoute: ApiApiWebhooksSplatRoute,
 }
 export const routeTree = rootRouteImport

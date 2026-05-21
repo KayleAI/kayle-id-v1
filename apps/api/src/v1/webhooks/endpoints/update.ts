@@ -55,6 +55,10 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 		updates.name = body.name?.trim() ?? null;
 	}
 
+	if (body.labels !== undefined) {
+		updates.labels = body.labels;
+	}
+
 	if (body.url !== undefined) {
 		updates.url = body.url;
 	}
@@ -68,6 +72,11 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 		updates.subscribedEventTypes = body.subscribed_event_types;
 	}
 
+	if (body.undelivered_payload_retention_hours !== undefined) {
+		updates.undeliveredPayloadRetentionHours =
+			body.undelivered_payload_retention_hours;
+	}
+
 	if (Object.keys(updates).length === 0) {
 		return c.json(
 			{
@@ -75,7 +84,7 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 				error: {
 					code: "BAD_REQUEST",
 					message: "Bad request.",
-					hint: "At least one of `name`, `url`, `enabled` or `subscribed_event_types` must be provided.",
+					hint: "At least one of `name`, `labels`, `url`, `enabled`, `subscribed_event_types` or `undelivered_payload_retention_hours` must be provided.",
 					docs: "https://kayle.id/docs/api/webhooks/endpoints#update",
 				},
 			},
@@ -108,6 +117,12 @@ updateEndpoint.openapi(updateWebhookEndpoint, async (c) => {
 		metadata: {
 			updated_fields: Object.keys(updates),
 			...(typeof body.enabled === "boolean" ? { enabled: body.enabled } : {}),
+			...(body.undelivered_payload_retention_hours !== undefined
+				? {
+						undelivered_payload_retention_hours:
+							body.undelivered_payload_retention_hours,
+					}
+				: {}),
 		},
 	});
 

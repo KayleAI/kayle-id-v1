@@ -17,14 +17,6 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 
-/**
- * Provide the negotiated locale and the corresponding copy dictionaries to
- * the verify app. The locale is negotiated server-side (see
- * `negotiateInitialLocale` in `__root.tsx`'s `beforeLoad`) and passed in via
- * `initialLocale`, so the SSR-rendered HTML, the `<html lang>` attribute,
- * and the initial client render all agree — no post-hydration dictionary
- * swap, no flash of English content for non-English users.
- */
 export function I18nProvider({
 	children,
 	initialLocale,
@@ -44,22 +36,16 @@ export function I18nProvider({
 	return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
+// Default-locale fallback so component tests that skip mounting the provider
+// still get the English dictionary instead of crashing.
 const DEFAULT_CONTEXT_VALUE: I18nContextValue = {
 	locale: DEFAULT_LOCALE,
 	verifyHandoffCopy: getVerifyHandoffCopy(DEFAULT_LOCALE),
 	errorMessages: getErrorMessages(DEFAULT_LOCALE),
 };
 
-/**
- * Fall back to the default English dictionaries when no provider is mounted.
- * The provider is always present in the running app (wired into `__root`),
- * but components rendered in isolation (e.g. component tests) skip the root
- * layout. Letting the hooks degrade to English keeps those tests working
- * without forcing every test to mount the provider.
- */
 function useI18nContext(): I18nContextValue {
-	const context = useContext(I18nContext);
-	return context ?? DEFAULT_CONTEXT_VALUE;
+	return useContext(I18nContext) ?? DEFAULT_CONTEXT_VALUE;
 }
 
 export function useLocale(): Locale {

@@ -5,8 +5,8 @@ import {
 	CommandList,
 	CommandSeparator,
 	CommandShortcut,
-} from "@kayleai/ui/command";
-import { Kbd, KbdGroup } from "@kayleai/ui/kbd";
+} from "@kayle-id/ui/components/command";
+import { Kbd, KbdGroup } from "@kayle-id/ui/components/kbd";
 import { useNavigate } from "@tanstack/react-router";
 import { Command as CommandPrimitive } from "cmdk";
 import {
@@ -85,7 +85,11 @@ const PAGES = [
 	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 	{ title: "API Keys", url: "/api-keys", icon: Key },
 	{ title: "Webhooks", url: "/webhooks", icon: WebhookIcon },
-	{ title: "Organization", url: "/organizations", icon: BuildingIcon },
+	{
+		title: "Organization",
+		url: "/settings/organizations",
+		icon: BuildingIcon,
+	},
 ] as const;
 
 export function AppCommandBar() {
@@ -154,7 +158,7 @@ export function AppCommandBar() {
 
 				{open ? (
 					<div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl ring-1 ring-foreground/5">
-						<CommandList className="max-h-[min(60vh,440px)] **:[[cmdk-group-items]]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent">
+						<CommandList className="max-h-[min(60vh,460px)] **:[[cmdk-group-items]]:space-y-0.5 **:[[data-slot=command-item][data-selected=false]]:bg-transparent">
 							<CommandEmpty>No results found.</CommandEmpty>
 							<CommandGroup heading="Pages">
 								{PAGES.map((page) => (
@@ -166,6 +170,7 @@ export function AppCommandBar() {
 												navigate({ to: page.url });
 											})
 										}
+										className="rounded-lg!"
 										value={`page-${page.title}`}
 									>
 										<page.icon />
@@ -186,6 +191,7 @@ export function AppCommandBar() {
 											);
 										})
 									}
+									className="rounded-lg!"
 									value="docs"
 								>
 									<BookOpenIcon />
@@ -201,6 +207,7 @@ export function AppCommandBar() {
 											window.location.href = "mailto:help@kayle.id";
 										})
 									}
+									className="rounded-lg!"
 									value="support"
 								>
 									<LifeBuoyIcon />
@@ -217,6 +224,7 @@ export function AppCommandBar() {
 											navigate({ to: "/account" });
 										})
 									}
+									className="rounded-lg!"
 									value="my-account"
 								>
 									<SettingsIcon />
@@ -229,6 +237,7 @@ export function AppCommandBar() {
 											navigate({ to: "/sign-out" });
 										})
 									}
+									className="rounded-lg!"
 									value="account-sign-out"
 								>
 									<LogOutIcon />

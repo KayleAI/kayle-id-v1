@@ -1,4 +1,4 @@
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import {
 	clampIndex,
 	formatTrendPeriodLabel,

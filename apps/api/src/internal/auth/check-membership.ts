@@ -96,7 +96,7 @@ checkMembership.openapi(checkSessionMembershipRoute, async (c) => {
 	const [org] = await db
 		.select({
 			id: auth_organizations.id,
-			verifiedAt: auth_organizations.verified_at,
+			verifiedAt: auth_organizations.owner_id_checked_at,
 			pendingDeletionAt: auth_organizations.pending_deletion_at,
 			verificationTermsAcceptedAt:
 				auth_organizations.verification_terms_accepted_at,
@@ -150,7 +150,7 @@ checkMembership.openapi(checkSessionMembershipRoute, async (c) => {
 	const isOwner = hasOrgRole(member.role, "owner");
 	const isAdminOrOwner = hasOrgRole(member.role, "admin");
 
-	const primary = isOwner
+	const primary: "owner" | "admin" | "member" | null = isOwner
 		? "owner"
 		: isAdminOrOwner
 			? "admin"

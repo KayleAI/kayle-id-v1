@@ -93,7 +93,7 @@ export async function applyUnverifiedOrgSessionLimitInTx(
 	}
 
 	const [org] = await tx
-		.select({ verifiedAt: auth_organizations.verified_at })
+		.select({ verifiedAt: auth_organizations.owner_id_checked_at })
 		.from(auth_organizations)
 		.where(eq(auth_organizations.id, organizationId))
 		.limit(1);

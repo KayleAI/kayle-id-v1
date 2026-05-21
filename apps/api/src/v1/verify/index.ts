@@ -1,85 +1,113 @@
-import { db } from "@kayle-id/database/drizzle";
-import { verification_sessions } from "@kayle-id/database/schema/core";
-import { and, eq, isNull } from "drizzle-orm";
-import { type Context, Hono } from "hono";
+import { logEvent } from "@kayle-id/config/logging";
+import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
-import { sessionIdSchema } from "@/shared/validation";
-import {
-	cancelVerificationSession,
-	expireVerificationSessionIfNeeded,
-} from "@/v1/sessions/repo/session-repo";
+import { getRequestLogger } from "@/logging";
 import attest from "./attest-handlers";
-import { createVerifyJsonErrorResponse } from "./error-response";
+import {
+	recordVerifySessionConsent,
+	type VerifyConsentInput,
+} from "./consent-records";
 import { issueHandoffPayload } from "./handoff";
-import { isPublicVerifySessionHidden } from "./public-session-visibility";
+import organizationReports from "./organization-reports";
+import { getPublicVerifySessionPrivacyContext } from "./privacy-context";
+import {
+	cancelBodyJsonValidator,
+	cancelPublicVerifySession,
+} from "./public-cancel";
+import publicOrganizations from "./public-organizations";
 import { checkRedirectPermitted } from "./redirect-permitted";
+import {
+	invalidVerifyRequestJson,
+	sessionParamJsonValidator,
+	validateSessionParam,
+	verifyJsonError,
+} from "./route-utils";
 import { loadActiveVerifySession } from "./session-context";
 import { getPublicVerifySessionDetails } from "./session-details";
 import { getPublicVerifySessionStatus } from "./session-status";
 import { startVerifySocketSession } from "./socket-controller";
-import {
-	constantTimeStringEqual,
-	hashSessionCancelToken,
-	SESSION_CANCEL_TOKEN_LENGTH,
-	SESSION_CANCEL_TOKEN_PATTERN,
-} from "./token-crypto";
 import { webSocketErrorResponse } from "./utils";
 import { configurePkdTrustBundleLoaderFromEnv } from "./validation";
 
 const verify = new Hono<{ Bindings: CloudflareBindings }>();
-const sessionParamSchema = z.object({ id: sessionIdSchema });
 
 verify.route("/attest", attest);
+verify.route("/", publicOrganizations);
+verify.route("/", organizationReports);
 
-function validateSessionParam(
-	value: unknown,
-): z.infer<typeof sessionParamSchema> | null {
-	const parsed = sessionParamSchema.safeParse(value);
-	return parsed.success ? parsed.data : null;
-}
+const consentBodySchema = z.object({
+	biometric_consent: z.literal(true),
+	document_processing_consent: z.literal(true),
+	privacy_notice_acknowledged: z.literal(true),
+	share_claims_consent: z.literal(true),
+	terms_acknowledged: z.literal(true),
+});
 
-function sessionParamJsonValidator(value: unknown, c: Context) {
-	const parsed = validateSessionParam(value);
+verify.post(
+	"/session/:id/consent",
+	validator("param", sessionParamJsonValidator),
+	validator("json", (value, c) => {
+		const parsed = consentBodySchema.safeParse(value);
+		if (parsed.success) {
+			return parsed.data;
+		}
 
-	if (parsed) {
-		return parsed;
-	}
+		return invalidVerifyRequestJson(c);
+	}),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const body = c.req.valid("json");
+		const result = await recordVerifySessionConsent({
+			env: c.env,
+			sessionId: id,
+			input: {
+				biometricConsent: body.biometric_consent,
+				documentProcessingConsent: body.document_processing_consent,
+				privacyNoticeAcknowledged: body.privacy_notice_acknowledged,
+				shareClaimsConsent: body.share_claims_consent,
+				termsAcknowledged: body.terms_acknowledged,
+			} satisfies VerifyConsentInput,
+		});
 
-	const response = createVerifyJsonErrorResponse({
-		code: "INVALID_SESSION_ID",
-		status: 400,
-	});
+		if (!result.ok) {
+			return verifyJsonError(c, {
+				code: result.error.code,
+				status: result.error.status,
+			});
+		}
 
-	return c.json(
-		{
-			data: response.data,
-			error: response.error,
-		},
-		response.status,
-	);
-}
+		return c.json(
+			{
+				data: result.data,
+				error: null,
+			},
+			200,
+		);
+	},
+);
 
 verify.post(
 	"/session/:id/handoff",
 	validator("param", sessionParamJsonValidator),
 	async (c) => {
 		const { id } = c.req.valid("param");
+		const startedAt = Date.now();
 		const handoff = await issueHandoffPayload(id, { env: c.env });
+		logEvent(getRequestLogger(c), {
+			details: {
+				duration_ms: Date.now() - startedAt,
+				session_id: id,
+				success: handoff.ok,
+			},
+			event: "verify.handoff.issued_timing",
+		});
 
 		if (!handoff.ok) {
-			const response = createVerifyJsonErrorResponse({
+			return verifyJsonError(c, {
 				code: handoff.error.code,
 				status: handoff.error.status,
 			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
 		}
 
 		return c.json(
@@ -102,18 +130,10 @@ verify.get(
 		});
 
 		if (!details) {
-			const response = createVerifyJsonErrorResponse({
+			return verifyJsonError(c, {
 				code: "SESSION_NOT_FOUND",
 				status: 404,
 			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
 		}
 
 		return c.json(
@@ -134,14 +154,10 @@ verify.get(
 		const result = await checkRedirectPermitted({ sessionId: id });
 
 		if (result.code === "SESSION_NOT_FOUND") {
-			const response = createVerifyJsonErrorResponse({
+			return verifyJsonError(c, {
 				code: "SESSION_NOT_FOUND",
 				status: 404,
 			});
-			return c.json(
-				{ data: response.data, error: response.error },
-				response.status,
-			);
 		}
 
 		return c.json(
@@ -169,18 +185,10 @@ verify.get(
 		});
 
 		if (!status) {
-			const response = createVerifyJsonErrorResponse({
+			return verifyJsonError(c, {
 				code: "SESSION_NOT_FOUND",
 				status: 404,
 			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
 		}
 
 		return c.json(
@@ -193,191 +201,48 @@ verify.get(
 	},
 );
 
-const cancelBodySchema = z.object({
-	cancel_token: z
-		.string()
-		.length(SESSION_CANCEL_TOKEN_LENGTH)
-		.regex(SESSION_CANCEL_TOKEN_PATTERN),
-});
+verify.get(
+	"/session/:id/privacy-context",
+	validator("param", sessionParamJsonValidator),
+	async (c) => {
+		const { id } = c.req.valid("param");
+		const context = await getPublicVerifySessionPrivacyContext({
+			env: c.env,
+			sessionId: id,
+		});
+
+		if (!context) {
+			return verifyJsonError(c, {
+				code: "SESSION_NOT_FOUND",
+				status: 404,
+			});
+		}
+
+		return c.json(
+			{
+				data: context,
+				error: null,
+			},
+			200,
+		);
+	},
+);
 
 verify.post(
 	"/session/:id/cancel",
 	validator("param", sessionParamJsonValidator),
-	validator("json", (value, c) => {
-		const parsed = cancelBodySchema.safeParse(value);
-		if (parsed.success) {
-			return parsed.data;
-		}
-
-		const response = createVerifyJsonErrorResponse({
-			code: "INVALID_REQUEST",
-			status: 400,
-		});
-
-		return c.json(
-			{
-				data: response.data,
-				error: response.error,
-			},
-			response.status,
-		);
-	}),
+	validator("json", cancelBodyJsonValidator),
 	async (c) => {
 		const { id } = c.req.valid("param");
 		const { cancel_token: providedToken } = c.req.valid("json");
-
-		const [rawSession] = await db
-			.select()
-			.from(verification_sessions)
-			.where(eq(verification_sessions.id, id))
-			.limit(1);
-
-		if (!rawSession) {
-			const response = createVerifyJsonErrorResponse({
-				code: "SESSION_NOT_FOUND",
-				status: 404,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		if (await isPublicVerifySessionHidden(rawSession.organizationId)) {
-			const response = createVerifyJsonErrorResponse({
-				code: "SESSION_NOT_FOUND",
-				status: 404,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		// Reject sessions that pre-date the cancel-token migration: nothing to
-		// authenticate against, so the public cancel surface refuses the request.
-		// The integrator can still cancel via the authenticated `/v1/sessions/:id
-		// /cancel` endpoint (which checks org ownership instead).
-		if (!rawSession.cancelTokenHash) {
-			const response = createVerifyJsonErrorResponse({
-				code: "CANCEL_TOKEN_INVALID",
-				status: 401,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		const providedTokenHash = await hashSessionCancelToken(providedToken);
-		if (
-			!constantTimeStringEqual(providedTokenHash, rawSession.cancelTokenHash)
-		) {
-			const response = createVerifyJsonErrorResponse({
-				code: "CANCEL_TOKEN_INVALID",
-				status: 401,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		const session = await expireVerificationSessionIfNeeded({
+		const result = await cancelPublicVerifySession({
 			env: c.env,
-			row: rawSession,
+			providedToken,
+			sessionId: id,
 		});
 
-		// Idempotency: if cancel was already consumed and the session is in a
-		// terminal state, return the same 204 we'd return on first success so
-		// the verify browser doesn't surface a confusing error after retry.
-		const isTerminal = ["completed", "expired", "cancelled"].includes(
-			session.status,
-		);
-
-		if (rawSession.cancelTokenConsumedAt) {
-			if (isTerminal) {
-				return c.body(null, 204);
-			}
-
-			const response = createVerifyJsonErrorResponse({
-				code: "CANCEL_TOKEN_USED",
-				status: 401,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		const [consumedCancelToken] = await db
-			.update(verification_sessions)
-			.set({ cancelTokenConsumedAt: new Date() })
-			.where(
-				and(
-					eq(verification_sessions.id, session.id),
-					isNull(verification_sessions.cancelTokenConsumedAt),
-				),
-			)
-			.returning({ id: verification_sessions.id });
-
-		if (!consumedCancelToken) {
-			const [latestSession] = await db
-				.select({
-					cancelTokenConsumedAt: verification_sessions.cancelTokenConsumedAt,
-					status: verification_sessions.status,
-				})
-				.from(verification_sessions)
-				.where(eq(verification_sessions.id, session.id))
-				.limit(1);
-
-			if (
-				latestSession?.cancelTokenConsumedAt &&
-				["completed", "expired", "cancelled"].includes(latestSession.status)
-			) {
-				return c.body(null, 204);
-			}
-
-			const response = createVerifyJsonErrorResponse({
-				code: "CANCEL_TOKEN_USED",
-				status: 401,
-			});
-
-			return c.json(
-				{
-					data: response.data,
-					error: response.error,
-				},
-				response.status,
-			);
-		}
-
-		if (!isTerminal) {
-			await cancelVerificationSession({
-				env: c.env,
-				row: session,
-				organizationId: session.organizationId,
-			});
+		if (!result.ok) {
+			return verifyJsonError(c, result.error);
 		}
 
 		return c.body(null, 204);

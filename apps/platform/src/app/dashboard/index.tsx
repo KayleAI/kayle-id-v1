@@ -1,17 +1,20 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
+} from "@kayle-id/ui/components/empty";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3Icon } from "lucide-react";
 import { useState } from "react";
 import { UnverifiedOrgBanner } from "@/app/organizations/unverified-org-banner";
 import { AppHeading } from "@/components/app-shell/heading";
-import { getSessionAnalyticsOverview } from "./api";
+import { QueryErrorAlert } from "@/components/query-error-alert";
+import {
+	getSessionAnalyticsOverview,
+	SESSION_ANALYTICS_OVERVIEW_QUERY_KEY,
+} from "./api";
 import { clampIndex, getPeriodSummary } from "./chart-utils";
 import { BREAKDOWN_METRICS } from "./constants";
 import { MetricTrendCard } from "./metric-trend-card";
@@ -22,7 +25,7 @@ import type { BreakdownMetricKey } from "./types";
 export function Dashboard() {
 	const analyticsQuery = useQuery({
 		queryFn: getSessionAnalyticsOverview,
-		queryKey: ["dashboard", "session-analytics"],
+		queryKey: SESSION_ANALYTICS_OVERVIEW_QUERY_KEY,
 		staleTime: 60_000,
 	});
 	const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -61,22 +64,17 @@ export function Dashboard() {
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
 			<AppHeading title="Dashboard" />
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			<UnverifiedOrgBanner />
 
 			{shouldShowLoading ? <DashboardSkeleton /> : null}
 
-			{shouldShowError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load analytics</AlertTitle>
-					<AlertDescription>
-						{analyticsQuery.error instanceof Error
-							? analyticsQuery.error.message
-							: "Something went wrong while loading dashboard analytics."}
-					</AlertDescription>
-				</Alert>
-			) : null}
+			<QueryErrorAlert
+				error={shouldShowError ? analyticsQuery.error : null}
+				fallback="Something went wrong while loading dashboard analytics."
+				title="Failed to load analytics"
+			/>
 
 			{isEmpty ? (
 				<Empty className="border border-border/70 bg-muted/20">
@@ -86,8 +84,8 @@ export function Dashboard() {
 					<EmptyHeader>
 						<EmptyTitle>No analytics yet</EmptyTitle>
 						<EmptyDescription>
-							Session analytics will appear here once your organization starts
-							creating verification sessions.
+							Analytics will appear here once your organization starts creating
+							verification sessions.
 						</EmptyDescription>
 					</EmptyHeader>
 				</Empty>

@@ -36,11 +36,6 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "Cette connexion n’a pas d’identifiants. Veuillez réessayer.",
   },
 
-  ATTEMPT_NOT_FOUND: {
-    title: "Session introuvable",
-    description: "Cette session n’est plus disponible. Recommencez.",
-  },
-
   HANDOFF_TOKEN_INVALID: {
     title: "Code QR invalide",
     description:
@@ -78,7 +73,7 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
   MIN_APP_VERSION_REQUIRED: {
     title: "Mise à jour requise",
     description:
-      "Mettez à jour Kayle ID vers la dernière version pour continuer la vérification.",
+      "Mettez à jour Kayle ID vers la dernière version pour continuer cette vérification.",
   },
 
   CANCEL_TOKEN_INVALID: {
@@ -97,7 +92,13 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
     description: "La requête est manquante ou mal formée.",
   },
 
-  ATTEMPT_CONNECTION_ACTIVE: {
+  CONSENT_REQUIRED: {
+    title: "Consentement requis",
+    description:
+      "Vérifiez et acceptez les étapes de consentement requises pour continuer.",
+  },
+
+  SESSION_CONNECTION_ACTIVE: {
     title: "Déjà ouverte",
     description:
       "Cette session est active ailleurs. Continuez-y ou réessayez plus tard.",
@@ -134,7 +135,7 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
   },
 
   LIVENESS_CHALLENGE_UNAVAILABLE: {
-    title: "Vérification indisponible",
+    title: "Vérification impossible",
     description:
       "Nous n’avons pas pu démarrer la vérification de présence sur ce serveur. Réessayez plus tard ou contactez le support.",
   },
@@ -157,25 +158,25 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
   },
 
   document_authenticity_failed: {
-    title: "Échec de la vérification du document",
+    title: "Document non confirmé",
     description:
-      "Nous n’avons pas pu vérifier votre document. Réessayez ou utilisez-en un autre.",
+      "Kayle ID n’a pas pu confirmer automatiquement votre document. Réessayez ou utilisez-en un autre.",
   },
 
   document_active_authentication_failed: {
-    title: "Échec de la vérification du document",
+    title: "Document non confirmé",
     description:
       "Nous n’avons pas pu confirmer la puce de votre document. Réessayez ou utilisez-en un autre.",
   },
 
   document_chip_authentication_failed: {
-    title: "Échec de la vérification du document",
+    title: "Document non confirmé",
     description:
       "Nous n’avons pas pu confirmer la puce de votre document. Réessayez ou utilisez-en un autre.",
   },
 
   document_anti_cloning_attestation_failed: {
-    title: "Échec de la vérification du document",
+    title: "Document non confirmé",
     description:
       "Nous n’avons pas pu confirmer que ce scan provient d’un appareil de confiance. Réessayez sur le même appareil ou contactez le support.",
   },
@@ -187,13 +188,13 @@ export const ERROR_MESSAGES_FR: ErrorMessages = {
   },
 
   selfie_face_mismatch: {
-    title: "Le visage ne correspond pas",
+    title: "Correspondance du visage non confirmée",
     description:
-      "Votre visage ne correspond pas à la photo de votre document. Réessayez.",
+      "Kayle ID n’a pas pu confirmer automatiquement que votre visage correspondait à la photo du document. Réessayez.",
   },
 
   liveness_failed: {
-    title: "Échec de la vérification de présence",
+    title: "Présence non confirmée",
     description:
       "Nous n’avons pas pu confirmer la présence d’une personne en direct. Réessayez en suivant les instructions de mouvement de tête.",
   },

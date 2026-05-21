@@ -1,7 +1,4 @@
-import type {
-	verification_attempts,
-	verification_sessions,
-} from "@kayle-id/database/schema/core";
+import type { verification_sessions } from "@kayle-id/database/schema/core";
 import type { ShareFields } from "@/v1/sessions/domain/share-contract/types";
 
 function buildVerificationUrl(id: string, cancelToken?: string) {
@@ -16,30 +13,21 @@ function buildVerificationUrl(id: string, cancelToken?: string) {
 	return url.toString();
 }
 
-export function mapAttemptRowToResponse(
-	attempt: typeof verification_attempts.$inferSelect,
-) {
-	return {
-		id: attempt.id,
-		session_id: attempt.verificationSessionId,
-		status: attempt.status,
-		failure_code: attempt.failureCode ?? null,
-		risk_score: attempt.riskScore,
-		completed_at: attempt.completedAt
-			? attempt.completedAt.toISOString()
-			: null,
-		created_at: attempt.createdAt.toISOString(),
-		updated_at: attempt.updatedAt.toISOString(),
-	};
+function mapWebhookEndpointTarget(
+	ids: string[] | null,
+): string | string[] | null {
+	if (!ids || ids.length === 0) {
+		return null;
+	}
+
+	return ids.length === 1 ? ids[0] : ids;
 }
 
 export function mapSessionRowToResponse({
 	row,
-	attempts,
 	cancelToken,
 }: {
 	row: typeof verification_sessions.$inferSelect;
-	attempts?: (typeof verification_attempts.$inferSelect)[];
 	/**
 	 * Plaintext cancel token for the verify browser / native app. Only set on
 	 * the create-session response — never re-derivable from a stored row, since
@@ -50,19 +38,18 @@ export function mapSessionRowToResponse({
 	return {
 		id: row.id,
 		status: row.status,
+		failure_code: row.failureCode ?? null,
+		nfc_tries_used: row.nfcTriesUsed,
+		liveness_tries_used: row.livenessTriesUsed,
 		contract_version: row.contractVersion,
 		share_fields: row.shareFields as ShareFields,
 		redirect_url: row.redirectUrl ?? null,
+		webhook_endpoint_id: mapWebhookEndpointTarget(row.webhookEndpointIds),
 		verification_url: buildVerificationUrl(row.id, cancelToken),
 		expires_at: row.expiresAt.toISOString(),
 		completed_at: row.completedAt ? row.completedAt.toISOString() : null,
 		created_at: row.createdAt.toISOString(),
 		updated_at: row.updatedAt.toISOString(),
 		...(cancelToken ? { cancel_token: cancelToken } : {}),
-		...(attempts
-			? {
-					attempts: attempts.map(mapAttemptRowToResponse),
-				}
-			: {}),
 	};
 }

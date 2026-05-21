@@ -32,9 +32,13 @@ export type {
 const WEBHOOKS_PATH = "/api/webhooks";
 const UNEXPECTED_WEBHOOK_RESPONSE = "Unexpected webhook response.";
 
+export const WEBHOOKS_QUERY_KEY = ["webhooks"] as const;
+
+const DEFAULT_PAGE_LIMIT = 20;
+
 export function listWebhookEndpoints({
 	enabled,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	enabled?: boolean;
@@ -55,13 +59,17 @@ export function listWebhookEndpoints({
 
 export function createWebhookEndpoint({
 	enabled,
+	labels,
 	name,
 	subscribedEventTypes,
+	undeliveredPayloadRetentionHours,
 	url,
 }: {
 	enabled: boolean;
+	labels: string[];
 	name?: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }): Promise<WebhookEndpointCreateResult> {
 	return requestApiResource<WebhookEndpointCreateResult>({
@@ -70,9 +78,11 @@ export function createWebhookEndpoint({
 		path: "/endpoints",
 		body: {
 			name,
+			labels,
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
+			undelivered_payload_retention_hours: undeliveredPayloadRetentionHours,
 		},
 		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
@@ -81,14 +91,18 @@ export function createWebhookEndpoint({
 export function updateWebhookEndpoint({
 	endpointId,
 	enabled,
+	labels,
 	name,
 	subscribedEventTypes,
+	undeliveredPayloadRetentionHours,
 	url,
 }: {
 	endpointId: string;
 	enabled: boolean;
+	labels: string[];
 	name?: string | null;
 	subscribedEventTypes: string[];
+	undeliveredPayloadRetentionHours: number;
 	url: string;
 }): Promise<WebhookEndpoint> {
 	return requestApiResource<WebhookEndpoint>({
@@ -97,9 +111,11 @@ export function updateWebhookEndpoint({
 		path: `/endpoints/${endpointId}`,
 		body: {
 			name,
+			labels,
 			url,
 			enabled,
 			subscribed_event_types: subscribedEventTypes,
+			undelivered_payload_retention_hours: undeliveredPayloadRetentionHours,
 		},
 		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
 	});
@@ -141,7 +157,7 @@ export function rotateWebhookSigningSecret(
 export function listWebhookKeys({
 	endpointId,
 	isActive,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	endpointId: string;
@@ -207,7 +223,7 @@ export function reactivateWebhookKey(
 }
 
 export function listWebhookEvents({
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 }: {
 	limit?: number;
@@ -224,6 +240,14 @@ export function listWebhookEvents({
 	});
 }
 
+export function getWebhookEvent(eventId: string): Promise<WebhookEvent> {
+	return requestApiResource<WebhookEvent>({
+		basePath: WEBHOOKS_PATH,
+		path: `/events/${eventId}`,
+		unexpectedMessage: UNEXPECTED_WEBHOOK_RESPONSE,
+	});
+}
+
 export function replayWebhookEvent(eventId: string): Promise<WebhookEvent> {
 	return requestApiResource<WebhookEvent>({
 		basePath: WEBHOOKS_PATH,
@@ -235,7 +259,7 @@ export function replayWebhookEvent(eventId: string): Promise<WebhookEvent> {
 
 export function listWebhookDeliveries({
 	endpointId,
-	limit = 20,
+	limit = DEFAULT_PAGE_LIMIT,
 	startingAfter,
 	status,
 }: {

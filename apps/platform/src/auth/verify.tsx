@@ -1,13 +1,13 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	InputOTP,
 	InputOTPGroup,
 	InputOTPSeparator,
 	InputOTPSlot,
-} from "@kayleai/ui/input-otp";
-import { Logo } from "@kayleai/ui/logo";
+} from "@kayle-id/ui/components/input-otp";
+import { Logo } from "@kayle-id/ui/components/logo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Route } from "@/routes/_auth/verify";
@@ -84,7 +84,6 @@ export function Verify() {
 	return (
 		<div className="flex flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -100,7 +99,6 @@ export function Verify() {
 					</p>
 				</div>
 
-				{/* OTP Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
 						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
@@ -108,7 +106,6 @@ export function Verify() {
 						</div>
 					)}
 
-					{/* OTP Input Fields */}
 					<fieldset>
 						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Verification code</span>
@@ -168,7 +165,6 @@ export function Verify() {
 					</div>
 				</form>
 
-				{/* Footer Links */}
 				<p className="inline-block text-center text-muted-foreground text-xs">
 					By signing in to Kayle ID, you agree to our{" "}
 					<Button

@@ -2,9 +2,10 @@ import {
 	getClaimLabel,
 	parseAgeOverThreshold,
 } from "@kayle-id/config/share-claims";
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import {
+	buildDemoWebhookEventPreview,
 	type DemoDocumentPreview,
 	type DemoWebhookEventPreview,
 	formatDemoClaimValue,
@@ -65,12 +66,6 @@ type SharedProfileItem =
 			monospace?: boolean;
 			value: string;
 	  };
-
-export interface WebhookMetadataItem {
-	label: string;
-	monospace?: boolean;
-	value: string;
-}
 
 function buildHolderDisplayName({
 	familyName,
@@ -173,89 +168,45 @@ function buildSharedProfileItems(
 		.filter((item): item is SharedProfileItem => item !== null);
 }
 
-export function buildWebhookMetadataItems(
-	preview: DemoWebhookEventPreview,
-): WebhookMetadataItem[] {
-	const items: WebhookMetadataItem[] = [
-		{
-			label: "Event Type",
-			monospace: true,
-			value: preview.eventType ?? "Unknown",
-		},
-		{
-			label: "Contract Version",
-			monospace: true,
-			value:
-				preview.contractVersion === null
-					? "Unknown"
-					: String(preview.contractVersion),
-		},
-		{
-			label: "Verification Session",
-			monospace: true,
-			value: preview.verificationSessionId ?? "Unknown",
-		},
-	];
-
-	if (preview.verificationAttemptId) {
-		items.push({
-			label: "Verification Attempt",
-			monospace: true,
-			value: preview.verificationAttemptId,
-		});
-	}
-
-	if (preview.failureCode) {
-		items.push({
-			label: "Failure Code",
-			monospace: true,
-			value: preview.failureCode,
-		});
-	}
-
-	return items;
-}
-
 function DocumentPortrait({ preview }: { preview: DemoDocumentPreview }) {
 	const supportsInlineImage = preview.documentPhoto?.format === "jpeg";
 
+	if (!(supportsInlineImage && preview.documentPhoto)) {
+		return null;
+	}
+
 	return (
-		<div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-muted">
-			{supportsInlineImage && preview.documentPhoto ? (
-				<img
-					alt="Document holder portrait"
-					className="aspect-4/5 h-full w-full object-cover object-top"
-					height={preview.documentPhoto.height}
-					src={preview.documentPhoto.dataUri}
-					width={preview.documentPhoto.width}
-				/>
-			) : (
-				<div className="relative aspect-4/5 bg-muted">
-					<div className="absolute top-[18%] left-1/2 h-16 w-16 -translate-x-1/2 rounded-full bg-foreground/10" />
-					<div className="absolute bottom-[12%] left-1/2 h-[48%] w-[46%] -translate-x-1/2 rounded-t-[999px] rounded-b-[1.2rem] bg-foreground/10" />
-				</div>
-			)}
+		<div className="overflow-hidden rounded-md bg-muted">
+			<img
+				alt="Document holder portrait"
+				className="aspect-4/5 h-full w-full object-cover object-top"
+				height={preview.documentPhoto.height}
+				src={preview.documentPhoto.dataUri}
+				width={preview.documentPhoto.width}
+			/>
 		</div>
 	);
 }
 
 function ProfileFieldItem({
+	className,
 	label,
 	monospace = false,
 	value,
 }: {
+	className?: string;
 	label: string;
 	monospace?: boolean;
 	value: string;
 }) {
 	return (
-		<div>
-			<dt className="font-medium text-foreground text-sm">{label}</dt>
+		<div className={className}>
+			<dt className="font-medium text-muted-foreground text-sm">{label}</dt>
 			<dd
 				className={cn(
-					"mt-1 break-words text-[1rem] text-foreground/80",
+					"mt-1 wrap-break-word text-base text-foreground",
 					monospace &&
-						"break-all font-mono text-[0.92rem] text-foreground tabular-nums tracking-[0.04em]",
+						"break-all font-mono text-[0.92rem] tabular-nums tracking-[0.04em]",
 				)}
 			>
 				{value}
@@ -265,22 +216,34 @@ function ProfileFieldItem({
 }
 
 function AgeGateStatusItem({
+	className,
 	passed,
+	prominent = false,
 	threshold,
 }: {
+	className?: string;
 	passed: boolean;
+	prominent?: boolean;
 	threshold: number;
 }) {
 	const Icon = passed ? ShieldCheckIcon : ShieldAlertIcon;
 
 	return (
-		<div>
-			<dt className="font-medium text-foreground text-sm">Age check</dt>
-			<dd className="mt-1">
+		<div className={className}>
+			<dt
+				className={cn(
+					"font-medium text-muted-foreground text-sm",
+					prominent && "sr-only",
+				)}
+			>
+				Age check
+			</dt>
+			<dd className={prominent ? "mt-5" : "mt-1"}>
 				<div className="flex items-center gap-2.5">
 					<Icon
 						className={cn(
-							"size-4 shrink-0",
+							"shrink-0",
+							prominent ? "size-5" : "size-4",
 							passed
 								? "text-emerald-600 dark:text-emerald-400"
 								: "text-red-600 dark:text-red-400",
@@ -288,13 +251,13 @@ function AgeGateStatusItem({
 					/>
 					<span
 						className={cn(
-							"text-[1rem]",
+							prominent ? "font-light text-2xl tracking-tight" : "text-[1rem]",
 							passed
 								? "text-emerald-700 dark:text-emerald-300"
 								: "text-red-700 dark:text-red-300",
 						)}
 					>
-						{passed ? `Over ${threshold}` : `Under ${threshold}`}
+						{passed ? `${threshold} or older` : `Under ${threshold}`}
 					</span>
 				</div>
 			</dd>
@@ -305,59 +268,63 @@ function AgeGateStatusItem({
 function ResultSectionHeading({
 	description,
 	title,
+	variant = "default",
 }: {
 	description: string;
 	title: string;
+	variant?: "default" | "step";
 }) {
 	return (
-		<div className="max-w-3xl">
-			<h3 className="max-w-[18ch] text-balance text-2xl text-foreground tracking-tight">
+		<div>
+			<h3
+				className={cn(
+					"max-w-[22ch] text-balance text-foreground tracking-tight",
+					variant === "step" ? "font-light text-2xl" : "font-medium text-xl",
+				)}
+			>
 				{title}
 			</h3>
-			<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-muted-foreground leading-6">
+			<p className="mt-1 max-w-[54ch] text-muted-foreground text-sm leading-6">
 				{description}
 			</p>
 		</div>
 	);
 }
 
-function WebhookMetadataGrid({
-	columns = 2,
-	items,
+function WebhookPayloadDisclosure({
+	payload,
+	variant = "default",
 }: {
-	columns?: 2 | 3;
-	items: WebhookMetadataItem[];
+	payload: string;
+	variant?: "default" | "subtle";
 }) {
-	return (
-		<dl
-			className={cn(
-				"grid gap-4",
-				columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
-			)}
-		>
-			{items.map((item) => (
-				<div
-					className="rounded-md bg-muted/40 p-4 sm:p-5"
-					key={`${item.label}-${item.value}`}
-				>
-					<ProfileFieldItem
-						label={item.label}
-						monospace={item.monospace}
-						value={item.value}
-					/>
-				</div>
-			))}
-		</dl>
-	);
-}
+	if (variant === "subtle") {
+		return (
+			<details className="group border-border/70 border-t pt-5">
+				<summary className="flex cursor-pointer list-none items-center justify-between gap-4 marker:content-none">
+					<span className="font-medium text-muted-foreground text-sm">
+						Payload JSON
+					</span>
+					<span className="shrink-0 text-muted-foreground text-sm group-open:text-foreground">
+						Show
+					</span>
+				</summary>
 
-function WebhookPayloadDisclosure({ payload }: { payload: string }) {
+				<div className="mt-4 overflow-hidden rounded-lg border border-border/70">
+					<pre className="max-h-88 overflow-auto bg-neutral-950 px-4 py-4 font-mono text-[0.78rem] text-neutral-100 leading-6">
+						{payload}
+					</pre>
+				</div>
+			</details>
+		);
+	}
+
 	return (
 		<details className="group">
 			<summary className="flex cursor-pointer list-none flex-col gap-4 marker:content-none sm:flex-row sm:items-center sm:justify-between">
 				<div className="min-w-0">
 					<p className="font-medium text-base text-foreground">Payload JSON</p>
-					<p className="mt-2 max-w-[54ch] text-pretty text-muted-foreground text-sm leading-6 sm:text-base">
+					<p className="mt-2 max-w-[54ch] text-muted-foreground text-sm leading-6">
 						Expand the verified JSON payload for a raw inspection view.
 					</p>
 				</div>
@@ -366,8 +333,8 @@ function WebhookPayloadDisclosure({ payload }: { payload: string }) {
 				</span>
 			</summary>
 
-			<div className="mt-5 overflow-hidden rounded-4xl border border-border/70">
-				<pre className="max-h-[28rem] overflow-auto bg-neutral-950 px-4 py-4 font-mono text-[0.82rem] text-neutral-100 leading-6 sm:px-5 sm:py-5">
+			<div className="mt-5 overflow-hidden rounded-xl border border-border/70">
+				<pre className="max-h-112 overflow-auto bg-neutral-950 px-4 py-4 font-mono text-[0.82rem] text-neutral-100 leading-6 sm:px-5 sm:py-5">
 					{payload}
 				</pre>
 			</div>
@@ -375,88 +342,134 @@ function WebhookPayloadDisclosure({ payload }: { payload: string }) {
 	);
 }
 
-export function DemoDocumentPreviewPanel({
+export function DemoAgePreviewPanel({
 	payload,
 	preview,
-	webhookMetadataItems,
 }: {
 	payload: string;
 	preview: DemoDocumentPreview;
-	webhookMetadataItems: WebhookMetadataItem[];
+}) {
+	const ageItem = buildSharedProfileItems(preview).find(
+		(item) => item.kind === "age-gate",
+	);
+	const eventPreview = buildDemoWebhookEventPreview(payload);
+
+	return (
+		<div className="space-y-6">
+			{eventPreview ? (
+				<ResultSectionHeading
+					description={eventPreview.description}
+					title={eventPreview.title}
+					variant="step"
+				/>
+			) : null}
+
+			{ageItem ? (
+				<dl>
+					<AgeGateStatusItem
+						passed={ageItem.passed}
+						prominent
+						threshold={ageItem.threshold}
+					/>
+				</dl>
+			) : (
+				<p className="text-muted-foreground text-sm leading-6">
+					The age check result is not available yet.
+				</p>
+			)}
+
+			<WebhookPayloadDisclosure payload={payload} variant="subtle" />
+		</div>
+	);
+}
+
+export function DemoDocumentPreviewPanel({
+	payload,
+	preview,
+}: {
+	payload: string;
+	preview: DemoDocumentPreview;
 }) {
 	const displayName = buildHolderDisplayName({
 		familyName: preview.familyName,
 		givenNames: preview.givenNames,
 	});
-	const documentKindLabel =
-		preview.documentKind === "id-card" ? "ID card" : "Passport";
+	const hasDocumentPhoto = preview.documentPhoto?.format === "jpeg";
 	const sharedItems = buildSharedProfileItems(preview);
-	const visibleItemCount = sharedItems.filter(
-		(item) => !item.key.includes("kayle"),
-	).length;
+	const returnedItems = [
+		displayName
+			? ({
+					key: "holder_name",
+					kind: "field",
+					label: "Name",
+					value: displayName,
+				} satisfies SharedProfileItem)
+			: null,
+		...sharedItems.filter((item) => !item.key.includes("kayle")),
+	].filter((item): item is SharedProfileItem => item !== null);
+	const eventPreview = buildDemoWebhookEventPreview(payload);
 
 	return (
-		<div className="divide-y divide-border/70">
-			<section className="pb-6 sm:pb-8">
-				<div className="grid gap-6 lg:grid-cols-[9rem_minmax(0,1fr)] lg:items-start">
-					<div className="w-24 sm:w-34">
-						<DocumentPortrait preview={preview} />
-					</div>
-					<div className="min-w-0">
-						<h3 className="max-w-[16ch] text-balance text-2xl text-foreground capitalize tracking-tight">
-							{displayName || "No name"}
-						</h3>
-						<p className="mt-1.5 max-w-[54ch] text-pretty text-lg text-muted-foreground leading-6">
-							{visibleItemCount > 0
-								? `${visibleItemCount} shared ${
-										visibleItemCount === 1 ? "field" : "fields"
-									} from the verified ${documentKindLabel.toLowerCase()} listed below.`
-								: `Verified ${documentKindLabel.toLowerCase()} data is ready to inspect.`}
-						</p>
-					</div>
-				</div>
-			</section>
+		<div className="space-y-6">
+			{eventPreview ? (
+				<ResultSectionHeading
+					description={eventPreview.description}
+					title={eventPreview.title}
+					variant="step"
+				/>
+			) : null}
 
-			{visibleItemCount > 0 ? (
-				<section className="py-6 sm:py-8">
-					<dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						{sharedItems.map((item) => {
-							if (item.key.includes("kayle")) {
-								return null;
-							}
+			{hasDocumentPhoto || returnedItems.length === 0 ? (
+				<section>
+					<div
+						className={cn(
+							"grid gap-6 lg:items-start",
+							hasDocumentPhoto && "lg:grid-cols-[9rem_minmax(0,1fr)]",
+						)}
+					>
+						{hasDocumentPhoto ? (
+							<div className="w-24 sm:w-34">
+								<DocumentPortrait preview={preview} />
+							</div>
+						) : null}
+						{returnedItems.length === 0 ? (
+							<div className="min-w-0">
+								<p className="max-w-[54ch] text-muted-foreground text-sm leading-6">
+									No requested details were returned.
+								</p>
+							</div>
+						) : null}
+					</div>
+				</section>
+			) : null}
 
-							return (
-								<div
-									className="rounded-md bg-muted/40 p-4 sm:p-5"
+			{returnedItems.length > 0 ? (
+				<section>
+					<dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						{returnedItems.map((item) =>
+							item.kind === "age-gate" ? (
+								<AgeGateStatusItem
+									className="rounded-md bg-muted/55 p-4"
 									key={item.key}
-								>
-									{item.kind === "age-gate" ? (
-										<AgeGateStatusItem
-											passed={item.passed}
-											threshold={item.threshold}
-										/>
-									) : (
-										<ProfileFieldItem
-											label={item.label}
-											monospace={item.monospace}
-											value={item.value}
-										/>
-									)}
-								</div>
-							);
-						})}
+									passed={item.passed}
+									threshold={item.threshold}
+								/>
+							) : (
+								<ProfileFieldItem
+									className="rounded-md bg-muted/55 p-4"
+									key={item.key}
+									label={item.label}
+									monospace={item.monospace}
+									value={item.value}
+								/>
+							),
+						)}
 					</dl>
 				</section>
 			) : null}
 
-			{webhookMetadataItems.length > 0 ? (
-				<section className="py-6 sm:py-8">
-					<WebhookMetadataGrid items={webhookMetadataItems} />
-				</section>
-			) : null}
-
-			<section className="border-border/70 border-b py-6 sm:py-8">
-				<WebhookPayloadDisclosure payload={payload} />
+			<section>
+				<WebhookPayloadDisclosure payload={payload} variant="subtle" />
 			</section>
 		</div>
 	);
@@ -469,22 +482,21 @@ export function DemoFailedAttemptPreviewPanel({
 	payload: string;
 	preview: DemoWebhookEventPreview;
 }) {
-	const metadataItems = buildWebhookMetadataItems(preview);
 	const title = preview.failureTitle ?? preview.title;
 	const description = preview.failureDescription ?? preview.description;
 
 	return (
-		<div className="divide-y divide-border/70">
-			<section className="pb-6 sm:pb-8">
-				<ResultSectionHeading description={description} title={title} />
+		<div className="space-y-6">
+			<section>
+				<ResultSectionHeading
+					description={description}
+					title={title}
+					variant="step"
+				/>
 			</section>
 
-			<section className="py-6 sm:py-8">
-				<WebhookMetadataGrid items={metadataItems} />
-			</section>
-
-			<section className="border-border/70 border-b py-6 sm:py-8">
-				<WebhookPayloadDisclosure payload={payload} />
+			<section>
+				<WebhookPayloadDisclosure payload={payload} variant="subtle" />
 			</section>
 		</div>
 	);
@@ -497,57 +509,24 @@ export function DemoWebhookEventPreviewPanel({
 	payload: string;
 	preview: DemoWebhookEventPreview;
 }) {
-	const metadataItems = buildWebhookMetadataItems(preview);
-
-	if (preview.eventType === "verification.attempt.failed") {
+	if (preview.eventType === "verification.session.failed") {
 		return (
 			<DemoFailedAttemptPreviewPanel payload={payload} preview={preview} />
 		);
 	}
 
 	return (
-		<div className="border-border/70 border-t">
-			<section className="border-border/70 border-b py-6 sm:py-8">
+		<div className="space-y-6">
+			<section>
 				<ResultSectionHeading
 					description={preview.description}
 					title={preview.title}
+					variant="step"
 				/>
 			</section>
 
-			<section className="border-border/70 border-b py-6 sm:py-8">
-				<ResultSectionHeading
-					description="Identifiers and metadata from the selected verified event."
-					title="Event details"
-				/>
-				<div className="mt-6">
-					<WebhookMetadataGrid items={metadataItems} />
-				</div>
-			</section>
-
-			<section className="border-border/70 border-b py-6 sm:py-8">
-				<ResultSectionHeading
-					description="Inspect the webhook JSON exactly as it was verified."
-					title="Raw payload"
-				/>
-				<div className="mt-6">
-					<WebhookPayloadDisclosure payload={payload} />
-				</div>
-			</section>
-		</div>
-	);
-}
-
-export function DocumentStatePanel({
-	description,
-	title,
-}: {
-	description: string;
-	title: string;
-}) {
-	return (
-		<div className="border-border/70 border-t">
-			<section className="border-border/70 border-b py-6 sm:py-8">
-				<ResultSectionHeading description={description} title={title} />
+			<section>
+				<WebhookPayloadDisclosure payload={payload} variant="subtle" />
 			</section>
 		</div>
 	);

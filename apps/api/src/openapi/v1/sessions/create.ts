@@ -3,21 +3,22 @@ import { safeRedirectUrl } from "@kayle-id/config/safe-url";
 import { ErrorResponse } from "@/openapi/base";
 import { InternalServerErrorResponse } from "@/openapi/errors";
 import { RequestedShareField, Session } from "@/openapi/models/sessions";
+import { WebhookResourceIdParam } from "@/openapi/models/webhook";
 
 const ALLOW_LOOPBACK_URLS = process.env.NODE_ENV !== "production";
+const MAX_SESSION_WEBHOOK_ENDPOINT_TARGETS = 25;
+const WebhookEndpointTargetInput = z.union([
+	WebhookResourceIdParam,
+	z
+		.array(WebhookResourceIdParam)
+		.min(1)
+		.max(MAX_SESSION_WEBHOOK_ENDPOINT_TARGETS),
+]);
 
 export const createSession = createRoute({
 	method: "post",
 	path: "/",
 	request: {
-		query: z.object({
-			include_attempts: z.coerce
-				.boolean()
-				.optional()
-				.describe(
-					"When true, includes the `attempts` array on the created session. Attempts will be empty on creation.",
-				),
-		}),
 		body: {
 			content: {
 				"application/json": {
@@ -35,6 +36,10 @@ export const createSession = createRoute({
 								.optional()
 								.describe(
 									"Optional map of requested share fields keyed by claim key. Each entry must include `required` (boolean) and `reason` (non-empty string, max 200).",
+								),
+							webhook_endpoint_id:
+								WebhookEndpointTargetInput.optional().describe(
+									"Optional webhook endpoint ID or endpoint ID list to target for this session. When omitted, events fan out to every enabled subscribed endpoint.",
 								),
 						})
 						.openapi("CreateSessionRequest"),

@@ -10,7 +10,6 @@ struct DocumentReadResult: Equatable {
   let documentImage: UIImage?
   let signatureImage: UIImage?
 
-  // Parsed fields from MRTDModel
   let firstName: String
   let lastName: String
   let documentNumber: String
@@ -31,7 +30,6 @@ struct DocumentReadResult: Equatable {
   // T_PICC verification. Wire layout matches packages/api ChipAuthTranscript.
   let chipAuthTranscript: Data?
 
-  // Custom Equatable - compare document fields, not images
   static func == (lhs: DocumentReadResult, rhs: DocumentReadResult) -> Bool {
     lhs.mrz == rhs.mrz &&
     lhs.documentNumber == rhs.documentNumber &&
@@ -39,16 +37,13 @@ struct DocumentReadResult: Equatable {
     lhs.lastName == rhs.lastName
   }
 
-  /// Convert to JSON-encodable Data for E2EE upload.
   func toUploadData() throws -> Data {
     var dict: [String: Any] = [:]
 
-    // DG1 (MRZ from chip)
     if let dg1 = dataGroups.first(where: { $0.id == 0x61 }) {
       dict["dg1"] = ["raw": dg1.data.base64EncodedString()]
     }
 
-    // DG2 (Face image)
     if let dg2 = dataGroups.first(where: { $0.id == 0x75 }) {
       var dg2Dict: [String: Any] = ["raw": dg2.data.base64EncodedString()]
       if let image = documentImage, let jpeg = image.jpegData(compressionQuality: 0.8) {
@@ -57,7 +52,6 @@ struct DocumentReadResult: Equatable {
       dict["dg2"] = dg2Dict
     }
 
-    // SOD (Security Object Document) - if available
     if let sod = dataGroups.first(where: { $0.name.contains("SOD") }) {
       dict["sod"] = ["raw": sod.data.base64EncodedString()]
     }
@@ -126,9 +120,6 @@ final class DocumentNFCReader: NSObject, ObservableObject {
     status = "Idle"
   }
 
-  /// Start NFC reading with a pre-computed MRZ key (BAC authentication key).
-  /// The mrzKey should be: documentNumber + checkDigit + birthDate + checkDigit + expiryDate + checkDigit
-  ///
   /// `activeAuthChallenge` is an optional server-issued nonce. When provided
   /// the chip is asked to sign exactly these bytes during Active
   /// Authentication, blocking the Challenge Semantics replay where a
@@ -141,7 +132,6 @@ final class DocumentNFCReader: NSObject, ObservableObject {
     stop()
     status = String(localized: "Initializing NFC reader...")
 
-    // Setup delegate first
     setupDelegate()
 
     currentMRZ = mrzKey
@@ -149,7 +139,6 @@ final class DocumentNFCReader: NSObject, ObservableObject {
     currentCardAccessNumber = cardAccessNumber
     currentActiveAuthChallenge = activeAuthChallenge.map { Array($0) }
 
-    // Validate MRZ key format (should be around 24 characters: 9+1+6+1+6+1)
     guard mrzKey.count >= 20 else {
       errorMessage = String(
         localized: "Invalid MRZ key format. Please scan your document again."
@@ -158,23 +147,18 @@ final class DocumentNFCReader: NSObject, ObservableObject {
       return
     }
 
-    // Cancel any existing read task
     readTask?.cancel()
 
-    // Update status before starting
     status = String(
       localized:
         "Press your document against your device and hold still to read the chip."
     )
 
-    // Start reading on a background task
     readTask = Task { [weak self] in
       await self?.readDocument()
     }
   }
 
-  /// Start NFC reading by parsing a full MRZ string.
-  /// Use this when you have the raw MRZ from the scanner.
   func start(
     mrz: String,
     cardAccessNumber: String? = nil,

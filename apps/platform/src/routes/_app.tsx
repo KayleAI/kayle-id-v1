@@ -1,6 +1,6 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Toaster } from "@kayleai/ui/sonner";
-import { TooltipProvider } from "@kayleai/ui/tooltip";
+import { Toaster } from "@kayle-id/ui/components/sonner";
+import { TooltipProvider } from "@kayle-id/ui/components/tooltip";
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { AppLayout } from "@/components/app-shell/layout";
 import { Loading } from "@/components/loading";
@@ -21,7 +21,7 @@ function AppLayoutRoute() {
 	}
 
 	if (!activeOrganization) {
-		return <Navigate to="/organizations/select" />;
+		return <Navigate to="/select-organization" />;
 	}
 
 	return (

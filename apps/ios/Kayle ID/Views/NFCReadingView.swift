@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Standalone NFC reading view - can be used in App Clips or main app.
 struct NFCReadingView: View {
   @ObservedObject var nfcReader: DocumentNFCReader
   var documentName = "document"
@@ -9,6 +8,7 @@ struct NFCReadingView: View {
   let hasStarted: Bool
   var onBack: (() -> Void)? = nil
   let onStart: () -> Void
+  var onRetryUpload: (() -> Void)? = nil
   let onComplete: (DocumentReadResult) -> Void
 
   var body: some View {
@@ -41,13 +41,7 @@ struct NFCReadingView: View {
       }
     } footer: {
       if !isUploading {
-        ActionButton(
-          style: .primary,
-          title: nfcReader.errorMessage == nil
-            ? String(localized: "Start Scanning")
-            : String(localized: "Try Again"),
-          action: onStart
-        )
+        uploadActionButton
       }
     }
     .onChange(of: nfcReader.result) { result in
@@ -57,9 +51,32 @@ struct NFCReadingView: View {
     }
   }
 
+  @ViewBuilder
+  private var uploadActionButton: some View {
+    if let onRetryUpload, nfcReader.result != nil {
+      ActionButton(
+        style: .primary,
+        title: String(localized: "Retry Upload"),
+        action: onRetryUpload
+      )
+    } else {
+      ActionButton(
+        style: .primary,
+        title: nfcReader.errorMessage == nil
+          ? String(localized: "Start Scanning")
+          : String(localized: "Try Again"),
+        action: onStart
+      )
+    }
+  }
+
   private var primaryStatusText: String {
     if isUploading {
       return String(localized: "Uploading your \(documentName) securely")
+    }
+
+    if nfcReader.result != nil {
+      return String(localized: "Upload your \(documentName) securely")
     }
 
     return String(localized: "Keep your iPhone close to your \(documentName).")
@@ -69,6 +86,12 @@ struct NFCReadingView: View {
     if isUploading {
       return String(
         localized: "Keep this screen open while we finish the secure transfer."
+      )
+    }
+
+    if nfcReader.result != nil {
+      return String(
+        localized: "The chip scan is complete. Retry the secure upload when your connection is back."
       )
     }
 

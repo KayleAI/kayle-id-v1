@@ -9,7 +9,7 @@ import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
 const UPDATED_WEBHOOK_EVENT_TYPES = [
-	"verification.attempt.failed",
+	"verification.session.failed",
 	"verification.session.expired",
 ] as const;
 
@@ -39,6 +39,7 @@ describe("/v1/webhooks/endpoints", () => {
 	test("creates an endpoint, returns the signing secret once, and persists subscriptions", async () => {
 		const response = await app.request("/v1/webhooks/endpoints", {
 			body: JSON.stringify({
+				labels: ["production", "identity"],
 				name: "Primary verification webhook",
 				subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 				url: "https://example.com/webhooks/kayle",
@@ -56,8 +57,10 @@ describe("/v1/webhooks/endpoints", () => {
 			data: {
 				endpoint: {
 					id: string;
+					labels: string[];
 					name: string | null;
 					subscribed_event_types: string[];
+					undelivered_payload_retention_hours: number;
 				};
 				signing_secret: string;
 			};
@@ -66,9 +69,11 @@ describe("/v1/webhooks/endpoints", () => {
 
 		expect(payload.error).toBeNull();
 		expect(payload.data.endpoint.name).toBe("Primary verification webhook");
+		expect(payload.data.endpoint.labels).toEqual(["production", "identity"]);
 		expect(payload.data.endpoint.subscribed_event_types).toEqual([
 			...SUPPORTED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(payload.data.endpoint.undelivered_payload_retention_hours).toBe(72);
 		expect(payload.data.signing_secret.startsWith("whsec_")).toBeTrue();
 		expect(payload.data.signing_secret).toHaveLength(38);
 
@@ -86,19 +91,46 @@ describe("/v1/webhooks/endpoints", () => {
 		const getPayload = (await getResponse.json()) as {
 			data: {
 				id: string;
+				labels: string[];
 				name: string | null;
 				signing_secret?: string;
 				subscribed_event_types: string[];
+				undelivered_payload_retention_hours: number;
 			};
 			error: null;
 		};
 
 		expect(getPayload.data.id).toBe(payload.data.endpoint.id);
 		expect(getPayload.data.name).toBe("Primary verification webhook");
+		expect(getPayload.data.labels).toEqual(["production", "identity"]);
 		expect(getPayload.data.subscribed_event_types).toEqual([
 			...SUPPORTED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(getPayload.data.undelivered_payload_retention_hours).toBe(72);
 		expect("signing_secret" in getPayload.data).toBeFalse();
+	});
+
+	test("rejects invalid endpoint labels", async () => {
+		for (const labels of [
+			["demo", " DEMO "],
+			["valid", ""],
+			Array.from({ length: 9 }, (_, index) => `label-${index}`),
+			["a".repeat(41)],
+		]) {
+			const response = await app.request("/v1/webhooks/endpoints", {
+				body: JSON.stringify({
+					labels,
+					url: "https://example.com/webhooks/kayle/invalid-labels",
+				}),
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+					"Content-Type": "application/json",
+				},
+				method: "POST",
+			});
+
+			expect(response.status).toBe(400);
+		}
 	});
 
 	test("rotates the signing secret for an endpoint", async () => {
@@ -245,6 +277,7 @@ describe("/v1/webhooks/endpoints", () => {
 	test("updates endpoint name, url, enabled state, and subscriptions", async () => {
 		const createResponse = await app.request("/v1/webhooks/endpoints", {
 			body: JSON.stringify({
+				labels: ["before"],
 				name: "Before rename",
 				subscribed_event_types: [...SUPPORTED_WEBHOOK_EVENT_TYPES],
 				url: "https://example.com/webhooks/kayle/update-before",
@@ -269,9 +302,11 @@ describe("/v1/webhooks/endpoints", () => {
 			{
 				body: JSON.stringify({
 					name: "After rename",
+					labels: ["after", "ops"],
 					url: "https://example.com/webhooks/kayle/update-after",
 					enabled: false,
 					subscribed_event_types: UPDATED_WEBHOOK_EVENT_TYPES,
+					undelivered_payload_retention_hours: 24,
 				}),
 				headers: {
 					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
@@ -287,8 +322,10 @@ describe("/v1/webhooks/endpoints", () => {
 			data: {
 				disabled_at: string | null;
 				enabled: boolean;
+				labels: string[];
 				name: string | null;
 				subscribed_event_types: string[];
+				undelivered_payload_retention_hours: number;
 				url: string;
 			};
 			error: null;
@@ -296,6 +333,7 @@ describe("/v1/webhooks/endpoints", () => {
 
 		expect(updatePayload.error).toBeNull();
 		expect(updatePayload.data.name).toBe("After rename");
+		expect(updatePayload.data.labels).toEqual(["after", "ops"]);
 		expect(updatePayload.data.url).toBe(
 			"https://example.com/webhooks/kayle/update-after",
 		);
@@ -304,6 +342,7 @@ describe("/v1/webhooks/endpoints", () => {
 		expect(updatePayload.data.subscribed_event_types).toEqual([
 			...UPDATED_WEBHOOK_EVENT_TYPES,
 		]);
+		expect(updatePayload.data.undelivered_payload_retention_hours).toBe(24);
 
 		const listResponse = await app.request(
 			"/v1/webhooks/endpoints?enabled=false&limit=10",
@@ -402,7 +441,68 @@ describe("/v1/webhooks/endpoints", () => {
 
 		expect(getResponse.status).toBe(404);
 	});
+
+	test("lists endpoints newest first without dropping tied timestamps", async () => {
+		const createdAt = new Date("9999-01-01T00:00:00.000Z");
+		const endpointIds = Array.from({ length: 4 }, () =>
+			generateEndpointTestId(),
+		);
+
+		await db.insert(webhook_endpoints).values(
+			endpointIds.map((endpointId, index) => ({
+				id: endpointId,
+				organizationId: TEST_DATA?.organizationId ?? "",
+				createdAt,
+				url: `https://example.com/webhooks/page-${index}`,
+			})),
+		);
+
+		const firstPage = await app.request("/v1/webhooks/endpoints?limit=2", {
+			headers: {
+				Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+			},
+			method: "GET",
+		});
+		expect(firstPage.status).toBe(200);
+		const firstPayload = (await firstPage.json()) as {
+			data: Array<{ id: string }>;
+			pagination: { has_more: boolean; next_cursor: string | null };
+		};
+		expect(firstPayload.pagination.has_more).toBeTrue();
+		expect(firstPayload.pagination.next_cursor).toBeString();
+
+		const secondPage = await app.request(
+			`/v1/webhooks/endpoints?limit=2&starting_after=${firstPayload.pagination.next_cursor}`,
+			{
+				headers: {
+					Authorization: `Bearer ${TEST_DATA?.apiKey}`,
+				},
+				method: "GET",
+			},
+		);
+		expect(secondPage.status).toBe(200);
+		const secondPayload = (await secondPage.json()) as {
+			data: Array<{ id: string }>;
+		};
+		const pagedIds = [
+			...firstPayload.data.map((endpoint) => endpoint.id),
+			...secondPayload.data.map((endpoint) => endpoint.id),
+		];
+		const seen = new Set(pagedIds);
+
+		expect(pagedIds).toEqual([...endpointIds].sort().reverse());
+		for (const endpointId of endpointIds) {
+			expect(seen.has(endpointId)).toBeTrue();
+		}
+		expect(seen.size).toBe(
+			firstPayload.data.length + secondPayload.data.length,
+		);
+	});
 });
+
+function generateEndpointTestId(): string {
+	return `whe_${crypto.randomUUID()}`;
+}
 
 describe("/v1/webhooks/endpoints API-key scope enforcement", () => {
 	test("denies a key with no scopes on every webhooks route", async () => {

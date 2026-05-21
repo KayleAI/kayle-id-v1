@@ -6,15 +6,11 @@ function defaultNotFoundComponent(props: NotFoundRouteProps): React.ReactNode {
 	return <NotFound {...props} />;
 }
 
-// Create a new router instance
-export const getRouter = () => {
-	const router = createRouter({
+export const getRouter = () =>
+	createRouter({
 		routeTree,
 		defaultNotFoundComponent,
 		scrollRestoration: true,
 		defaultPreloadStaleTime: 0,
 		trailingSlash: "never",
 	});
-
-	return router;
-};

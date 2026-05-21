@@ -48,6 +48,15 @@ function createMockLogger(): MockLogger {
 	};
 }
 
+function readyVerifierHealthResponse(): Response {
+	return new Response(JSON.stringify({ data: { ready: true } }), {
+		headers: {
+			"content-type": "application/json",
+		},
+		status: 200,
+	});
+}
+
 test("createSafeRequestLogger strips query strings and does not include extra request metadata", () => {
 	const request = new Request(
 		"https://api.kayle.id/v1/verify/session/vs_123?token=secret-value",
@@ -108,6 +117,8 @@ test("createSafeRequestLogger accepts a Request instance", () => {
 test("buildSafeErrorContext uses explicit safe messages", () => {
 	const unsafeError = new Error("token=secret-value");
 	unsafeError.name = "SyntaxError";
+	unsafeError.stack =
+		"Error: token=secret-value\n    at SELECT secret FROM users";
 
 	expect(
 		buildSafeErrorContext({
@@ -120,6 +131,15 @@ test("buildSafeErrorContext uses explicit safe messages", () => {
 		error_message: "Biometric verifier returned invalid JSON.",
 		error_name: "SyntaxError",
 	});
+	expect(
+		Object.values(
+			buildSafeErrorContext({
+				code: "biometric_verifier_invalid_json",
+				error: unsafeError,
+				message: "Biometric verifier returned invalid JSON.",
+			}),
+		).join(" "),
+	).not.toContain("secret-value");
 });
 
 test("logEvent includes the event in info log context", () => {
@@ -177,10 +197,18 @@ test("verifyLiveness does not log upstream response bodies on HTTP errors", asyn
 		video: new Uint8Array([0x03, 0x04]),
 		env: {
 			BIOMETRIC_VERIFIER: {
-				fetch: async () =>
-					new Response("secret=should-not-be-logged", {
-						status: 503,
-					}),
+				fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+					const request = new Request(input as string, init as RequestInit);
+					if (new URL(request.url).pathname === "/health") {
+						return Promise.resolve(readyVerifierHealthResponse());
+					}
+
+					return Promise.resolve(
+						new Response("secret=should-not-be-logged", {
+							status: 503,
+						}),
+					);
+				},
 			},
 			BIOMETRIC_VERIFIER_SECRET: "test-secret",
 		},
@@ -209,13 +237,21 @@ test("verifyLiveness logs safe invalid JSON errors without raw parser messages",
 		video: new Uint8Array([0x03, 0x04]),
 		env: {
 			BIOMETRIC_VERIFIER: {
-				fetch: async () =>
-					new Response("not-json", {
-						headers: {
-							"content-type": "application/json",
-						},
-						status: 200,
-					}),
+				fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+					const request = new Request(input as string, init as RequestInit);
+					if (new URL(request.url).pathname === "/health") {
+						return Promise.resolve(readyVerifierHealthResponse());
+					}
+
+					return Promise.resolve(
+						new Response("not-json", {
+							headers: {
+								"content-type": "application/json",
+							},
+							status: 200,
+						}),
+					);
+				},
 			},
 			BIOMETRIC_VERIFIER_SECRET: "test-secret",
 		},

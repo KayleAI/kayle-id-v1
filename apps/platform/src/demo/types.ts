@@ -20,15 +20,16 @@ export type DemoSessionShareFields = Record<string, DemoSessionShareField>;
 export interface DemoSessionStatus {
 	completed_at: string | null;
 	is_terminal: boolean;
-	latest_attempt: {
-		completed_at: string | null;
-		failure_code: string | null;
-		id: string;
-		status: "cancelled" | "failed" | "in_progress" | "succeeded";
-	} | null;
+	failure_code: string | null;
 	redirect_url: string | null;
 	session_id: string;
-	status: "cancelled" | "completed" | "created" | "expired" | "in_progress";
+	status:
+		| "cancelled"
+		| "created"
+		| "expired"
+		| "failed"
+		| "in_progress"
+		| "succeeded";
 }
 
 export interface DemoWebhookEnvelope {

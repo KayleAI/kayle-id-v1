@@ -1,13 +1,16 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import {
-	COST_EVENT_BLOB,
-	COST_EVENT_DOUBLE,
-	COST_EVENT_INDEX,
-} from "@kayle-id/config/analytics-cost-events";
 import { logEvent, logSafeError } from "@kayle-id/config/logging";
-import { z } from "zod";
 import { config } from "@/config";
 import { getRequestLogger } from "@/logging";
+import {
+	type AnalyticsApiResponse,
+	buildSql,
+	type CostAnalyticsResponse,
+	parseRange,
+	queryAnalyticsEngine,
+	querySchema,
+	toAnalyticsRows,
+} from "./cost-analytics-query";
 
 type AdminContextVariables = {
 	userId: string;
@@ -18,155 +21,6 @@ const cost = new OpenAPIHono<{
 	Bindings: CloudflareBindings;
 	Variables: AdminContextVariables;
 }>();
-
-const groupBySchema = z
-	.enum(["feature", "resource", "day", "org", "version"])
-	.default("feature");
-
-const querySchema = z.object({
-	from: z.string().datetime().optional(),
-	to: z.string().datetime().optional(),
-	groupBy: groupBySchema.optional(),
-});
-
-const MAX_RANGE_DAYS = 90;
-const DEFAULT_RANGE_DAYS = 30;
-
-interface AnalyticsRow {
-	readonly groupKey: string;
-	readonly costUsd: number;
-	readonly count: number;
-}
-
-interface CostAnalyticsResponse {
-	readonly groupBy: z.infer<typeof groupBySchema>;
-	readonly from: string;
-	readonly to: string;
-	readonly totalCostUsd: number;
-	readonly rows: readonly AnalyticsRow[];
-}
-
-function defaultRange(): { from: Date; to: Date } {
-	const to = new Date();
-	const from = new Date(to.getTime() - DEFAULT_RANGE_DAYS * 86_400_000);
-	return { from, to };
-}
-
-function parseRange(input: {
-	from?: string;
-	to?: string;
-}): { from: Date; to: Date } | { error: string } {
-	const defaults = defaultRange();
-	const from = input.from ? new Date(input.from) : defaults.from;
-	const to = input.to ? new Date(input.to) : defaults.to;
-	if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-		return { error: "from/to must be valid ISO-8601 datetimes" };
-	}
-	if (from.getTime() >= to.getTime()) {
-		return { error: "from must be strictly before to" };
-	}
-	// Integer-ms compare to dodge float rounding at the boundary.
-	const spanMs = to.getTime() - from.getTime();
-	if (spanMs > MAX_RANGE_DAYS * 86_400_000) {
-		return { error: `range exceeds ${MAX_RANGE_DAYS} days` };
-	}
-	return { from, to };
-}
-
-const GROUP_BY_COLUMN: Record<z.infer<typeof groupBySchema>, string> = {
-	feature: COST_EVENT_BLOB.feature,
-	resource: COST_EVENT_BLOB.resource,
-	day: "toDate(timestamp)",
-	org: COST_EVENT_INDEX.organizationId,
-	version: COST_EVENT_BLOB.version,
-};
-
-/**
- * Build the Analytics Engine SQL. The environment filter is always
- * pinned to the API's own runtime environment (`config.environment`)
- * — admins can't observe or modify it. This keeps a staging dashboard
- * showing only staging spend, prod showing only prod, with zero
- * client-controllable mixing.
- */
-const VALID_ENV_VALUE = /^[a-zA-Z0-9_-]+$/;
-
-function buildSql({
-	groupBy,
-	from,
-	to,
-	environment,
-}: {
-	groupBy: z.infer<typeof groupBySchema>;
-	from: Date;
-	to: Date;
-	environment: string;
-}): string {
-	const column = GROUP_BY_COLUMN[groupBy];
-	// Defence in depth — `environment` is server-pinned, so a bad value
-	// means the worker is misconfigured. Throw rather than silently strip.
-	if (!VALID_ENV_VALUE.test(environment)) {
-		throw new Error(`cost_analytics_invalid_environment:${environment}`);
-	}
-	// Cloudflare Analytics Engine SQL rejects raw expressions in GROUP BY
-	// (HTTP 422 "you may only provide column names"). The SELECT aliases
-	// `${column}` (which may itself be an expression like `toDate(timestamp)`
-	// for day buckets) as `group_key`, so reference the alias here — that
-	// satisfies the column-name requirement for both real blob columns and
-	// derived expressions.
-	return [
-		`SELECT ${column} AS group_key, SUM(${COST_EVENT_DOUBLE.estimatedCostUsd}) AS cost_usd, COUNT() AS event_count`,
-		"FROM KAYLE_ID_ANALYTICS",
-		`WHERE timestamp >= toDateTime('${toClickhouseTime(from)}')`,
-		`  AND timestamp < toDateTime('${toClickhouseTime(to)}')`,
-		`  AND ${COST_EVENT_BLOB.environment} = '${environment}'`,
-		"GROUP BY group_key",
-		"ORDER BY cost_usd DESC",
-		"LIMIT 1000",
-	].join("\n");
-}
-
-function toClickhouseTime(d: Date): string {
-	// CF Analytics Engine SQL expects `YYYY-MM-DD HH:MM:SS` (UTC).
-	return d.toISOString().replace("T", " ").slice(0, 19);
-}
-
-interface AnalyticsApiRow {
-	group_key?: string | number | null;
-	cost_usd?: number | string | null;
-	event_count?: number | string | null;
-}
-
-interface AnalyticsApiResponse {
-	data?: AnalyticsApiRow[];
-	errors?: { message?: string }[];
-}
-
-async function queryAnalyticsEngine({
-	accountId,
-	apiToken,
-	sql,
-}: {
-	accountId: string;
-	apiToken: string;
-	sql: string;
-}): Promise<AnalyticsApiResponse> {
-	const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics_engine/sql`;
-	const response = await fetch(url, {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${apiToken}`,
-			"Content-Type": "text/plain",
-		},
-		body: sql,
-	});
-	if (!response.ok) {
-		const text = await response.text().catch(() => "");
-		throw new Error(
-			`cf_analytics_http_${response.status}:${text.slice(0, 200)}`,
-		);
-	}
-	return (await response.json()) as AnalyticsApiResponse;
-}
 
 cost.get("/cost-analytics", async (c) => {
 	const parsed = querySchema.safeParse({
@@ -199,9 +53,6 @@ cost.get("/cost-analytics", async (c) => {
 	}
 
 	const groupBy = parsed.data.groupBy ?? "feature";
-	// Environment is server-pinned to whatever this API instance is
-	// running in — never reads from the client. A staging dashboard sees
-	// only staging spend; a production dashboard sees only production.
 	const environment = config.environment ?? "unknown";
 	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
 	const apiToken = c.env.CLOUDFLARE_API_TOKEN;
@@ -244,11 +95,6 @@ cost.get("/cost-analytics", async (c) => {
 		logSafeError(logger, {
 			code: "cost_analytics_query_failed",
 			details: {
-				// Upstream Cloudflare API error from `queryAnalyticsEngine` is
-				// shaped `cf_analytics_http_<status>:<body-snippet>` — never
-				// contains the API token or user input, so it's safe to log
-				// to internal telemetry. Surface it for diagnosis; the
-				// response body still gets the generic safe message.
 				underlying_message:
 					error instanceof Error ? error.message : String(error),
 			},
@@ -269,15 +115,7 @@ cost.get("/cost-analytics", async (c) => {
 		);
 	}
 
-	const rows: AnalyticsRow[] = (raw.data ?? []).map((row) => ({
-		groupKey:
-			row.group_key === null || row.group_key === undefined
-				? ""
-				: String(row.group_key),
-		costUsd: Number(row.cost_usd ?? 0),
-		count: Number(row.event_count ?? 0),
-	}));
-
+	const rows = toAnalyticsRows(raw);
 	const totalCostUsd = rows.reduce((sum, row) => sum + row.costUsd, 0);
 
 	const payload: CostAnalyticsResponse = {
@@ -288,8 +126,6 @@ cost.get("/cost-analytics", async (c) => {
 		rows,
 	};
 
-	// Environment + actor go to internal telemetry only — never to
-	// the response body.
 	logEvent(logger, {
 		details: {
 			actor_user_id: c.get("userId") ?? null,

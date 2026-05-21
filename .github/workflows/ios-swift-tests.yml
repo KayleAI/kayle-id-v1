@@ -1,0 +1,67 @@
+name: iOS Swift Tests
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - ".github/workflows/ios-swift-tests.yml"
+      - ".github/workflows/release.yml"
+      - "apps/ios/**"
+      - "packages/capnp/**"
+      - "packages/translations/package.json"
+      - "packages/translations/scripts/generate-ios-catalog.ts"
+      - "packages/translations/src/i18n.ts"
+      - "packages/translations/src/ios-copy.ts"
+      - "packages/translations/src/ios-info-plist.ts"
+      - "packages/translations/src/**/ios-copy.ts"
+      - "packages/translations/src/**/ios-info-plist.ts"
+      - "scripts/generate-capnp.sh"
+      - "scripts/generate-capnp-ts.sh"
+      - "scripts/resolve-ios-build-number.ts"
+      - "scripts/resolve-ios-build-number.test.ts"
+      - "scripts/seed-local-dev.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/ios-swift-tests.yml"
+      - ".github/workflows/release.yml"
+      - "apps/ios/**"
+      - "packages/capnp/**"
+      - "packages/translations/package.json"
+      - "packages/translations/scripts/generate-ios-catalog.ts"
+      - "packages/translations/src/i18n.ts"
+      - "packages/translations/src/ios-copy.ts"
+      - "packages/translations/src/ios-info-plist.ts"
+      - "packages/translations/src/**/ios-copy.ts"
+      - "packages/translations/src/**/ios-info-plist.ts"
+      - "scripts/generate-capnp.sh"
+      - "scripts/generate-capnp-ts.sh"
+      - "scripts/resolve-ios-build-number.ts"
+      - "scripts/resolve-ios-build-number.test.ts"
+      - "scripts/seed-local-dev.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  swift-tests:
+    name: Swift Package
+    runs-on: macos-15
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.base_ref != 'main' ||
+      github.head_ref != 'staging'
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Show Swift toolchain
+        run: swift --version
+
+      - name: Run Swift tests
+        working-directory: apps/ios
+        run: swift test

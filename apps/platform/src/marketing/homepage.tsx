@@ -1,5 +1,5 @@
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Button } from "@kayleai/ui/button";
+import { Button } from "@kayle-id/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import {
 	IconGlobe,
@@ -61,10 +61,10 @@ const trustPillars: ReadonlyArray<{
 export function Homepage() {
 	const { status } = useAuth();
 	const ctaTo = status === "authenticated" ? "/dashboard" : "/sign-in";
+	const ctaLabel = status === "authenticated" ? "Dashboard" : "Get Started";
 
 	return (
 		<main className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-			{/* === Hero === */}
 			<section className="mb-16 sm:mb-24">
 				<h1 className="mx-auto mt-8 max-w-[20ch] text-balance text-center font-light text-6xl text-foreground tracking-tighter sm:text-7xl">
 					Identity verification for high-trust products.
@@ -73,10 +73,10 @@ export function Homepage() {
 					Verify your users' identity or confirm their age with one coherent
 					flow — with only the details you need, end-to-end-encrypted.
 				</p>
-				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+				<div className="mt-6 flex flex-row items-center justify-center gap-3">
 					<Button
 						nativeButton={false}
-						render={<Link to={ctaTo}>Get Started</Link>}
+						render={<Link to={ctaTo}>{ctaLabel}</Link>}
 					/>
 					<Button
 						nativeButton={false}
@@ -86,7 +86,6 @@ export function Homepage() {
 				</div>
 			</section>
 
-			{/* === Documents coverage === */}
 			<section className="mt-24 border-border/70 border-t pt-24">
 				<h2 className="mx-auto mt-8 max-w-[24ch] text-balance text-center font-light text-4xl text-foreground tracking-tighter sm:text-5xl">
 					Read passports and ID cards from over 200 countries.
@@ -117,7 +116,6 @@ export function Homepage() {
 				</dl>
 			</section>
 
-			{/* === Trust & privacy === */}
 			<section className="mt-24 border-border/70 border-t pt-24">
 				<h2 className="mx-auto mt-8 max-w-[24ch] text-balance text-center font-light text-4xl text-foreground tracking-tighter sm:text-5xl">
 					Built so we hold as little of your users' data as possible.
@@ -148,7 +146,6 @@ export function Homepage() {
 				</dl>
 			</section>
 
-			{/* === Closing CTA === */}
 			<section className="mt-24 border-border/70 border-t pt-24">
 				<h2 className="mx-auto mt-8 max-w-[28ch] text-balance text-center font-light text-4xl text-foreground tracking-tighter sm:text-5xl">
 					Bring Kayle's calmer, more legible design language into your identity
@@ -161,7 +158,7 @@ export function Homepage() {
 				<div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
 					<Button
 						nativeButton={false}
-						render={<Link to={ctaTo}>Get Started</Link>}
+						render={<Link to={ctaTo}>{ctaLabel}</Link>}
 					/>
 					<Button
 						nativeButton={false}

@@ -39,17 +39,37 @@ function createStorage() {
 	};
 }
 
-function createMailbox() {
+function createMailbox(env: Record<string, unknown> = {}) {
 	const fake = createStorage();
 	const mailbox = new DemoRunMailbox(
 		{ storage: fake.storage } as never,
-		{} as never,
+		env as never,
 	);
 
 	return {
 		fake,
 		mailbox,
 	};
+}
+
+async function initializeMailbox(
+	mailbox: DemoRunMailbox,
+	endpointId = "whe_demo_test",
+): Promise<Response> {
+	return await mailbox.fetch(
+		new Request("https://demo.internal/initialize", {
+			body: JSON.stringify({
+				endpoint_id: endpointId,
+				key_id: "demo_key",
+				org_slug: "kayle",
+				receiver_token: "receiver_token",
+			}),
+			headers: {
+				"Content-Type": "application/json",
+			},
+			method: "POST",
+		}),
+	);
 }
 
 afterEach(() => {
@@ -103,5 +123,121 @@ describe("DemoRunMailbox rate limiting", () => {
 		await mailbox.alarm();
 
 		expect(fake.values.size).toBe(0);
+	});
+});
+
+describe("DemoRunMailbox cleanup", () => {
+	test("schedules endpoint deletion cleanup when a demo session expires", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-05-09T12:00:00.000Z"));
+		const fetchMock = vi.fn().mockResolvedValue(
+			Response.json({
+				data: {
+					message: "Webhook endpoint deleted.",
+					status: "success",
+				},
+				error: null,
+			}),
+		);
+		const { fake, mailbox } = createMailbox({
+			API: {
+				fetch: fetchMock,
+			},
+			KAYLE_DEMO_API_KEY: "demo_api_key",
+		});
+
+		const initializeResponse = await initializeMailbox(mailbox);
+		expect(initializeResponse.status).toBe(204);
+		const statusResponse = await mailbox.fetch(
+			new Request("https://demo.internal/session-status", {
+				body: JSON.stringify({
+					completed_at: "2026-05-09T12:00:00.000Z",
+					failure_code: null,
+					is_terminal: true,
+					redirect_url: null,
+					session_id: "vs_demo_expired",
+					status: "expired",
+				}),
+				headers: {
+					"Content-Type": "application/json",
+				},
+				method: "POST",
+			}),
+		);
+
+		expect(statusResponse.status).toBe(204);
+		expect(fake.alarmAt).toBe(new Date("2026-05-09T12:30:00.000Z").getTime());
+
+		await mailbox.alarm();
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://api/v1/webhooks/endpoints/whe_demo_test",
+			expect.objectContaining({
+				method: "DELETE",
+			}),
+		);
+		expect(fake.values.size).toBe(0);
+	});
+
+	test("deletes the demo webhook endpoint on alarm", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			Response.json({
+				data: {
+					message: "Webhook endpoint deleted.",
+					status: "success",
+				},
+				error: null,
+			}),
+		);
+		const { fake, mailbox } = createMailbox({
+			API: {
+				fetch: fetchMock,
+			},
+			KAYLE_DEMO_API_KEY: "demo_api_key",
+		});
+
+		const initializeResponse = await initializeMailbox(mailbox);
+		expect(initializeResponse.status).toBe(204);
+		expect(fake.values.size).toBe(1);
+
+		await mailbox.alarm();
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://api/v1/webhooks/endpoints/whe_demo_test",
+			expect.objectContaining({
+				method: "DELETE",
+			}),
+		);
+		expect(fake.values.size).toBe(0);
+	});
+
+	test("retains demo run state and retries when endpoint deletion fails", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-05-09T12:00:00.000Z"));
+		const fetchMock = vi.fn().mockResolvedValue(
+			Response.json(
+				{
+					data: null,
+					error: {
+						message: "Upstream cleanup failed.",
+					},
+				},
+				{ status: 503 },
+			),
+		);
+		const { fake, mailbox } = createMailbox({
+			API: {
+				fetch: fetchMock,
+			},
+			KAYLE_DEMO_API_KEY: "demo_api_key",
+		});
+
+		const initializeResponse = await initializeMailbox(mailbox);
+		expect(initializeResponse.status).toBe(204);
+
+		await mailbox.alarm();
+
+		expect(fake.values.size).toBe(1);
+		expect(fake.alarmAt).toBe(new Date("2026-05-09T12:05:00.000Z").getTime());
 	});
 });

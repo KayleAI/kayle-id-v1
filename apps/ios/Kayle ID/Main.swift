@@ -4,11 +4,14 @@ import SwiftUI
 struct Main: App {
   @State private var pendingQRCode: String?
 
+  init() {
+    LivenessTempFileStore.removeOrphanedRecordings()
+  }
+
   var body: some Scene {
     WindowGroup {
       ContentView(pendingQRCode: $pendingQRCode)
         .onOpenURL { url in
-          // Handle kayle-id:// URL scheme
           handleIncomingURL(url)
         }
     }

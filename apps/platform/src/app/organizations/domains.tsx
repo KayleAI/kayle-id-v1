@@ -1,5 +1,8 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -9,16 +12,16 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -26,17 +29,17 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@kayleai/ui/dialog";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
+} from "@kayle-id/ui/components/dialog";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@kayleai/ui/select";
-import { Skeleton } from "@kayleai/ui/skeleton";
+} from "@kayle-id/ui/components/select";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import {
 	Table,
 	TableBody,
@@ -44,22 +47,21 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@kayleai/ui/table";
+} from "@kayle-id/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FormErrorAlert } from "@/components/form-error-alert";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import {
 	type ActiveDomainChallenge,
 	addRedirectUri,
 	type DnsChallengeStarted,
-	fetchFullOrganization,
-	listOrganizationDomains,
 	listRedirectUris,
 	ORGANIZATION_DOMAINS_QUERY_KEY,
 	ORGANIZATION_QUERY_KEY,
 	ORGANIZATION_REDIRECT_URIS_QUERY_KEY,
-	type OrganizationRole,
 	removeRedirectUri,
 	removeVerifiedDomain,
 	startDnsDomainChallenge,
@@ -67,6 +69,11 @@ import {
 	verifyDnsDomainChallenge,
 } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import {
+	useCurrentMemberRole,
+	useOrganizationDomainsQuery,
+	useOrganizationQuery,
+} from "./use-organization-query";
 
 function DomainsSkeleton() {
 	return (
@@ -183,9 +190,7 @@ function VerifiedDomainsCard({
 			setPendingRemoval(null);
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to remove domain.",
-			);
+			toast.error(getErrorMessage(err, "Failed to remove domain."));
 		},
 	});
 
@@ -389,9 +394,7 @@ function AddDomainWizard({
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to start DNS challenge.",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to start DNS challenge."));
 		},
 	});
 
@@ -420,9 +423,10 @@ function AddDomainWizard({
 		},
 		onError: (err) => {
 			setErrorMessage(
-				err instanceof Error
-					? err.message
-					: "DNS record not found yet. DNS may take a few minutes to propagate.",
+				getErrorMessage(
+					err,
+					"DNS record not found yet. DNS may take a few minutes to propagate.",
+				),
 			);
 		},
 	});
@@ -464,12 +468,7 @@ function AddDomainWizard({
 						.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Action needed</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Action needed" />
 				{step.kind === "input" ? (
 					<form className="space-y-4" onSubmit={handleApexSubmit}>
 						<div className="space-y-2">
@@ -693,9 +692,7 @@ function AddRedirectUriDialog({
 			onClose();
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to add redirect URI.",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to add redirect URI."));
 		},
 	});
 
@@ -758,12 +755,7 @@ function AddRedirectUriDialog({
 						.
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage ? (
-					<Alert variant="destructive">
-						<AlertTitle>Couldn't add pattern</AlertTitle>
-						<AlertDescription>{errorMessage}</AlertDescription>
-					</Alert>
-				) : null}
+				<FormErrorAlert message={errorMessage} title="Couldn't add pattern" />
 				<form className="space-y-4" onSubmit={handleSubmit}>
 					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-end">
 						<div className="space-y-1">
@@ -871,9 +863,7 @@ function RedirectUrisCard({
 			toast.success("Redirect URI removed.");
 		},
 		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to remove redirect URI.",
-			);
+			toast.error(getErrorMessage(err, "Failed to remove redirect URI."));
 		},
 	});
 
@@ -985,44 +975,24 @@ function RedirectUrisCard({
 }
 
 export function OrganizationDomainsPage() {
-	const { user } = useAuth();
-	const orgQuery = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const domainsQuery = useQuery({
-		queryFn: listOrganizationDomains,
-		queryKey: ORGANIZATION_DOMAINS_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const orgQuery = useOrganizationQuery();
+	const domainsQuery = useOrganizationDomainsQuery();
 	const [wizardOpen, setWizardOpen] = useState(false);
-
-	const currentRole = orgQuery.data?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role as OrganizationRole | undefined;
-	const canManage = currentRole === "owner";
+	const canManage = useCurrentMemberRole() === "owner";
 
 	const isLoading = orgQuery.isLoading || domainsQuery.isLoading;
 	const isError = orgQuery.isError || domainsQuery.isError;
-	const errorMessage =
-		orgQuery.error instanceof Error
-			? orgQuery.error.message
-			: domainsQuery.error instanceof Error
-				? domainsQuery.error.message
-				: "Something went wrong while loading domains.";
+	const errorMessage = getErrorMessage(
+		orgQuery.error ?? domainsQuery.error,
+		"Something went wrong while loading domains.",
+	);
 
 	return (
-		<OrganizationPageLayout
-			description="Your organization's domains and redirect URIs."
-			title="Domains"
-		>
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load domains</AlertTitle>
-					<AlertDescription>{errorMessage}</AlertDescription>
-				</Alert>
-			) : null}
+		<OrganizationPageLayout title="Domains">
+			<FormErrorAlert
+				message={isError ? errorMessage : ""}
+				title="Failed to load domains"
+			/>
 			{isLoading ? <DomainsSkeleton /> : null}
 			{!(isLoading || isError) ? (
 				<div className="space-y-6">

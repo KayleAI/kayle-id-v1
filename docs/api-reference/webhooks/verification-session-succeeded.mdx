@@ -1,0 +1,81 @@
+---
+title: "verification.session.succeeded"
+description: "Fires when a Kayle verification session is confirmed."
+---
+
+Emitted when a session finishes with all Kayle checks confirmed. The payload includes the consented claims and the canonical list of selected field keys.
+
+## When it fires
+
+After the verify pipeline confirms the session: SOD chain checked, all data-group hashes match, active and chip authentication checks pass when applicable, the biometric verifier confirms the selfie, and the user has consented to share at least all required fields.
+
+A session can only succeed once — once this event fires, the session moves to `succeeded` and no further checks are accepted.
+
+## Payload
+
+```json
+{
+  "type": "verification.session.succeeded",
+  "metadata": {
+    "contract_version": 1,
+    "event_id": "evt_...",
+    "verification_session_id": "vs_..."
+  },
+  "data": {
+    "claims": {
+      "date_of_birth": "1995-04-12",
+      "family_name": "Curie",
+      "given_names": "Marie",
+      "kayle_document_id": "kdid_..."
+    },
+    "selected_field_keys": [
+      "date_of_birth",
+      "family_name",
+      "given_names",
+      "kayle_document_id"
+    ]
+  }
+}
+```
+
+## Fields
+
+<ResponseField name="type" type="string">
+  Always `verification.session.succeeded`.
+</ResponseField>
+
+<ResponseField name="metadata.contract_version" type="number">
+  The share-contract version the session was created against. Use to detect changes if your code branches on contract semantics.
+</ResponseField>
+
+<ResponseField name="metadata.event_id" type="string">
+  The unique event ID. Idempotency-key candidate — the same event will reuse this ID on retries and replays.
+</ResponseField>
+
+<ResponseField name="metadata.verification_session_id" type="string">
+  The session that succeeded.
+</ResponseField>
+
+<ResponseField name="data.claims" type="object">
+  Map of claim key to value. Only the claims the user consented to share appear here. See [Share fields](/verifications/share-fields) for the catalogue and value formats.
+</ResponseField>
+
+<ResponseField name="data.selected_field_keys" type="string[]">
+  The canonical, ordered list of keys present in `claims`. Iterate this rather than `Object.keys(claims)` if you need consistent order.
+</ResponseField>
+
+## Handler outline
+
+```typescript
+if (event.type === "verification.session.succeeded") {
+  const { verification_session_id, event_id } = event.metadata;
+  if (await alreadyProcessed(event_id)) return;
+
+  await recordIdentityAssuranceSignal({
+    sessionId: verification_session_id,
+    claims: event.data.claims,
+  });
+}
+```
+
+The `claims` object reflects the user's consent at the moment Kayle confirmed the check. If you requested an optional field and it's missing here, the user declined it — handle that without treating Kayle's technical result as your final decision.

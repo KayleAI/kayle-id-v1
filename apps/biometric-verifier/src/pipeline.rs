@@ -23,8 +23,6 @@ use crate::types::{
 use crate::video::{extract_frames, DecodedFrames};
 use crate::yunet::Detection;
 use anyhow::{Context, Result};
-use base64::engine::general_purpose::STANDARD as B64;
-use base64::Engine;
 use std::io::Write;
 use std::time::Instant;
 use tempfile::NamedTempFile;
@@ -94,8 +92,8 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
             .unwrap_or(crate::config::DEFAULT_THRESHOLD),
     );
 
-    // Validate the video field; the empty string is treated as "missing".
-    if request.video_base64.is_empty() {
+    // Validate the video field; empty bytes are treated as "missing".
+    if request.video.is_empty() {
         return Ok(finish_response(
             VerifyResponse::pipeline_failure("liveness_video_missing"),
             debug,
@@ -104,27 +102,7 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
             0,
         ));
     }
-    let video_bytes = match B64.decode(request.video_base64.as_bytes()) {
-        Ok(b) if !b.is_empty() => b,
-        Ok(_) => {
-            return Ok(finish_response(
-                VerifyResponse::pipeline_failure("liveness_video_empty"),
-                debug,
-                debug_metrics,
-                started,
-                0,
-            ));
-        }
-        Err(_) => {
-            return Ok(finish_response(
-                VerifyResponse::pipeline_failure("liveness_video_decode_failed"),
-                debug,
-                debug_metrics,
-                started,
-                0,
-            ));
-        }
-    };
+    let video_bytes = request.video;
 
     let extracted =
         match extract_frames_from_video_bytes(&video_bytes, settings.liveness_frame_count as usize)
@@ -194,7 +172,7 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
     }
 
     // Challenge nonce — base64-decoded, must be exactly NONCE_BYTES.
-    let Some(challenge_b64) = request.challenge_nonce_base64.as_ref() else {
+    let Some(expected_nonce) = request.challenge_nonce.as_ref() else {
         return Ok(finish_response(
             VerifyResponse::pipeline_failure("liveness_challenge_mismatch"),
             debug,
@@ -203,7 +181,7 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
             frame_count,
         ));
     };
-    if challenge_b64.is_empty() {
+    if expected_nonce.len() != NONCE_BYTES {
         return Ok(finish_response(
             VerifyResponse::pipeline_failure("liveness_challenge_mismatch"),
             debug,
@@ -212,19 +190,7 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
             frame_count,
         ));
     }
-    let expected_nonce = match B64.decode(challenge_b64.as_bytes()) {
-        Ok(b) if b.len() == NONCE_BYTES => b,
-        _ => {
-            return Ok(finish_response(
-                VerifyResponse::pipeline_failure("liveness_challenge_mismatch"),
-                debug,
-                debug_metrics,
-                started,
-                frame_count,
-            ));
-        }
-    };
-    let nonce_result = verify_challenge_nonce(&extracted.frames, &expected_nonce);
+    let nonce_result = verify_challenge_nonce(&extracted.frames, expected_nonce);
     tracing::event!(
         target: "biometric_verifier",
         tracing::Level::INFO,
@@ -398,22 +364,7 @@ fn run_pipeline(runtime: Runtime, request: VerifyRequest) -> Result<VerifyRespon
     }
 
     // DG2 decode + face match.
-    let dg2_bytes = match B64.decode(request.dg2_image.bytes_base64.as_bytes()) {
-        Ok(b) => b,
-        Err(_) => {
-            return Ok(finish_response(
-                VerifyResponse::pipeline_failure_with_score(
-                    "liveness_dg2_decode_failed",
-                    liveness_score,
-                ),
-                debug,
-                debug_metrics,
-                started,
-                frame_count,
-            ));
-        }
-    };
-    let dg2_image = match BgrImage::from_jpeg(&dg2_bytes) {
+    let dg2_image = match BgrImage::from_jpeg(&request.dg2_image.bytes) {
         Ok(im) => im,
         Err(e) => {
             tracing::event!(
@@ -754,11 +705,11 @@ mod tests {
             &runtime,
             VerifyRequest {
                 dg2_image: Dg2ImagePayload {
-                    bytes_base64: "AA==".into(),
+                    bytes: vec![0],
                     format: None,
                 },
-                video_base64: String::new(),
-                challenge_nonce_base64: None,
+                video: Vec::new(),
+                challenge_nonce: None,
                 face_match_threshold: None,
                 include_debug: Some(true),
                 skip_face_match: None,

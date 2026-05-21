@@ -97,13 +97,13 @@ export function validateActiveAuthentication({
 }
 
 export function deriveActiveAuthChallenge({
-	attemptId,
+	sessionId,
 	authSecret,
 }: {
-	attemptId: string;
+	sessionId: string;
 	authSecret: string;
 }): Promise<Uint8Array> {
-	return deriveActiveAuthChallengeInternal({ attemptId, authSecret });
+	return deriveActiveAuthChallengeInternal({ sessionId, authSecret });
 }
 
 export function validateChipAuthentication({

@@ -15,7 +15,7 @@ import Security
 ///      resulting attestation CBOR + challenge to
 ///      `POST /v1/verify/attest/register`.
 ///   2. `helloAssertion(...)` builds the canonical hello clientDataHash from
-///      `attemptId / deviceId / appVersion / handoffChallenge` and signs it.
+///      `sessionId / deviceId / appVersion / handoffChallenge` and signs it.
 ///   3. `nfcPayloadAssertion(...)` builds the NFC clientDataHash from the
 ///      attempt id and SHA-256 of every NFC artifact (in the same canonical
 ///      order as `attest-gate.ts buildNfcClientDataHash`) and signs it.
@@ -65,6 +65,8 @@ final class AppAttestService {
   private let productionAPIHost = "api.kayle.id"
   private var cachedKeyId: String?
   private var cachedKeyIdHost: String?
+  private var prewarmTasksByHost: [String: Task<Void, Never>] = [:]
+  private var registrationTasksByHost: [String: Task<String, Error>] = [:]
 
   private init() {}
 
@@ -79,7 +81,48 @@ final class AppAttestService {
       cachedKeyIdHost = host
       return stored
     }
-    return try await register(baseURL: baseURL)
+
+    if let registrationTask = registrationTasksByHost[host] {
+      return try await registrationTask.value
+    }
+
+    let registrationTask = Task { @MainActor in
+      try await self.register(baseURL: baseURL)
+    }
+    registrationTasksByHost[host] = registrationTask
+
+    do {
+      let keyId = try await registrationTask.value
+      registrationTasksByHost[host] = nil
+      return keyId
+    } catch {
+      registrationTasksByHost[host] = nil
+      throw error
+    }
+  }
+
+  func prewarm(baseURL: String) {
+    let host = keychainAccountHost(for: baseURL)
+    guard prewarmTasksByHost[host] == nil else {
+      return
+    }
+
+    prewarmTasksByHost[host] = Task { @MainActor [weak self] in
+      guard let self else {
+        return
+      }
+      defer {
+        self.prewarmTasksByHost[host] = nil
+      }
+
+      do {
+        _ = try await self.currentKeyId(baseURL: baseURL)
+      } catch {
+#if DEBUG
+        print("AppAttest prewarm failed: \(error.localizedDescription)")
+#endif
+      }
+    }
   }
 
   /// Performs a fresh App Attest registration. Generates a new SE key, fetches
@@ -129,7 +172,7 @@ final class AppAttestService {
   /// assertion bytes the WebSocket carries in `ClientHello.helloAssertion`.
   func helloAssertion(
     baseURL: String,
-    attemptId: String,
+    sessionId: String,
     deviceId: String,
     appVersion: String,
     challenge: Data
@@ -137,7 +180,7 @@ final class AppAttestService {
     let keyId = try await currentKeyId(baseURL: baseURL)
 
     let clientData = Data("attest:hello:".utf8)
-      + Data(attemptId.utf8)
+      + Data(sessionId.utf8)
       + Data(deviceId.utf8)
       + Data(appVersion.utf8)
       + challenge
@@ -156,14 +199,14 @@ final class AppAttestService {
   /// `apps/api/src/v1/verify/attest-gate.ts buildNfcClientDataHash` exactly.
   func nfcPayloadAssertion(
     baseURL: String,
-    attemptId: String,
+    sessionId: String,
     challenge: Data,
     digests: NfcArtifactDigests
   ) async throws -> Data {
     let keyId = try await currentKeyId(baseURL: baseURL)
 
     var clientData = Data("attest:nfc:".utf8)
-    clientData.append(contentsOf: Data(attemptId.utf8))
+    clientData.append(contentsOf: Data(sessionId.utf8))
     clientData.append(digests.dg1)
     clientData.append(digests.dg2)
     clientData.append(digests.dg14)

@@ -57,8 +57,8 @@
           {
             "group": "Webhook events",
             "pages": [
-              "api-reference/webhooks/verification-attempt-succeeded",
-              "api-reference/webhooks/verification-attempt-failed",
+              "api-reference/webhooks/verification-session-succeeded",
+              "api-reference/webhooks/verification-session-failed",
               "api-reference/webhooks/verification-session-expired",
               "api-reference/webhooks/verification-session-cancelled"
             ]

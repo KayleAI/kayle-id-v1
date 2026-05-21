@@ -1,12 +1,10 @@
 ---
 title: "Kayle ID"
-description: "Privacy-first identity verification for the modern web."
+description: "Privacy-first identity-assurance checks for the modern web."
 icon: "shield-check"
 ---
 
-Kayle ID verifies that someone is who they say they are by reading the cryptographic chip in their identity document, matching the on-chip portrait against a live selfie, and returning only the claims you asked for. The end user keeps custody of their document data; you receive a verified result and the fields you requested.
-
-The product is open source under Apache 2.0. You can self-host the entire stack or use the hosted service at `https://api.kayle.id`.
+Kayle ID produces an identity-assurance signal by reading the cryptographic chip in an identity document, matching the on-chip portrait against a live selfie, and returning only the claims you asked for. The end user keeps custody of their document data; you receive the Kayle check result and the fields the user consented to share. You remain responsible for any access, onboarding, eligibility, or account decision you make from that signal.
 
 ## Start here
 
@@ -26,7 +24,7 @@ The product is open source under Apache 2.0. You can self-host the entire stack 
     Lifecycle, expiry, attempts, redirect handling.
   </Card>
   <Card title="Share fields" icon="list-check" href="/verifications/share-fields">
-    The catalogue of claims you can request from a verified user.
+    The catalogue of claims you can request for a Kayle check.
   </Card>
   <Card title="Document checks" icon="microchip" href="/verifications/document-checks">
     Learn about the document checks that are run during a verification.

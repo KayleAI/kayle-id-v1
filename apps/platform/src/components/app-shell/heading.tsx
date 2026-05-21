@@ -1,4 +1,4 @@
-import { cn } from "@kayleai/ui/utils/cn";
+import { cn } from "@kayle-id/ui/lib/utils";
 
 export function AppHeading({
 	title,
@@ -12,8 +12,8 @@ export function AppHeading({
 	className?: string;
 }) {
 	return (
-		<div className="flex flex-col justify-between sm:flex-row sm:items-center">
-			<div className={cn("flex flex-col", className)}>
+		<div className="flex flex-row flex-wrap items-center justify-between gap-3 sm:gap-x-6">
+			<div className={cn("flex min-w-0 flex-1 flex-col", className)}>
 				<h1 className="mb-1 font-light text-3xl text-foreground tracking-tight">
 					{title}
 				</h1>
@@ -22,7 +22,7 @@ export function AppHeading({
 				) : null}
 			</div>
 			{button ? (
-				<div className="mt-6 flex justify-end sm:mt-0">{button}</div>
+				<div className="flex shrink-0 justify-end">{button}</div>
 			) : null}
 		</div>
 	);

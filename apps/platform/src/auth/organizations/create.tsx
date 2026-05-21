@@ -1,20 +1,28 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
 import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
-import { Button } from "@kayleai/ui/button";
-import { Input } from "@kayleai/ui/input";
-import { Logo } from "@kayleai/ui/logo";
+import { Button } from "@kayle-id/ui/components/button";
+import { Input } from "@kayle-id/ui/components/input";
+import { Logo } from "@kayle-id/ui/components/logo";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
+import {
+	getOrganizationLogoFileError,
+	ORGANIZATION_LOGO_ACCEPT,
+} from "@/app/organizations/logo-policy";
 import { Loading } from "@/components/loading";
 import { requestApiResource } from "@/utils/api-client";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 const DEFAULT_ERROR = "Failed to create organization";
 
 export function CreateOrganization() {
 	const { refresh } = useAuth();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const nameRef = useRef<HTMLInputElement>(null);
 	const slugRef = useRef<HTMLInputElement>(null);
 	const [name, setName] = useState("");
@@ -28,7 +36,6 @@ export function CreateOrganization() {
 	const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Auto-generate slug from name
 	useEffect(() => {
 		if (!slugManuallyEdited && name) {
 			const generatedSlug = name
@@ -50,17 +57,20 @@ export function CreateOrganization() {
 	const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			if (!file.type.startsWith("image/")) {
-				setError("Please select an image file");
+			const logoError = getOrganizationLogoFileError(file);
+			if (logoError) {
+				setError(logoError);
+				setLogoPreview(null);
+				setLogoBase64(null);
+				setLogoContentType(null);
+				e.target.value = "";
 				return;
 			}
 			setLogoContentType(file.type);
-			// Create preview and base64
 			const reader = new FileReader();
 			reader.onloadend = () => {
 				const dataUrl = reader.result as string;
 				setLogoPreview(dataUrl);
-				// Extract base64 string (remove data:image/...;base64, prefix)
 				const base64String = dataUrl.split(",")[1] ?? null;
 				setLogoBase64(base64String);
 			};
@@ -94,7 +104,6 @@ export function CreateOrganization() {
 			return false;
 		}
 
-		// Validate slug format: lowercase, hyphens, alphanumeric
 		if (!isOrganizationSlug(slug)) {
 			setError(
 				"Slug must contain only lowercase letters, numbers, and hyphens",
@@ -133,15 +142,12 @@ export function CreateOrganization() {
 				organizationSlug: slug,
 			});
 			await refresh();
+			await resetActiveOrganizationQueries(queryClient);
 
 			setCreated(true);
-			setTimeout(() => navigate({ to: "/dashboard" }), 1000);
+			setTimeout(() => navigate({ to: "/onboarding" }), 1000);
 		} catch (err) {
-			const message =
-				err instanceof Error
-					? err.message
-					: `${DEFAULT_ERROR}. Please try again.`;
-			setError(message);
+			setError(getErrorMessage(err, `${DEFAULT_ERROR}. Please try again.`));
 		} finally {
 			setIsLoading(false);
 		}
@@ -162,7 +168,6 @@ export function CreateOrganization() {
 	return (
 		<div className="relative flex flex-col items-center justify-center">
 			<div className="w-full max-w-md space-y-8">
-				{/* Logo and Header */}
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -175,10 +180,8 @@ export function CreateOrganization() {
 					</p>
 				</div>
 
-				{/* Organization Card Preview */}
 				<div className="rounded-lg border border-border bg-card p-4">
 					<div className="flex items-center gap-4">
-						{/* Logo Placeholder/Preview */}
 						<div className="group relative flex h-16 w-16 shrink-0">
 							<button
 								aria-label="Upload logo"
@@ -188,7 +191,7 @@ export function CreateOrganization() {
 								type="button"
 							>
 								<input
-									accept="image/*"
+									accept={ORGANIZATION_LOGO_ACCEPT}
 									className="hidden"
 									disabled={isLoading}
 									onChange={handleLogoChange}
@@ -226,7 +229,6 @@ export function CreateOrganization() {
 							)}
 						</div>
 
-						{/* Organization Info */}
 						<div className="min-w-0 flex-1">
 							<h3 className="truncate font-medium text-foreground text-lg">
 								<button
@@ -254,7 +256,6 @@ export function CreateOrganization() {
 					</div>
 				</div>
 
-				{/* Create Organization Form */}
 				<form className="space-y-6" onSubmit={handleSubmit}>
 					{error && (
 						<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
@@ -262,7 +263,6 @@ export function CreateOrganization() {
 						</div>
 					)}
 
-					{/* Name Field */}
 					<fieldset>
 						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Organization name</span>
@@ -281,7 +281,6 @@ export function CreateOrganization() {
 						/>
 					</fieldset>
 
-					{/* Slug Field */}
 					<fieldset>
 						<legend className="mb-2 text-muted-foreground">
 							<span className="text-sm">Organization slug</span>
@@ -303,7 +302,6 @@ export function CreateOrganization() {
 					</Button>
 				</form>
 
-				{/* Footer Links */}
 				<p className="inline-block text-center text-muted-foreground text-xs">
 					By creating an organization, you agree to our{" "}
 					<Button

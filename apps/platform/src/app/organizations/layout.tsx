@@ -1,42 +1,40 @@
-import { useAuth } from "@kayle-id/auth/client/provider";
-import { cn } from "@kayleai/ui/utils/cn";
-import { useQuery } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-import { AppHeading } from "@/components/app-shell/heading";
+import type { OrganizationRole } from "@kayle-id/auth/types";
 import {
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-	type OrganizationRole,
-} from "./api";
-import { PendingDeletionBanner } from "./pending-deletion-banner";
-import { UnverifiedOrgBanner } from "./unverified-org-banner";
+	NativeSelect,
+	NativeSelectOption,
+} from "@kayle-id/ui/components/native-select";
+import { cn } from "@kayle-id/ui/lib/utils";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import type { ChangeEvent, ReactNode } from "react";
+import { AppHeading } from "@/components/app-shell/heading";
+import { useCurrentMemberRole } from "./use-organization-query";
 
 interface TabDefinition {
 	href:
-		| "/organizations"
-		| "/organizations/members"
-		| "/organizations/settings"
-		| "/organizations/public"
-		| "/organizations/business"
-		| "/organizations/domains";
+		| "/settings/organizations"
+		| "/settings/organizations/members"
+		| "/settings/organizations/settings"
+		| "/settings/organizations/public"
+		| "/settings/organizations/business"
+		| "/settings/organizations/compliance"
+		| "/settings/organizations/domains";
 	label: string;
 	requiresRole?: "admin";
 }
 
 const TABS: readonly TabDefinition[] = [
-	{ href: "/organizations", label: "Overview" },
-	{ href: "/organizations/members", label: "Members" },
-	{ href: "/organizations/public", label: "Public details" },
-	{ href: "/organizations/business", label: "Business" },
-	{ href: "/organizations/domains", label: "Domains" },
-	{ href: "/organizations/settings", label: "Settings" },
+	{ href: "/settings/organizations", label: "Overview" },
+	{ href: "/settings/organizations/members", label: "Members" },
+	{ href: "/settings/organizations/public", label: "Public details" },
+	{ href: "/settings/organizations/compliance", label: "Compliance" },
+	{ href: "/settings/organizations/business", label: "Business" },
+	{ href: "/settings/organizations/domains", label: "Domains" },
+	{ href: "/settings/organizations/settings", label: "Settings" },
 ] as const;
 
 interface OrganizationPageLayoutProps {
 	button?: ReactNode;
 	children: ReactNode;
-	description?: string;
 	title: string;
 }
 
@@ -50,49 +48,71 @@ function roleSatisfies(
 	return role === "owner" || role === "admin";
 }
 
+function isTabActive(tab: TabDefinition, currentPath: string): boolean {
+	return tab.href === "/settings/organizations"
+		? currentPath === "/settings/organizations"
+		: currentPath === tab.href;
+}
+
 export function OrganizationPageLayout({
 	button,
 	children,
-	description,
 	title,
 }: OrganizationPageLayoutProps) {
 	const { location } = useRouterState();
+	const navigate = useNavigate();
 	const currentPath = location.pathname.replace(/\/$/, "");
-	const { activeOrganization, user } = useAuth();
-	const pendingDeletionAt = activeOrganization?.pendingDeletionAt ?? null;
-	// Reuse the cached org query the page itself will fetch (TanStack Query
-	// dedupes), so we don't issue a second request just to gate tab visibility.
-	const { data: org } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
-	const currentRole = org?.members.find(
-		(member) => member.userId === user?.id,
-	)?.role;
+	const currentRole = useCurrentMemberRole();
 	const visibleTabs = TABS.filter((tab) =>
 		roleSatisfies(currentRole, tab.requiresRole),
 	);
+	const activeTabHref =
+		visibleTabs.find((tab) => isTabActive(tab, currentPath))?.href ??
+		visibleTabs[0]?.href ??
+		"/settings/organizations";
+
+	const handleSectionChange = (event: ChangeEvent<HTMLSelectElement>) => {
+		const nextTab = visibleTabs.find(
+			(tab) => tab.href === event.currentTarget.value,
+		);
+
+		if (!nextTab || nextTab.href === activeTabHref) {
+			return;
+		}
+
+		navigate({ to: nextTab.href });
+	};
 
 	return (
 		<div className="mx-auto flex h-full max-w-7xl flex-1 grow flex-col w-full">
-			{pendingDeletionAt ? (
-				<PendingDeletionBanner pendingDeletionAt={pendingDeletionAt} />
-			) : (
-				<UnverifiedOrgBanner />
-			)}
-			<AppHeading button={button} description={description} title={title} />
+			<AppHeading button={button} title={title} />
+
+			<div className="mt-4 md:hidden">
+				<label className="sr-only" htmlFor="organization-section">
+					Organization section
+				</label>
+				<NativeSelect
+					aria-label="Organization section"
+					className="w-full"
+					id="organization-section"
+					onChange={handleSectionChange}
+					value={activeTabHref}
+				>
+					{visibleTabs.map((tab) => (
+						<NativeSelectOption key={tab.href} value={tab.href}>
+							{tab.label}
+						</NativeSelectOption>
+					))}
+				</NativeSelect>
+			</div>
 
 			<nav
 				aria-label="Organization sections"
-				className="mt-6 border-b border-border/70"
+				className="mt-6 hidden border-b border-border/70 md:block"
 			>
 				<ul className="-mb-px flex flex-wrap gap-x-6">
 					{visibleTabs.map((tab) => {
-						const isActive =
-							tab.href === "/organizations"
-								? currentPath === "/organizations"
-								: currentPath === tab.href;
+						const isActive = isTabActive(tab, currentPath);
 
 						return (
 							<li key={tab.href}>
@@ -113,7 +133,7 @@ export function OrganizationPageLayout({
 				</ul>
 			</nav>
 
-			<div className="mt-8 flex-1">{children}</div>
+			<div className="mt-6 flex-1">{children}</div>
 		</div>
 	);
 }

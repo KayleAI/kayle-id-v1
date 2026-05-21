@@ -1,6 +1,12 @@
+import {
+	RP_INTEGRATION_TERMS_HASH,
+	RP_INTEGRATION_TERMS_JURISDICTION,
+	RP_INTEGRATION_TERMS_VERSION,
+} from "@kayle-id/auth/rp-integration-terms";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
+	auth_organization_rp_terms_acceptances,
 	auth_organization_verified_domains,
 	auth_organizations,
 	auth_users,
@@ -10,6 +16,31 @@ import { eq } from "drizzle-orm";
 import { CUSTOMER_API_KEY_SCOPES } from "@/auth/permissions";
 import { createApiKey } from "@/functions/auth/create-api-key";
 
+// Default compliance + public profile seeded for every test org so the
+// onboarding gate (now always-on, covering business + public + compliance +
+// owner ID check) doesn't block routine session-creating tests. Tests that
+// exercise the gate clear/override these fields per-case.
+export const DEFAULT_TEST_ORG_METADATA = {
+	article6Basis: "legitimate interests",
+	article9Condition: "explicit consent",
+	controllerJurisdiction: "Earth (Planet)",
+	description: "Test organization fixture.",
+	legalControllerName: "Test Organization",
+	privacyPolicyUrl: "https://test.example/privacy",
+	supportEmail: "support@test.example",
+	termsOfServiceUrl: "https://test.example/terms",
+	usesKayleForConsequentialDecisions: false,
+	website: "https://test.example",
+} as const;
+
+export const DEFAULT_TEST_ORG_LOGO = "https://test.example/logo.png";
+export const DEFAULT_TEST_ORG_BUSINESS = {
+	business_type: "business" as const,
+	business_name: "Test Organization Ltd",
+	business_jurisdiction: "Earth (Planet)",
+	business_registration_number: "12345678",
+};
+
 type TestData = {
 	userId: string;
 	organizationId: string;
@@ -17,6 +48,37 @@ type TestData = {
 	apiKeyId: string;
 	verifiedApexDomains: readonly [string, string];
 };
+
+export async function seedCompleteOrganizationOnboarding({
+	organizationId,
+	userId,
+}: {
+	organizationId: string;
+	userId: string;
+}): Promise<void> {
+	await db
+		.update(auth_organizations)
+		.set({
+			logo: DEFAULT_TEST_ORG_LOGO,
+			owner_id_checked_at: new Date(),
+			verification_terms_accepted_at: new Date(),
+			verification_terms_accepted_by: userId,
+			metadata: JSON.stringify(DEFAULT_TEST_ORG_METADATA),
+			...DEFAULT_TEST_ORG_BUSINESS,
+		})
+		.where(eq(auth_organizations.id, organizationId));
+
+	await db
+		.insert(auth_organization_rp_terms_acceptances)
+		.values({
+			organizationId,
+			termsVersion: RP_INTEGRATION_TERMS_VERSION,
+			termsHash: RP_INTEGRATION_TERMS_HASH,
+			jurisdiction: RP_INTEGRATION_TERMS_JURISDICTION,
+			acceptedBy: userId,
+		})
+		.onConflictDoNothing();
+}
 
 /**
  * Generate two per-org-unique apex domains and pre-verify them. Tests that
@@ -60,13 +122,6 @@ const setup = async (): Promise<TestData> => {
 			name: "Test Organization",
 			slug: `test-${crypto.randomUUID()}`,
 			createdAt: new Date(),
-			// Seed the test org as verified so the unverified-org rate limit
-			// doesn't cap test fixtures at 5 identity sessions per file. Tests
-			// that explicitly exercise the unverified path (see
-			// `sessions-unverified-org-limit.test.ts`) toggle this back to null.
-			verified_at: new Date(),
-			verification_terms_accepted_at: new Date(),
-			verification_terms_accepted_by: userId,
 		})
 		.returning({
 			id: auth_organizations.id,
@@ -83,6 +138,13 @@ const setup = async (): Promise<TestData> => {
 		createdAt: new Date(),
 		userId,
 		role: "owner",
+	});
+
+	// Seed the current onboarding state so the always-on session gate doesn't
+	// reject default session-creating fixtures.
+	await seedCompleteOrganizationOnboarding({
+		organizationId,
+		userId,
 	});
 
 	const verifiedApexDomains = makeTestVerifiedApexDomains();

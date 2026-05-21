@@ -1,29 +1,30 @@
 import { client } from "@kayle-id/auth/client";
 import { useAuth } from "@kayle-id/auth/client/provider";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
+} from "@kayle-id/ui/components/card";
 import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-} from "@kayleai/ui/empty";
-import { Skeleton } from "@kayleai/ui/skeleton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+} from "@kayle-id/ui/components/empty";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import { LaptopIcon, ShieldCheckIcon } from "lucide-react";
-import { toast } from "sonner";
 import { TwoFactorAuthSection } from "@/app/account/two-factor";
 import { PasskeysList } from "@/app/passkeys";
+import { QueryErrorAlert } from "@/components/query-error-alert";
 import { RelativeTime } from "@/components/relative-time";
+import { unwrapBetterAuthResult } from "@/utils/better-auth";
+import { useToastMutation } from "@/utils/use-toast-mutation";
 
 const SESSIONS_QUERY_KEY = ["account", "sessions"] as const;
 
@@ -79,42 +80,41 @@ function toIsoString(value: string | Date): string {
 
 export function AccountSecurityPage() {
 	const { session: currentSession } = useAuth();
-	const queryClient = useQueryClient();
 
 	const sessionsQuery = useQuery({
 		queryKey: SESSIONS_QUERY_KEY,
 		queryFn: async () => {
 			const result = await client.listSessions();
-			if (result.error) {
-				throw new Error(result.error.message ?? "Failed to load sessions");
-			}
-			return (result.data ?? []) as AuthSession[];
+			return unwrapBetterAuthResult(
+				result,
+				"Failed to load sessions",
+			) as AuthSession[];
 		},
 	});
 
-	const revokeSessionMutation = useMutation({
-		mutationFn: async (token: string) => {
+	const revokeSession = useToastMutation<void, string>({
+		mutationFn: async (token) => {
 			const result = await client.revokeSession({ token });
-			if (result.error) {
-				throw new Error(result.error.message ?? "Failed to revoke session");
-			}
+			unwrapBetterAuthResult(result, "Failed to revoke session");
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+		invalidate: [SESSIONS_QUERY_KEY],
+		messages: {
+			loading: "Revoking session...",
+			success: "Session revoked",
+			error: "Failed to revoke session",
 		},
 	});
 
-	const revokeOthersMutation = useMutation({
+	const revokeOthers = useToastMutation<void>({
 		mutationFn: async () => {
 			const result = await client.revokeOtherSessions();
-			if (result.error) {
-				throw new Error(
-					result.error.message ?? "Failed to sign out other sessions",
-				);
-			}
+			unwrapBetterAuthResult(result, "Failed to sign out other sessions");
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+		invalidate: [SESSIONS_QUERY_KEY],
+		messages: {
+			loading: "Signing out other sessions...",
+			success: "All other sessions signed out",
+			error: "Failed to sign out other sessions",
 		},
 	});
 
@@ -122,26 +122,6 @@ export function AccountSecurityPage() {
 	const otherSessionCount = sessions.filter(
 		(session) => session.id !== currentSession?.id,
 	).length;
-
-	const handleRevoke = (token: string) => {
-		toast.promise(revokeSessionMutation.mutateAsync(token), {
-			loading: "Revoking session...",
-			success: "Session revoked",
-			error: (error) =>
-				error instanceof Error ? error.message : "Failed to revoke session",
-		});
-	};
-
-	const handleRevokeOthers = () => {
-		toast.promise(revokeOthersMutation.mutateAsync(), {
-			loading: "Signing out other sessions...",
-			success: "All other sessions signed out",
-			error: (error) =>
-				error instanceof Error
-					? error.message
-					: "Failed to sign out other sessions",
-		});
-	};
 
 	return (
 		<div className="space-y-6">
@@ -157,15 +137,13 @@ export function AccountSecurityPage() {
 							</CardDescription>
 						</div>
 						<Button
-							disabled={
-								otherSessionCount === 0 || revokeOthersMutation.isPending
-							}
-							onClick={handleRevokeOthers}
+							disabled={otherSessionCount === 0 || revokeOthers.isPending}
+							onClick={() => revokeOthers.trigger()}
 							size="sm"
 							type="button"
 							variant="outline"
 						>
-							{revokeOthersMutation.isPending
+							{revokeOthers.isPending
 								? "Signing out..."
 								: "Sign out other sessions"}
 						</Button>
@@ -174,16 +152,11 @@ export function AccountSecurityPage() {
 				<CardContent>
 					{sessionsQuery.isLoading ? <SessionsSkeleton /> : null}
 
-					{sessionsQuery.isError ? (
-						<Alert variant="destructive">
-							<AlertTitle>Failed to load sessions</AlertTitle>
-							<AlertDescription>
-								{sessionsQuery.error instanceof Error
-									? sessionsQuery.error.message
-									: "Something went wrong while loading your sessions."}
-							</AlertDescription>
-						</Alert>
-					) : null}
+					<QueryErrorAlert
+						error={sessionsQuery.isError ? sessionsQuery.error : null}
+						fallback="Something went wrong while loading your sessions."
+						title="Failed to load sessions"
+					/>
 
 					{!sessionsQuery.isLoading && !sessionsQuery.isError ? (
 						sessions.length === 0 ? (
@@ -207,11 +180,11 @@ export function AccountSecurityPage() {
 									<SessionRow
 										isCurrent={session.id === currentSession?.id}
 										isRevoking={
-											revokeSessionMutation.isPending &&
-											revokeSessionMutation.variables === session.token
+											revokeSession.isPending &&
+											revokeSession.variables === session.token
 										}
 										key={session.id}
-										onRevoke={handleRevoke}
+										onRevoke={revokeSession.trigger}
 										session={session}
 									/>
 								))}

@@ -6,6 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import { auth } from "@kayle-id/auth/server";
 import { db } from "@kayle-id/database/drizzle";
 import {
 	auth_organization_members,
@@ -64,7 +65,7 @@ describe("Organization business details API", () => {
 		const response = await app.request("/v1/auth/orgs/business-details", {
 			body: JSON.stringify({
 				business_name: "Acme Corporation Ltd",
-				business_jurisdiction: "United Kingdom",
+				business_jurisdiction: "Earth (Planet)",
 				business_registration_number: "12345678",
 			}),
 			headers: jsonHeaders(session.sessionCookie),
@@ -82,7 +83,7 @@ describe("Organization business details API", () => {
 		};
 		expect(payload.data).toEqual({
 			businessName: "Acme Corporation Ltd",
-			businessJurisdiction: "United Kingdom",
+			businessJurisdiction: "Earth (Planet)",
 			businessRegistrationNumber: "12345678",
 			businessType: null,
 		});
@@ -99,7 +100,7 @@ describe("Organization business details API", () => {
 			.limit(1);
 		expect(row).toEqual({
 			businessName: "Acme Corporation Ltd",
-			businessJurisdiction: "United Kingdom",
+			businessJurisdiction: "Earth (Planet)",
 			businessRegistrationNumber: "12345678",
 		});
 	});
@@ -110,7 +111,7 @@ describe("Organization business details API", () => {
 			.update(auth_organizations)
 			.set({
 				business_name: "Pre-existing",
-				business_jurisdiction: "United Kingdom",
+				business_jurisdiction: "Earth (Planet)",
 				business_registration_number: "12345678",
 			})
 			.where(eq(auth_organizations.id, session.organizationId));
@@ -194,6 +195,18 @@ describe("Organization business details API", () => {
 			data: { businessType: "sole" | "business" | null };
 		};
 		expect(okPayload.data.businessType).toBe("sole");
+
+		// Regression: better-auth's `getFullOrganization` reads via the
+		// Drizzle adapter which keys columns by the schema's TS field
+		// names. The `business_type` column must therefore use a
+		// snake_case TS field name to match the configured `fieldName`,
+		// or `businessType` comes back undefined and the platform UI
+		// falls back to the default "Business" type.
+		const fullOrg = (await auth.api.getFullOrganization({
+			headers: new Headers({ cookie: session.sessionCookie }),
+			query: { organizationId: session.organizationId },
+		})) as { businessType?: "sole" | "business" | null } | null;
+		expect(fullOrg?.businessType).toBe("sole");
 
 		const clearResponse = await app.request("/v1/auth/orgs/business-details", {
 			body: JSON.stringify({ business_type: null }),

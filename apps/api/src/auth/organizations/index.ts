@@ -13,6 +13,7 @@ import uploadLogoRoute from "./logo";
 import { members } from "./members";
 import { redirectUris } from "./redirect-uris";
 import { requestDelete } from "./request-delete";
+import { rpTerms } from "./rp-terms";
 
 const organizations = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
 
@@ -51,5 +52,6 @@ organizations.route("/", domains);
 organizations.route("/", redirectUris);
 organizations.route("/", auditLogs);
 organizations.route("/", members);
+organizations.route("/", rpTerms);
 
 export default organizations;

@@ -9,6 +9,7 @@ import type {
 } from "@/demo/types";
 import type { ProcessedWebhookState } from "@/marketing/demo-attempts";
 import { requestApiResource } from "@/utils/api-client";
+import { getErrorMessage } from "@/utils/get-error-message";
 
 const DEMO_RUNS_PATH = "/api/demo/runs";
 
@@ -113,10 +114,7 @@ export async function processWebhookReceipt({
 	} catch (error) {
 		return {
 			decryptedPayload: null,
-			error:
-				error instanceof Error
-					? error.message
-					: "Failed to decrypt the webhook payload.",
+			error: getErrorMessage(error, "Failed to decrypt the webhook payload."),
 			status: "invalid",
 		};
 	}

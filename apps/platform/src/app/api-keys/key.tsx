@@ -1,5 +1,9 @@
 import type { ApiKey } from "@kayle-id/auth/types";
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@kayle-id/ui/components/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -9,26 +13,27 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@kayleai/ui/alert-dialog";
-import { Badge } from "@kayleai/ui/badge";
-import { Button } from "@kayleai/ui/button";
+} from "@kayle-id/ui/components/alert-dialog";
+import { Badge } from "@kayle-id/ui/components/badge";
+import { Button } from "@kayle-id/ui/components/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Input } from "@kayleai/ui/input";
-import { Label } from "@kayleai/ui/label";
-import { Separator } from "@kayleai/ui/separator";
-import { Switch } from "@kayleai/ui/switch";
-import { cn } from "@kayleai/ui/utils/cn";
+} from "@kayle-id/ui/components/card";
+import { Input } from "@kayle-id/ui/components/input";
+import { Label } from "@kayle-id/ui/components/label";
+import { Separator } from "@kayle-id/ui/components/separator";
+import { Switch } from "@kayle-id/ui/components/switch";
+import { cn } from "@kayle-id/ui/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppHeading } from "@/components/app-shell/heading";
 import { RelativeTime } from "@/components/relative-time";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { API_KEYS_QUERY_KEY, deleteApiKey, updateApiKey } from "./api";
 
 export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
@@ -60,9 +65,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 			setErrorMessage("");
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to update API key",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to update API key"));
 		},
 	});
 
@@ -73,9 +76,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 			navigate({ to: "/api-keys" });
 		},
 		onError: (err) => {
-			setErrorMessage(
-				err instanceof Error ? err.message : "Failed to delete API key",
-			);
+			setErrorMessage(getErrorMessage(err, "Failed to delete API key"));
 			setIsDeleteDialogOpen(false);
 		},
 	});
@@ -122,7 +123,7 @@ export function ApiKeyComponent({ apiKey }: { apiKey: ApiKey }) {
 				description="View and manage your API key"
 				title={apiKey.name}
 			/>
-			<hr className="my-8" />
+			<hr className="my-4" />
 
 			{errorMessage && (
 				<Alert className="mb-6" variant="destructive">

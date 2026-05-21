@@ -455,7 +455,7 @@ const plugins = [
             type: "date",
             required: false,
             input: false,
-            fieldName: "verified_at",
+            fieldName: "owner_id_checked_at",
           },
           businessType: {
             type: "string",
@@ -987,12 +987,13 @@ export const auth = betterAuth({
             name: auth_organizations.name,
             slug: auth_organizations.slug,
             logo: auth_organizations.logo,
+            role: auth_organization_members.role,
             pendingDeletionAt: auth_organizations.pending_deletion_at,
             pendingDeletionRequestedAt:
               auth_organizations.pending_deletion_requested_at,
             pendingDeletionRequestedBy:
               auth_organizations.pending_deletion_requested_by,
-            verifiedAt: auth_organizations.verified_at,
+            verifiedAt: auth_organizations.owner_id_checked_at,
             verificationTermsAcceptedAt:
               auth_organizations.verification_terms_accepted_at,
             verificationTermsAcceptedBy:
@@ -1017,6 +1018,7 @@ export const auth = betterAuth({
           name: row.name,
           slug: row.slug,
           logo: row.logo,
+          role: row.role as "owner" | "admin" | "member",
           pendingDeletionAt: row.pendingDeletionAt
             ? row.pendingDeletionAt.toISOString()
             : null,

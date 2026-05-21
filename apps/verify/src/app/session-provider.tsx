@@ -8,16 +8,21 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { SessionError, VerifySession } from "@/config/capnp";
+import type { SessionError, VerifySession } from "@/api/session-socket";
 import {
 	requestVerifySessionDetails,
 	requestVerifySessionStatus,
+	type VerifySessionShareFields,
 	type VerifySessionStatusPayload,
-} from "@/config/handoff";
+} from "@/api/verify-api";
+import { useDevice } from "@/hooks/use-device";
+import {
+	EMPTY_ORGANIZATION,
+	type Organization,
+	toOrganization,
+} from "@/screens/organization/types";
 import { buildCancelledSessionStatus } from "@/utils/cancel";
-import { useDevice } from "@/utils/use-device";
 import { useVerificationStore } from "../stores/session";
-import type { Organization } from "./app/organization-name";
 import {
 	bootstrapSupportedSession,
 	closeSessionStub,
@@ -27,10 +32,12 @@ import {
 } from "./session-provider-helpers";
 
 type SessionContextType = {
+	sessionId: string;
 	isSessionDetailsReady: boolean;
 	organization: Organization;
 	isAgeOnly: boolean;
 	ageThreshold: number | null;
+	shareFields: VerifySessionShareFields;
 	sessionStatus: VerifySessionStatusPayload | null;
 	session: VerifySession | null;
 	error: SessionError | null;
@@ -38,35 +45,25 @@ type SessionContextType = {
 	markSessionCancelled: () => void;
 };
 
-const EMPTY_ORGANIZATION: Organization = {
-	name: null,
-	ownerIdCheckCompleted: false,
-	verifiedApexDomains: [],
-	logo: null,
-	businessType: null,
-	businessName: null,
-	businessJurisdiction: null,
-	businessRegistrationNumber: null,
-	privacyPolicyUrl: null,
-	termsOfServiceUrl: null,
-	website: null,
-	description: null,
-};
+const EMPTY_SHARE_FIELDS: VerifySessionShareFields = {};
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-type SessionProviderProps = {
+export function SessionProvider({
+	sessionId,
+	children,
+}: {
 	sessionId: string;
 	children: ReactNode;
-};
-
-export function SessionProvider({ sessionId, children }: SessionProviderProps) {
+}) {
 	const { supported: deviceSupported } = useDevice();
 	const [isSessionDetailsReady, setIsSessionDetailsReady] = useState(false);
 	const [organization, setOrganization] =
 		useState<Organization>(EMPTY_ORGANIZATION);
 	const [isAgeOnly, setIsAgeOnly] = useState(false);
 	const [ageThreshold, setAgeThreshold] = useState<number | null>(null);
+	const [shareFields, setShareFields] =
+		useState<VerifySessionShareFields>(EMPTY_SHARE_FIELDS);
 	const [sessionStatus, setSessionStatus] =
 		useState<VerifySessionStatusPayload | null>(null);
 	const [isSessionReady, setIsSessionReady] = useState(false);
@@ -121,6 +118,7 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 		setOrganization(EMPTY_ORGANIZATION);
 		setIsAgeOnly(false);
 		setAgeThreshold(null);
+		setShareFields(EMPTY_SHARE_FIELDS);
 		setSessionStatus(null);
 
 		Promise.all([
@@ -132,24 +130,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 					return;
 				}
 
-				setOrganization({
-					name: details.organization_name,
-					ownerIdCheckCompleted: details.organization_owner_id_check_completed,
-					verifiedApexDomains: details.organization_verified_apex_domains,
-					logo: details.organization_logo,
-					businessType: details.organization_business_type,
-					businessName: details.organization_business_name,
-					businessJurisdiction: details.organization_business_jurisdiction,
-					businessRegistrationNumber:
-						details.organization_business_registration_number,
-					privacyPolicyUrl: details.organization_privacy_policy_url,
-					termsOfServiceUrl: details.organization_terms_of_service_url,
-					website: details.organization_website,
-					description: details.organization_description,
-				});
+				setOrganization(toOrganization(details));
 				setIsAgeOnly(details.is_age_only);
 				setAgeThreshold(details.age_threshold);
+				setShareFields(details.share_fields);
 				setSessionStatus(nextSessionStatus);
+
 				const showUnverifiedWarning =
 					details.organization_verified_apex_domains.length === 0 &&
 					!details.is_age_only;
@@ -166,7 +152,6 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 				if (isStale) {
 					return;
 				}
-
 				setIsSessionDetailsReady(true);
 				handleRpcError(toSessionError(detailsError));
 			});
@@ -177,11 +162,8 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 	}, [handleRpcError, sessionId]);
 
 	useEffect(() => {
-		// Reset state when sessionId changes
 		setIsSessionReady(false);
 		setError(null);
-
-		// Dispose previous stub if it exists
 		closeSessionStub(sessionStubRef);
 
 		if (!deviceSupported) {
@@ -199,20 +181,20 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			setError,
 		});
 
-		// Cleanup function
 		return () => {
 			isUnmountedRef.current = true;
 			closeSessionStub(sessionStubRef);
 		};
 	}, [deviceSupported, sessionId, handleRpcError]);
 
-	// Memoize the context value, providing session from ref only when ready
 	const value: SessionContextType = useMemo(
 		() => ({
+			sessionId,
 			isSessionDetailsReady,
 			organization,
 			isAgeOnly,
 			ageThreshold,
+			shareFields,
 			sessionStatus,
 			session: isSessionReady ? sessionStubRef.current : null,
 			error,
@@ -220,10 +202,12 @@ export function SessionProvider({ sessionId, children }: SessionProviderProps) {
 			markSessionCancelled,
 		}),
 		[
+			sessionId,
 			isSessionDetailsReady,
 			organization,
 			isAgeOnly,
 			ageThreshold,
+			shareFields,
 			sessionStatus,
 			isSessionReady,
 			error,

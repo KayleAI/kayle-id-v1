@@ -1,16 +1,15 @@
-/// The current step in the verification flow.
 enum VerificationStep: Int, CaseIterable {
-  case welcome        // Landing screen
-  case scanning       // Scanning QR code
-  case mrz            // Scanning document MRZ
-  case rfidCheck      // Asking if document has RFID (required, no skip)
-  case rfidUnsupported // Document does not support RFID/NFC
-  case nfc            // Reading NFC chip
-  case livenessIntro  // Preparing the user for the head-movement liveness check
-  case liveness       // Recording the head-movement liveness video
-  case shareDetails   // Review requested fields
-  case complete       // Verification complete
-  case error          // Error state
+  case welcome
+  case scanning
+  case mrz
+  case rfidCheck
+  case rfidUnsupported
+  case nfc
+  case livenessIntro
+  case liveness
+  case shareDetails
+  case complete
+  case error
 
   var title: String {
     switch self {
@@ -29,8 +28,6 @@ enum VerificationStep: Int, CaseIterable {
   }
 }
 
-/// Attempt phase values matching the API.
-/// These correspond to `AttemptPhase` in `packages/config/src/e2ee-types.ts`.
 enum AttemptPhase: String, Codable {
   case initialized = "initialized"
   case mobileConnected = "mobile_connected"
@@ -45,10 +42,6 @@ enum AttemptPhase: String, Codable {
   case error = "error"
 }
 
-/// Whether a websocket disconnect on this step can be transparently recovered
-/// by reconnecting (versus restarting the whole flow). Steps that haven't
-/// claimed an attempt yet, or that have already reached a terminal outcome,
-/// cannot benefit from a websocket retry.
 nonisolated func isVerificationStepReconnectable(_ step: VerificationStep) -> Bool {
   switch step {
   case .welcome, .scanning, .complete, .error:

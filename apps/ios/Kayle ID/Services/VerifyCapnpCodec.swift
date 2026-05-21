@@ -4,7 +4,7 @@ import Foundation
 @_silgen_name("verify_build_hello")
 nonisolated private func verify_build_hello(
   _ builder: UnsafeMutableRawPointer?,
-  _ attemptId: UnsafePointer<CChar>?,
+  _ sessionId: UnsafePointer<CChar>?,
   _ mobileWriteToken: UnsafePointer<CChar>?,
   _ deviceId: UnsafePointer<CChar>?,
   _ appVersion: UnsafePointer<CChar>?,
@@ -62,8 +62,8 @@ nonisolated private func verify_server_message_get_error(
   _ outMessageSize: Int
 ) -> Int32
 
-@_silgen_name("verify_server_message_get_verdict")
-nonisolated private func verify_server_message_get_verdict(
+@_silgen_name("verify_server_message_get_check_result")
+nonisolated private func verify_server_message_get_check_result(
   _ reader: UnsafeMutableRawPointer?,
   _ outOutcome: UnsafeMutablePointer<Int32>?,
   _ outReasonCode: UnsafeMutablePointer<CChar>?,
@@ -71,7 +71,9 @@ nonisolated private func verify_server_message_get_verdict(
   _ outReasonMessage: UnsafeMutablePointer<CChar>?,
   _ outReasonMessageSize: Int,
   _ outRetryAllowed: UnsafeMutablePointer<Int32>?,
-  _ outRemainingAttempts: UnsafeMutablePointer<UInt32>?
+  _ outFailedCheck: UnsafeMutablePointer<Int32>?,
+  _ outRemainingNfcRetries: UnsafeMutablePointer<UInt32>?,
+  _ outRemainingLivenessRetries: UnsafeMutablePointer<UInt32>?
 ) -> Int32
 
 @_silgen_name("verify_server_message_get_share_request")
@@ -131,7 +133,7 @@ enum VerifyServerMessageKind: Int32 {
   case none = 0
   case ack = 1
   case error = 2
-  case verdict = 3
+  case checkResult = 3
   case shareRequest = 4
   case shareReady = 5
   case activeAuthChallenge = 6
@@ -142,17 +144,17 @@ struct VerifyServerMessage {
   let ackMessage: String?
   let errorCode: String?
   let errorMessage: String?
-  let verdict: VerifyServerVerdict?
+  let checkResult: VerifyServerCheckResult?
   let shareRequest: VerifyShareRequest?
   let shareReady: VerifyShareReady?
   let activeAuthChallenge: Data?
   let livenessChallenge: VerifyServerLivenessChallenge?
 
-  init(
+  nonisolated init(
     ackMessage: String? = nil,
     errorCode: String? = nil,
     errorMessage: String? = nil,
-    verdict: VerifyServerVerdict? = nil,
+    checkResult: VerifyServerCheckResult? = nil,
     shareRequest: VerifyShareRequest? = nil,
     shareReady: VerifyShareReady? = nil,
     activeAuthChallenge: Data? = nil,
@@ -161,7 +163,7 @@ struct VerifyServerMessage {
     self.ackMessage = ackMessage
     self.errorCode = errorCode
     self.errorMessage = errorMessage
-    self.verdict = verdict
+    self.checkResult = checkResult
     self.shareRequest = shareRequest
     self.shareReady = shareReady
     self.activeAuthChallenge = activeAuthChallenge
@@ -171,7 +173,7 @@ struct VerifyServerMessage {
 
 final class VerifyCapnpCodec {
   nonisolated func encodeHello(
-    attemptId: String,
+    sessionId: String,
     mobileWriteToken: String,
     deviceId: String?,
     appVersion: String,
@@ -187,14 +189,14 @@ final class VerifyCapnpCodec {
       let assertionPtr = assertionBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self)
       let assertionSize = helloAssertion.count
 
-      return attemptId.withCString { attemptCString in
+      return sessionId.withCString { sessionCString in
         mobileWriteToken.withCString { tokenCString in
           appVersion.withCString { appCString in
             attestKeyId.withCString { keyIdCString in
               let invokeWithDeviceId: (UnsafePointer<CChar>?) -> Int32 = { deviceCString in
                 verify_build_hello(
                   builder.opaque,
-                  attemptCString,
+                  sessionCString,
                   tokenCString,
                   deviceCString,
                   appCString,
@@ -366,7 +368,7 @@ final class VerifyCapnpCodec {
           ackMessage: String(cString: buffer),
           errorCode: nil,
           errorMessage: nil,
-          verdict: nil,
+          checkResult: nil,
           shareRequest: nil,
           shareReady: nil
         )
@@ -375,7 +377,7 @@ final class VerifyCapnpCodec {
         ackMessage: nil,
         errorCode: nil,
         errorMessage: nil,
-        verdict: nil,
+        checkResult: nil,
         shareRequest: nil,
         shareReady: nil
       )
@@ -394,7 +396,7 @@ final class VerifyCapnpCodec {
           ackMessage: nil,
           errorCode: String(cString: codeBuffer),
           errorMessage: String(cString: messageBuffer),
-          verdict: nil,
+          checkResult: nil,
           shareRequest: nil,
           shareReady: nil
         )
@@ -403,17 +405,19 @@ final class VerifyCapnpCodec {
         ackMessage: nil,
         errorCode: nil,
         errorMessage: nil,
-        verdict: nil,
+        checkResult: nil,
         shareRequest: nil,
         shareReady: nil
       )
-    case .verdict:
+    case .checkResult:
       var outcome: Int32 = -1
       var retryAllowed: Int32 = 0
-      var remainingAttempts: UInt32 = 0
+      var failedCheck: Int32 = Int32(VerifyCheckKind.none.rawValue)
+      var remainingNfcRetries: UInt32 = 0
+      var remainingLivenessRetries: UInt32 = 0
       var reasonCodeBuffer = [CChar](repeating: 0, count: 128)
       var reasonMessageBuffer = [CChar](repeating: 0, count: 256)
-      let ok = verify_server_message_get_verdict(
+      let ok = verify_server_message_get_check_result(
         reader.opaque,
         &outcome,
         &reasonCodeBuffer,
@@ -421,20 +425,25 @@ final class VerifyCapnpCodec {
         &reasonMessageBuffer,
         reasonMessageBuffer.count,
         &retryAllowed,
-        &remainingAttempts
+        &failedCheck,
+        &remainingNfcRetries,
+        &remainingLivenessRetries
       )
       if ok == 1 {
-        let verdictOutcome: VerifyVerdictOutcome = outcome == 0 ? .accepted : .rejected
+        let checkOutcome: VerifyCheckOutcome = outcome == 0 ? .confirmed : .notConfirmed
+        let kind = VerifyCheckKind(rawValue: failedCheck) ?? .none
         return VerifyServerMessage(
           ackMessage: nil,
           errorCode: nil,
           errorMessage: nil,
-          verdict: VerifyServerVerdict(
-            outcome: verdictOutcome,
+          checkResult: VerifyServerCheckResult(
+            outcome: checkOutcome,
             reasonCode: String(cString: reasonCodeBuffer),
             reasonMessage: String(cString: reasonMessageBuffer),
             retryAllowed: retryAllowed == 1,
-            remainingAttempts: Int(remainingAttempts)
+            failedCheck: kind,
+            remainingNfcRetries: Int(remainingNfcRetries),
+            remainingLivenessRetries: Int(remainingLivenessRetries)
           ),
           shareRequest: nil,
           shareReady: nil
@@ -444,7 +453,7 @@ final class VerifyCapnpCodec {
         ackMessage: nil,
         errorCode: nil,
         errorMessage: nil,
-        verdict: nil,
+        checkResult: nil,
         shareRequest: nil,
         shareReady: nil
       )
@@ -465,7 +474,7 @@ final class VerifyCapnpCodec {
           ackMessage: nil,
           errorCode: nil,
           errorMessage: nil,
-          verdict: nil,
+          checkResult: nil,
           shareRequest: nil,
           shareReady: nil
         )
@@ -493,7 +502,7 @@ final class VerifyCapnpCodec {
             ackMessage: nil,
             errorCode: nil,
             errorMessage: nil,
-            verdict: nil,
+            checkResult: nil,
             shareRequest: nil,
             shareReady: nil
           )
@@ -512,7 +521,7 @@ final class VerifyCapnpCodec {
         ackMessage: nil,
         errorCode: nil,
         errorMessage: nil,
-        verdict: nil,
+        checkResult: nil,
         shareRequest: VerifyShareRequest(
           contractVersion: Int(contractVersion),
           sessionId: String(cString: sessionIdBuffer),
@@ -535,7 +544,7 @@ final class VerifyCapnpCodec {
           ackMessage: nil,
           errorCode: nil,
           errorMessage: nil,
-          verdict: nil,
+          checkResult: nil,
           shareRequest: nil,
           shareReady: nil
         )
@@ -558,7 +567,7 @@ final class VerifyCapnpCodec {
             ackMessage: nil,
             errorCode: nil,
             errorMessage: nil,
-            verdict: nil,
+            checkResult: nil,
             shareRequest: nil,
             shareReady: nil
           )
@@ -571,7 +580,7 @@ final class VerifyCapnpCodec {
         ackMessage: nil,
         errorCode: nil,
         errorMessage: nil,
-        verdict: nil,
+        checkResult: nil,
         shareRequest: nil,
         shareReady: VerifyShareReady(
           sessionId: String(cString: sessionIdBuffer),

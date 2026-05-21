@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LegalList, LegalSection } from "@/components/site/legal-document";
 import { PageHeading } from "@/components/site/page-heading";
 
-const LAST_UPDATED = "March 20, 2026";
+const LAST_UPDATED = "May 17, 2026";
 
 export const Route = createFileRoute("/_legal/terms")({
 	component: TermsPage,
@@ -81,19 +81,43 @@ function TermsPage() {
 
 						<LegalSection title="Integrator Responsibilities">
 							<p>
-								If you integrate Kayle ID into your product, you remain
-								responsible for your own onboarding, trust, fraud, compliance,
-								and user-notice obligations.
+								If you integrate Kayle ID into your product, Kayle ID provides
+								an identity verification signal. You remain responsible for your
+								own onboarding, trust, fraud, compliance, and user-notice
+								obligations, and for any access, onboarding, eligibility, or
+								account decision you make from that signal.
 							</p>
 							<LegalList
 								items={[
 									"You must provide any notices, disclosures, consents, and lawful bases required before sending an end-user into a Kayle ID verification flow.",
 									"You should request only the claims you reasonably need for your product or compliance use case.",
 									"You are responsible for verifying webhook signatures, decrypting webhook payloads, securing your endpoint, and protecting the data you receive from Kayle ID.",
+									"You must present Kayle ID accurately as a signal provider and must not state or imply that Kayle ID decides whether a user receives your service.",
+									"You must provide an RP-controlled alternative identity verification route when a Kayle ID failure, timeout, cancellation, unsupported device, or unavailable passport path could otherwise become a final access, onboarding, or eligibility denial.",
+									"You must provide appeal, contestation, or human-review safeguards where your use of Kayle ID results can produce a significant decision, including safeguards required by Article 22, UK GDPR, EU GDPR, or similar laws.",
 									"You are responsible for the decisions you make based on Kayle ID results, including any fraud, eligibility, onboarding, or access decisions.",
 									"You must comply with all laws and regulations that apply to your use of identity, document, biometric, and verification data.",
 								]}
 							/>
+						</LegalSection>
+
+						<LegalSection title="Controller Roles and Safeguards">
+							<p>
+								Kayle Inc. acts as a separate controller for Kayle-side
+								verification processing, service security, fraud prevention,
+								records, and legal compliance. A relying party acts as a
+								separate controller for its own product relationship and for any
+								decision it makes from Kayle ID results.
+							</p>
+							<p>
+								Kayle ID does not decide whether an end-user receives the
+								relying party's service, account access, onboarding approval, or
+								eligibility outcome. Where the relying party makes a significant
+								decision from a Kayle ID result, the relying party is
+								responsible for the notices, lawful basis, review route,
+								alternative verification path, and Article 22 or similar
+								automated-decision safeguards that apply to that decision.
+							</p>
 						</LegalSection>
 
 						<LegalSection title="Acceptable Use">
@@ -157,7 +181,7 @@ function TermsPage() {
 							<LegalList
 								items={[
 									'Kayle ID is provided "as is" and "as available" to the fullest extent permitted by law.',
-									"A verification result is a signal derived from the submitted passport data, chip data, and selfies. It is not a guarantee of identity, legality, eligibility, or absence of fraud.",
+									"A Kayle check result is a signal derived from the submitted passport data, chip data, and selfies. It is not a guarantee of identity, legality, eligibility, or absence of fraud.",
 									"Kayle ID does not provide legal, regulatory, or compliance advice, and you should not treat the service as a substitute for your own risk or legal judgment.",
 									"We disclaim all implied warranties, including implied warranties of merchantability, fitness for a particular purpose, title, and non-infringement, to the fullest extent permitted by law.",
 								]}

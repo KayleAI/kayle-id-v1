@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { verificationAttemptFailureCodes } from "@kayle-id/database/schema/core";
+import { verificationSessionFailureCodes } from "@kayle-id/database/schema/core";
 
 export const RequestedShareField = z.object({
 	required: z.boolean().describe("Whether this field is required by the RC."),
@@ -27,43 +27,41 @@ export const SessionShareFields = z
 	.record(z.string(), SessionShareField)
 	.describe("Effective normalized share fields for this session.");
 
-export const Attempt = z.object({
-	id: z.string().describe("The ID of the verification attempt"),
-	session_id: z
-		.string()
-		.describe("The ID of the verification session this attempt belongs to"),
-	status: z
-		.enum(["in_progress", "succeeded", "failed", "cancelled"])
-		.describe("The status of the verification attempt"),
-	failure_code: z
-		.enum(verificationAttemptFailureCodes)
-		.nullable()
-		.describe("The code of the failure reason"),
-	risk_score: z
-		.number()
-		.min(0)
-		.max(1)
-		.describe("The risk score of the verification attempt, between 0 and 1."),
-	completed_at: z
-		.string()
-		.nullable()
-		.describe(
-			"The time the verification attempt reached a terminal state (i.e., succeeded, failed or cancelled)",
-		),
-	created_at: z
-		.string()
-		.describe("The time the verification attempt was created"),
-	updated_at: z
-		.string()
-		.describe("The time the verification attempt was last updated"),
-});
-
 export const Session = z
 	.object({
 		id: z.string().describe("The ID of the verification session"),
 		status: z
-			.enum(["created", "in_progress", "completed", "expired", "cancelled"])
+			.enum([
+				"created",
+				"in_progress",
+				"succeeded",
+				"failed",
+				"expired",
+				"cancelled",
+			])
 			.describe("The status of the verification session"),
+		failure_code: z
+			.enum(verificationSessionFailureCodes)
+			.nullable()
+			.describe(
+				"Terminal failure code when status='failed'. Null in any other state.",
+			),
+		nfc_tries_used: z
+			.number()
+			.int()
+			.min(0)
+			.max(3)
+			.describe(
+				"Number of NFC chip-read failures the session has consumed. The session terminalizes on the 3rd failure.",
+			),
+		liveness_tries_used: z
+			.number()
+			.int()
+			.min(0)
+			.max(3)
+			.describe(
+				"Number of liveness check failures the session has consumed. The session terminalizes on the 3rd failure.",
+			),
 		contract_version: z
 			.number()
 			.int()
@@ -77,6 +75,12 @@ export const Session = z
 			.describe(
 				"The URL to redirect to after the verification session is completed, if provided by the integrator.",
 			),
+		webhook_endpoint_id: z
+			.union([z.string(), z.array(z.string())])
+			.nullable()
+			.describe(
+				"The webhook endpoint or endpoint list selected for this session, or null when events fan out to all enabled subscribed endpoints.",
+			),
 		verification_url: z
 			.string()
 			.url()
@@ -87,7 +91,7 @@ export const Session = z
 			.string()
 			.optional()
 			.describe(
-				"One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation — store it server-side if you intend to surface a cancel link from your dashboard or email; the verify URL already includes it for browser/native cancel flows.",
+				"One-shot token required by `POST /v1/verify/session/:id/cancel`. Returned only on session creation.",
 			),
 		expires_at: z
 			.string()
@@ -96,7 +100,7 @@ export const Session = z
 			.string()
 			.nullable()
 			.describe(
-				"The time the verification session reached a terminal state (i.e., completed, expired or cancelled), or null if not yet terminal.",
+				"The time the verification session reached a terminal state (i.e., succeeded, failed, expired or cancelled), or null if not yet terminal.",
 			),
 		created_at: z
 			.string()
@@ -104,18 +108,15 @@ export const Session = z
 		updated_at: z
 			.string()
 			.describe("The time the verification session was last updated"),
-		attempts: z
-			.array(Attempt)
-			.optional()
-			.describe(
-				"The verification attempts for the session. Only included when explicitly requested.",
-			),
 	})
 	.openapi({
 		examples: [
 			{
 				id: "vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
 				status: "created",
+				failure_code: null,
+				nfc_tries_used: 0,
+				liveness_tries_used: 0,
 				contract_version: 1,
 				share_fields: {
 					document_type_code: {
@@ -135,6 +136,7 @@ export const Session = z
 					},
 				},
 				redirect_url: "https://example.com/redirect",
+				webhook_endpoint_id: null,
 				verification_url:
 					"https://verify.kayle.id/vs_mza7vecksrtyfw193ekcvl5vnws3bt1lz96buu3iw7zidckf8dga2zx2echb3t16",
 				expires_at: "2025-01-01T00:00:00Z",

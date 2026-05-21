@@ -12,18 +12,22 @@ export const AUDIT_LOG_EVENTS = [
   "session.created",
   "session.cancelled",
   "session.expired",
+  "session.privacy_request.submitted",
   "session.succeeded",
-  // Per-attempt failure inside a session that still has retries left.
-  "session.attempt.failed",
-  // Session-level terminal failure: the retry budget was exhausted without a
-  // successful attempt. `session.failed` is intentionally only emitted at this
-  // point (not on every individual attempt failure) so the read-side surface
-  // matches the user-visible session outcome.
+  // Per-check failure inside a session that still has retries left for the
+  // affected check (NFC or liveness). Metadata carries `failed_check` and
+  // `failure_code`.
+  "session.check.failed",
+  // Session-level terminal failure: a per-check retry budget was exhausted or
+  // a hard-kill code (anti-cloning attestation) was raised. Emitted once per
+  // session, never per-retry, so the read-side surface matches the
+  // user-visible session outcome.
   "session.failed",
   // Organization profile
   "organization.public_details.updated",
   "organization.logo.updated",
   "organization.business_details.updated",
+  "organization.rp_terms.accepted",
   // Domain verification + redirect URIs
   "domain.challenge.started",
   "domain.verified",

@@ -4,7 +4,7 @@ import { env } from "@kayle-id/config/env";
 import { SUPPORTED_WEBHOOK_EVENT_TYPES } from "@kayle-id/config/webhook-events";
 import { db } from "@kayle-id/database/drizzle";
 import { webhook_endpoints } from "@kayle-id/database/schema/webhooks";
-import { and, eq, gt } from "drizzle-orm";
+import { and, desc, eq, lt, or } from "drizzle-orm";
 import { createWebhookEndpoint } from "@/openapi/v1/webhooks/endpoints/create";
 import { listWebhookEndpoints } from "@/openapi/v1/webhooks/endpoints/list";
 import { encryptWebhookSigningSecret } from "@/v1/webhooks/signing-secret";
@@ -36,7 +36,10 @@ listAndCreateEndpoints.openapi(listWebhookEndpoints, async (c) => {
 			? [eq(webhook_endpoints.enabled, query.enabled)]
 			: []),
 		...(query.starting_after
-			? [gt(webhook_endpoints.id, query.starting_after)]
+			? await getStartingAfterPredicate({
+					cursorId: query.starting_after,
+					organizationId,
+				})
 			: []),
 	);
 
@@ -44,7 +47,7 @@ listAndCreateEndpoints.openapi(listWebhookEndpoints, async (c) => {
 		.select()
 		.from(webhook_endpoints)
 		.where(where)
-		.orderBy(webhook_endpoints.id)
+		.orderBy(desc(webhook_endpoints.createdAt), desc(webhook_endpoints.id))
 		.limit(limit + 1);
 
 	const hasMore = rows.length > limit;
@@ -76,6 +79,8 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 	const body = c.req.valid("json");
 
 	const enabled = body.enabled ?? true;
+	const undeliveredPayloadRetentionHours =
+		body.undelivered_payload_retention_hours;
 	const subscribedEventTypes = body.subscribed_event_types ?? [
 		...SUPPORTED_WEBHOOK_EVENT_TYPES,
 	];
@@ -94,9 +99,11 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 			id,
 			organizationId,
 			name: body.name?.trim() ?? null,
+			labels: body.labels ?? [],
 			url: body.url,
 			enabled,
 			subscribedEventTypes,
+			undeliveredPayloadRetentionHours,
 			signingSecretCiphertext,
 			disabledAt: enabled ? null : new Date(),
 		})
@@ -132,5 +139,41 @@ listAndCreateEndpoints.openapi(createWebhookEndpoint, async (c) => {
 		200,
 	);
 });
+
+async function getStartingAfterPredicate({
+	cursorId,
+	organizationId,
+}: {
+	cursorId: string;
+	organizationId: string;
+}) {
+	const [cursor] = await db
+		.select({
+			createdAt: webhook_endpoints.createdAt,
+			id: webhook_endpoints.id,
+		})
+		.from(webhook_endpoints)
+		.where(
+			and(
+				eq(webhook_endpoints.id, cursorId),
+				eq(webhook_endpoints.organizationId, organizationId),
+			),
+		)
+		.limit(1);
+
+	if (!cursor) {
+		return [];
+	}
+
+	const cursorPredicate = or(
+		lt(webhook_endpoints.createdAt, cursor.createdAt),
+		and(
+			eq(webhook_endpoints.createdAt, cursor.createdAt),
+			lt(webhook_endpoints.id, cursor.id),
+		),
+	);
+
+	return cursorPredicate ? [cursorPredicate] : [];
+}
 
 export { listAndCreateEndpoints };

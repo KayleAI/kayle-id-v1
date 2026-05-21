@@ -1,22 +1,24 @@
-import { Alert, AlertDescription, AlertTitle } from "@kayleai/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@kayleai/ui/avatar";
-import { Badge } from "@kayleai/ui/badge";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@kayle-id/ui/components/avatar";
+import { Badge } from "@kayle-id/ui/components/badge";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@kayleai/ui/card";
-import { Skeleton } from "@kayleai/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+} from "@kayle-id/ui/components/card";
+import { Skeleton } from "@kayle-id/ui/components/skeleton";
 import { Link } from "@tanstack/react-router";
-import {
-	type FullOrganization,
-	fetchFullOrganization,
-	ORGANIZATION_QUERY_KEY,
-} from "./api";
+import { QueryErrorAlert } from "@/components/query-error-alert";
+import type { FullOrganization } from "./api";
 import { OrganizationPageLayout } from "./layout";
+import { PendingDeletionBanner } from "./pending-deletion-banner";
+import { UnverifiedOrgBanner } from "./unverified-org-banner";
+import { useOrganizationQuery } from "./use-organization-query";
 
 function OverviewSkeleton() {
 	return (
@@ -125,7 +127,7 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 					</div>
 					<Link
 						className="font-medium text-foreground text-sm hover:underline"
-						to="/organizations/members"
+						to="/settings/organizations/members"
 					>
 						View all
 					</Link>
@@ -176,28 +178,20 @@ function OverviewBody({ organization }: { organization: FullOrganization }) {
 }
 
 export function OrganizationOverviewPage() {
-	const { data, isLoading, isError, error } = useQuery({
-		queryFn: fetchFullOrganization,
-		queryKey: ORGANIZATION_QUERY_KEY,
-		staleTime: 30_000,
-	});
+	const { data, isLoading, isError, error } = useOrganizationQuery();
 
 	return (
-		<OrganizationPageLayout
-			description="A snapshot of your organization."
-			title={data?.name ?? "Organization"}
-		>
-			{isLoading || !data ? null : null}
-			{isError ? (
-				<Alert variant="destructive">
-					<AlertTitle>Failed to load organization</AlertTitle>
-					<AlertDescription>
-						{error instanceof Error
-							? error.message
-							: "Something went wrong while loading this organization."}
-					</AlertDescription>
-				</Alert>
-			) : null}
+		<OrganizationPageLayout title={data?.name ?? "Organization"}>
+			{data?.pendingDeletionAt ? (
+				<PendingDeletionBanner pendingDeletionAt={data.pendingDeletionAt} />
+			) : (
+				<UnverifiedOrgBanner />
+			)}
+			<QueryErrorAlert
+				error={isError ? error : null}
+				fallback="Something went wrong while loading this organization."
+				title="Failed to load organization"
+			/>
 			{isLoading ? <OverviewSkeleton /> : null}
 			{data && !isError ? <OverviewBody organization={data} /> : null}
 		</OrganizationPageLayout>

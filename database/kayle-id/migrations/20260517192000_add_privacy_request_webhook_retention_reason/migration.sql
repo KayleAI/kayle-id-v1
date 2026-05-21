@@ -1,0 +1,2 @@
+ALTER TABLE "webhook_deliveries" DROP CONSTRAINT "webhook_deliveries_payload_retention_reason_check";--> statement-breakpoint
+ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_payload_retention_reason_check" CHECK ("payload_retention_reason" IS NULL OR "payload_retention_reason" IN ('pending_delivery', 'delivered', 'terminal_failure_retention', 'expired', 'no_active_key', 'jwe_creation_failed', 'privacy_request'));

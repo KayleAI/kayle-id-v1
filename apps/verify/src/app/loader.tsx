@@ -1,10 +1,13 @@
-import { Spinner } from "@kayleai/ui/spinner";
-import { useDevice } from "@/utils/use-device";
+import { Spinner } from "@kayle-id/ui/components/spinner";
+import { useDevice } from "@/hooks/use-device";
 import {
 	canRenderWithoutSession,
 	useVerificationStore,
 } from "../stores/session";
 import { useSession } from "./session-provider";
+
+const SPINNER_WRAPPER_CLASS =
+	"flex h-full w-full flex-1 grow items-center justify-center";
 
 export function SessionLoader() {
 	const { supported: deviceSupported } = useDevice();
@@ -17,22 +20,18 @@ export function SessionLoader() {
 
 	if (!isSessionDetailsReady) {
 		return (
-			<div className="flex h-full w-full flex-1 grow items-center justify-center">
+			<div className={SPINNER_WRAPPER_CLASS}>
 				<Spinner className="size-9 animate-spin" />
 			</div>
 		);
 	}
 
-	if (!deviceSupported || canRenderWithoutSession(step)) {
-		return null;
-	}
-
-	if (session) {
+	if (!deviceSupported || canRenderWithoutSession(step) || session) {
 		return null;
 	}
 
 	return (
-		<div className="flex h-full w-full flex-1 grow items-center justify-center">
+		<div className={SPINNER_WRAPPER_CLASS}>
 			<Spinner className="size-9 animate-spin" />
 		</div>
 	);

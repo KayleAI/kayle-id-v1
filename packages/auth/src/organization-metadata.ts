@@ -1,22 +1,46 @@
 export interface OrganizationMetadata {
+  appealUrl?: null | string;
+  article6Basis?: null | string;
+  article9Condition?: null | string;
+  complaintsUrl?: null | string;
+  controllerJurisdiction?: null | string;
   description?: null | string;
+  fallbackIdvUrl?: null | string;
+  legalControllerName?: null | string;
   privacyPolicyUrl?: null | string;
+  supportEmail?: null | string;
   termsOfServiceUrl?: null | string;
+  usesKayleForConsequentialDecisions?: boolean | null;
   website?: null | string;
 }
 
 export const ORGANIZATION_METADATA_ERROR_MESSAGE =
-  "Organization metadata may only include string website, description, privacyPolicyUrl, and termsOfServiceUrl fields.";
+  "Organization metadata may only include supported public profile and RP compliance fields.";
 
 const ALLOWED_METADATA_KEYS = new Set([
+  "article6Basis",
+  "article9Condition",
+  "appealUrl",
+  "complaintsUrl",
+  "controllerJurisdiction",
   "description",
+  "fallbackIdvUrl",
+  "legalControllerName",
   "privacyPolicyUrl",
+  "supportEmail",
   "termsOfServiceUrl",
+  "usesKayleForConsequentialDecisions",
   "website",
 ]);
 
 const URL_VALIDATION_FIELDS: Array<{
-  key: "website" | "privacyPolicyUrl" | "termsOfServiceUrl";
+  key:
+    | "appealUrl"
+    | "complaintsUrl"
+    | "fallbackIdvUrl"
+    | "privacyPolicyUrl"
+    | "termsOfServiceUrl"
+    | "website";
   errorMessage: string;
 }> = [
   {
@@ -34,6 +58,40 @@ const URL_VALIDATION_FIELDS: Array<{
     errorMessage:
       "Terms of service link must be a valid http:// or https:// URL without embedded credentials.",
   },
+  {
+    key: "fallbackIdvUrl",
+    errorMessage:
+      "Fallback IDV link must be a valid http:// or https:// URL without embedded credentials.",
+  },
+  {
+    key: "appealUrl",
+    errorMessage:
+      "Appeal or human review link must be a valid http:// or https:// URL without embedded credentials.",
+  },
+  {
+    key: "complaintsUrl",
+    errorMessage:
+      "Complaints link must be a valid http:// or https:// URL without embedded credentials.",
+  },
+];
+
+const SUPPORT_EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/u;
+
+const STRING_METADATA_KEYS: Array<
+  keyof Pick<
+    OrganizationMetadata,
+    | "article6Basis"
+    | "article9Condition"
+    | "controllerJurisdiction"
+    | "description"
+    | "legalControllerName"
+  >
+> = [
+  "article6Basis",
+  "article9Condition",
+  "controllerJurisdiction",
+  "description",
+  "legalControllerName",
 ];
 
 export class OrganizationMetadataError extends Error {
@@ -57,6 +115,22 @@ function normalizeNullableString(value: unknown): null | string | undefined {
   }
 
   if (typeof value !== "string") {
+    throw new OrganizationMetadataError();
+  }
+
+  return value;
+}
+
+function normalizeNullableBoolean(value: unknown): boolean | null | undefined {
+  if (value === undefined) {
+    return;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "boolean") {
     throw new OrganizationMetadataError();
   }
 
@@ -90,6 +164,26 @@ function normalizeHttpUrl(
   return url.toString();
 }
 
+function normalizeSupportEmail(value: unknown): null | string | undefined {
+  const raw = normalizeNullableString(value);
+  if (raw === undefined || raw === null) {
+    return raw;
+  }
+
+  const email = raw.trim().toLowerCase();
+  if (
+    email.length > 254 ||
+    email.includes(" ") ||
+    !SUPPORT_EMAIL_PATTERN.test(email)
+  ) {
+    throw new OrganizationMetadataError(
+      "Support email must be a valid email address."
+    );
+  }
+
+  return email;
+}
+
 export function normalizeOrganizationWebsiteUrl(
   value: unknown
 ): null | string | undefined {
@@ -117,6 +211,39 @@ export function normalizeOrganizationTermsOfServiceUrl(
   );
 }
 
+export function normalizeOrganizationFallbackIdvUrl(
+  value: unknown
+): null | string | undefined {
+  return normalizeHttpUrl(
+    value,
+    "Fallback IDV link must be a valid http:// or https:// URL without embedded credentials."
+  );
+}
+
+export function normalizeOrganizationAppealUrl(
+  value: unknown
+): null | string | undefined {
+  return normalizeHttpUrl(
+    value,
+    "Appeal or human review link must be a valid http:// or https:// URL without embedded credentials."
+  );
+}
+
+export function normalizeOrganizationComplaintsUrl(
+  value: unknown
+): null | string | undefined {
+  return normalizeHttpUrl(
+    value,
+    "Complaints link must be a valid http:// or https:// URL without embedded credentials."
+  );
+}
+
+export function normalizeOrganizationSupportEmail(
+  value: unknown
+): null | string | undefined {
+  return normalizeSupportEmail(value);
+}
+
 export function normalizeOrganizationMetadata(
   value: unknown
 ): OrganizationMetadata | undefined {
@@ -135,9 +262,11 @@ export function normalizeOrganizationMetadata(
   }
 
   const metadata: OrganizationMetadata = {};
-  const description = normalizeNullableString(value.description);
-  if (description !== undefined) {
-    metadata.description = description;
+  for (const key of STRING_METADATA_KEYS) {
+    const fieldValue = normalizeNullableString(value[key]);
+    if (fieldValue !== undefined) {
+      metadata[key] = fieldValue;
+    }
   }
 
   for (const { key, errorMessage } of URL_VALIDATION_FIELDS) {
@@ -145,6 +274,19 @@ export function normalizeOrganizationMetadata(
     if (url !== undefined) {
       metadata[key] = url;
     }
+  }
+
+  const supportEmail = normalizeSupportEmail(value.supportEmail);
+  if (supportEmail !== undefined) {
+    metadata.supportEmail = supportEmail;
+  }
+
+  const usesKayleForConsequentialDecisions = normalizeNullableBoolean(
+    value.usesKayleForConsequentialDecisions
+  );
+  if (usesKayleForConsequentialDecisions !== undefined) {
+    metadata.usesKayleForConsequentialDecisions =
+      usesKayleForConsequentialDecisions;
   }
 
   return metadata;
@@ -170,11 +312,11 @@ export function parseStoredOrganizationMetadata(
 
   const metadata: OrganizationMetadata = {};
 
-  if (
-    parsedValue.description === null ||
-    typeof parsedValue.description === "string"
-  ) {
-    metadata.description = parsedValue.description;
+  for (const key of STRING_METADATA_KEYS) {
+    const stored = parsedValue[key];
+    if (stored === null || typeof stored === "string") {
+      metadata[key] = stored;
+    }
   }
 
   for (const { key } of URL_VALIDATION_FIELDS) {
@@ -184,5 +326,72 @@ export function parseStoredOrganizationMetadata(
     }
   }
 
+  const storedSupportEmail = parsedValue.supportEmail;
+  if (storedSupportEmail === null || typeof storedSupportEmail === "string") {
+    metadata.supportEmail = storedSupportEmail;
+  }
+
+  const storedConsequentialUse = parsedValue.usesKayleForConsequentialDecisions;
+  if (
+    storedConsequentialUse === null ||
+    typeof storedConsequentialUse === "boolean"
+  ) {
+    metadata.usesKayleForConsequentialDecisions = storedConsequentialUse;
+  }
+
   return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+export interface OrganizationComplianceProfileStatus {
+  complete: boolean;
+  hasFallbackPath: boolean;
+  hasNonConsequentialUseDeclaration: boolean;
+  missingFields: string[];
+}
+
+export function getOrganizationComplianceProfileStatus(
+  metadata: OrganizationMetadata | null | undefined
+): OrganizationComplianceProfileStatus {
+  const missingFields: string[] = [];
+
+  const requireString = (key: keyof OrganizationMetadata): void => {
+    const value = metadata?.[key];
+    if (!(typeof value === "string" && value.trim().length > 0)) {
+      missingFields.push(key);
+    }
+  };
+
+  requireString("legalControllerName");
+  requireString("controllerJurisdiction");
+  requireString("privacyPolicyUrl");
+  requireString("supportEmail");
+  requireString("article6Basis");
+  requireString("article9Condition");
+
+  const hasFallbackPath = Boolean(metadata?.fallbackIdvUrl);
+  const hasReviewPath = Boolean(metadata?.appealUrl);
+  const hasNonConsequentialUseDeclaration =
+    metadata?.usesKayleForConsequentialDecisions === false;
+  const hasConsequentialUseDeclaration =
+    metadata?.usesKayleForConsequentialDecisions === true;
+
+  if (!(hasNonConsequentialUseDeclaration || hasConsequentialUseDeclaration)) {
+    missingFields.push("usesKayleForConsequentialDecisions");
+  }
+
+  if (hasConsequentialUseDeclaration) {
+    if (!hasFallbackPath) {
+      missingFields.push("fallbackIdvUrl");
+    }
+    if (!hasReviewPath) {
+      missingFields.push("appealUrl");
+    }
+  }
+
+  return {
+    complete: missingFields.length === 0,
+    hasFallbackPath,
+    hasNonConsequentialUseDeclaration,
+    missingFields,
+  };
 }

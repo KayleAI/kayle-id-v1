@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Standalone MRZ scanner view - can be used in App Clips or main app.
-/// Scans and validates Machine Readable Zone (MRZ) from identity documents.
 struct MRZScannerView: UIViewControllerRepresentable {
   let onValidMRZ: (String, MRZResult, String?) -> Void
 

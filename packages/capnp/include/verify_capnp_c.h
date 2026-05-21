@@ -24,17 +24,24 @@ typedef enum verify_server_message_kind {
   VERIFY_SERVER_MESSAGE_NONE = 0,
   VERIFY_SERVER_MESSAGE_ACK = 1,
   VERIFY_SERVER_MESSAGE_ERROR = 2,
-  VERIFY_SERVER_MESSAGE_VERDICT = 3,
+  VERIFY_SERVER_MESSAGE_CHECK_RESULT = 3,
   VERIFY_SERVER_MESSAGE_SHARE_REQUEST = 4,
   VERIFY_SERVER_MESSAGE_SHARE_READY = 5,
   VERIFY_SERVER_MESSAGE_ACTIVE_AUTH_CHALLENGE = 6,
   VERIFY_SERVER_MESSAGE_LIVENESS_CHALLENGE = 7
 } verify_server_message_kind_t;
 
-typedef enum verify_server_verdict_outcome {
-  VERIFY_SERVER_VERDICT_ACCEPTED = 0,
-  VERIFY_SERVER_VERDICT_REJECTED = 1
-} verify_server_verdict_outcome_t;
+typedef enum verify_server_check_outcome {
+  VERIFY_SERVER_CHECK_CONFIRMED = 0,
+  VERIFY_SERVER_CHECK_NOT_CONFIRMED = 1
+} verify_server_check_outcome_t;
+
+typedef enum verify_server_check_kind {
+  VERIFY_SERVER_CHECK_KIND_MRZ = 0,
+  VERIFY_SERVER_CHECK_KIND_NFC = 1,
+  VERIFY_SERVER_CHECK_KIND_LIVENESS = 2,
+  VERIFY_SERVER_CHECK_KIND_NONE = 3
+} verify_server_check_kind_t;
 
 // The builder and reader pointers are opaque pointers from CapnpCLib:
 // - capnp_c_message_builder_get()
@@ -42,7 +49,7 @@ typedef enum verify_server_verdict_outcome {
 
 int verify_build_hello(
   void* message_builder,
-  const char* attempt_id,
+  const char* session_id,
   const char* mobile_write_token,
   const char* device_id,
   const char* app_version,
@@ -94,7 +101,7 @@ int verify_server_message_get_error(
   size_t out_message_size
 );
 
-int verify_server_message_get_verdict(
+int verify_server_message_get_check_result(
   void* message_reader,
   int* out_outcome,
   char* out_reason_code,
@@ -102,7 +109,9 @@ int verify_server_message_get_verdict(
   char* out_reason_message,
   size_t out_reason_message_size,
   int* out_retry_allowed,
-  uint32_t* out_remaining_attempts
+  int* out_failed_check,
+  uint32_t* out_remaining_nfc_retries,
+  uint32_t* out_remaining_liveness_retries
 );
 
 int verify_server_message_get_share_request(

@@ -23,17 +23,15 @@ export function hashSessionCancelToken(token: string): Promise<string> {
 
 export function deriveMobileWriteToken({
 	sessionId,
-	attemptId,
 	issuedAt,
 	seed,
 }: {
 	sessionId: string;
-	attemptId: string;
 	issuedAt: Date;
 	seed: string;
 }): Promise<string> {
 	return createHMAC(
-		`verify_handoff_token_v1|${sessionId}|${attemptId}|${issuedAt.toISOString()}|${seed}`,
+		`verify_handoff_token_v1|${sessionId}|${issuedAt.toISOString()}|${seed}`,
 		{
 			secret: env.AUTH_SECRET,
 		},

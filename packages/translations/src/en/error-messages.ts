@@ -34,11 +34,6 @@ export const ERROR_MESSAGES = {
     description: "This connection is missing credentials. Please try again.",
   },
 
-  ATTEMPT_NOT_FOUND: {
-    title: "Session not found",
-    description: "This session is no longer available. Start again.",
-  },
-
   HANDOFF_TOKEN_INVALID: {
     title: "Invalid QR code",
     description: "This code isn’t valid. Scan a new one from your browser.",
@@ -73,7 +68,8 @@ export const ERROR_MESSAGES = {
 
   MIN_APP_VERSION_REQUIRED: {
     title: "Update required",
-    description: "Update Kayle ID to the latest version to continue verifying.",
+    description:
+      "Update Kayle ID to the latest version to continue this check.",
   },
 
   CANCEL_TOKEN_INVALID: {
@@ -92,7 +88,12 @@ export const ERROR_MESSAGES = {
     description: "The request payload was missing or malformed.",
   },
 
-  ATTEMPT_CONNECTION_ACTIVE: {
+  CONSENT_REQUIRED: {
+    title: "Consent required",
+    description: "Review and accept the required consent steps to continue.",
+  },
+
+  SESSION_CONNECTION_ACTIVE: {
     title: "Already open",
     description:
       "This session is active elsewhere. Continue there or try again later.",
@@ -129,7 +130,7 @@ export const ERROR_MESSAGES = {
   },
 
   LIVENESS_CHALLENGE_UNAVAILABLE: {
-    title: "Verification unavailable",
+    title: "Check unavailable",
     description:
       "We couldn’t start the liveness check on this server. Try again later or contact support.",
   },
@@ -151,25 +152,25 @@ export const ERROR_MESSAGES = {
   },
 
   document_authenticity_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
-      "We couldn’t verify your document. Try again or use a different one.",
+      "Kayle ID could not automatically confirm your document. Try again or use a different one.",
   },
 
   document_active_authentication_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
   document_chip_authentication_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm your document chip. Try again or use a different one.",
   },
 
   document_anti_cloning_attestation_failed: {
-    title: "Document check failed",
+    title: "Document check not confirmed",
     description:
       "We couldn’t confirm this scan came from a trusted device. Try again on the same device or contact support.",
   },
@@ -181,12 +182,13 @@ export const ERROR_MESSAGES = {
   },
 
   selfie_face_mismatch: {
-    title: "Face doesn’t match",
-    description: "Your face doesn’t match your document photo. Try again.",
+    title: "Face match not confirmed",
+    description:
+      "Kayle ID could not automatically confirm that your face matched the document photo. Try again.",
   },
 
   liveness_failed: {
-    title: "Liveness check failed",
+    title: "Liveness check not confirmed",
     description:
       "We couldn’t confirm the camera was on a live person. Try again and follow the head-movement prompts.",
   },

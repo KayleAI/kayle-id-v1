@@ -57,15 +57,15 @@ describe("normalizeOrganizationBusinessJurisdiction", () => {
   });
 
   test("trims and accepts a country name", () => {
-    expect(normalizeOrganizationBusinessJurisdiction(" United Kingdom ")).toBe(
-      "United Kingdom"
+    expect(normalizeOrganizationBusinessJurisdiction(" Earth (Planet) ")).toBe(
+      "Earth (Planet)"
     );
   });
 
   test("rejects control characters", () => {
-    expect(() => normalizeOrganizationBusinessJurisdiction("UK")).toThrow(
-      OrganizationBusinessDetailsError
-    );
+    expect(() =>
+      normalizeOrganizationBusinessJurisdiction("Earth (Planet)")
+    ).toThrow(OrganizationBusinessDetailsError);
   });
 });
 

@@ -4,7 +4,6 @@ import { auth_organizations } from "@kayle-id/database/schema/auth";
 import { verification_sessions } from "@kayle-id/database/schema/core";
 import { eq } from "drizzle-orm";
 import v1 from "@/v1";
-import { UNVERIFIED_ORG_SESSION_LIMIT } from "@/v1/sessions/unverified-org-limit";
 import { setup, type TestData, teardown } from "./setup";
 
 let TEST_DATA: TestData | undefined;
@@ -30,15 +29,11 @@ async function setOrgVerified(
 ): Promise<void> {
 	await db
 		.update(auth_organizations)
-		.set({ verified_at: verifiedAt })
+		.set({ owner_id_checked_at: verifiedAt })
 		.where(eq(auth_organizations.id, organizationId));
 }
 
 async function createIdentitySession(apiKey: string): Promise<Response> {
-	// No body — `share_fields` is optional and defaults to the identity-revealing
-	// set. Don't send `Content-Type: application/json` either: Hono's JSON
-	// validator parses the body when that header is present, and an empty body
-	// trips a 400 before the handler runs.
 	return v1.request("/sessions", {
 		method: "POST",
 		headers: {
@@ -62,9 +57,9 @@ async function createAgeOnlySession(apiKey: string): Promise<Response> {
 	});
 }
 
-describe("/v1/sessions unverified-org rate limit", () => {
+describe("/v1/sessions onboarding-gate vs unverified-org limit", () => {
 	test.serial(
-		"Allows up to the limit, then rejects identity sessions for unverified orgs",
+		"Identity sessions for an unverified org are blocked by the onboarding gate, not the legacy 5/24h limit",
 		async () => {
 			if (!TEST_DATA) {
 				throw new Error("TEST_DATA missing");
@@ -73,47 +68,43 @@ describe("/v1/sessions unverified-org rate limit", () => {
 			await clearSessionsForOrg(TEST_DATA.organizationId);
 			await setOrgVerified(TEST_DATA.organizationId, null);
 
-			for (let i = 0; i < UNVERIFIED_ORG_SESSION_LIMIT; i++) {
-				const ok = await createIdentitySession(TEST_DATA.apiKey);
-				expect(ok.status).toBe(200);
-			}
-
 			const blocked = await createIdentitySession(TEST_DATA.apiKey);
-			expect(blocked.status).toBe(429);
+			expect(blocked.status).toBe(400);
 			const payload = (await blocked.json()) as { error: { code: string } };
-			expect(payload.error.code).toBe("ORG_NOT_VERIFIED_LIMIT_EXCEEDED");
+			expect(payload.error.code).toBe("ONBOARDING_INCOMPLETE");
 		},
 	);
 
 	test.serial(
-		"Age-only sessions are exempt and remain available after limit is hit",
+		"Age-only sessions are also blocked when the owner ID check step is incomplete",
 		async () => {
 			if (!TEST_DATA) {
 				throw new Error("TEST_DATA missing");
 			}
 
-			// The org is still unverified and at the cap from the previous test.
-			const ageOnly = await createAgeOnlySession(TEST_DATA.apiKey);
-			expect(ageOnly.status).toBe(200);
-
-			// Identity sessions still rejected.
-			const blocked = await createIdentitySession(TEST_DATA.apiKey);
-			expect(blocked.status).toBe(429);
+			// Org still unverified from previous test.
+			const blocked = await createAgeOnlySession(TEST_DATA.apiKey);
+			expect(blocked.status).toBe(400);
+			const payload = (await blocked.json()) as { error: { code: string } };
+			expect(payload.error.code).toBe("ONBOARDING_INCOMPLETE");
 		},
 	);
 
-	test.serial("Verified orgs bypass the limit entirely", async () => {
-		if (!TEST_DATA) {
-			throw new Error("TEST_DATA missing");
-		}
+	test.serial(
+		"Fully-onboarded orgs (owner_id_checked_at set) can create sessions normally",
+		async () => {
+			if (!TEST_DATA) {
+				throw new Error("TEST_DATA missing");
+			}
 
-		await setOrgVerified(TEST_DATA.organizationId, new Date());
+			await setOrgVerified(TEST_DATA.organizationId, new Date());
 
-		const ok = await createIdentitySession(TEST_DATA.apiKey);
-		expect(ok.status).toBe(200);
+			const ok = await createIdentitySession(TEST_DATA.apiKey);
+			expect(ok.status).toBe(200);
 
-		// Reset for any following tests.
-		await setOrgVerified(TEST_DATA.organizationId, null);
-		await clearSessionsForOrg(TEST_DATA.organizationId);
-	});
+			// Reset for any following tests.
+			await setOrgVerified(TEST_DATA.organizationId, new Date());
+			await clearSessionsForOrg(TEST_DATA.organizationId);
+		},
+	);
 });

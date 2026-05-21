@@ -1,6 +1,6 @@
 import type {
+	VerifyServerCheckResult,
 	VerifyServerLivenessChallenge,
-	VerifyServerVerdict,
 	VerifyShareRequest,
 } from "@kayle-id/capnp/verify-codec";
 import type { ApiRequestLogger } from "@/logging";
@@ -9,8 +9,8 @@ import type { ActiveVerifySession } from "./session-context";
 import type { VerifyShareManifest } from "./share-manifest";
 
 export type VerifySocketState = {
-	acceptedFaceScore: number | null;
-	attemptId: string | null;
+	confirmedFaceScore: number | null;
+	sessionId: string | null;
 	currentPhase: string | null;
 	helloReceived: boolean;
 	livenessChallengeNonce: Uint8Array | null;
@@ -20,7 +20,7 @@ export type VerifySocketState = {
 };
 
 export type VerifySocketTransport = {
-	closeAfterVerdict: (code: string) => void;
+	closeAfterCheckResult: (code: string) => void;
 	closeSocket: (code: number, reason: string) => void;
 	logDebug: (label: string, details?: Record<string, unknown>) => void;
 	sendAck: (message: string) => void;
@@ -28,8 +28,8 @@ export type VerifySocketTransport = {
 	sendLivenessChallenge: (challenge: VerifyServerLivenessChallenge) => void;
 	sendAuthErrorAndClose: (
 		code:
-			| "ATTEMPT_CONNECTION_ACTIVE"
-			| "ATTEMPT_NOT_FOUND"
+			| "SESSION_CONNECTION_ACTIVE"
+			| "SESSION_NOT_FOUND"
 			| "HANDOFF_DEVICE_MISMATCH"
 			| "HANDOFF_TOKEN_CONSUMED"
 			| "HANDOFF_TOKEN_EXPIRED"
@@ -46,7 +46,7 @@ export type VerifySocketTransport = {
 		sessionId: string;
 	}) => void;
 	sendShareRequest: (shareRequest: VerifyShareRequest) => void;
-	sendVerdict: (verdict: VerifyServerVerdict) => void;
+	sendCheckResult: (checkResult: VerifyServerCheckResult) => void;
 };
 
 export type VerifySocketContext = {
@@ -62,8 +62,8 @@ export type VerifySocketContext = {
 
 export function createVerifySocketState(): VerifySocketState {
 	return {
-		acceptedFaceScore: null,
-		attemptId: null,
+		confirmedFaceScore: null,
+		sessionId: null,
 		currentPhase: null,
 		helloReceived: false,
 		livenessChallengeNonce: null,

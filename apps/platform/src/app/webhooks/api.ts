@@ -32,6 +32,8 @@ export type {
 const WEBHOOKS_PATH = "/api/webhooks";
 const UNEXPECTED_WEBHOOK_RESPONSE = "Unexpected webhook response.";
 
+export const WEBHOOKS_QUERY_KEY = ["webhooks"] as const;
+
 const DEFAULT_PAGE_LIMIT = 20;
 
 export function listWebhookEndpoints({

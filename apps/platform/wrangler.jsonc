@@ -33,6 +33,12 @@
 			"service": "kayle-id-api"
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "ORG_VERIFICATIONS_KV",
+			"id": "3cacbcba5de84a1395b328d04f2e9376"
+		}
+	],
 	"vars": {
 		"NODE_ENV": "development",
 		"KAYLE_ENVIRONMENT": "development"

@@ -49,7 +49,7 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SidebarVerificationWarning } from "./sidebar-verification-warning";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
 
 const NAV_ITEMS = [
 	{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -58,7 +58,7 @@ const NAV_ITEMS = [
 ] as const;
 
 export function AppSidebar() {
-	const { user, activeOrganization, organizations, isPlatformAdmin } =
+	const { user, activeOrganization, organizations, isPlatformAdmin, refresh } =
 		useAuth();
 	const routerState = useRouterState();
 	const queryClient = useQueryClient();
@@ -71,15 +71,12 @@ export function AppSidebar() {
 		organizationId: string,
 		organizationSlug: string,
 	) => {
-		try {
-			await client.organization.setActive({
-				organizationId,
-				organizationSlug,
-			});
-		} finally {
-			queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-			queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-		}
+		await client.organization.setActive({
+			organizationId,
+			organizationSlug,
+		});
+		await refresh();
+		await resetActiveOrganizationQueries(queryClient);
 	};
 
 	const userName = user?.name || user?.email?.split("@")[0] || "User";
@@ -143,7 +140,7 @@ export function AppSidebar() {
 							/>
 							<DropdownMenuContent
 								align="start"
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg"
+								className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg backdrop-blur-xs"
 								side="bottom"
 								sideOffset={6}
 							>
@@ -313,7 +310,6 @@ export function AppSidebar() {
 			</SidebarContent>
 
 			<SidebarFooter>
-				<SidebarVerificationWarning />
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton

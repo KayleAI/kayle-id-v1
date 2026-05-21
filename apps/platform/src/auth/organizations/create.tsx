@@ -4,9 +4,15 @@ import { isOrganizationSlug } from "@kayle-id/auth/organization-slug";
 import { Button } from "@kayle-id/ui/components/button";
 import { Input } from "@kayle-id/ui/components/input";
 import { Logo } from "@kayle-id/ui/components/logo";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
+import {
+	getOrganizationLogoFileError,
+	ORGANIZATION_LOGO_ACCEPT,
+} from "@/app/organizations/logo-policy";
 import { Loading } from "@/components/loading";
 import { requestApiResource } from "@/utils/api-client";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -16,6 +22,7 @@ const DEFAULT_ERROR = "Failed to create organization";
 export function CreateOrganization() {
 	const { refresh } = useAuth();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const nameRef = useRef<HTMLInputElement>(null);
 	const slugRef = useRef<HTMLInputElement>(null);
 	const [name, setName] = useState("");
@@ -50,8 +57,13 @@ export function CreateOrganization() {
 	const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			if (!file.type.startsWith("image/")) {
-				setError("Please select an image file");
+			const logoError = getOrganizationLogoFileError(file);
+			if (logoError) {
+				setError(logoError);
+				setLogoPreview(null);
+				setLogoBase64(null);
+				setLogoContentType(null);
+				e.target.value = "";
 				return;
 			}
 			setLogoContentType(file.type);
@@ -130,6 +142,7 @@ export function CreateOrganization() {
 				organizationSlug: slug,
 			});
 			await refresh();
+			await resetActiveOrganizationQueries(queryClient);
 
 			setCreated(true);
 			setTimeout(() => navigate({ to: "/onboarding" }), 1000);
@@ -178,7 +191,7 @@ export function CreateOrganization() {
 								type="button"
 							>
 								<input
-									accept="image/*"
+									accept={ORGANIZATION_LOGO_ACCEPT}
 									className="hidden"
 									disabled={isLoading}
 									onChange={handleLogoChange}

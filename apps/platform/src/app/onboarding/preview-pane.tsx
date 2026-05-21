@@ -251,7 +251,7 @@ function VerificationStatusCallout({ verified }: { verified: boolean }) {
 				</p>
 				<p className="mt-1 text-pretty text-red-700 text-sm dark:text-red-300">
 					Kayle ID has not independently verified the people running this
-					organization. Only continue if you trust this request.
+					organization.
 				</p>
 			</div>
 		</div>
@@ -298,7 +298,7 @@ function DetailsList({
 			label: labels.jurisdiction,
 			value:
 				businessDraft.businessJurisdiction.trim() ||
-				(isSole ? "Where you operate" : "United Kingdom"),
+				(isSole ? "Where you operate" : "Earth (Planet)"),
 		},
 		{
 			filled: businessDraft.businessRegistrationNumber.trim().length > 0,

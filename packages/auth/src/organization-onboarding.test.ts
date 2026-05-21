@@ -8,7 +8,7 @@ import {
 const COMPLETE_METADATA = {
   article6Basis: "legitimate interests",
   article9Condition: "explicit consent",
-  controllerJurisdiction: "United Kingdom",
+  controllerJurisdiction: "Earth (Planet)",
   description: "Acme is an identity-platform demo organization.",
   legalControllerName: "Acme Ltd",
   privacyPolicyUrl: "https://acme.example/privacy",
@@ -23,7 +23,7 @@ describe("getOrganizationBusinessDetailsStatus", () => {
     const status = getOrganizationBusinessDetailsStatus({
       businessType: "business",
       businessName: "Acme Ltd",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: "12345678",
     });
     expect(status.complete).toBe(true);
@@ -34,7 +34,7 @@ describe("getOrganizationBusinessDetailsStatus", () => {
     const status = getOrganizationBusinessDetailsStatus({
       businessType: null,
       businessName: "  ",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: null,
     });
     expect(status.complete).toBe(false);
@@ -77,7 +77,7 @@ describe("getOrganizationOnboardingStatus", () => {
     const status = getOrganizationOnboardingStatus({
       businessType: "business",
       businessName: "Acme Ltd",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: "12345678",
       logo: "https://cdn.example/logo.png",
       metadata: COMPLETE_METADATA,
@@ -98,7 +98,7 @@ describe("getOrganizationOnboardingStatus", () => {
     const status = getOrganizationOnboardingStatus({
       businessType: "business",
       businessName: "Acme Ltd",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: "12345678",
       logo: "https://cdn.example/logo.png",
       metadata: COMPLETE_METADATA,
@@ -115,7 +115,7 @@ describe("getOrganizationOnboardingStatus", () => {
     const status = getOrganizationOnboardingStatus({
       businessType: "business",
       businessName: "Acme Ltd",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: "12345678",
       logo: "https://cdn.example/logo.png",
       metadata: {
@@ -135,7 +135,7 @@ describe("getOrganizationOnboardingStatus", () => {
     const status = getOrganizationOnboardingStatus({
       businessType: "business",
       businessName: "Acme Ltd",
-      businessJurisdiction: "United Kingdom",
+      businessJurisdiction: "Earth (Planet)",
       businessRegistrationNumber: "12345678",
       logo: "https://cdn.example/logo.png",
       metadata: COMPLETE_METADATA,

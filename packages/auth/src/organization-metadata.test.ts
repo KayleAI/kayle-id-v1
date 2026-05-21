@@ -18,7 +18,7 @@ describe("organization metadata policy", () => {
         article9Condition: "explicit consent",
         appealUrl: "https://acme.example/review",
         complaintsUrl: "https://acme.example/complaints",
-        controllerJurisdiction: "United Kingdom",
+        controllerJurisdiction: "Earth (Planet)",
         description: "Identity checks for Acme",
         fallbackIdvUrl: "https://acme.example/manual-idv",
         legalControllerName: "Acme Ltd",
@@ -33,7 +33,7 @@ describe("organization metadata policy", () => {
       article9Condition: "explicit consent",
       appealUrl: "https://acme.example/review",
       complaintsUrl: "https://acme.example/complaints",
-      controllerJurisdiction: "United Kingdom",
+      controllerJurisdiction: "Earth (Planet)",
       description: "Identity checks for Acme",
       fallbackIdvUrl: "https://acme.example/manual-idv",
       legalControllerName: "Acme Ltd",
@@ -150,7 +150,7 @@ describe("organization metadata policy", () => {
     expect(
       getOrganizationComplianceProfileStatus({
         legalControllerName: "Acme Ltd",
-        controllerJurisdiction: "United Kingdom",
+        controllerJurisdiction: "Earth (Planet)",
         privacyPolicyUrl: "https://acme.example/privacy",
         supportEmail: "help@acme.example",
         article6Basis: "legitimate interests",
@@ -167,7 +167,7 @@ describe("organization metadata policy", () => {
     expect(
       getOrganizationComplianceProfileStatus({
         legalControllerName: "Acme Ltd",
-        controllerJurisdiction: "United Kingdom",
+        controllerJurisdiction: "Earth (Planet)",
         privacyPolicyUrl: "https://acme.example/privacy",
         supportEmail: "help@acme.example",
         article6Basis: "legitimate interests",
@@ -186,7 +186,7 @@ describe("organization metadata policy", () => {
     expect(
       getOrganizationComplianceProfileStatus({
         legalControllerName: "Acme Ltd",
-        controllerJurisdiction: "United Kingdom",
+        controllerJurisdiction: "Earth (Planet)",
         privacyPolicyUrl: "https://acme.example/privacy",
         supportEmail: "help@acme.example",
         article6Basis: "legitimate interests",

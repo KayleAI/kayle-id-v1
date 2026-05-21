@@ -25,7 +25,7 @@ let TEST_DATA: TestData | undefined;
 const COMPLETE_METADATA = {
 	article6Basis: "legitimate interests",
 	article9Condition: "explicit consent",
-	controllerJurisdiction: "United Kingdom",
+	controllerJurisdiction: "Earth (Planet)",
 	description: "Acme test org.",
 	legalControllerName: "Acme Ltd",
 	privacyPolicyUrl: "https://acme.example/privacy",
@@ -64,7 +64,7 @@ async function setBusinessAndLogo({
 				? {
 						business_type: "business",
 						business_name: "Acme Ltd",
-						business_jurisdiction: "United Kingdom",
+						business_jurisdiction: "Earth (Planet)",
 						business_registration_number: "12345678",
 						logo: "https://acme.example/logo.png",
 					}

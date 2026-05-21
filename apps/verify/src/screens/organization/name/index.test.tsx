@@ -157,7 +157,7 @@ describe("OrganizationName", () => {
 			<OrganizationName
 				organization={createOrganization({
 					businessName: "Acme Corporation Ltd",
-					businessJurisdiction: "United Kingdom",
+					businessJurisdiction: "Earth (Planet)",
 					businessRegistrationNumber: "12345678",
 				})}
 			/>,
@@ -166,7 +166,7 @@ describe("OrganizationName", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Acme Corp" }));
 
 		expect(screen.getByText("Acme Corporation Ltd")).not.toBeNull();
-		expect(screen.getByText("United Kingdom")).not.toBeNull();
+		expect(screen.getByText("Earth (Planet)")).not.toBeNull();
 		expect(screen.getByText("12345678")).not.toBeNull();
 	});
 
@@ -333,7 +333,7 @@ describe("OrganizationName", () => {
 				organization={createOrganization({
 					verifiedApexDomains: [],
 					businessName: "Acme Corporation Ltd",
-					businessJurisdiction: "United Kingdom",
+					businessJurisdiction: "Earth (Planet)",
 					businessRegistrationNumber: "12345678",
 				})}
 			/>,
@@ -343,7 +343,7 @@ describe("OrganizationName", () => {
 
 		expect(screen.queryByText("Legal name")).toBeNull();
 		expect(screen.queryByText("Acme Corporation Ltd")).toBeNull();
-		expect(screen.queryByText("United Kingdom")).toBeNull();
+		expect(screen.queryByText("Earth (Planet)")).toBeNull();
 		expect(screen.queryByText("12345678")).toBeNull();
 	});
 

@@ -49,5 +49,29 @@ export function friendlyPasskeyError(
 		return err.message || fallback;
 	}
 
+	if (typeof err === "object" && err !== null) {
+		const passkeyError = err as {
+			code?: unknown;
+			message?: unknown;
+			name?: unknown;
+		};
+		const code = typeof passkeyError.code === "string" ? passkeyError.code : "";
+		const name = typeof passkeyError.name === "string" ? passkeyError.name : "";
+		const message =
+			typeof passkeyError.message === "string" ? passkeyError.message : "";
+
+		if (code === "AUTH_CANCELLED" || code === "ERROR_CEREMONY_ABORTED") {
+			return map.AbortError ?? fallback;
+		}
+
+		for (const key of Object.keys(map)) {
+			if (code === key || name === key || message.includes(key)) {
+				return map[key] ?? fallback;
+			}
+		}
+
+		return message || fallback;
+	}
+
 	return fallback;
 }

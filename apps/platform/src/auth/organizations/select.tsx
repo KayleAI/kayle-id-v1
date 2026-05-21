@@ -3,13 +3,16 @@ import { useAuth } from "@kayle-id/auth/client/provider";
 import type { Organization } from "@kayle-id/auth/types";
 import { Button } from "@kayle-id/ui/components/button";
 import { Logo } from "@kayle-id/ui/components/logo";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { resetActiveOrganizationQueries } from "@/app/organizations/active-organization-cache";
 import { getErrorMessage } from "@/utils/get-error-message";
 
 export function SelectOrganizations() {
 	const { organizations, refresh } = useAuth();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [isLoading, setIsLoading] = useState<string | null>(null);
 	const [error, setError] = useState("");
 
@@ -26,6 +29,7 @@ export function SelectOrganizations() {
 				organizationSlug: slug,
 			});
 			await refresh();
+			await resetActiveOrganizationQueries(queryClient);
 			navigate({ to: "/dashboard" });
 		} catch (err) {
 			setError(

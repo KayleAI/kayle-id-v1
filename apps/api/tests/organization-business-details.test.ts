@@ -65,7 +65,7 @@ describe("Organization business details API", () => {
 		const response = await app.request("/v1/auth/orgs/business-details", {
 			body: JSON.stringify({
 				business_name: "Acme Corporation Ltd",
-				business_jurisdiction: "United Kingdom",
+				business_jurisdiction: "Earth (Planet)",
 				business_registration_number: "12345678",
 			}),
 			headers: jsonHeaders(session.sessionCookie),
@@ -83,7 +83,7 @@ describe("Organization business details API", () => {
 		};
 		expect(payload.data).toEqual({
 			businessName: "Acme Corporation Ltd",
-			businessJurisdiction: "United Kingdom",
+			businessJurisdiction: "Earth (Planet)",
 			businessRegistrationNumber: "12345678",
 			businessType: null,
 		});
@@ -100,7 +100,7 @@ describe("Organization business details API", () => {
 			.limit(1);
 		expect(row).toEqual({
 			businessName: "Acme Corporation Ltd",
-			businessJurisdiction: "United Kingdom",
+			businessJurisdiction: "Earth (Planet)",
 			businessRegistrationNumber: "12345678",
 		});
 	});
@@ -111,7 +111,7 @@ describe("Organization business details API", () => {
 			.update(auth_organizations)
 			.set({
 				business_name: "Pre-existing",
-				business_jurisdiction: "United Kingdom",
+				business_jurisdiction: "Earth (Planet)",
 				business_registration_number: "12345678",
 			})
 			.where(eq(auth_organizations.id, session.organizationId));

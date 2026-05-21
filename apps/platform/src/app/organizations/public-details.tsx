@@ -19,6 +19,10 @@ import {
 } from "./api";
 import { FormSection } from "./form-section";
 import { OrganizationPageLayout } from "./layout";
+import {
+	getOrganizationLogoFileError,
+	ORGANIZATION_LOGO_ACCEPT,
+} from "./logo-policy";
 import { UnverifiedDomainNotice } from "./unverified-domain-notice";
 import {
 	useCurrentMemberRole,
@@ -30,8 +34,6 @@ import {
 	parsePublicTermsOfServiceUrl,
 	parsePublicWebsiteUrl,
 } from "./website-url";
-
-const MAX_LOGO_BYTES = 1024 * 1024;
 
 function PublicDetailsSkeleton() {
 	return (
@@ -215,12 +217,14 @@ export function PublicDetailsForm({
 		if (!file) {
 			return;
 		}
-		if (!file.type.startsWith("image/")) {
-			setErrorMessage("Please select an image file.");
-			return;
-		}
-		if (file.size > MAX_LOGO_BYTES) {
-			setErrorMessage("Logo must be 1 MB or smaller.");
+		const logoError = getOrganizationLogoFileError(file);
+		if (logoError) {
+			setErrorMessage(logoError);
+			if (pendingLogo instanceof File) {
+				setLogoPreview(organization.logo ?? null);
+				setPendingLogo(undefined);
+			}
+			event.target.value = "";
 			return;
 		}
 		try {
@@ -333,7 +337,7 @@ export function PublicDetailsForm({
 							type="button"
 						>
 							<input
-								accept="image/*"
+								accept={ORGANIZATION_LOGO_ACCEPT}
 								className="hidden"
 								disabled={!canEdit || isSaving}
 								onChange={handleSelectFile}

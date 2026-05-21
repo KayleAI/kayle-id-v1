@@ -401,7 +401,7 @@ export function ComplianceForm({
 							onChange={(event) =>
 								setControllerJurisdiction(event.target.value)
 							}
-							placeholder="United Kingdom"
+							placeholder="Earth (Planet)"
 							value={controllerJurisdiction}
 						/>
 					</div>
@@ -427,7 +427,7 @@ export function ComplianceForm({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="compliance-complaints-url">
-							Complaints URL or contact page
+							Link for Complaints/Contact
 						</Label>
 						<Input
 							autoComplete="url"
@@ -540,7 +540,7 @@ export function ComplianceForm({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="compliance-appeal-url">
-							Appeal or human review URL
+							Appeal decision URL
 							{consequentialRequired ? <RequiredMark /> : null}
 						</Label>
 						<Input

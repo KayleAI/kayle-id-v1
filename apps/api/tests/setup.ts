@@ -23,7 +23,7 @@ import { createApiKey } from "@/functions/auth/create-api-key";
 export const DEFAULT_TEST_ORG_METADATA = {
 	article6Basis: "legitimate interests",
 	article9Condition: "explicit consent",
-	controllerJurisdiction: "United Kingdom",
+	controllerJurisdiction: "Earth (Planet)",
 	description: "Test organization fixture.",
 	legalControllerName: "Test Organization",
 	privacyPolicyUrl: "https://test.example/privacy",
@@ -37,7 +37,7 @@ export const DEFAULT_TEST_ORG_LOGO = "https://test.example/logo.png";
 export const DEFAULT_TEST_ORG_BUSINESS = {
 	business_type: "business" as const,
 	business_name: "Test Organization Ltd",
-	business_jurisdiction: "United Kingdom",
+	business_jurisdiction: "Earth (Planet)",
 	business_registration_number: "12345678",
 };
 

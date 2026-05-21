@@ -292,7 +292,7 @@ export function BusinessDetailsForm({
 						maxLength={120}
 						name="businessJurisdiction"
 						onChange={(event) => setBusinessJurisdiction(event.target.value)}
-						placeholder="United Kingdom"
+						placeholder="Earth (Planet)"
 						value={businessJurisdiction}
 					/>
 					<p className="text-muted-foreground text-xs">

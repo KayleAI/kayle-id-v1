@@ -65,7 +65,7 @@ export function VerifyTwoFactor() {
 
 	return (
 		<div className="flex flex-col items-center justify-center">
-			<form className="w-md space-y-8" onSubmit={handleSubmit}>
+			<form className="w-full max-w-md space-y-8" onSubmit={handleSubmit}>
 				<div>
 					<div className="mb-8">
 						<Logo className="" title="Kayle ID" />
@@ -131,9 +131,11 @@ export function VerifyTwoFactor() {
 							<span className="text-sm">Backup code</span>
 						</legend>
 						<input
+							aria-label="Backup code"
 							autoComplete="one-time-code"
 							className="w-full rounded-md border border-border bg-background px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-foreground"
 							disabled={isLoading}
+							name="backup-code"
 							onChange={(event) => setBackupCode(event.target.value)}
 							placeholder="xxxx-xxxx"
 							value={backupCode}

@@ -11,7 +11,10 @@ import { useState } from "react";
 import { UnverifiedOrgBanner } from "@/app/organizations/unverified-org-banner";
 import { AppHeading } from "@/components/app-shell/heading";
 import { QueryErrorAlert } from "@/components/query-error-alert";
-import { getSessionAnalyticsOverview } from "./api";
+import {
+	getSessionAnalyticsOverview,
+	SESSION_ANALYTICS_OVERVIEW_QUERY_KEY,
+} from "./api";
 import { clampIndex, getPeriodSummary } from "./chart-utils";
 import { BREAKDOWN_METRICS } from "./constants";
 import { MetricTrendCard } from "./metric-trend-card";
@@ -22,7 +25,7 @@ import type { BreakdownMetricKey } from "./types";
 export function Dashboard() {
 	const analyticsQuery = useQuery({
 		queryFn: getSessionAnalyticsOverview,
-		queryKey: ["dashboard", "session-analytics"],
+		queryKey: SESSION_ANALYTICS_OVERVIEW_QUERY_KEY,
 		staleTime: 60_000,
 	});
 	const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -81,8 +84,8 @@ export function Dashboard() {
 					<EmptyHeader>
 						<EmptyTitle>No analytics yet</EmptyTitle>
 						<EmptyDescription>
-							Session analytics will appear here once your organization starts
-							creating Kayle check sessions.
+							Analytics will appear here once your organization starts creating
+							verification sessions.
 						</EmptyDescription>
 					</EmptyHeader>
 				</Empty>

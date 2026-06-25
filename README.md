@@ -1,6 +1,11 @@
-# Kayle ID
+# Kayle ID (v1)
 
 Privacy-first identity verification.
+
+> [!NOTE]
+> Version 1 of Kayle ID has been archived.
+>
+> Kayle ID is now being rebuilt as part of the Kayle Developer Platform. The latest version can be found [here](https://github.con/KayleAI/kayle-id).
 
 ## Getting Started
 
